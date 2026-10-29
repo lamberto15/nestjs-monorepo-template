@@ -1,0 +1,706 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "84c83e9d-02e3-4f69-9fda-a51b7e523f2d",
+  "prevIds": [
+    "6e8b7c15-45cb-4be8-8093-f15c5dc3cca1"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|tbl|public.org_unit_tree",
+        "n|tbl|public.org_unit_tree",
+        "e|tbl|public.org_unit_tree",
+        "n|rel|public.org_unit_tree",
+        "n|type|public.org_unit_tree",
+        "n|rel|public.org_unit_tree_ancestor_id_descendant_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|tbl|public.org_units",
+        "n|tbl|public.org_units",
+        "e|tbl|public.org_units",
+        "n|rel|public.org_units",
+        "n|type|public.org_units",
+        "n|rel|public.org_units_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|tbl|public.user_org_units",
+        "n|tbl|public.user_org_units",
+        "e|tbl|public.user_org_units",
+        "n|rel|public.user_org_units",
+        "n|type|public.user_org_units",
+        "n|rel|public.user_org_units_user_id_org_unit_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "notes",
+        "org_unit_id"
+      ],
+      "writes": [
+        "s|col|public.notes.org_unit_id",
+        "n|col|public.notes.org_unit_id",
+        "e|col|public.notes.org_unit_id"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "org_unit_tree",
+        "org_unit_tree_descendant_idx"
+      ],
+      "writes": [
+        "s|idx|public.org_unit_tree_descendant_idx",
+        "n|idx|public.org_unit_tree_descendant_idx",
+        "e|idx|public.org_unit_tree_descendant_idx",
+        "n|rel|public.org_unit_tree_descendant_idx"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public",
+        "n|col|public.org_unit_tree.descendant_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "org_units",
+        "org_units_parent_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.org_units_parent_id_idx",
+        "n|idx|public.org_units_parent_id_idx",
+        "e|idx|public.org_units_parent_id_idx",
+        "n|rel|public.org_units_parent_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.org_units.parent_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "user_org_units",
+        "user_org_units_org_unit_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.user_org_units_org_unit_id_idx",
+        "n|idx|public.user_org_units_org_unit_id_idx",
+        "e|idx|public.user_org_units_org_unit_id_idx",
+        "n|rel|public.user_org_units_org_unit_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public",
+        "n|col|public.user_org_units.org_unit_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|fk|public.org_unit_tree.org_unit_tree_ancestor_id_org_units_id_fk",
+        "n|fk|public.org_unit_tree.org_unit_tree_ancestor_id_org_units_id_fk",
+        "e|fk|public.org_unit_tree.org_unit_tree_ancestor_id_org_units_id_fk",
+        "n|con|public.org_unit_tree.org_unit_tree_ancestor_id_org_units_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.org_unit_tree.ancestor_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|fk|public.org_unit_tree.org_unit_tree_descendant_id_org_units_id_fk",
+        "n|fk|public.org_unit_tree.org_unit_tree_descendant_id_org_units_id_fk",
+        "e|fk|public.org_unit_tree.org_unit_tree_descendant_id_org_units_id_fk",
+        "n|con|public.org_unit_tree.org_unit_tree_descendant_id_org_units_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.org_unit_tree.descendant_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|fk|public.org_units.org_units_parent_id_org_units_id_fk",
+        "n|fk|public.org_units.org_units_parent_id_org_units_id_fk",
+        "e|fk|public.org_units.org_units_parent_id_org_units_id_fk",
+        "n|con|public.org_units.org_units_parent_id_org_units_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.org_units.parent_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|fk|public.user_org_units.user_org_units_user_id_users_id_fk",
+        "n|fk|public.user_org_units.user_org_units_user_id_users_id_fk",
+        "e|fk|public.user_org_units.user_org_units_user_id_users_id_fk",
+        "n|con|public.user_org_units.user_org_units_user_id_users_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public",
+        "n|tbl|public.users",
+        "n|sch|public",
+        "n|col|public.user_org_units.user_id",
+        "n|col|public.users.id",
+        "e|uniqueness|public.users.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|fk|public.user_org_units.user_org_units_org_unit_id_org_units_id_fk",
+        "n|fk|public.user_org_units.user_org_units_org_unit_id_org_units_id_fk",
+        "e|fk|public.user_org_units.user_org_units_org_unit_id_org_units_id_fk",
+        "n|con|public.user_org_units.user_org_units_org_unit_id_org_units_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.user_org_units.org_unit_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notes"
+      ],
+      "writes": [
+        "s|fk|public.notes.notes_org_unit_id_org_units_id_fk",
+        "n|fk|public.notes.notes_org_unit_id_org_units_id_fk",
+        "e|fk|public.notes.notes_org_unit_id_org_units_id_fk",
+        "n|con|public.notes.notes_org_unit_id_org_units_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.notes.org_unit_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "org_unit_tree",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "org_units",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "user_org_units",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "ancestor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "descendant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "depth",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "parent_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_org_units",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_org_units",
+        "name": "org_unit_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "org_unit_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "org_unit_tree_descendant_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "descendant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "org_units_parent_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "parent_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_org_units",
+        "name": "user_org_units_org_unit_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "org_unit_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "org_unit_tree_ancestor_id_org_units_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "ancestor_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "org_unit_tree_descendant_id_org_units_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "descendant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "org_units_parent_id_org_units_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "parent_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_org_units",
+        "name": "user_org_units_user_id_users_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "users",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_org_units",
+        "name": "user_org_units_org_unit_id_org_units_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "org_unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_org_unit_id_org_units_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "org_unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "SET NULL",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "org_unit_tree_ancestor_id_descendant_id_pk",
+        "columns": [
+          "ancestor_id",
+          "descendant_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "org_units_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_org_units",
+        "name": "user_org_units_user_id_org_unit_id_pk",
+        "columns": [
+          "user_id",
+          "org_unit_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

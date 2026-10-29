@@ -1,0 +1,1876 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "32dec774-9e4d-40ef-9081-c3a60d7f1dcb",
+  "prevIds": [
+    "9368e0cd-92e1-46a1-be8f-04c56bc85888"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domain_routes"
+      ],
+      "writes": [
+        "s|tbl|public.sso_domain_routes",
+        "n|tbl|public.sso_domain_routes",
+        "e|tbl|public.sso_domain_routes",
+        "n|rel|public.sso_domain_routes",
+        "n|type|public.sso_domain_routes",
+        "n|rel|public.sso_domain_routes_domain_tenant_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_exemptions"
+      ],
+      "writes": [
+        "s|tbl|public.sso_exemptions",
+        "n|tbl|public.sso_exemptions",
+        "e|tbl|public.sso_exemptions",
+        "n|rel|public.sso_exemptions",
+        "n|type|public.sso_exemptions",
+        "n|rel|public.sso_exemptions_tenant_id_user_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_policies"
+      ],
+      "writes": [
+        "s|tbl|public.sso_policies",
+        "n|tbl|public.sso_policies",
+        "e|tbl|public.sso_policies",
+        "n|rel|public.sso_policies",
+        "n|type|public.sso_policies",
+        "n|rel|public.sso_policies_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|tbl|public.sso_role_grants",
+        "n|tbl|public.sso_role_grants",
+        "e|tbl|public.sso_role_grants",
+        "n|rel|public.sso_role_grants",
+        "n|type|public.sso_role_grants",
+        "n|rel|public.sso_role_grants_user_id_role_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|tbl|public.sso_role_mappings",
+        "n|tbl|public.sso_role_mappings",
+        "e|tbl|public.sso_role_mappings",
+        "n|rel|public.sso_role_mappings",
+        "n|type|public.sso_role_mappings",
+        "n|rel|public.sso_role_mappings_pkey",
+        "n|rel|public.sso_role_mappings_connection_group_role_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "require_encrypted_assertions"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.require_encrypted_assertions",
+        "n|col|public.sso_connections.require_encrypted_assertions",
+        "e|col|public.sso_connections.require_encrypted_assertions"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "sp_private_key"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.sp_private_key",
+        "n|col|public.sso_connections.sp_private_key",
+        "e|col|public.sso_connections.sp_private_key"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "sp_certificate"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.sp_certificate",
+        "n|col|public.sso_connections.sp_certificate",
+        "e|col|public.sso_connections.sp_certificate"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "groups_attribute"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.groups_attribute",
+        "n|col|public.sso_connections.groups_attribute",
+        "e|col|public.sso_connections.groups_attribute"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_domain_routes",
+        "sso_domain_routes_tenant_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_domain_routes_tenant_id_idx",
+        "n|idx|public.sso_domain_routes_tenant_id_idx",
+        "e|idx|public.sso_domain_routes_tenant_id_idx",
+        "n|rel|public.sso_domain_routes_tenant_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domain_routes",
+        "n|sch|public",
+        "n|col|public.sso_domain_routes.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_role_grants",
+        "sso_role_grants_connection_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_role_grants_connection_idx",
+        "n|idx|public.sso_role_grants_connection_idx",
+        "e|idx|public.sso_role_grants_connection_idx",
+        "n|rel|public.sso_role_grants_connection_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "n|col|public.sso_role_grants.connection_id",
+        "n|col|public.sso_role_grants.user_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_role_mappings",
+        "sso_role_mappings_role_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_role_mappings_role_id_idx",
+        "n|idx|public.sso_role_mappings_role_id_idx",
+        "e|idx|public.sso_role_mappings_role_id_idx",
+        "n|rel|public.sso_role_mappings_role_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "n|col|public.sso_role_mappings.role_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domain_routes"
+      ],
+      "writes": [
+        "s|fk|public.sso_domain_routes.sso_domain_routes_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_domain_routes.sso_domain_routes_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_domain_routes.sso_domain_routes_tenant_id_tenants_id_fk",
+        "n|con|public.sso_domain_routes.sso_domain_routes_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domain_routes",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_domain_routes.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_exemptions"
+      ],
+      "writes": [
+        "s|fk|public.sso_exemptions.sso_exemptions_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_exemptions.sso_exemptions_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_exemptions.sso_exemptions_tenant_id_tenants_id_fk",
+        "n|con|public.sso_exemptions.sso_exemptions_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_exemptions",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_exemptions.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_exemptions"
+      ],
+      "writes": [
+        "s|fk|public.sso_exemptions.sso_exemptions_membership_fk",
+        "n|fk|public.sso_exemptions.sso_exemptions_membership_fk",
+        "e|fk|public.sso_exemptions.sso_exemptions_membership_fk",
+        "n|con|public.sso_exemptions.sso_exemptions_membership_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_exemptions",
+        "n|sch|public",
+        "n|tbl|public.memberships",
+        "n|sch|public",
+        "n|col|public.sso_exemptions.tenant_id",
+        "n|col|public.sso_exemptions.user_id",
+        "n|col|public.memberships.tenant_id",
+        "n|col|public.memberships.user_id",
+        "e|uniqueness|public.memberships.tenant_id.user_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_policies"
+      ],
+      "writes": [
+        "s|fk|public.sso_policies.sso_policies_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_policies.sso_policies_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_policies.sso_policies_tenant_id_tenants_id_fk",
+        "n|con|public.sso_policies.sso_policies_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_policies",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_policies.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|fk|public.sso_role_grants.sso_role_grants_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_role_grants.sso_role_grants_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_role_grants.sso_role_grants_tenant_id_tenants_id_fk",
+        "n|con|public.sso_role_grants.sso_role_grants_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_role_grants.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|fk|public.sso_role_grants.sso_role_grants_user_role_fk",
+        "n|fk|public.sso_role_grants.sso_role_grants_user_role_fk",
+        "e|fk|public.sso_role_grants.sso_role_grants_user_role_fk",
+        "n|con|public.sso_role_grants.sso_role_grants_user_role_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "n|tbl|public.user_roles",
+        "n|sch|public",
+        "n|col|public.sso_role_grants.user_id",
+        "n|col|public.sso_role_grants.role_id",
+        "n|col|public.user_roles.user_id",
+        "n|col|public.user_roles.role_id",
+        "e|uniqueness|public.user_roles.role_id.user_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|fk|public.sso_role_grants.sso_role_grants_connection_fk",
+        "n|fk|public.sso_role_grants.sso_role_grants_connection_fk",
+        "e|fk|public.sso_role_grants.sso_role_grants_connection_fk",
+        "n|con|public.sso_role_grants.sso_role_grants_connection_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "n|col|public.sso_role_grants.tenant_id",
+        "n|col|public.sso_role_grants.connection_id",
+        "n|col|public.sso_connections.tenant_id",
+        "n|col|public.sso_connections.id",
+        "e|uniqueness|public.sso_connections.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|fk|public.sso_role_mappings.sso_role_mappings_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_role_mappings.sso_role_mappings_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_role_mappings.sso_role_mappings_tenant_id_tenants_id_fk",
+        "n|con|public.sso_role_mappings.sso_role_mappings_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_role_mappings.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|fk|public.sso_role_mappings.sso_role_mappings_connection_fk",
+        "n|fk|public.sso_role_mappings.sso_role_mappings_connection_fk",
+        "e|fk|public.sso_role_mappings.sso_role_mappings_connection_fk",
+        "n|con|public.sso_role_mappings.sso_role_mappings_connection_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "n|col|public.sso_role_mappings.tenant_id",
+        "n|col|public.sso_role_mappings.connection_id",
+        "n|col|public.sso_connections.tenant_id",
+        "n|col|public.sso_connections.id",
+        "e|uniqueness|public.sso_connections.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|fk|public.sso_role_mappings.sso_role_mappings_role_fk",
+        "n|fk|public.sso_role_mappings.sso_role_mappings_role_fk",
+        "e|fk|public.sso_role_mappings.sso_role_mappings_role_fk",
+        "n|con|public.sso_role_mappings.sso_role_mappings_role_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "n|tbl|public.roles",
+        "n|sch|public",
+        "n|col|public.sso_role_mappings.tenant_id",
+        "n|col|public.sso_role_mappings.role_id",
+        "n|col|public.roles.tenant_id",
+        "n|col|public.roles.id",
+        "e|uniqueness|public.roles.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_exemptions"
+      ],
+      "writes": [
+        "s|pol|public.sso_exemptions.sso_exemptions_tenant_select",
+        "n|pol|public.sso_exemptions.sso_exemptions_tenant_select",
+        "e|pol|public.sso_exemptions.sso_exemptions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_exemptions",
+        "n|sch|public",
+        "e|rls|public.sso_exemptions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_exemptions"
+      ],
+      "writes": [
+        "s|pol|public.sso_exemptions.sso_exemptions_tenant_insert",
+        "n|pol|public.sso_exemptions.sso_exemptions_tenant_insert",
+        "e|pol|public.sso_exemptions.sso_exemptions_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_exemptions",
+        "n|sch|public",
+        "e|rls|public.sso_exemptions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_exemptions"
+      ],
+      "writes": [
+        "s|pol|public.sso_exemptions.sso_exemptions_tenant_update",
+        "n|pol|public.sso_exemptions.sso_exemptions_tenant_update",
+        "e|pol|public.sso_exemptions.sso_exemptions_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_exemptions",
+        "n|sch|public",
+        "e|rls|public.sso_exemptions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_exemptions"
+      ],
+      "writes": [
+        "s|pol|public.sso_exemptions.sso_exemptions_tenant_delete",
+        "n|pol|public.sso_exemptions.sso_exemptions_tenant_delete",
+        "e|pol|public.sso_exemptions.sso_exemptions_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_exemptions",
+        "n|sch|public",
+        "e|rls|public.sso_exemptions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_policies"
+      ],
+      "writes": [
+        "s|pol|public.sso_policies.sso_policies_tenant_select",
+        "n|pol|public.sso_policies.sso_policies_tenant_select",
+        "e|pol|public.sso_policies.sso_policies_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_policies",
+        "n|sch|public",
+        "e|rls|public.sso_policies"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_policies"
+      ],
+      "writes": [
+        "s|pol|public.sso_policies.sso_policies_tenant_insert",
+        "n|pol|public.sso_policies.sso_policies_tenant_insert",
+        "e|pol|public.sso_policies.sso_policies_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_policies",
+        "n|sch|public",
+        "e|rls|public.sso_policies"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_policies"
+      ],
+      "writes": [
+        "s|pol|public.sso_policies.sso_policies_tenant_update",
+        "n|pol|public.sso_policies.sso_policies_tenant_update",
+        "e|pol|public.sso_policies.sso_policies_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_policies",
+        "n|sch|public",
+        "e|rls|public.sso_policies"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_policies"
+      ],
+      "writes": [
+        "s|pol|public.sso_policies.sso_policies_tenant_delete",
+        "n|pol|public.sso_policies.sso_policies_tenant_delete",
+        "e|pol|public.sso_policies.sso_policies_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_policies",
+        "n|sch|public",
+        "e|rls|public.sso_policies"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_grants.sso_role_grants_tenant_select",
+        "n|pol|public.sso_role_grants.sso_role_grants_tenant_select",
+        "e|pol|public.sso_role_grants.sso_role_grants_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "e|rls|public.sso_role_grants"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_grants.sso_role_grants_tenant_insert",
+        "n|pol|public.sso_role_grants.sso_role_grants_tenant_insert",
+        "e|pol|public.sso_role_grants.sso_role_grants_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "e|rls|public.sso_role_grants"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_grants.sso_role_grants_tenant_update",
+        "n|pol|public.sso_role_grants.sso_role_grants_tenant_update",
+        "e|pol|public.sso_role_grants.sso_role_grants_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "e|rls|public.sso_role_grants"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_grants"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_grants.sso_role_grants_tenant_delete",
+        "n|pol|public.sso_role_grants.sso_role_grants_tenant_delete",
+        "e|pol|public.sso_role_grants.sso_role_grants_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_grants",
+        "n|sch|public",
+        "e|rls|public.sso_role_grants"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_mappings.sso_role_mappings_tenant_select",
+        "n|pol|public.sso_role_mappings.sso_role_mappings_tenant_select",
+        "e|pol|public.sso_role_mappings.sso_role_mappings_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "e|rls|public.sso_role_mappings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_mappings.sso_role_mappings_tenant_insert",
+        "n|pol|public.sso_role_mappings.sso_role_mappings_tenant_insert",
+        "e|pol|public.sso_role_mappings.sso_role_mappings_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "e|rls|public.sso_role_mappings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_mappings.sso_role_mappings_tenant_update",
+        "n|pol|public.sso_role_mappings.sso_role_mappings_tenant_update",
+        "e|pol|public.sso_role_mappings.sso_role_mappings_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "e|rls|public.sso_role_mappings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_role_mappings"
+      ],
+      "writes": [
+        "s|pol|public.sso_role_mappings.sso_role_mappings_tenant_delete",
+        "n|pol|public.sso_role_mappings.sso_role_mappings_tenant_delete",
+        "e|pol|public.sso_role_mappings.sso_role_mappings_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_role_mappings",
+        "n|sch|public",
+        "e|rls|public.sso_role_mappings"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_domain_routes",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_exemptions",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_policies",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_role_grants",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_role_mappings",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "require_encrypted_assertions",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sp_private_key",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sp_certificate",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "groups_attribute",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domain_routes",
+        "name": "domain",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domain_routes",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domain_routes",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "reason",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "created_by",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "require_sso",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "role_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "connection_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "connection_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "group",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "role_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domain_routes",
+        "name": "sso_domain_routes_tenant_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_connection_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "connection_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_role_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "role_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domain_routes",
+        "name": "sso_domain_routes_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "sso_exemptions_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "sso_exemptions_membership_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "memberships",
+        "columnsTo": [
+          "tenant_id",
+          "user_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "sso_policies_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_user_role_fk",
+        "nameExplicit": true,
+        "columns": [
+          "user_id",
+          "role_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "user_roles",
+        "columnsTo": [
+          "user_id",
+          "role_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_connection_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "connection_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "sso_connections",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_connection_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "connection_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "sso_connections",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_role_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "role_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "roles",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domain_routes",
+        "name": "sso_domain_routes_domain_tenant_id_pk",
+        "columns": [
+          "domain",
+          "tenant_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "sso_exemptions_tenant_id_user_id_pk",
+        "columns": [
+          "tenant_id",
+          "user_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "sso_policies_pkey",
+        "columns": [
+          "tenant_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_user_id_role_id_pk",
+        "columns": [
+          "user_id",
+          "role_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_connection_group_role_key",
+        "nameExplicit": true,
+        "columns": [
+          "connection_id",
+          "group",
+          "role_id"
+        ],
+        "nullsNotDistinct": true,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "sso_exemptions_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_exemptions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_exemptions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "sso_exemptions_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "sso_exemptions_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_exemptions",
+        "name": "sso_exemptions_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_exemptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "sso_policies_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_policies\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "sso_policies_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "sso_policies_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_policies",
+        "name": "sso_policies_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_role_grants\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_role_grants\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_grants",
+        "name": "sso_role_grants_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_role_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_role_mappings\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_role_mappings\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_role_mappings",
+        "name": "sso_role_mappings_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_role_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

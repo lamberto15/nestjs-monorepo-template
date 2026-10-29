@@ -1,0 +1,125 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "640c3453-ef24-4366-af89-909e058ca970",
+  "prevIds": [
+    "3e271b9d-350b-4b6a-89f0-af8ba571b505"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "attachments",
+        "rendition_status"
+      ],
+      "writes": [
+        "s|col|public.attachments.rendition_status",
+        "n|col|public.attachments.rendition_status",
+        "e|col|public.attachments.rendition_status"
+      ],
+      "reads": [
+        "n|tbl|public.attachments",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "attachments",
+        "renditions"
+      ],
+      "writes": [
+        "s|col|public.attachments.renditions",
+        "n|col|public.attachments.renditions",
+        "e|col|public.attachments.renditions"
+      ],
+      "reads": [
+        "n|tbl|public.attachments",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "attachments",
+        "attachments_rendition_pending_idx"
+      ],
+      "writes": [
+        "s|idx|public.attachments_rendition_pending_idx",
+        "n|idx|public.attachments_rendition_pending_idx",
+        "e|idx|public.attachments_rendition_pending_idx",
+        "n|rel|public.attachments_rendition_pending_idx"
+      ],
+      "reads": [
+        "n|tbl|public.attachments",
+        "n|sch|public",
+        "n|col|public.attachments.updated_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachments",
+        "name": "rendition_status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachments",
+        "name": "renditions",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachments",
+        "name": "attachments_rendition_pending_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "updated_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"attachments\".\"rendition_status\" = 'pending'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

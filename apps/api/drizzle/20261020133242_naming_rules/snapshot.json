@@ -1,0 +1,115 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "dfa5172f-a926-470c-862f-e7e87ea89b49",
+  "prevIds": [
+    "a4b1b30a-be7b-420e-9650-dc7ca995df81"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "naming_series",
+        "date_field"
+      ],
+      "writes": [
+        "s|col|public.naming_series.date_field",
+        "n|col|public.naming_series.date_field",
+        "e|col|public.naming_series.date_field"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "naming_series",
+        "conditions"
+      ],
+      "writes": [
+        "s|col|public.naming_series.conditions",
+        "n|col|public.naming_series.conditions",
+        "e|col|public.naming_series.conditions"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "naming_series",
+        "priority"
+      ],
+      "writes": [
+        "s|col|public.naming_series.priority",
+        "n|col|public.naming_series.priority",
+        "e|col|public.naming_series.priority"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "date_field",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "conditions",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "priority",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

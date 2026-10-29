@@ -1,0 +1,1163 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "8d208c6a-0ee5-45ca-916f-a31df87c8e2f",
+  "prevIds": [
+    "81af0ff6-7de7-480a-8a5b-1f9d40605177"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_closure"
+      ],
+      "writes": [
+        "s|tbl|public.tenant_closure",
+        "n|tbl|public.tenant_closure",
+        "e|tbl|public.tenant_closure",
+        "n|rel|public.tenant_closure",
+        "n|type|public.tenant_closure",
+        "n|rel|public.tenant_closure_ancestor_id_descendant_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "tenants",
+        "parent_id"
+      ],
+      "writes": [
+        "s|col|public.tenants.parent_id",
+        "n|col|public.tenants.parent_id",
+        "e|col|public.tenants.parent_id"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "tenant_closure",
+        "tenant_closure_descendant_idx"
+      ],
+      "writes": [
+        "s|idx|public.tenant_closure_descendant_idx",
+        "n|idx|public.tenant_closure_descendant_idx",
+        "e|idx|public.tenant_closure_descendant_idx",
+        "n|rel|public.tenant_closure_descendant_idx"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_closure",
+        "n|sch|public",
+        "n|col|public.tenant_closure.descendant_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "tenants",
+        "tenants_parent_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.tenants_parent_id_idx",
+        "n|idx|public.tenants_parent_id_idx",
+        "e|idx|public.tenants_parent_id_idx",
+        "n|rel|public.tenants_parent_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenants.parent_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_closure"
+      ],
+      "writes": [
+        "s|fk|public.tenant_closure.tenant_closure_ancestor_id_tenants_id_fk",
+        "n|fk|public.tenant_closure.tenant_closure_ancestor_id_tenants_id_fk",
+        "e|fk|public.tenant_closure.tenant_closure_ancestor_id_tenants_id_fk",
+        "n|con|public.tenant_closure.tenant_closure_ancestor_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_closure",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenant_closure.ancestor_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_closure"
+      ],
+      "writes": [
+        "s|fk|public.tenant_closure.tenant_closure_descendant_id_tenants_id_fk",
+        "n|fk|public.tenant_closure.tenant_closure_descendant_id_tenants_id_fk",
+        "e|fk|public.tenant_closure.tenant_closure_descendant_id_tenants_id_fk",
+        "n|con|public.tenant_closure.tenant_closure_descendant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_closure",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenant_closure.descendant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenants"
+      ],
+      "writes": [
+        "s|fk|public.tenants.tenants_parent_id_tenants_id_fk",
+        "n|fk|public.tenants.tenants_parent_id_tenants_id_fk",
+        "e|fk|public.tenants.tenants_parent_id_tenants_id_fk",
+        "n|con|public.tenants.tenants_parent_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenants.parent_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "add_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenants"
+      ],
+      "writes": [
+        "s|ck|public.tenants.tenants_parent_not_self",
+        "n|ck|public.tenants.tenants_parent_not_self",
+        "e|ck|public.tenants.tenants_parent_not_self",
+        "n|con|public.tenants.tenants_parent_not_self"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenants.parent_id",
+        "n|col|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "api_client_roles"
+      ],
+      "writes": [
+        "s|pol|public.api_client_roles.api_client_roles_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.api_client_roles",
+        "n|sch|public"
+      ],
+      "sqlHash": "fe8320e1c4ea71f8"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "api_clients"
+      ],
+      "writes": [
+        "s|pol|public.api_clients.api_clients_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.api_clients",
+        "n|sch|public"
+      ],
+      "sqlHash": "87d100cd5a074b31"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "audit_log"
+      ],
+      "writes": [
+        "s|pol|public.audit_log.audit_log_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public"
+      ],
+      "sqlHash": "8615b9ffcb735904"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "invitations"
+      ],
+      "writes": [
+        "s|pol|public.invitations.invitations_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.invitations",
+        "n|sch|public"
+      ],
+      "sqlHash": "819a0d26a83fbcc2"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "role_permissions"
+      ],
+      "writes": [
+        "s|pol|public.role_permissions.role_permissions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.role_permissions",
+        "n|sch|public"
+      ],
+      "sqlHash": "e9da1d72a128dc73"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "roles"
+      ],
+      "writes": [
+        "s|pol|public.roles.roles_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.roles",
+        "n|sch|public"
+      ],
+      "sqlHash": "a359f8a9de890d4a"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_roles"
+      ],
+      "writes": [
+        "s|pol|public.user_roles.user_roles_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.user_roles",
+        "n|sch|public"
+      ],
+      "sqlHash": "062facfd23bb267d"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "custom_field_definitions"
+      ],
+      "writes": [
+        "s|pol|public.custom_field_definitions.custom_field_definitions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.custom_field_definitions",
+        "n|sch|public"
+      ],
+      "sqlHash": "b2e1275431cf3383"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "notifications"
+      ],
+      "writes": [
+        "s|pol|public.notifications.notifications_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public"
+      ],
+      "sqlHash": "4a4f4ae66cb8fc06"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "setting_overrides"
+      ],
+      "writes": [
+        "s|pol|public.setting_overrides.setting_overrides_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.setting_overrides",
+        "n|sch|public"
+      ],
+      "sqlHash": "f04918587ed0b5be"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_subscriptions"
+      ],
+      "writes": [
+        "s|pol|public.record_subscriptions.record_subscriptions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.record_subscriptions",
+        "n|sch|public"
+      ],
+      "sqlHash": "2f537319dbd6babe"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sequences"
+      ],
+      "writes": [
+        "s|pol|public.sequences.sequences_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sequences",
+        "n|sch|public"
+      ],
+      "sqlHash": "8092e551120f2b67"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachments"
+      ],
+      "writes": [
+        "s|pol|public.attachments.attachments_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.attachments",
+        "n|sch|public"
+      ],
+      "sqlHash": "c1c0c0f5086f1425"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "documents"
+      ],
+      "writes": [
+        "s|pol|public.documents.documents_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.documents",
+        "n|sch|public"
+      ],
+      "sqlHash": "7a4e3221452839d0"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "comments"
+      ],
+      "writes": [
+        "s|pol|public.comments.comments_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.comments",
+        "n|sch|public"
+      ],
+      "sqlHash": "af97f138999dc4a3"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_tags"
+      ],
+      "writes": [
+        "s|pol|public.record_tags.record_tags_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.record_tags",
+        "n|sch|public"
+      ],
+      "sqlHash": "9fe630e3f81e0177"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "tags"
+      ],
+      "writes": [
+        "s|pol|public.tags.tags_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.tags",
+        "n|sch|public"
+      ],
+      "sqlHash": "24d0d3e6529bfa5e"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "report_schedules"
+      ],
+      "writes": [
+        "s|pol|public.report_schedules.report_schedules_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.report_schedules",
+        "n|sch|public"
+      ],
+      "sqlHash": "fc7bee65555cb8f6"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "api_usage"
+      ],
+      "writes": [
+        "s|pol|public.api_usage.api_usage_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.api_usage",
+        "n|sch|public"
+      ],
+      "sqlHash": "b8581f2db361f129"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "revisions"
+      ],
+      "writes": [
+        "s|pol|public.revisions.revisions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.revisions",
+        "n|sch|public"
+      ],
+      "sqlHash": "88135692c4462361"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "approval_assignments"
+      ],
+      "writes": [
+        "s|pol|public.approval_assignments.approval_assignments_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.approval_assignments",
+        "n|sch|public"
+      ],
+      "sqlHash": "94b79bb7d31a67e8"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "approval_delegations"
+      ],
+      "writes": [
+        "s|pol|public.approval_delegations.approval_delegations_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.approval_delegations",
+        "n|sch|public"
+      ],
+      "sqlHash": "c2e7b4292a25bd01"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "approval_events"
+      ],
+      "writes": [
+        "s|pol|public.approval_events.approval_events_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.approval_events",
+        "n|sch|public"
+      ],
+      "sqlHash": "15d219b09680a708"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "approval_policies"
+      ],
+      "writes": [
+        "s|pol|public.approval_policies.approval_policies_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.approval_policies",
+        "n|sch|public"
+      ],
+      "sqlHash": "808dfda68035839e"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "approval_requests"
+      ],
+      "writes": [
+        "s|pol|public.approval_requests.approval_requests_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.approval_requests",
+        "n|sch|public"
+      ],
+      "sqlHash": "75365518787bcf8f"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "notes"
+      ],
+      "writes": [
+        "s|pol|public.notes.notes_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public"
+      ],
+      "sqlHash": "bfa8c290d8f75a18"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|pol|public.team_tree.team_tree_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public"
+      ],
+      "sqlHash": "a362ac71b92eaf28"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|pol|public.teams.teams_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public"
+      ],
+      "sqlHash": "6f06dcd4bbe7ffb2"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|pol|public.user_teams.user_teams_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public"
+      ],
+      "sqlHash": "e7d203f31d17076f"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|pol|public.saved_views.saved_views_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public"
+      ],
+      "sqlHash": "10021b6344337dcb"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "incoming_webhook_senders"
+      ],
+      "writes": [
+        "s|pol|public.incoming_webhook_senders.incoming_webhook_senders_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.incoming_webhook_senders",
+        "n|sch|public"
+      ],
+      "sqlHash": "4ffda7658e5e483b"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "naming_series"
+      ],
+      "writes": [
+        "s|pol|public.naming_series.naming_series_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public"
+      ],
+      "sqlHash": "8a749049bf298a9c"
+    },
+    {
+      "statementType": "alter_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "ai_runs"
+      ],
+      "writes": [
+        "s|pol|public.ai_runs.ai_runs_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public"
+      ],
+      "sqlHash": "cbea713a6beae48c"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "tenant_closure",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "ancestor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "descendant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "depth",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenants",
+        "name": "parent_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "tenant_closure_descendant_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "descendant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenants",
+        "name": "tenants_parent_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "parent_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "tenant_closure_ancestor_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "ancestor_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "tenant_closure_descendant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "descendant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenants",
+        "name": "tenants_parent_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "parent_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "tenant_closure_ancestor_id_descendant_id_pk",
+        "columns": [
+          "ancestor_id",
+          "descendant_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "tenant_closure_depth",
+        "value": "\"tenant_closure\".\"depth\" >= 1",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_closure",
+        "name": "tenant_closure_not_self",
+        "value": "\"tenant_closure\".\"ancestor_id\" <> \"tenant_closure\".\"descendant_id\"",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenants",
+        "name": "tenants_parent_not_self",
+        "value": "\"tenants\".\"parent_id\" <> \"tenants\".\"id\"",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"api_client_roles\",\"api_client_roles_tenant_select\"]",
+      "set": {
+        "using": "((\"api_client_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"api_client_roles\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"api_client_roles\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"api_clients\",\"api_clients_tenant_select\"]",
+      "set": {
+        "using": "((\"api_clients\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"api_clients\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"api_clients\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"audit_log\",\"audit_log_tenant_select\"]",
+      "set": {
+        "using": "((\"audit_log\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"audit_log\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"audit_log\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))) or (\"audit_log\".\"tenant_id\" is null and (select nullif(current_setting('app.tenant_id', true), '')::uuid) is null))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"invitations\",\"invitations_tenant_select\"]",
+      "set": {
+        "using": "((\"invitations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"invitations\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"invitations\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"role_permissions\",\"role_permissions_tenant_select\"]",
+      "set": {
+        "using": "((\"role_permissions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"role_permissions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"role_permissions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"roles\",\"roles_tenant_select\"]",
+      "set": {
+        "using": "((\"roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"roles\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"roles\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"user_roles\",\"user_roles_tenant_select\"]",
+      "set": {
+        "using": "((\"user_roles\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"user_roles\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"user_roles\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"custom_field_definitions\",\"custom_field_definitions_tenant_select\"]",
+      "set": {
+        "using": "((\"custom_field_definitions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"custom_field_definitions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"custom_field_definitions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"notifications\",\"notifications_tenant_select\"]",
+      "set": {
+        "using": "((\"notifications\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"notifications\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notifications\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))) or \"notifications\".\"tenant_id\" is null)"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"setting_overrides\",\"setting_overrides_tenant_select\"]",
+      "set": {
+        "using": "((\"setting_overrides\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"setting_overrides\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"setting_overrides\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"record_subscriptions\",\"record_subscriptions_tenant_select\"]",
+      "set": {
+        "using": "((\"record_subscriptions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"record_subscriptions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"record_subscriptions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"sequences\",\"sequences_tenant_select\"]",
+      "set": {
+        "using": "((\"sequences\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sequences\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sequences\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"attachments\",\"attachments_tenant_select\"]",
+      "set": {
+        "using": "((\"attachments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"attachments\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"attachments\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"documents\",\"documents_tenant_select\"]",
+      "set": {
+        "using": "((\"documents\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"documents\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"documents\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"comments\",\"comments_tenant_select\"]",
+      "set": {
+        "using": "((\"comments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"comments\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"comments\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"record_tags\",\"record_tags_tenant_select\"]",
+      "set": {
+        "using": "((\"record_tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"record_tags\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"record_tags\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"tags\",\"tags_tenant_select\"]",
+      "set": {
+        "using": "((\"tags\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"tags\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"tags\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"report_schedules\",\"report_schedules_tenant_select\"]",
+      "set": {
+        "using": "((\"report_schedules\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"report_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"report_schedules\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"api_usage\",\"api_usage_tenant_select\"]",
+      "set": {
+        "using": "((\"api_usage\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"api_usage\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"api_usage\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"revisions\",\"revisions_tenant_select\"]",
+      "set": {
+        "using": "((\"revisions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"revisions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"revisions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"approval_assignments\",\"approval_assignments_tenant_select\"]",
+      "set": {
+        "using": "((\"approval_assignments\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_assignments\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_assignments\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"approval_delegations\",\"approval_delegations_tenant_select\"]",
+      "set": {
+        "using": "((\"approval_delegations\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_delegations\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_delegations\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"approval_events\",\"approval_events_tenant_select\"]",
+      "set": {
+        "using": "((\"approval_events\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_events\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_events\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"approval_policies\",\"approval_policies_tenant_select\"]",
+      "set": {
+        "using": "((\"approval_policies\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_policies\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_policies\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"approval_requests\",\"approval_requests_tenant_select\"]",
+      "set": {
+        "using": "((\"approval_requests\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"approval_requests\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"approval_requests\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"notes\",\"notes_tenant_select\"]",
+      "set": {
+        "using": "((\"notes\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"notes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"notes\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"team_tree\",\"team_tree_tenant_select\"]",
+      "set": {
+        "using": "((\"team_tree\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"team_tree\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"teams\",\"teams_tenant_select\"]",
+      "set": {
+        "using": "((\"teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"teams\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"user_teams\",\"user_teams_tenant_select\"]",
+      "set": {
+        "using": "((\"user_teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"user_teams\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"saved_views\",\"saved_views_tenant_select\"]",
+      "set": {
+        "using": "((\"saved_views\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"saved_views\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"saved_views\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"incoming_webhook_senders\",\"incoming_webhook_senders_tenant_select\"]",
+      "set": {
+        "using": "((\"incoming_webhook_senders\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"incoming_webhook_senders\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"incoming_webhook_senders\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"naming_series\",\"naming_series_tenant_select\"]",
+      "set": {
+        "using": "((\"naming_series\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"naming_series\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"naming_series\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "policies\u0000[\"public\",\"ai_runs\",\"ai_runs_tenant_select\"]",
+      "set": {
+        "using": "((\"ai_runs\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"ai_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"ai_runs\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))"
+      }
+    }
+  ]
+}

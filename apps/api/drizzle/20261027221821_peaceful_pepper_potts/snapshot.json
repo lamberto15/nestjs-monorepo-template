@@ -1,0 +1,154 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c5b26c87-ee15-40f4-9658-ace77cf8477f",
+  "prevIds": [
+    "88dc2a61-9876-4795-956e-c1fdbbbd54ab"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "users",
+        "users_email_trgm_idx"
+      ],
+      "writes": [
+        "s|idx|public.users_email_trgm_idx",
+        "n|idx|public.users_email_trgm_idx",
+        "e|idx|public.users_email_trgm_idx",
+        "n|rel|public.users_email_trgm_idx"
+      ],
+      "reads": [
+        "n|tbl|public.users",
+        "n|sch|public",
+        "n|col|public.users.email"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "users",
+        "users_name_trgm_idx"
+      ],
+      "writes": [
+        "s|idx|public.users_name_trgm_idx",
+        "n|idx|public.users_name_trgm_idx",
+        "e|idx|public.users_name_trgm_idx",
+        "n|rel|public.users_name_trgm_idx"
+      ],
+      "reads": [
+        "n|tbl|public.users",
+        "n|sch|public",
+        "n|col|public.users.name"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_title_trgm_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_title_trgm_idx",
+        "n|idx|public.notes_title_trgm_idx",
+        "e|idx|public.notes_title_trgm_idx",
+        "n|rel|public.notes_title_trgm_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.title"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "users",
+        "name": "users_email_trgm_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "email",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": {
+              "name": "gin_trgm_ops",
+              "default": false
+            }
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "users",
+        "name": "users_name_trgm_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "name",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": {
+              "name": "gin_trgm_ops",
+              "default": false
+            }
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_title_trgm_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "title",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": {
+              "name": "gin_trgm_ops",
+              "default": false
+            }
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

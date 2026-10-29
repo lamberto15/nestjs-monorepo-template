@@ -1,0 +1,1474 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "950003b9-c79a-421f-ba63-433657fbe255",
+  "prevIds": [
+    "bcb07064-f25e-4a29-83f0-1b5f0811e900"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|tbl|public.form_submissions",
+        "n|tbl|public.form_submissions",
+        "e|tbl|public.form_submissions",
+        "n|rel|public.form_submissions",
+        "n|type|public.form_submissions",
+        "n|rel|public.form_submissions_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_versions"
+      ],
+      "writes": [
+        "s|tbl|public.form_versions",
+        "n|tbl|public.form_versions",
+        "e|tbl|public.form_versions",
+        "n|rel|public.form_versions",
+        "n|type|public.form_versions",
+        "n|rel|public.form_versions_pkey",
+        "n|rel|public.form_versions_form_version_key",
+        "n|rel|public.form_versions_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "forms"
+      ],
+      "writes": [
+        "s|tbl|public.forms",
+        "n|tbl|public.forms",
+        "e|tbl|public.forms",
+        "n|rel|public.forms",
+        "n|type|public.forms",
+        "n|rel|public.forms_pkey",
+        "n|rel|public.forms_slug_key",
+        "n|rel|public.forms_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "form_submissions",
+        "form_submissions_form_idx"
+      ],
+      "writes": [
+        "s|idx|public.form_submissions_form_idx",
+        "n|idx|public.form_submissions_form_idx",
+        "e|idx|public.form_submissions_form_idx",
+        "n|rel|public.form_submissions_form_idx"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "n|col|public.form_submissions.form_id",
+        "n|col|public.form_submissions.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "form_submissions",
+        "form_submissions_submitted_by_idx"
+      ],
+      "writes": [
+        "s|idx|public.form_submissions_submitted_by_idx",
+        "n|idx|public.form_submissions_submitted_by_idx",
+        "e|idx|public.form_submissions_submitted_by_idx",
+        "n|rel|public.form_submissions_submitted_by_idx"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "n|col|public.form_submissions.submitted_by",
+        "n|col|public.form_submissions.form_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "form_submissions",
+        "form_submissions_version_idx"
+      ],
+      "writes": [
+        "s|idx|public.form_submissions_version_idx",
+        "n|idx|public.form_submissions_version_idx",
+        "e|idx|public.form_submissions_version_idx",
+        "n|rel|public.form_submissions_version_idx"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "n|col|public.form_submissions.version_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|fk|public.form_submissions.form_submissions_tenant_id_tenants_id_fk",
+        "n|fk|public.form_submissions.form_submissions_tenant_id_tenants_id_fk",
+        "e|fk|public.form_submissions.form_submissions_tenant_id_tenants_id_fk",
+        "n|con|public.form_submissions.form_submissions_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.form_submissions.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|fk|public.form_submissions.form_submissions_form_fk",
+        "n|fk|public.form_submissions.form_submissions_form_fk",
+        "e|fk|public.form_submissions.form_submissions_form_fk",
+        "n|con|public.form_submissions.form_submissions_form_fk"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "n|col|public.form_submissions.tenant_id",
+        "n|col|public.form_submissions.form_id",
+        "n|col|public.forms.tenant_id",
+        "n|col|public.forms.id",
+        "e|uniqueness|public.forms.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|fk|public.form_submissions.form_submissions_version_fk",
+        "n|fk|public.form_submissions.form_submissions_version_fk",
+        "e|fk|public.form_submissions.form_submissions_version_fk",
+        "n|con|public.form_submissions.form_submissions_version_fk"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "n|tbl|public.form_versions",
+        "n|sch|public",
+        "n|col|public.form_submissions.tenant_id",
+        "n|col|public.form_submissions.version_id",
+        "n|col|public.form_versions.tenant_id",
+        "n|col|public.form_versions.id",
+        "e|uniqueness|public.form_versions.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_versions"
+      ],
+      "writes": [
+        "s|fk|public.form_versions.form_versions_tenant_id_tenants_id_fk",
+        "n|fk|public.form_versions.form_versions_tenant_id_tenants_id_fk",
+        "e|fk|public.form_versions.form_versions_tenant_id_tenants_id_fk",
+        "n|con|public.form_versions.form_versions_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.form_versions",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.form_versions.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_versions"
+      ],
+      "writes": [
+        "s|fk|public.form_versions.form_versions_form_fk",
+        "n|fk|public.form_versions.form_versions_form_fk",
+        "e|fk|public.form_versions.form_versions_form_fk",
+        "n|con|public.form_versions.form_versions_form_fk"
+      ],
+      "reads": [
+        "n|tbl|public.form_versions",
+        "n|sch|public",
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "n|col|public.form_versions.tenant_id",
+        "n|col|public.form_versions.form_id",
+        "n|col|public.forms.tenant_id",
+        "n|col|public.forms.id",
+        "e|uniqueness|public.forms.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "forms"
+      ],
+      "writes": [
+        "s|fk|public.forms.forms_tenant_id_tenants_id_fk",
+        "n|fk|public.forms.forms_tenant_id_tenants_id_fk",
+        "e|fk|public.forms.forms_tenant_id_tenants_id_fk",
+        "n|con|public.forms.forms_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.forms.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|pol|public.form_submissions.form_submissions_tenant_select",
+        "n|pol|public.form_submissions.form_submissions_tenant_select",
+        "e|pol|public.form_submissions.form_submissions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "e|rls|public.form_submissions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|pol|public.form_submissions.form_submissions_tenant_insert",
+        "n|pol|public.form_submissions.form_submissions_tenant_insert",
+        "e|pol|public.form_submissions.form_submissions_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "e|rls|public.form_submissions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|pol|public.form_submissions.form_submissions_tenant_update",
+        "n|pol|public.form_submissions.form_submissions_tenant_update",
+        "e|pol|public.form_submissions.form_submissions_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "e|rls|public.form_submissions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_submissions"
+      ],
+      "writes": [
+        "s|pol|public.form_submissions.form_submissions_tenant_delete",
+        "n|pol|public.form_submissions.form_submissions_tenant_delete",
+        "e|pol|public.form_submissions.form_submissions_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.form_submissions",
+        "n|sch|public",
+        "e|rls|public.form_submissions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_versions"
+      ],
+      "writes": [
+        "s|pol|public.form_versions.form_versions_tenant_select",
+        "n|pol|public.form_versions.form_versions_tenant_select",
+        "e|pol|public.form_versions.form_versions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.form_versions",
+        "n|sch|public",
+        "e|rls|public.form_versions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_versions"
+      ],
+      "writes": [
+        "s|pol|public.form_versions.form_versions_tenant_insert",
+        "n|pol|public.form_versions.form_versions_tenant_insert",
+        "e|pol|public.form_versions.form_versions_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.form_versions",
+        "n|sch|public",
+        "e|rls|public.form_versions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_versions"
+      ],
+      "writes": [
+        "s|pol|public.form_versions.form_versions_tenant_update",
+        "n|pol|public.form_versions.form_versions_tenant_update",
+        "e|pol|public.form_versions.form_versions_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.form_versions",
+        "n|sch|public",
+        "e|rls|public.form_versions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_versions"
+      ],
+      "writes": [
+        "s|pol|public.form_versions.form_versions_tenant_delete",
+        "n|pol|public.form_versions.form_versions_tenant_delete",
+        "e|pol|public.form_versions.form_versions_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.form_versions",
+        "n|sch|public",
+        "e|rls|public.form_versions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "forms"
+      ],
+      "writes": [
+        "s|pol|public.forms.forms_tenant_select",
+        "n|pol|public.forms.forms_tenant_select",
+        "e|pol|public.forms.forms_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "e|rls|public.forms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "forms"
+      ],
+      "writes": [
+        "s|pol|public.forms.forms_tenant_insert",
+        "n|pol|public.forms.forms_tenant_insert",
+        "e|pol|public.forms.forms_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "e|rls|public.forms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "forms"
+      ],
+      "writes": [
+        "s|pol|public.forms.forms_tenant_update",
+        "n|pol|public.forms.forms_tenant_update",
+        "e|pol|public.forms.forms_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "e|rls|public.forms"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "forms"
+      ],
+      "writes": [
+        "s|pol|public.forms.forms_tenant_delete",
+        "n|pol|public.forms.forms_tenant_delete",
+        "e|pol|public.forms.forms_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "e|rls|public.forms"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "form_submissions",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "form_versions",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "forms",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "version_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "submitted_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'submitted'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "answers",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "definition",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "published_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "slug",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "description",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "draft",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "revision",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "published_version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "published_revision",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "key_types",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_form_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "form_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_submitted_by_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "submitted_by",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "form_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_version_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "version_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_form_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "form_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "forms",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_version_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "version_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "form_versions",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_form_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "form_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "forms",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_form_version_key",
+        "nameExplicit": true,
+        "columns": [
+          "form_id",
+          "version"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_slug_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "slug"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_submissions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"form_submissions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_submissions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"form_submissions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_submissions",
+        "name": "form_submissions_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_submissions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"form_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"form_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_versions",
+        "name": "form_versions_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_versions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"forms\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"forms\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"forms\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"forms\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "forms",
+        "name": "forms_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"forms\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

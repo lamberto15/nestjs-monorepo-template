@@ -1,0 +1,473 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b6ef0b98-fe76-4e43-8f61-82b6e81138ef",
+  "prevIds": [
+    "253e380a-3bdc-4c15-a7d3-450296d710ff"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "naming_series"
+      ],
+      "writes": [
+        "s|tbl|public.naming_series",
+        "n|tbl|public.naming_series",
+        "e|tbl|public.naming_series",
+        "n|rel|public.naming_series",
+        "n|type|public.naming_series",
+        "n|rel|public.naming_series_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "naming_series",
+        "naming_series_pattern_idx"
+      ],
+      "writes": [
+        "s|idx|public.naming_series_pattern_idx",
+        "n|idx|public.naming_series_pattern_idx",
+        "e|idx|public.naming_series_pattern_idx",
+        "n|rel|public.naming_series_pattern_idx"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public",
+        "n|col|public.naming_series.tenant_id",
+        "n|col|public.naming_series.subject",
+        "n|col|public.naming_series.pattern"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "naming_series",
+        "naming_series_default_idx"
+      ],
+      "writes": [
+        "s|idx|public.naming_series_default_idx",
+        "n|idx|public.naming_series_default_idx",
+        "e|idx|public.naming_series_default_idx",
+        "n|rel|public.naming_series_default_idx"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public",
+        "n|col|public.naming_series.tenant_id",
+        "n|col|public.naming_series.subject"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "naming_series"
+      ],
+      "writes": [
+        "s|fk|public.naming_series.naming_series_tenant_id_tenants_id_fk",
+        "n|fk|public.naming_series.naming_series_tenant_id_tenants_id_fk",
+        "e|fk|public.naming_series.naming_series_tenant_id_tenants_id_fk",
+        "n|con|public.naming_series.naming_series_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.naming_series.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "naming_series"
+      ],
+      "writes": [
+        "s|pol|public.naming_series.naming_series_tenant_select",
+        "n|pol|public.naming_series.naming_series_tenant_select",
+        "e|pol|public.naming_series.naming_series_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public",
+        "e|rls|public.naming_series"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "naming_series"
+      ],
+      "writes": [
+        "s|pol|public.naming_series.naming_series_tenant_insert",
+        "n|pol|public.naming_series.naming_series_tenant_insert",
+        "e|pol|public.naming_series.naming_series_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public",
+        "e|rls|public.naming_series"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "naming_series"
+      ],
+      "writes": [
+        "s|pol|public.naming_series.naming_series_tenant_update",
+        "n|pol|public.naming_series.naming_series_tenant_update",
+        "e|pol|public.naming_series.naming_series_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public",
+        "e|rls|public.naming_series"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "naming_series"
+      ],
+      "writes": [
+        "s|pol|public.naming_series.naming_series_tenant_delete",
+        "n|pol|public.naming_series.naming_series_tenant_delete",
+        "e|pol|public.naming_series.naming_series_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.naming_series",
+        "n|sch|public",
+        "e|rls|public.naming_series"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "naming_series",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "pattern",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "label",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "is_default",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_pattern_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "pattern",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_default_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "\"naming_series\".\"is_default\"",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"naming_series\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"naming_series\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"naming_series\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"naming_series\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "naming_series",
+        "name": "naming_series_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"naming_series\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

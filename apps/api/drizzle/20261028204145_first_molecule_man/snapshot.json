@@ -1,0 +1,122 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "40463445-00f5-4f07-b803-eed344a46f85",
+  "prevIds": [
+    "b0fce4d4-f9ff-4ef2-87e4-717cdddea3e0"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "invitations",
+        "sent_at"
+      ],
+      "writes": [
+        "s|col|public.invitations.sent_at",
+        "n|col|public.invitations.sent_at",
+        "e|col|public.invitations.sent_at"
+      ],
+      "reads": [
+        "n|tbl|public.invitations",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "invitations",
+        "email"
+      ],
+      "writes": [
+        "s|colprop|public.invitations.email.notNull"
+      ],
+      "reads": [
+        "n|tbl|public.invitations",
+        "n|sch|public",
+        "n|col|public.invitations.email"
+      ],
+      "sqlHash": "a424b41519d10928"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "invitations",
+        "token_hash"
+      ],
+      "writes": [
+        "s|colprop|public.invitations.token_hash.notNull"
+      ],
+      "reads": [
+        "n|tbl|public.invitations",
+        "n|sch|public",
+        "n|col|public.invitations.token_hash"
+      ],
+      "sqlHash": "5db254caf42162af"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "invitations",
+        "expires_at"
+      ],
+      "writes": [
+        "s|colprop|public.invitations.expires_at.notNull"
+      ],
+      "reads": [
+        "n|tbl|public.invitations",
+        "n|sch|public",
+        "n|col|public.invitations.expires_at"
+      ],
+      "sqlHash": "c16b39541c1fa180"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "invitations",
+        "name": "sent_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"invitations\",\"email\"]",
+      "set": {
+        "notNull": false
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"invitations\",\"token_hash\"]",
+      "set": {
+        "notNull": false
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"invitations\",\"expires_at\"]",
+      "set": {
+        "notNull": false
+      }
+    }
+  ]
+}

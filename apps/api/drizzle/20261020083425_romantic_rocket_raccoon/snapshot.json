@@ -1,0 +1,655 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c065cfa2-54d2-482c-858f-295b573a3f9f",
+  "prevIds": [
+    "0d00784d-11a9-4261-a5e9-7e170d08351e"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|tbl|public.saved_views",
+        "n|tbl|public.saved_views",
+        "e|tbl|public.saved_views",
+        "n|rel|public.saved_views",
+        "n|type|public.saved_views",
+        "n|rel|public.saved_views_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "saved_views",
+        "saved_views_name_idx"
+      ],
+      "writes": [
+        "s|idx|public.saved_views_name_idx",
+        "n|idx|public.saved_views_name_idx",
+        "e|idx|public.saved_views_name_idx",
+        "n|rel|public.saved_views_name_idx"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "n|col|public.saved_views.tenant_id",
+        "n|col|public.saved_views.subject",
+        "n|col|public.saved_views.scope"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "saved_views",
+        "saved_views_owner_idx"
+      ],
+      "writes": [
+        "s|idx|public.saved_views_owner_idx",
+        "n|idx|public.saved_views_owner_idx",
+        "e|idx|public.saved_views_owner_idx",
+        "n|rel|public.saved_views_owner_idx"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "n|col|public.saved_views.owner",
+        "n|col|public.saved_views.subject"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "saved_views",
+        "saved_views_team_idx"
+      ],
+      "writes": [
+        "s|idx|public.saved_views_team_idx",
+        "n|idx|public.saved_views_team_idx",
+        "e|idx|public.saved_views_team_idx",
+        "n|rel|public.saved_views_team_idx"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "n|col|public.saved_views.team_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|fk|public.saved_views.saved_views_tenant_id_tenants_id_fk",
+        "n|fk|public.saved_views.saved_views_tenant_id_tenants_id_fk",
+        "e|fk|public.saved_views.saved_views_tenant_id_tenants_id_fk",
+        "n|con|public.saved_views.saved_views_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.saved_views.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|fk|public.saved_views.saved_views_team_fk",
+        "n|fk|public.saved_views.saved_views_team_fk",
+        "e|fk|public.saved_views.saved_views_team_fk",
+        "n|con|public.saved_views.saved_views_team_fk"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.saved_views.tenant_id",
+        "n|col|public.saved_views.team_id",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id",
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|pol|public.saved_views.saved_views_tenant_select",
+        "n|pol|public.saved_views.saved_views_tenant_select",
+        "e|pol|public.saved_views.saved_views_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "e|rls|public.saved_views"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|pol|public.saved_views.saved_views_tenant_insert",
+        "n|pol|public.saved_views.saved_views_tenant_insert",
+        "e|pol|public.saved_views.saved_views_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "e|rls|public.saved_views"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|pol|public.saved_views.saved_views_tenant_update",
+        "n|pol|public.saved_views.saved_views_tenant_update",
+        "e|pol|public.saved_views.saved_views_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "e|rls|public.saved_views"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|pol|public.saved_views.saved_views_tenant_delete",
+        "n|pol|public.saved_views.saved_views_tenant_delete",
+        "e|pol|public.saved_views.saved_views_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "e|rls|public.saved_views"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "saved_views",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "visibility",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "owner",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "team_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "scope",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "query",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "columns",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_name_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "scope",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "lower(\"name\")",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_owner_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "owner",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_team_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "team_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_team_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "team_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "teams",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_team_check",
+        "value": "(\"saved_views\".\"visibility\" = 'team') = (\"saved_views\".\"team_id\" is not null)",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_visibility_check",
+        "value": "\"saved_views\".\"visibility\" in ('private', 'team', 'tenant')",
+        "entityType": "checks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"saved_views\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"saved_views\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"saved_views\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"saved_views\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"saved_views\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

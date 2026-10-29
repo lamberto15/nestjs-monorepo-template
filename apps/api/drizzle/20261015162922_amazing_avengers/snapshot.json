@@ -1,0 +1,827 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "726fa365-a5f1-4d46-b067-8bed3447aed7",
+  "prevIds": [
+    "73e5fdda-f3a5-464b-af74-e0dc372b9688"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "notification_preferences"
+      ],
+      "writes": [
+        "s|tbl|public.notification_preferences",
+        "n|tbl|public.notification_preferences",
+        "e|tbl|public.notification_preferences",
+        "n|rel|public.notification_preferences",
+        "n|type|public.notification_preferences",
+        "n|rel|public.notification_preferences_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "notifications"
+      ],
+      "writes": [
+        "s|tbl|public.notifications",
+        "n|tbl|public.notifications",
+        "e|tbl|public.notifications",
+        "n|rel|public.notifications",
+        "n|type|public.notifications",
+        "n|rel|public.notifications_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notification_preferences",
+        "notification_preferences_recipient_idx"
+      ],
+      "writes": [
+        "s|idx|public.notification_preferences_recipient_idx",
+        "n|idx|public.notification_preferences_recipient_idx",
+        "e|idx|public.notification_preferences_recipient_idx",
+        "n|rel|public.notification_preferences_recipient_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notification_preferences",
+        "n|sch|public",
+        "n|col|public.notification_preferences.recipient"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_recipient_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_recipient_id_idx",
+        "n|idx|public.notifications_recipient_id_idx",
+        "e|idx|public.notifications_recipient_id_idx",
+        "n|rel|public.notifications_recipient_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.recipient",
+        "n|col|public.notifications.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_recipient_type_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_recipient_type_idx",
+        "n|idx|public.notifications_recipient_type_idx",
+        "e|idx|public.notifications_recipient_type_idx",
+        "n|rel|public.notifications_recipient_type_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.recipient",
+        "n|col|public.notifications.type"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_recipient_created_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_recipient_created_at_idx",
+        "n|idx|public.notifications_recipient_created_at_idx",
+        "e|idx|public.notifications_recipient_created_at_idx",
+        "n|rel|public.notifications_recipient_created_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.recipient",
+        "n|col|public.notifications.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_recipient_unread_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_recipient_unread_idx",
+        "n|idx|public.notifications_recipient_unread_idx",
+        "e|idx|public.notifications_recipient_unread_idx",
+        "n|rel|public.notifications_recipient_unread_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.recipient"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_recipient_key_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_recipient_key_idx",
+        "n|idx|public.notifications_recipient_key_idx",
+        "e|idx|public.notifications_recipient_key_idx",
+        "n|rel|public.notifications_recipient_key_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.recipient",
+        "n|col|public.notifications.key"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_digest_due_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_digest_due_at_idx",
+        "n|idx|public.notifications_digest_due_at_idx",
+        "e|idx|public.notifications_digest_due_at_idx",
+        "n|rel|public.notifications_digest_due_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.digest_due_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_created_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_created_at_idx",
+        "n|idx|public.notifications_created_at_idx",
+        "e|idx|public.notifications_created_at_idx",
+        "n|rel|public.notifications_created_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_read_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_read_at_idx",
+        "n|idx|public.notifications_read_at_idx",
+        "e|idx|public.notifications_read_at_idx",
+        "n|rel|public.notifications_read_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.read_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "notification_preferences",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "notifications",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "recipient",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "settings",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "recipient",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "type",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "data",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "key",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "count",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "link",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "read_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "delivered_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "digest",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "digest_due_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "emailed_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "notification_preferences_recipient_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "recipient",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_recipient_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "recipient",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_recipient_type_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "recipient",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "type",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_recipient_created_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "recipient",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_recipient_unread_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "recipient",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "read_at is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_recipient_key_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "recipient",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "key",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "key is not null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_digest_due_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "digest_due_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "digest_due_at is not null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_created_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_read_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "read_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "read_at is not null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "notification_preferences_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

@@ -1,0 +1,661 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "81af0ff6-7de7-480a-8a5b-1f9d40605177",
+  "prevIds": [
+    "dfa5172f-a926-470c-862f-e7e87ea89b49"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "ai_runs"
+      ],
+      "writes": [
+        "s|tbl|public.ai_runs",
+        "n|tbl|public.ai_runs",
+        "e|tbl|public.ai_runs",
+        "n|rel|public.ai_runs",
+        "n|type|public.ai_runs",
+        "n|rel|public.ai_runs_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "ai_runs",
+        "ai_runs_tenant_day_idx"
+      ],
+      "writes": [
+        "s|idx|public.ai_runs_tenant_day_idx",
+        "n|idx|public.ai_runs_tenant_day_idx",
+        "e|idx|public.ai_runs_tenant_day_idx",
+        "n|rel|public.ai_runs_tenant_day_idx"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "n|col|public.ai_runs.tenant_id",
+        "n|col|public.ai_runs.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "ai_runs",
+        "ai_runs_requested_by_idx"
+      ],
+      "writes": [
+        "s|idx|public.ai_runs_requested_by_idx",
+        "n|idx|public.ai_runs_requested_by_idx",
+        "e|idx|public.ai_runs_requested_by_idx",
+        "n|rel|public.ai_runs_requested_by_idx"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "n|col|public.ai_runs.requested_by"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "ai_runs",
+        "ai_runs_pending_idx"
+      ],
+      "writes": [
+        "s|idx|public.ai_runs_pending_idx",
+        "n|idx|public.ai_runs_pending_idx",
+        "e|idx|public.ai_runs_pending_idx",
+        "n|rel|public.ai_runs_pending_idx"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "n|col|public.ai_runs.tenant_id",
+        "n|col|public.ai_runs.source",
+        "n|col|public.ai_runs.record_id",
+        "n|col|public.ai_runs.task",
+        "n|col|public.ai_runs.requested_by"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "ai_runs"
+      ],
+      "writes": [
+        "s|fk|public.ai_runs.ai_runs_tenant_id_tenants_id_fk",
+        "n|fk|public.ai_runs.ai_runs_tenant_id_tenants_id_fk",
+        "e|fk|public.ai_runs.ai_runs_tenant_id_tenants_id_fk",
+        "n|con|public.ai_runs.ai_runs_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.ai_runs.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "ai_runs"
+      ],
+      "writes": [
+        "s|pol|public.ai_runs.ai_runs_tenant_select",
+        "n|pol|public.ai_runs.ai_runs_tenant_select",
+        "e|pol|public.ai_runs.ai_runs_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "e|rls|public.ai_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "ai_runs"
+      ],
+      "writes": [
+        "s|pol|public.ai_runs.ai_runs_tenant_insert",
+        "n|pol|public.ai_runs.ai_runs_tenant_insert",
+        "e|pol|public.ai_runs.ai_runs_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "e|rls|public.ai_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "ai_runs"
+      ],
+      "writes": [
+        "s|pol|public.ai_runs.ai_runs_tenant_update",
+        "n|pol|public.ai_runs.ai_runs_tenant_update",
+        "e|pol|public.ai_runs.ai_runs_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "e|rls|public.ai_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "ai_runs"
+      ],
+      "writes": [
+        "s|pol|public.ai_runs.ai_runs_tenant_delete",
+        "n|pol|public.ai_runs.ai_runs_tenant_delete",
+        "e|pol|public.ai_runs.ai_runs_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.ai_runs",
+        "n|sch|public",
+        "e|rls|public.ai_runs"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "ai_runs",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "source",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "record_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "task",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "prompt_version",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "model",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "requested_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "input_tokens",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "output_tokens",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "cached",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_tenant_day_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_requested_by_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "requested_by",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_pending_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "source",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "record_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "task",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "requested_by",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": "\"ai_runs\".\"status\" in ('queued', 'running')",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"ai_runs\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"ai_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"ai_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"ai_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "ai_runs",
+        "name": "ai_runs_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"ai_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

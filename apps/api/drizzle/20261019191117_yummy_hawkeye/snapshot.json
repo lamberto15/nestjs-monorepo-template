@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "3b81f616-ccb4-4b0e-91e6-c49b1e3fc53a",
+  "prevIds": [
+    "5fbdb104-fb00-4093-8947-966e1c55152a"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "webhook_delivery_requests",
+        "signed_with"
+      ],
+      "writes": [
+        "s|col|public.webhook_delivery_requests.signed_with",
+        "n|col|public.webhook_delivery_requests.signed_with",
+        "e|col|public.webhook_delivery_requests.signed_with"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_delivery_requests",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_delivery_requests",
+        "name": "signed_with",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

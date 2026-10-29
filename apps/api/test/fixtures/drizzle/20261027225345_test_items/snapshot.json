@@ -1,0 +1,1006 @@
+{
+  "type": "base",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "97b120c2-a1dd-44f4-a45b-d538a07e592c",
+  "prevIds": [
+    "00000000-0000-0000-0000-000000000000"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|tbl|public.test_items",
+        "n|tbl|public.test_items",
+        "e|tbl|public.test_items",
+        "n|rel|public.test_items",
+        "n|type|public.test_items",
+        "n|rel|public.test_items_pkey",
+        "n|rel|public.test_items_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_encrypted_records"
+      ],
+      "writes": [
+        "s|tbl|public.test_encrypted_records",
+        "n|tbl|public.test_encrypted_records",
+        "e|tbl|public.test_encrypted_records",
+        "n|rel|public.test_encrypted_records",
+        "n|type|public.test_encrypted_records",
+        "n|rel|public.test_encrypted_records_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "test_items",
+        "test_items_owner_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.test_items_owner_id_idx",
+        "n|idx|public.test_items_owner_id_idx",
+        "e|idx|public.test_items_owner_id_idx",
+        "n|rel|public.test_items_owner_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.owner_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "test_items",
+        "test_items_deleted_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.test_items_deleted_at_idx",
+        "n|idx|public.test_items_deleted_at_idx",
+        "e|idx|public.test_items_deleted_at_idx",
+        "n|rel|public.test_items_deleted_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.deleted_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "test_items",
+        "test_items_search_idx"
+      ],
+      "writes": [
+        "s|idx|public.test_items_search_idx",
+        "n|idx|public.test_items_search_idx",
+        "e|idx|public.test_items_search_idx",
+        "n|rel|public.test_items_search_idx"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.search"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "test_items",
+        "test_items_code_idx"
+      ],
+      "writes": [
+        "s|idx|public.test_items_code_idx",
+        "n|idx|public.test_items_code_idx",
+        "e|idx|public.test_items_code_idx",
+        "n|rel|public.test_items_code_idx"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.test_items.code"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "test_items",
+        "test_items_number_idx"
+      ],
+      "writes": [
+        "s|idx|public.test_items_number_idx",
+        "n|idx|public.test_items_number_idx",
+        "e|idx|public.test_items_number_idx",
+        "n|rel|public.test_items_number_idx"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.test_items.number"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "test_items",
+        "test_items_custom_idx"
+      ],
+      "writes": [
+        "s|idx|public.test_items_custom_idx",
+        "n|idx|public.test_items_custom_idx",
+        "e|idx|public.test_items_custom_idx",
+        "n|rel|public.test_items_custom_idx"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.custom"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|fk|public.test_items.test_items_tenant_id_tenants_id_fk",
+        "n|fk|public.test_items.test_items_tenant_id_tenants_id_fk",
+        "e|fk|public.test_items.test_items_tenant_id_tenants_id_fk",
+        "n|con|public.test_items.test_items_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|fk|public.test_items.test_items_unit_fk",
+        "n|fk|public.test_items.test_items_unit_fk",
+        "e|fk|public.test_items.test_items_unit_fk",
+        "n|con|public.test_items.test_items_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.test_items.unit_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_encrypted_records"
+      ],
+      "writes": [
+        "s|fk|public.test_encrypted_records.test_encrypted_records_tenant_id_tenants_id_fk",
+        "n|fk|public.test_encrypted_records.test_encrypted_records_tenant_id_tenants_id_fk",
+        "e|fk|public.test_encrypted_records.test_encrypted_records_tenant_id_tenants_id_fk",
+        "n|con|public.test_encrypted_records.test_encrypted_records_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.test_encrypted_records",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.test_encrypted_records.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|pol|public.test_items.test_items_tenant_select",
+        "n|pol|public.test_items.test_items_tenant_select",
+        "e|pol|public.test_items.test_items_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "e|rls|public.test_items"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|pol|public.test_items.test_items_tenant_insert",
+        "n|pol|public.test_items.test_items_tenant_insert",
+        "e|pol|public.test_items.test_items_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "e|rls|public.test_items"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|pol|public.test_items.test_items_tenant_update",
+        "n|pol|public.test_items.test_items_tenant_update",
+        "e|pol|public.test_items.test_items_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "e|rls|public.test_items"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|pol|public.test_items.test_items_tenant_delete",
+        "n|pol|public.test_items.test_items_tenant_delete",
+        "e|pol|public.test_items.test_items_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "e|rls|public.test_items"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_encrypted_records"
+      ],
+      "writes": [
+        "s|pol|public.test_encrypted_records.test_encrypted_records_tenant_select",
+        "n|pol|public.test_encrypted_records.test_encrypted_records_tenant_select",
+        "e|pol|public.test_encrypted_records.test_encrypted_records_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.test_encrypted_records",
+        "n|sch|public",
+        "e|rls|public.test_encrypted_records"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_encrypted_records"
+      ],
+      "writes": [
+        "s|pol|public.test_encrypted_records.test_encrypted_records_tenant_insert",
+        "n|pol|public.test_encrypted_records.test_encrypted_records_tenant_insert",
+        "e|pol|public.test_encrypted_records.test_encrypted_records_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.test_encrypted_records",
+        "n|sch|public",
+        "e|rls|public.test_encrypted_records"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_encrypted_records"
+      ],
+      "writes": [
+        "s|pol|public.test_encrypted_records.test_encrypted_records_tenant_update",
+        "n|pol|public.test_encrypted_records.test_encrypted_records_tenant_update",
+        "e|pol|public.test_encrypted_records.test_encrypted_records_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.test_encrypted_records",
+        "n|sch|public",
+        "e|rls|public.test_encrypted_records"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_encrypted_records"
+      ],
+      "writes": [
+        "s|pol|public.test_encrypted_records.test_encrypted_records_tenant_delete",
+        "n|pol|public.test_encrypted_records.test_encrypted_records_tenant_delete",
+        "e|pol|public.test_encrypted_records.test_encrypted_records_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.test_encrypted_records",
+        "n|sch|public",
+        "e|rls|public.test_encrypted_records"
+      ]
+    }
+  ],
+  "ddl": [
+    {
+      "schema": "public",
+      "name": "test_items",
+      "isRlsEnabled": true,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "name": "test_encrypted_records",
+      "isRlsEnabled": true,
+      "entityType": "tables"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "uuidv7()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "tenant_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "owner_id",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "unit_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "title",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "body",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "published_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "code",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "number",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "custom",
+      "type": "jsonb",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'{}'",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "deleted_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "deleted_by",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "search",
+      "type": "tsvector",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": {
+        "as": "to_tsvector('simple', coalesce(coalesce(\"title\"::text, '') || ' ' || coalesce(\"body\"::text, ''), ''))",
+        "type": "stored"
+      },
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "uuidv7()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "tenant_id",
+      "type": "uuid",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "tax_number",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "tax_number_index",
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "created_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "updated_at",
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "entityType": "columns"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_owner_id_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "owner_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_deleted_at_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "deleted_at",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_search_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "search",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "gin",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_code_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "code",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": "deleted_at is null",
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_number_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "tenant_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "number",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_custom_idx",
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "custom",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "gin",
+      "concurrently": false,
+      "entityType": "indexes"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_tenant_id_tenants_id_fk",
+      "nameExplicit": false,
+      "columns": [
+        "tenant_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "tenants",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_unit_fk",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "unit_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "organizational_units",
+      "columnsTo": [
+        "tenant_id",
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "RESTRICT",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "test_encrypted_records_tenant_id_tenants_id_fk",
+      "nameExplicit": false,
+      "columns": [
+        "tenant_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "tenants",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "entityType": "fks"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "test_encrypted_records_pkey",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_tenant_id_id_key",
+      "nameExplicit": true,
+      "columns": [
+        "tenant_id",
+        "id"
+      ],
+      "nullsNotDistinct": false,
+      "entityType": "uniques"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_tenant_select",
+      "as": "PERMISSIVE",
+      "for": "SELECT",
+      "roles": [
+        "public"
+      ],
+      "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "withCheck": null,
+      "entityType": "policies"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_tenant_insert",
+      "as": "PERMISSIVE",
+      "for": "INSERT",
+      "roles": [
+        "public"
+      ],
+      "using": null,
+      "withCheck": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "entityType": "policies"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_tenant_update",
+      "as": "PERMISSIVE",
+      "for": "UPDATE",
+      "roles": [
+        "public"
+      ],
+      "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "withCheck": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "entityType": "policies"
+    },
+    {
+      "schema": "public",
+      "table": "test_items",
+      "name": "test_items_tenant_delete",
+      "as": "PERMISSIVE",
+      "for": "DELETE",
+      "roles": [
+        "public"
+      ],
+      "using": "(\"test_items\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "withCheck": null,
+      "entityType": "policies"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "test_encrypted_records_tenant_select",
+      "as": "PERMISSIVE",
+      "for": "SELECT",
+      "roles": [
+        "public"
+      ],
+      "using": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "withCheck": null,
+      "entityType": "policies"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "test_encrypted_records_tenant_insert",
+      "as": "PERMISSIVE",
+      "for": "INSERT",
+      "roles": [
+        "public"
+      ],
+      "using": null,
+      "withCheck": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "entityType": "policies"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "test_encrypted_records_tenant_update",
+      "as": "PERMISSIVE",
+      "for": "UPDATE",
+      "roles": [
+        "public"
+      ],
+      "using": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "withCheck": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "entityType": "policies"
+    },
+    {
+      "schema": "public",
+      "table": "test_encrypted_records",
+      "name": "test_encrypted_records_tenant_delete",
+      "as": "PERMISSIVE",
+      "for": "DELETE",
+      "roles": [
+        "public"
+      ],
+      "using": "(\"test_encrypted_records\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+      "withCheck": null,
+      "entityType": "policies"
+    }
+  ]
+}

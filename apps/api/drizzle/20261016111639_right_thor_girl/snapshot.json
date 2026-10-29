@@ -1,0 +1,803 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "2eb52622-f268-47e4-9c4b-911f1198e124",
+  "prevIds": [
+    "0fd0eaed-998b-48d2-b2ca-6c779b77b60b"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "mail_events"
+      ],
+      "writes": [
+        "s|tbl|public.mail_events",
+        "n|tbl|public.mail_events",
+        "e|tbl|public.mail_events",
+        "n|rel|public.mail_events",
+        "n|type|public.mail_events",
+        "n|rel|public.mail_events_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "mail_suppressions"
+      ],
+      "writes": [
+        "s|tbl|public.mail_suppressions",
+        "n|tbl|public.mail_suppressions",
+        "e|tbl|public.mail_suppressions",
+        "n|rel|public.mail_suppressions",
+        "n|type|public.mail_suppressions",
+        "n|rel|public.mail_suppressions_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "mail_events",
+        "mail_events_provider_event_address_idx"
+      ],
+      "writes": [
+        "s|idx|public.mail_events_provider_event_address_idx",
+        "n|idx|public.mail_events_provider_event_address_idx",
+        "e|idx|public.mail_events_provider_event_address_idx",
+        "n|rel|public.mail_events_provider_event_address_idx"
+      ],
+      "reads": [
+        "n|tbl|public.mail_events",
+        "n|sch|public",
+        "n|col|public.mail_events.provider",
+        "n|col|public.mail_events.event_id",
+        "n|col|public.mail_events.address"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "mail_events",
+        "mail_events_address_idx"
+      ],
+      "writes": [
+        "s|idx|public.mail_events_address_idx",
+        "n|idx|public.mail_events_address_idx",
+        "e|idx|public.mail_events_address_idx",
+        "n|rel|public.mail_events_address_idx"
+      ],
+      "reads": [
+        "n|tbl|public.mail_events",
+        "n|sch|public",
+        "n|col|public.mail_events.address"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "mail_events",
+        "mail_events_created_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.mail_events_created_at_idx",
+        "n|idx|public.mail_events_created_at_idx",
+        "e|idx|public.mail_events_created_at_idx",
+        "n|rel|public.mail_events_created_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.mail_events",
+        "n|sch|public",
+        "n|col|public.mail_events.created_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "mail_suppressions",
+        "mail_suppressions_address_idx"
+      ],
+      "writes": [
+        "s|idx|public.mail_suppressions_address_idx",
+        "n|idx|public.mail_suppressions_address_idx",
+        "e|idx|public.mail_suppressions_address_idx",
+        "n|rel|public.mail_suppressions_address_idx"
+      ],
+      "reads": [
+        "n|tbl|public.mail_suppressions",
+        "n|sch|public",
+        "n|col|public.mail_suppressions.address"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "mail_suppressions",
+        "mail_suppressions_reason_idx"
+      ],
+      "writes": [
+        "s|idx|public.mail_suppressions_reason_idx",
+        "n|idx|public.mail_suppressions_reason_idx",
+        "e|idx|public.mail_suppressions_reason_idx",
+        "n|rel|public.mail_suppressions_reason_idx"
+      ],
+      "reads": [
+        "n|tbl|public.mail_suppressions",
+        "n|sch|public",
+        "n|col|public.mail_suppressions.reason"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "mail_suppressions",
+        "mail_suppressions_suppressed_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.mail_suppressions_suppressed_at_idx",
+        "n|idx|public.mail_suppressions_suppressed_at_idx",
+        "e|idx|public.mail_suppressions_suppressed_at_idx",
+        "n|rel|public.mail_suppressions_suppressed_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.mail_suppressions",
+        "n|sch|public",
+        "n|col|public.mail_suppressions.suppressed_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "mail_suppressions",
+        "mail_suppressions_last_seen_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.mail_suppressions_last_seen_at_idx",
+        "n|idx|public.mail_suppressions_last_seen_at_idx",
+        "e|idx|public.mail_suppressions_last_seen_at_idx",
+        "n|rel|public.mail_suppressions_last_seen_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.mail_suppressions",
+        "n|sch|public",
+        "n|col|public.mail_suppressions.last_seen_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "mail_events",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "mail_suppressions",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "provider",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "event_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "type",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "address",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "occurred_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "detail",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "address",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "reason",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "source",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "note",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "last_detail",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "events",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "soft_bounces",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "first_seen_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "last_seen_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "suppressed_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "skipped",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "last_skipped_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "created_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "mail_events_provider_event_address_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "provider",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "event_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "address",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "mail_events_address_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "address",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "mail_events_created_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "mail_suppressions_address_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "address",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "mail_suppressions_reason_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "reason",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "mail_suppressions_suppressed_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "suppressed_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "mail_suppressions_last_seen_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "last_seen_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_events",
+        "name": "mail_events_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "mail_suppressions",
+        "name": "mail_suppressions_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

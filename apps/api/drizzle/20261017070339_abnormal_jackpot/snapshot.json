@@ -1,0 +1,1704 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "c365d647-c43e-4acc-8a45-3a22b0e4eb3a",
+  "prevIds": [
+    "44b6b740-a18d-4cbc-ace6-5b4ed9f312d4"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|tbl|public.team_tree",
+        "n|tbl|public.team_tree",
+        "e|tbl|public.team_tree",
+        "n|rel|public.team_tree",
+        "n|type|public.team_tree",
+        "n|rel|public.team_tree_ancestor_id_descendant_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|tbl|public.teams",
+        "n|tbl|public.teams",
+        "e|tbl|public.teams",
+        "n|rel|public.teams",
+        "n|type|public.teams",
+        "n|rel|public.teams_pkey",
+        "n|rel|public.org_units_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|tbl|public.user_teams",
+        "n|tbl|public.user_teams",
+        "e|tbl|public.user_teams",
+        "n|rel|public.user_teams",
+        "n|type|public.user_teams",
+        "n|rel|public.user_teams_user_id_team_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|pol|public.org_unit_tree.org_unit_tree_tenant_select",
+        "n|pol|public.org_unit_tree.org_unit_tree_tenant_select",
+        "e|pol|public.org_unit_tree.org_unit_tree_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|pol|public.org_unit_tree.org_unit_tree_tenant_insert",
+        "n|pol|public.org_unit_tree.org_unit_tree_tenant_insert",
+        "e|pol|public.org_unit_tree.org_unit_tree_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|pol|public.org_unit_tree.org_unit_tree_tenant_update",
+        "n|pol|public.org_unit_tree.org_unit_tree_tenant_update",
+        "e|pol|public.org_unit_tree.org_unit_tree_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|pol|public.org_unit_tree.org_unit_tree_tenant_delete",
+        "n|pol|public.org_unit_tree.org_unit_tree_tenant_delete",
+        "e|pol|public.org_unit_tree.org_unit_tree_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|pol|public.org_units.org_units_tenant_select",
+        "n|pol|public.org_units.org_units_tenant_select",
+        "e|pol|public.org_units.org_units_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|pol|public.org_units.org_units_tenant_insert",
+        "n|pol|public.org_units.org_units_tenant_insert",
+        "e|pol|public.org_units.org_units_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|pol|public.org_units.org_units_tenant_update",
+        "n|pol|public.org_units.org_units_tenant_update",
+        "e|pol|public.org_units.org_units_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|pol|public.org_units.org_units_tenant_delete",
+        "n|pol|public.org_units.org_units_tenant_delete",
+        "e|pol|public.org_units.org_units_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|pol|public.user_org_units.user_org_units_tenant_select",
+        "n|pol|public.user_org_units.user_org_units_tenant_select",
+        "e|pol|public.user_org_units.user_org_units_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|pol|public.user_org_units.user_org_units_tenant_insert",
+        "n|pol|public.user_org_units.user_org_units_tenant_insert",
+        "e|pol|public.user_org_units.user_org_units_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|pol|public.user_org_units.user_org_units_tenant_update",
+        "n|pol|public.user_org_units.user_org_units_tenant_update",
+        "e|pol|public.user_org_units.user_org_units_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|pol|public.user_org_units.user_org_units_tenant_delete",
+        "n|pol|public.user_org_units.user_org_units_tenant_delete",
+        "e|pol|public.user_org_units.user_org_units_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|fk|public.org_unit_tree.org_unit_tree_ancestor_fk",
+        "n|fk|public.org_unit_tree.org_unit_tree_ancestor_fk",
+        "e|fk|public.org_unit_tree.org_unit_tree_ancestor_fk",
+        "n|con|public.org_unit_tree.org_unit_tree_ancestor_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public",
+        "e|col|public.org_unit_tree.tenant_id",
+        "e|col|public.org_unit_tree.ancestor_id"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|fk|public.org_unit_tree.org_unit_tree_descendant_fk",
+        "n|fk|public.org_unit_tree.org_unit_tree_descendant_fk",
+        "e|fk|public.org_unit_tree.org_unit_tree_descendant_fk",
+        "n|con|public.org_unit_tree.org_unit_tree_descendant_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public",
+        "e|col|public.org_unit_tree.tenant_id",
+        "e|col|public.org_unit_tree.descendant_id"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|fk|public.user_org_units.user_org_units_org_unit_fk",
+        "n|fk|public.user_org_units.user_org_units_org_unit_fk",
+        "e|fk|public.user_org_units.user_org_units_org_unit_fk",
+        "n|con|public.user_org_units.user_org_units_org_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public",
+        "e|col|public.user_org_units.tenant_id",
+        "e|col|public.user_org_units.org_unit_id"
+      ]
+    },
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notes"
+      ],
+      "writes": [
+        "s|fk|public.notes.notes_org_unit_fk",
+        "n|fk|public.notes.notes_org_unit_fk",
+        "e|fk|public.notes.notes_org_unit_fk",
+        "n|con|public.notes.notes_org_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "e|col|public.notes.tenant_id",
+        "e|col|public.notes.org_unit_id"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|tbl|public.org_unit_tree",
+        "n|tbl|public.org_unit_tree",
+        "e|tbl|public.org_unit_tree",
+        "n|rel|public.org_unit_tree",
+        "n|type|public.org_unit_tree"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|tbl|public.org_units",
+        "n|tbl|public.org_units",
+        "e|tbl|public.org_units",
+        "n|rel|public.org_units",
+        "n|type|public.org_units"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|tbl|public.user_org_units",
+        "n|tbl|public.user_org_units",
+        "e|tbl|public.user_org_units",
+        "n|rel|public.user_org_units",
+        "n|type|public.user_org_units"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "invitations",
+        "team_ids"
+      ],
+      "writes": [
+        "s|col|public.invitations.team_ids",
+        "n|col|public.invitations.team_ids",
+        "e|col|public.invitations.team_ids"
+      ],
+      "reads": [
+        "n|tbl|public.invitations",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "notes",
+        "team_id"
+      ],
+      "writes": [
+        "s|col|public.notes.team_id",
+        "n|col|public.notes.team_id",
+        "e|col|public.notes.team_id"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "invitations",
+        "org_unit_ids"
+      ],
+      "writes": [
+        "s|col|public.invitations.org_unit_ids",
+        "n|col|public.invitations.org_unit_ids",
+        "e|col|public.invitations.org_unit_ids"
+      ],
+      "reads": [
+        "n|tbl|public.invitations",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "notes",
+        "org_unit_id"
+      ],
+      "writes": [
+        "s|col|public.notes.org_unit_id",
+        "n|col|public.notes.org_unit_id",
+        "e|col|public.notes.org_unit_id"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "team_tree",
+        "team_tree_descendant_idx"
+      ],
+      "writes": [
+        "s|idx|public.team_tree_descendant_idx",
+        "n|idx|public.team_tree_descendant_idx",
+        "e|idx|public.team_tree_descendant_idx",
+        "n|rel|public.team_tree_descendant_idx"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "n|col|public.team_tree.descendant_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "teams",
+        "teams_parent_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.teams_parent_id_idx",
+        "n|idx|public.teams_parent_id_idx",
+        "e|idx|public.teams_parent_id_idx",
+        "n|rel|public.teams_parent_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.teams.parent_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "user_teams",
+        "user_teams_team_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.user_teams_team_id_idx",
+        "n|idx|public.user_teams_team_id_idx",
+        "e|idx|public.user_teams_team_id_idx",
+        "n|rel|public.user_teams_team_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "n|col|public.user_teams.team_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|fk|public.team_tree.team_tree_tenant_id_tenants_id_fk",
+        "n|fk|public.team_tree.team_tree_tenant_id_tenants_id_fk",
+        "e|fk|public.team_tree.team_tree_tenant_id_tenants_id_fk",
+        "n|con|public.team_tree.team_tree_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.team_tree.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|fk|public.teams.teams_tenant_id_tenants_id_fk",
+        "n|fk|public.teams.teams_tenant_id_tenants_id_fk",
+        "e|fk|public.teams.teams_tenant_id_tenants_id_fk",
+        "n|con|public.teams.teams_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|fk|public.user_teams.user_teams_tenant_id_tenants_id_fk",
+        "n|fk|public.user_teams.user_teams_tenant_id_tenants_id_fk",
+        "e|fk|public.user_teams.user_teams_tenant_id_tenants_id_fk",
+        "n|con|public.user_teams.user_teams_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.user_teams.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|fk|public.user_teams.user_teams_membership_fk",
+        "n|fk|public.user_teams.user_teams_membership_fk",
+        "e|fk|public.user_teams.user_teams_membership_fk",
+        "n|con|public.user_teams.user_teams_membership_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "n|tbl|public.memberships",
+        "n|sch|public",
+        "n|col|public.user_teams.tenant_id",
+        "n|col|public.user_teams.user_id",
+        "n|col|public.memberships.tenant_id",
+        "n|col|public.memberships.user_id",
+        "e|uniqueness|public.memberships.tenant_id.user_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|pol|public.team_tree.team_tree_tenant_select",
+        "n|pol|public.team_tree.team_tree_tenant_select",
+        "e|pol|public.team_tree.team_tree_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "e|rls|public.team_tree"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|pol|public.team_tree.team_tree_tenant_insert",
+        "n|pol|public.team_tree.team_tree_tenant_insert",
+        "e|pol|public.team_tree.team_tree_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "e|rls|public.team_tree"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|pol|public.team_tree.team_tree_tenant_update",
+        "n|pol|public.team_tree.team_tree_tenant_update",
+        "e|pol|public.team_tree.team_tree_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "e|rls|public.team_tree"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|pol|public.team_tree.team_tree_tenant_delete",
+        "n|pol|public.team_tree.team_tree_tenant_delete",
+        "e|pol|public.team_tree.team_tree_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "e|rls|public.team_tree"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|pol|public.teams.teams_tenant_select",
+        "n|pol|public.teams.teams_tenant_select",
+        "e|pol|public.teams.teams_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "e|rls|public.teams"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|pol|public.teams.teams_tenant_insert",
+        "n|pol|public.teams.teams_tenant_insert",
+        "e|pol|public.teams.teams_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "e|rls|public.teams"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|pol|public.teams.teams_tenant_update",
+        "n|pol|public.teams.teams_tenant_update",
+        "e|pol|public.teams.teams_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "e|rls|public.teams"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|pol|public.teams.teams_tenant_delete",
+        "n|pol|public.teams.teams_tenant_delete",
+        "e|pol|public.teams.teams_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "e|rls|public.teams"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|pol|public.user_teams.user_teams_tenant_select",
+        "n|pol|public.user_teams.user_teams_tenant_select",
+        "e|pol|public.user_teams.user_teams_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "e|rls|public.user_teams"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|pol|public.user_teams.user_teams_tenant_insert",
+        "n|pol|public.user_teams.user_teams_tenant_insert",
+        "e|pol|public.user_teams.user_teams_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "e|rls|public.user_teams"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|pol|public.user_teams.user_teams_tenant_update",
+        "n|pol|public.user_teams.user_teams_tenant_update",
+        "e|pol|public.user_teams.user_teams_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "e|rls|public.user_teams"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|pol|public.user_teams.user_teams_tenant_delete",
+        "n|pol|public.user_teams.user_teams_tenant_delete",
+        "e|pol|public.user_teams.user_teams_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "e|rls|public.user_teams"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "team_tree",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "teams",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "user_teams",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "invitations",
+        "name": "team_ids",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "ancestor_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "descendant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "depth",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "parent_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "team_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "team_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_descendant_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "descendant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_parent_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "parent_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_team_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "team_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_membership_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "memberships",
+        "columnsTo": [
+          "tenant_id",
+          "user_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_ancestor_id_descendant_id_pk",
+        "columns": [
+          "ancestor_id",
+          "descendant_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_user_id_team_id_pk",
+        "columns": [
+          "user_id",
+          "team_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "org_units_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"team_tree\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"team_tree\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"user_teams\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"user_teams\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"public\",\"org_unit_tree\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"public\",\"org_units\"]"
+    },
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"public\",\"user_org_units\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_unit_tree\",\"ancestor_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_unit_tree\",\"descendant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_unit_tree\",\"depth\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_units\",\"id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_units\",\"name\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_units\",\"parent_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_units\",\"created_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"user_org_units\",\"user_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"user_org_units\",\"org_unit_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"notes\",\"org_unit_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_units\",\"updated_at\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"invitations\",\"org_unit_ids\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_unit_tree\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"org_units\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"user_org_units\",\"tenant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"org_unit_tree_descendant_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"org_units_parent_id_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"user_org_units_org_unit_id_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_tenant_id_tenants_id_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"org_units\",\"org_units_tenant_id_tenants_id_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"user_org_units\",\"user_org_units_tenant_id_tenants_id_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"user_org_units\",\"user_org_units_membership_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_ancestor_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_descendant_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"org_units\",\"org_units_parent_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"user_org_units\",\"user_org_units_org_unit_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"notes\",\"notes_org_unit_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_ancestor_id_descendant_id_pk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"public\",\"org_units\",\"org_units_pkey\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"public\",\"user_org_units\",\"user_org_units_user_id_org_unit_id_pk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "uniques\u0000[\"public\",\"org_units\",\"org_units_tenant_id_id_key\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_tenant_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_tenant_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_tenant_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_unit_tree\",\"org_unit_tree_tenant_delete\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_units\",\"org_units_tenant_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_units\",\"org_units_tenant_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_units\",\"org_units_tenant_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"org_units\",\"org_units_tenant_delete\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"user_org_units\",\"user_org_units_tenant_select\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"user_org_units\",\"user_org_units_tenant_insert\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"user_org_units\",\"user_org_units_tenant_update\"]"
+    },
+    {
+      "op": "drop",
+      "key": "policies\u0000[\"public\",\"user_org_units\",\"user_org_units_tenant_delete\"]"
+    }
+  ]
+}

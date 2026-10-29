@@ -1,0 +1,81 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "e806bb29-6621-42ea-8d15-6293f032f721",
+  "prevIds": [
+    "3198a444-7be6-44aa-8b0e-580615c72aae"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "users",
+        "onboarding_email"
+      ],
+      "writes": [
+        "s|col|public.users.onboarding_email",
+        "n|col|public.users.onboarding_email",
+        "e|col|public.users.onboarding_email"
+      ],
+      "reads": [
+        "n|tbl|public.users",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "users",
+        "onboarding_password"
+      ],
+      "writes": [
+        "s|col|public.users.onboarding_password",
+        "n|col|public.users.onboarding_password",
+        "e|col|public.users.onboarding_password"
+      ],
+      "reads": [
+        "n|tbl|public.users",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "users",
+        "name": "onboarding_email",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "users",
+        "name": "onboarding_password",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

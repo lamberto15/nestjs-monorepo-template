@@ -1,0 +1,124 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "f72cf4e7-82db-4416-8ebf-21f4c6b8c784",
+  "prevIds": [
+    "5cfef0d3-b7af-41ae-a7b6-4205e6db80d6"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_sign_ins_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_sign_ins_id_idx",
+        "n|idx|public.audit_log_sign_ins_id_idx",
+        "e|idx|public.audit_log_sign_ins_id_idx",
+        "n|rel|public.audit_log_sign_ins_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.tenant_id",
+        "n|col|public.audit_log.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_sign_ins_at_ms_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_sign_ins_at_ms_idx",
+        "n|idx|public.audit_log_sign_ins_at_ms_idx",
+        "e|idx|public.audit_log_sign_ins_at_ms_idx",
+        "n|rel|public.audit_log_sign_ins_at_ms_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.tenant_id",
+        "n|col|public.audit_log.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "audit_log",
+        "name": "audit_log_sign_ins_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "action in ('member.signed-in', 'member.sign-in-failed')",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "audit_log",
+        "name": "audit_log_sign_ins_at_ms_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "action in ('member.signed-in', 'member.sign-in-failed')",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

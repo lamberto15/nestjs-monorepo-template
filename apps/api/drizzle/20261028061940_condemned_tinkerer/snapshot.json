@@ -1,0 +1,521 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "80f79add-433d-47ec-81e2-e6590683f875",
+  "prevIds": [
+    "f72cf4e7-82db-4416-8ebf-21f4c6b8c784"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "favorites"
+      ],
+      "writes": [
+        "s|tbl|public.favorites",
+        "n|tbl|public.favorites",
+        "e|tbl|public.favorites",
+        "n|rel|public.favorites",
+        "n|type|public.favorites",
+        "n|rel|public.favorites_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "favorites",
+        "favorites_owner_target_idx"
+      ],
+      "writes": [
+        "s|idx|public.favorites_owner_target_idx",
+        "n|idx|public.favorites_owner_target_idx",
+        "e|idx|public.favorites_owner_target_idx",
+        "n|rel|public.favorites_owner_target_idx"
+      ],
+      "reads": [
+        "n|tbl|public.favorites",
+        "n|sch|public",
+        "n|col|public.favorites.tenant_id",
+        "n|col|public.favorites.owner",
+        "n|col|public.favorites.kind",
+        "n|col|public.favorites.subject",
+        "n|col|public.favorites.target"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "favorites",
+        "favorites_owner_position_idx"
+      ],
+      "writes": [
+        "s|idx|public.favorites_owner_position_idx",
+        "n|idx|public.favorites_owner_position_idx",
+        "e|idx|public.favorites_owner_position_idx",
+        "n|rel|public.favorites_owner_position_idx"
+      ],
+      "reads": [
+        "n|tbl|public.favorites",
+        "n|sch|public",
+        "n|col|public.favorites.owner",
+        "n|col|public.favorites.position"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "favorites"
+      ],
+      "writes": [
+        "s|fk|public.favorites.favorites_tenant_id_tenants_id_fk",
+        "n|fk|public.favorites.favorites_tenant_id_tenants_id_fk",
+        "e|fk|public.favorites.favorites_tenant_id_tenants_id_fk",
+        "n|con|public.favorites.favorites_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.favorites",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.favorites.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "favorites"
+      ],
+      "writes": [
+        "s|pol|public.favorites.favorites_tenant_select",
+        "n|pol|public.favorites.favorites_tenant_select",
+        "e|pol|public.favorites.favorites_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.favorites",
+        "n|sch|public",
+        "e|rls|public.favorites"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "favorites"
+      ],
+      "writes": [
+        "s|pol|public.favorites.favorites_tenant_insert",
+        "n|pol|public.favorites.favorites_tenant_insert",
+        "e|pol|public.favorites.favorites_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.favorites",
+        "n|sch|public",
+        "e|rls|public.favorites"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "favorites"
+      ],
+      "writes": [
+        "s|pol|public.favorites.favorites_tenant_update",
+        "n|pol|public.favorites.favorites_tenant_update",
+        "e|pol|public.favorites.favorites_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.favorites",
+        "n|sch|public",
+        "e|rls|public.favorites"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "favorites"
+      ],
+      "writes": [
+        "s|pol|public.favorites.favorites_tenant_delete",
+        "n|pol|public.favorites.favorites_tenant_delete",
+        "e|pol|public.favorites.favorites_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.favorites",
+        "n|sch|public",
+        "e|rls|public.favorites"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "favorites",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "owner",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "kind",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "target",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "label",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "position",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_owner_target_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "owner",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "kind",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "target",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_owner_position_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "owner",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "position",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"favorites\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"favorites\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"favorites\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"favorites\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "favorites",
+        "name": "favorites_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"favorites\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

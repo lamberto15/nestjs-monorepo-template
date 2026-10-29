@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "3e271b9d-350b-4b6a-89f0-af8ba571b505",
+  "prevIds": [
+    "e806bb29-6621-42ea-8d15-6293f032f721"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "notification_preferences",
+        "quiet_hours"
+      ],
+      "writes": [
+        "s|col|public.notification_preferences.quiet_hours",
+        "n|col|public.notification_preferences.quiet_hours",
+        "e|col|public.notification_preferences.quiet_hours"
+      ],
+      "reads": [
+        "n|tbl|public.notification_preferences",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notification_preferences",
+        "name": "quiet_hours",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

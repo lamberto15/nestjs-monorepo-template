@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "44b6b740-a18d-4cbc-ace6-5b4ed9f312d4",
+  "prevIds": [
+    "475cbac5-6575-4664-bb27-67c709d6d0a9"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "account_deletions",
+        "started_at"
+      ],
+      "writes": [
+        "s|col|public.account_deletions.started_at",
+        "n|col|public.account_deletions.started_at",
+        "e|col|public.account_deletions.started_at"
+      ],
+      "reads": [
+        "n|tbl|public.account_deletions",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "account_deletions",
+        "name": "started_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

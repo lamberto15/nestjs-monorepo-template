@@ -1,0 +1,94 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "1b2a95df-7a9b-48f2-9ec7-e207c3e39af1",
+  "prevIds": [
+    "f13874a4-d45d-45cf-ad36-3550a05da405"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "notes",
+        "search"
+      ],
+      "writes": [
+        "s|col|public.notes.search",
+        "n|col|public.notes.search",
+        "e|col|public.notes.search"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_search_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_search_idx",
+        "n|idx|public.notes_search_idx",
+        "e|idx|public.notes_search_idx",
+        "n|rel|public.notes_search_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.search"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "search",
+        "type": "tsvector",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "to_tsvector('simple', coalesce(\"notes\".\"title\" || ' ' || \"notes\".\"body\", ''))",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_search_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "search",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

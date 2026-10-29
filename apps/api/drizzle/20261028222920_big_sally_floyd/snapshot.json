@@ -1,0 +1,1607 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "71062abe-f093-405e-abe9-974a7f39deb0",
+  "prevIds": [
+    "e2158fa8-d12a-4a03-80fc-805d6f7b113d"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "business_calendars"
+      ],
+      "writes": [
+        "s|tbl|public.business_calendars",
+        "n|tbl|public.business_calendars",
+        "e|tbl|public.business_calendars",
+        "n|rel|public.business_calendars",
+        "n|type|public.business_calendars",
+        "n|rel|public.business_calendars_pkey",
+        "n|rel|public.business_calendars_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedule_runs"
+      ],
+      "writes": [
+        "s|tbl|public.record_schedule_runs",
+        "n|tbl|public.record_schedule_runs",
+        "e|tbl|public.record_schedule_runs",
+        "n|rel|public.record_schedule_runs",
+        "n|type|public.record_schedule_runs",
+        "n|rel|public.record_schedule_runs_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedules"
+      ],
+      "writes": [
+        "s|tbl|public.record_schedules",
+        "n|tbl|public.record_schedules",
+        "e|tbl|public.record_schedules",
+        "n|rel|public.record_schedules",
+        "n|type|public.record_schedules",
+        "n|rel|public.record_schedules_pkey",
+        "n|rel|public.record_schedules_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "business_calendars",
+        "business_calendars_name_idx"
+      ],
+      "writes": [
+        "s|idx|public.business_calendars_name_idx",
+        "n|idx|public.business_calendars_name_idx",
+        "e|idx|public.business_calendars_name_idx",
+        "n|rel|public.business_calendars_name_idx"
+      ],
+      "reads": [
+        "n|tbl|public.business_calendars",
+        "n|sch|public",
+        "n|col|public.business_calendars.tenant_id",
+        "n|col|public.business_calendars.name"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "record_schedule_runs",
+        "record_schedule_runs_occurrence_idx"
+      ],
+      "writes": [
+        "s|idx|public.record_schedule_runs_occurrence_idx",
+        "n|idx|public.record_schedule_runs_occurrence_idx",
+        "e|idx|public.record_schedule_runs_occurrence_idx",
+        "n|rel|public.record_schedule_runs_occurrence_idx"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedule_runs",
+        "n|sch|public",
+        "n|col|public.record_schedule_runs.schedule_id",
+        "n|col|public.record_schedule_runs.occurrence_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "record_schedules",
+        "record_schedules_owner_idx"
+      ],
+      "writes": [
+        "s|idx|public.record_schedules_owner_idx",
+        "n|idx|public.record_schedules_owner_idx",
+        "e|idx|public.record_schedules_owner_idx",
+        "n|rel|public.record_schedules_owner_idx"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "n|col|public.record_schedules.owner",
+        "n|col|public.record_schedules.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "record_schedules",
+        "record_schedules_next_run_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.record_schedules_next_run_at_idx",
+        "n|idx|public.record_schedules_next_run_at_idx",
+        "e|idx|public.record_schedules_next_run_at_idx",
+        "n|rel|public.record_schedules_next_run_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "n|col|public.record_schedules.next_run_at"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "business_calendars"
+      ],
+      "writes": [
+        "s|fk|public.business_calendars.business_calendars_tenant_id_tenants_id_fk",
+        "n|fk|public.business_calendars.business_calendars_tenant_id_tenants_id_fk",
+        "e|fk|public.business_calendars.business_calendars_tenant_id_tenants_id_fk",
+        "n|con|public.business_calendars.business_calendars_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.business_calendars",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.business_calendars.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedule_runs"
+      ],
+      "writes": [
+        "s|fk|public.record_schedule_runs.record_schedule_runs_tenant_id_tenants_id_fk",
+        "n|fk|public.record_schedule_runs.record_schedule_runs_tenant_id_tenants_id_fk",
+        "e|fk|public.record_schedule_runs.record_schedule_runs_tenant_id_tenants_id_fk",
+        "n|con|public.record_schedule_runs.record_schedule_runs_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedule_runs",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.record_schedule_runs.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedule_runs"
+      ],
+      "writes": [
+        "s|fk|public.record_schedule_runs.record_schedule_runs_schedule_fk",
+        "n|fk|public.record_schedule_runs.record_schedule_runs_schedule_fk",
+        "e|fk|public.record_schedule_runs.record_schedule_runs_schedule_fk",
+        "n|con|public.record_schedule_runs.record_schedule_runs_schedule_fk"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedule_runs",
+        "n|sch|public",
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "n|col|public.record_schedule_runs.tenant_id",
+        "n|col|public.record_schedule_runs.schedule_id",
+        "n|col|public.record_schedules.tenant_id",
+        "n|col|public.record_schedules.id",
+        "e|uniqueness|public.record_schedules.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedules"
+      ],
+      "writes": [
+        "s|fk|public.record_schedules.record_schedules_tenant_id_tenants_id_fk",
+        "n|fk|public.record_schedules.record_schedules_tenant_id_tenants_id_fk",
+        "e|fk|public.record_schedules.record_schedules_tenant_id_tenants_id_fk",
+        "n|con|public.record_schedules.record_schedules_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.record_schedules.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedules"
+      ],
+      "writes": [
+        "s|fk|public.record_schedules.record_schedules_calendar_fk",
+        "n|fk|public.record_schedules.record_schedules_calendar_fk",
+        "e|fk|public.record_schedules.record_schedules_calendar_fk",
+        "n|con|public.record_schedules.record_schedules_calendar_fk"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "n|tbl|public.business_calendars",
+        "n|sch|public",
+        "n|col|public.record_schedules.tenant_id",
+        "n|col|public.record_schedules.calendar_id",
+        "n|col|public.business_calendars.tenant_id",
+        "n|col|public.business_calendars.id",
+        "e|uniqueness|public.business_calendars.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "business_calendars"
+      ],
+      "writes": [
+        "s|pol|public.business_calendars.business_calendars_tenant_select",
+        "n|pol|public.business_calendars.business_calendars_tenant_select",
+        "e|pol|public.business_calendars.business_calendars_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.business_calendars",
+        "n|sch|public",
+        "e|rls|public.business_calendars"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "business_calendars"
+      ],
+      "writes": [
+        "s|pol|public.business_calendars.business_calendars_tenant_insert",
+        "n|pol|public.business_calendars.business_calendars_tenant_insert",
+        "e|pol|public.business_calendars.business_calendars_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.business_calendars",
+        "n|sch|public",
+        "e|rls|public.business_calendars"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "business_calendars"
+      ],
+      "writes": [
+        "s|pol|public.business_calendars.business_calendars_tenant_update",
+        "n|pol|public.business_calendars.business_calendars_tenant_update",
+        "e|pol|public.business_calendars.business_calendars_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.business_calendars",
+        "n|sch|public",
+        "e|rls|public.business_calendars"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "business_calendars"
+      ],
+      "writes": [
+        "s|pol|public.business_calendars.business_calendars_tenant_delete",
+        "n|pol|public.business_calendars.business_calendars_tenant_delete",
+        "e|pol|public.business_calendars.business_calendars_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.business_calendars",
+        "n|sch|public",
+        "e|rls|public.business_calendars"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedule_runs"
+      ],
+      "writes": [
+        "s|pol|public.record_schedule_runs.record_schedule_runs_tenant_select",
+        "n|pol|public.record_schedule_runs.record_schedule_runs_tenant_select",
+        "e|pol|public.record_schedule_runs.record_schedule_runs_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedule_runs",
+        "n|sch|public",
+        "e|rls|public.record_schedule_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedule_runs"
+      ],
+      "writes": [
+        "s|pol|public.record_schedule_runs.record_schedule_runs_tenant_insert",
+        "n|pol|public.record_schedule_runs.record_schedule_runs_tenant_insert",
+        "e|pol|public.record_schedule_runs.record_schedule_runs_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedule_runs",
+        "n|sch|public",
+        "e|rls|public.record_schedule_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedule_runs"
+      ],
+      "writes": [
+        "s|pol|public.record_schedule_runs.record_schedule_runs_tenant_update",
+        "n|pol|public.record_schedule_runs.record_schedule_runs_tenant_update",
+        "e|pol|public.record_schedule_runs.record_schedule_runs_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedule_runs",
+        "n|sch|public",
+        "e|rls|public.record_schedule_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedule_runs"
+      ],
+      "writes": [
+        "s|pol|public.record_schedule_runs.record_schedule_runs_tenant_delete",
+        "n|pol|public.record_schedule_runs.record_schedule_runs_tenant_delete",
+        "e|pol|public.record_schedule_runs.record_schedule_runs_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedule_runs",
+        "n|sch|public",
+        "e|rls|public.record_schedule_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedules"
+      ],
+      "writes": [
+        "s|pol|public.record_schedules.record_schedules_tenant_select",
+        "n|pol|public.record_schedules.record_schedules_tenant_select",
+        "e|pol|public.record_schedules.record_schedules_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "e|rls|public.record_schedules"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedules"
+      ],
+      "writes": [
+        "s|pol|public.record_schedules.record_schedules_tenant_insert",
+        "n|pol|public.record_schedules.record_schedules_tenant_insert",
+        "e|pol|public.record_schedules.record_schedules_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "e|rls|public.record_schedules"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedules"
+      ],
+      "writes": [
+        "s|pol|public.record_schedules.record_schedules_tenant_update",
+        "n|pol|public.record_schedules.record_schedules_tenant_update",
+        "e|pol|public.record_schedules.record_schedules_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "e|rls|public.record_schedules"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_schedules"
+      ],
+      "writes": [
+        "s|pol|public.record_schedules.record_schedules_tenant_delete",
+        "n|pol|public.record_schedules.record_schedules_tenant_delete",
+        "e|pol|public.record_schedules.record_schedules_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.record_schedules",
+        "n|sch|public",
+        "e|rls|public.record_schedules"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "business_calendars",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "record_schedule_runs",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "record_schedules",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "timezone",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "hours",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "exceptions",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "schedule_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "occurrence_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "owner",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "importer",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "template",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "rrule",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "start_date",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "time",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "timezone",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "calendar_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'active'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "end_reason",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "occurrences",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "max_occurrences",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "failures",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "last_error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "last_run_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "last_status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "next_run_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_name_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "name",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_occurrence_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "schedule_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "occurrence_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_owner_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "owner",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_next_run_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "next_run_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"record_schedules\".\"status\" = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_schedule_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "schedule_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "record_schedules",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_calendar_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "calendar_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "business_calendars",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "business_calendars",
+        "name": "business_calendars_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"business_calendars\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedule_runs",
+        "name": "record_schedule_runs_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"record_schedule_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_schedules",
+        "name": "record_schedules_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"record_schedules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

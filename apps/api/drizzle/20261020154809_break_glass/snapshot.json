@@ -1,0 +1,523 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "6b2671da-143b-44cf-b8fa-6e2a2b3d8bc5",
+  "prevIds": [
+    "58311921-6dd3-47fc-8731-bc84c6cd1852"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|tbl|public.break_glass_grants",
+        "n|tbl|public.break_glass_grants",
+        "e|tbl|public.break_glass_grants",
+        "n|rel|public.break_glass_grants",
+        "n|type|public.break_glass_grants",
+        "n|rel|public.break_glass_grants_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "break_glass_grants",
+        "break_glass_grants_user_target_idx"
+      ],
+      "writes": [
+        "s|idx|public.break_glass_grants_user_target_idx",
+        "n|idx|public.break_glass_grants_user_target_idx",
+        "e|idx|public.break_glass_grants_user_target_idx",
+        "n|rel|public.break_glass_grants_user_target_idx"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "n|col|public.break_glass_grants.tenant_id",
+        "n|col|public.break_glass_grants.user_id",
+        "n|col|public.break_glass_grants.target_tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|fk|public.break_glass_grants.break_glass_grants_tenant_id_tenants_id_fk",
+        "n|fk|public.break_glass_grants.break_glass_grants_tenant_id_tenants_id_fk",
+        "e|fk|public.break_glass_grants.break_glass_grants_tenant_id_tenants_id_fk",
+        "n|con|public.break_glass_grants.break_glass_grants_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.break_glass_grants.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|fk|public.break_glass_grants.break_glass_grants_user_id_users_id_fk",
+        "n|fk|public.break_glass_grants.break_glass_grants_user_id_users_id_fk",
+        "e|fk|public.break_glass_grants.break_glass_grants_user_id_users_id_fk",
+        "n|con|public.break_glass_grants.break_glass_grants_user_id_users_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "n|tbl|public.users",
+        "n|sch|public",
+        "n|col|public.break_glass_grants.user_id",
+        "n|col|public.users.id",
+        "e|uniqueness|public.users.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|fk|public.break_glass_grants.break_glass_grants_target_tenant_id_tenants_id_fk",
+        "n|fk|public.break_glass_grants.break_glass_grants_target_tenant_id_tenants_id_fk",
+        "e|fk|public.break_glass_grants.break_glass_grants_target_tenant_id_tenants_id_fk",
+        "n|con|public.break_glass_grants.break_glass_grants_target_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.break_glass_grants.target_tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|pol|public.break_glass_grants.break_glass_grants_tenant_select",
+        "n|pol|public.break_glass_grants.break_glass_grants_tenant_select",
+        "e|pol|public.break_glass_grants.break_glass_grants_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "e|rls|public.break_glass_grants"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|pol|public.break_glass_grants.break_glass_grants_tenant_insert",
+        "n|pol|public.break_glass_grants.break_glass_grants_tenant_insert",
+        "e|pol|public.break_glass_grants.break_glass_grants_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "e|rls|public.break_glass_grants"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|pol|public.break_glass_grants.break_glass_grants_tenant_update",
+        "n|pol|public.break_glass_grants.break_glass_grants_tenant_update",
+        "e|pol|public.break_glass_grants.break_glass_grants_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "e|rls|public.break_glass_grants"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "break_glass_grants"
+      ],
+      "writes": [
+        "s|pol|public.break_glass_grants.break_glass_grants_tenant_delete",
+        "n|pol|public.break_glass_grants.break_glass_grants_tenant_delete",
+        "e|pol|public.break_glass_grants.break_glass_grants_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.break_glass_grants",
+        "n|sch|public",
+        "e|rls|public.break_glass_grants"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "break_glass_grants",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "target_tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "reason",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "ended_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_user_target_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "target_tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_user_id_users_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "users",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_target_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "target_tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"break_glass_grants\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"break_glass_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"break_glass_grants\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"break_glass_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"break_glass_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"break_glass_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "break_glass_grants",
+        "name": "break_glass_grants_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"break_glass_grants\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

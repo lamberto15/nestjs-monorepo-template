@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "81cb49f9-38fb-4a82-948e-b151097b59e0",
+  "prevIds": [
+    "32dec774-9e4d-40ef-9081-c3a60d7f1dcb"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "users",
+        "deprovisioned_at"
+      ],
+      "writes": [
+        "s|col|public.users.deprovisioned_at",
+        "n|col|public.users.deprovisioned_at",
+        "e|col|public.users.deprovisioned_at"
+      ],
+      "reads": [
+        "n|tbl|public.users",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "users",
+        "name": "deprovisioned_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

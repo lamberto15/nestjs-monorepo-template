@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b5e73a59-af31-41a1-be5d-5eaf240648dd",
+  "prevIds": [
+    "9c044c2e-b0f4-4db3-994d-0ceaf2c32d02"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "tenants",
+        "logo_key"
+      ],
+      "writes": [
+        "s|col|public.tenants.logo_key",
+        "n|col|public.tenants.logo_key",
+        "e|col|public.tenants.logo_key"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenants",
+        "name": "logo_key",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

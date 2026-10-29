@@ -1,0 +1,134 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "d70f28a0-bd34-462e-a639-055931599cf3",
+  "prevIds": [
+    "344b8d65-bc27-4970-afc9-01b5b963b852"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_recipient_unread_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_recipient_unread_idx",
+        "n|idx|public.notifications_recipient_unread_idx",
+        "e|idx|public.notifications_recipient_unread_idx",
+        "n|rel|public.notifications_recipient_unread_idx"
+      ],
+      "reads": [
+        "e|tbl|public.notifications",
+        "n|sch|public",
+        "e|col|public.notifications.recipient"
+      ],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_recipient_unread_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_recipient_unread_id_idx",
+        "n|idx|public.notifications_recipient_unread_id_idx",
+        "e|idx|public.notifications_recipient_unread_id_idx",
+        "n|rel|public.notifications_recipient_unread_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.recipient",
+        "n|col|public.notifications.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notifications",
+        "notifications_undelivered_idx"
+      ],
+      "writes": [
+        "s|idx|public.notifications_undelivered_idx",
+        "n|idx|public.notifications_undelivered_idx",
+        "e|idx|public.notifications_undelivered_idx",
+        "n|rel|public.notifications_undelivered_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notifications",
+        "n|sch|public",
+        "n|col|public.notifications.created_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_recipient_unread_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "recipient",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"notifications\".\"read_at\" is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notifications",
+        "name": "notifications_undelivered_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"notifications\".\"delivered_at\" is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"notifications_recipient_unread_idx\"]"
+    }
+  ]
+}

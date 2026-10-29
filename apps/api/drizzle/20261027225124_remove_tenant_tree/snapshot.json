@@ -1,0 +1,165 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "fd8fed43-227d-4e2a-8ec1-e225c64582b5",
+  "prevIds": [
+    "cce1aa29-9fba-49ba-a048-8fcaf06ebcc8"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenants"
+      ],
+      "writes": [
+        "s|fk|public.tenants.tenants_parent_id_tenants_id_fk",
+        "n|fk|public.tenants.tenants_parent_id_tenants_id_fk",
+        "e|fk|public.tenants.tenants_parent_id_tenants_id_fk",
+        "n|con|public.tenants.tenants_parent_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "e|col|public.tenants.parent_id"
+      ]
+    },
+    {
+      "statementType": "drop_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_closure"
+      ],
+      "writes": [
+        "s|tbl|public.tenant_closure",
+        "n|tbl|public.tenant_closure",
+        "e|tbl|public.tenant_closure",
+        "n|rel|public.tenant_closure",
+        "n|type|public.tenant_closure"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "drop_check",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenants"
+      ],
+      "writes": [
+        "s|ck|public.tenants.tenants_parent_not_self",
+        "n|ck|public.tenants.tenants_parent_not_self",
+        "e|ck|public.tenants.tenants_parent_not_self",
+        "n|con|public.tenants.tenants_parent_not_self"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "e|col|public.tenants.parent_id",
+        "e|col|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "drop_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "tenants",
+        "tenants_parent_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.tenants_parent_id_idx",
+        "n|idx|public.tenants_parent_id_idx",
+        "e|idx|public.tenants_parent_id_idx",
+        "n|rel|public.tenants_parent_id_idx"
+      ],
+      "reads": [
+        "e|tbl|public.tenants",
+        "n|sch|public",
+        "e|col|public.tenants.parent_id"
+      ],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "drop_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "tenants",
+        "parent_id"
+      ],
+      "writes": [
+        "s|col|public.tenants.parent_id",
+        "n|col|public.tenants.parent_id",
+        "e|col|public.tenants.parent_id"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "drop",
+      "key": "tables\u0000[\"public\",\"tenant_closure\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tenant_closure\",\"ancestor_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tenant_closure\",\"descendant_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tenant_closure\",\"depth\"]"
+    },
+    {
+      "op": "drop",
+      "key": "columns\u0000[\"public\",\"tenants\",\"parent_id\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"tenant_closure_descendant_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"tenants_parent_id_idx\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"tenant_closure\",\"tenant_closure_ancestor_id_tenants_id_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"tenant_closure\",\"tenant_closure_descendant_id_tenants_id_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "fks\u0000[\"public\",\"tenants\",\"tenants_parent_id_tenants_id_fk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "pks\u0000[\"public\",\"tenant_closure\",\"tenant_closure_ancestor_id_descendant_id_pk\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"public\",\"tenant_closure\",\"tenant_closure_depth\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"public\",\"tenant_closure\",\"tenant_closure_not_self\"]"
+    },
+    {
+      "op": "drop",
+      "key": "checks\u0000[\"public\",\"tenants\",\"tenants_parent_not_self\"]"
+    }
+  ]
+}

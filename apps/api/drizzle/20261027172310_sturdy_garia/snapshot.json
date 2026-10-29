@@ -1,0 +1,255 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "344b8d65-bc27-4970-afc9-01b5b963b852",
+  "prevIds": [
+    "b0b56c2f-ebc9-41ee-9034-2c69a31acf74"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "record_subscriptions",
+        "record_subscriptions_subscriber_idx"
+      ],
+      "writes": [
+        "s|idx|public.record_subscriptions_subscriber_idx",
+        "n|idx|public.record_subscriptions_subscriber_idx",
+        "e|idx|public.record_subscriptions_subscriber_idx",
+        "n|rel|public.record_subscriptions_subscriber_idx"
+      ],
+      "reads": [
+        "e|tbl|public.record_subscriptions",
+        "n|sch|public",
+        "e|col|public.record_subscriptions.subscriber",
+        "e|col|public.record_subscriptions.created_at"
+      ],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_target_id_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_target_id_id_idx",
+        "n|idx|public.audit_log_target_id_id_idx",
+        "e|idx|public.audit_log_target_id_id_idx",
+        "n|rel|public.audit_log_target_id_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.target_id",
+        "n|col|public.audit_log.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_actor_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_actor_id_idx",
+        "n|idx|public.audit_log_actor_id_idx",
+        "e|idx|public.audit_log_actor_id_idx",
+        "n|rel|public.audit_log_actor_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.actor",
+        "n|col|public.audit_log.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_tenant_action_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_tenant_action_id_idx",
+        "n|idx|public.audit_log_tenant_action_id_idx",
+        "e|idx|public.audit_log_tenant_action_id_idx",
+        "n|rel|public.audit_log_tenant_action_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.tenant_id",
+        "n|col|public.audit_log.action",
+        "n|col|public.audit_log.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "record_subscriptions",
+        "record_subscriptions_subscriber_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.record_subscriptions_subscriber_id_idx",
+        "n|idx|public.record_subscriptions_subscriber_id_idx",
+        "e|idx|public.record_subscriptions_subscriber_id_idx",
+        "n|rel|public.record_subscriptions_subscriber_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.record_subscriptions",
+        "n|sch|public",
+        "n|col|public.record_subscriptions.subscriber",
+        "n|col|public.record_subscriptions.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "audit_log",
+        "name": "audit_log_target_id_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "target_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "audit_log",
+        "name": "audit_log_actor_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "actor",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "audit_log",
+        "name": "audit_log_tenant_action_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "action",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "record_subscriptions_subscriber_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "subscriber",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"record_subscriptions_subscriber_idx\"]"
+    }
+  ]
+}

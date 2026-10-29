@@ -1,0 +1,91 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "eb7de677-6d8a-48d3-a236-095935af6da5",
+  "prevIds": [
+    "3832b0f4-b0d8-4909-b551-32be33f83e58"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "attachments",
+        "scan_status"
+      ],
+      "writes": [
+        "s|col|public.attachments.scan_status",
+        "n|col|public.attachments.scan_status",
+        "e|col|public.attachments.scan_status"
+      ],
+      "reads": [
+        "n|tbl|public.attachments",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "attachments",
+        "attachments_pending_idx"
+      ],
+      "writes": [
+        "s|idx|public.attachments_pending_idx",
+        "n|idx|public.attachments_pending_idx",
+        "e|idx|public.attachments_pending_idx",
+        "n|rel|public.attachments_pending_idx"
+      ],
+      "reads": [
+        "n|tbl|public.attachments",
+        "n|sch|public",
+        "n|col|public.attachments.created_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachments",
+        "name": "scan_status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'clean'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachments",
+        "name": "attachments_pending_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "\"attachments\".\"scan_status\" = 'pending'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

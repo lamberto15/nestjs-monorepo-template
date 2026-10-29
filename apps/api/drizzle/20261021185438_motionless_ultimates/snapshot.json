@@ -1,0 +1,545 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "9c044c2e-b0f4-4db3-994d-0ceaf2c32d02",
+  "prevIds": [
+    "640c3453-ef24-4366-af89-909e058ca970"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_uploads"
+      ],
+      "writes": [
+        "s|tbl|public.attachment_uploads",
+        "n|tbl|public.attachment_uploads",
+        "e|tbl|public.attachment_uploads",
+        "n|rel|public.attachment_uploads",
+        "n|type|public.attachment_uploads",
+        "n|rel|public.attachment_uploads_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "attachment_uploads",
+        "attachment_uploads_expires_idx"
+      ],
+      "writes": [
+        "s|idx|public.attachment_uploads_expires_idx",
+        "n|idx|public.attachment_uploads_expires_idx",
+        "e|idx|public.attachment_uploads_expires_idx",
+        "n|rel|public.attachment_uploads_expires_idx"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_uploads",
+        "n|sch|public",
+        "n|col|public.attachment_uploads.expires_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "attachment_uploads",
+        "attachment_uploads_uploaded_by_idx"
+      ],
+      "writes": [
+        "s|idx|public.attachment_uploads_uploaded_by_idx",
+        "n|idx|public.attachment_uploads_uploaded_by_idx",
+        "e|idx|public.attachment_uploads_uploaded_by_idx",
+        "n|rel|public.attachment_uploads_uploaded_by_idx"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_uploads",
+        "n|sch|public",
+        "n|col|public.attachment_uploads.uploaded_by"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_uploads"
+      ],
+      "writes": [
+        "s|fk|public.attachment_uploads.attachment_uploads_tenant_id_tenants_id_fk",
+        "n|fk|public.attachment_uploads.attachment_uploads_tenant_id_tenants_id_fk",
+        "e|fk|public.attachment_uploads.attachment_uploads_tenant_id_tenants_id_fk",
+        "n|con|public.attachment_uploads.attachment_uploads_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_uploads",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.attachment_uploads.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_uploads"
+      ],
+      "writes": [
+        "s|pol|public.attachment_uploads.attachment_uploads_tenant_select",
+        "n|pol|public.attachment_uploads.attachment_uploads_tenant_select",
+        "e|pol|public.attachment_uploads.attachment_uploads_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_uploads",
+        "n|sch|public",
+        "e|rls|public.attachment_uploads"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_uploads"
+      ],
+      "writes": [
+        "s|pol|public.attachment_uploads.attachment_uploads_tenant_insert",
+        "n|pol|public.attachment_uploads.attachment_uploads_tenant_insert",
+        "e|pol|public.attachment_uploads.attachment_uploads_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_uploads",
+        "n|sch|public",
+        "e|rls|public.attachment_uploads"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_uploads"
+      ],
+      "writes": [
+        "s|pol|public.attachment_uploads.attachment_uploads_tenant_update",
+        "n|pol|public.attachment_uploads.attachment_uploads_tenant_update",
+        "e|pol|public.attachment_uploads.attachment_uploads_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_uploads",
+        "n|sch|public",
+        "e|rls|public.attachment_uploads"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_uploads"
+      ],
+      "writes": [
+        "s|pol|public.attachment_uploads.attachment_uploads_tenant_delete",
+        "n|pol|public.attachment_uploads.attachment_uploads_tenant_delete",
+        "e|pol|public.attachment_uploads.attachment_uploads_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_uploads",
+        "n|sch|public",
+        "e|rls|public.attachment_uploads"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "attachment_uploads",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "record_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "key",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "size",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "content_type",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "uploaded_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "completing_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "completed_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_expires_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "expires_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_uploaded_by_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "uploaded_by",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"attachment_uploads\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"attachment_uploads\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"attachment_uploads\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"attachment_uploads\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"attachment_uploads\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"attachment_uploads\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_uploads",
+        "name": "attachment_uploads_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"attachment_uploads\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

@@ -1,0 +1,77 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "0bc979ff-116a-4acf-b09d-23e017f6bc08",
+  "prevIds": [
+    "5604b3da-8f4e-4e32-b07d-904fd6a69002"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_unique",
+      "statementTarget": [
+        "table",
+        "public",
+        "organizational_units"
+      ],
+      "writes": [
+        "s|uq|public.organizational_units.teams_tenant_id_id_key",
+        "n|uq|public.organizational_units.teams_tenant_id_id_key",
+        "e|uq|public.organizational_units.teams_tenant_id_id_key",
+        "n|con|public.organizational_units.teams_tenant_id_id_key",
+        "n|rel|public.teams_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "e|col|public.organizational_units.tenant_id",
+        "e|col|public.organizational_units.id"
+      ],
+      "sharedWrites": [
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "add_unique",
+      "statementTarget": [
+        "table",
+        "public",
+        "organizational_units"
+      ],
+      "writes": [
+        "s|uq|public.organizational_units.organizational_units_tenant_id_id_key",
+        "n|uq|public.organizational_units.organizational_units_tenant_id_id_key",
+        "e|uq|public.organizational_units.organizational_units_tenant_id_id_key",
+        "n|con|public.organizational_units.organizational_units_tenant_id_id_key",
+        "n|rel|public.organizational_units_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organizational_units",
+        "name": "organizational_units_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "uniques\u0000[\"public\",\"organizational_units\",\"teams_tenant_id_id_key\"]"
+    }
+  ]
+}

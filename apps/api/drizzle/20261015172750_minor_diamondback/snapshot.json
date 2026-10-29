@@ -1,0 +1,246 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "f13874a4-d45d-45cf-ad36-3550a05da405",
+  "prevIds": [
+    "8cd1b089-ba51-48fd-b48e-100994d317ec"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_subscriptions"
+      ],
+      "writes": [
+        "s|tbl|public.record_subscriptions",
+        "n|tbl|public.record_subscriptions",
+        "e|tbl|public.record_subscriptions",
+        "n|rel|public.record_subscriptions",
+        "n|type|public.record_subscriptions",
+        "n|rel|public.record_subscriptions_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "record_subscriptions",
+        "record_subscriptions_record_subscriber_idx"
+      ],
+      "writes": [
+        "s|idx|public.record_subscriptions_record_subscriber_idx",
+        "n|idx|public.record_subscriptions_record_subscriber_idx",
+        "e|idx|public.record_subscriptions_record_subscriber_idx",
+        "n|rel|public.record_subscriptions_record_subscriber_idx"
+      ],
+      "reads": [
+        "n|tbl|public.record_subscriptions",
+        "n|sch|public",
+        "n|col|public.record_subscriptions.subject",
+        "n|col|public.record_subscriptions.record_id",
+        "n|col|public.record_subscriptions.subscriber"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "record_subscriptions",
+        "record_subscriptions_subscriber_idx"
+      ],
+      "writes": [
+        "s|idx|public.record_subscriptions_subscriber_idx",
+        "n|idx|public.record_subscriptions_subscriber_idx",
+        "e|idx|public.record_subscriptions_subscriber_idx",
+        "n|rel|public.record_subscriptions_subscriber_idx"
+      ],
+      "reads": [
+        "n|tbl|public.record_subscriptions",
+        "n|sch|public",
+        "n|col|public.record_subscriptions.subscriber",
+        "n|col|public.record_subscriptions.created_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "record_subscriptions",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "record_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "subscriber",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "record_subscriptions_record_subscriber_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "record_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subscriber",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "record_subscriptions_subscriber_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "subscriber",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_subscriptions",
+        "name": "record_subscriptions_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

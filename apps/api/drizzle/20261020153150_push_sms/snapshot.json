@@ -1,0 +1,1065 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "58311921-6dd3-47fc-8731-bc84c6cd1852",
+  "prevIds": [
+    "93098992-a340-47f8-a113-6c62a5d0d7e8"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "devices"
+      ],
+      "writes": [
+        "s|tbl|public.devices",
+        "n|tbl|public.devices",
+        "e|tbl|public.devices",
+        "n|rel|public.devices",
+        "n|type|public.devices",
+        "n|rel|public.devices_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "messaging_usage"
+      ],
+      "writes": [
+        "s|tbl|public.messaging_usage",
+        "n|tbl|public.messaging_usage",
+        "e|tbl|public.messaging_usage",
+        "n|rel|public.messaging_usage",
+        "n|type|public.messaging_usage",
+        "n|rel|public.messaging_usage_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "phone_numbers"
+      ],
+      "writes": [
+        "s|tbl|public.phone_numbers",
+        "n|tbl|public.phone_numbers",
+        "e|tbl|public.phone_numbers",
+        "n|rel|public.phone_numbers",
+        "n|type|public.phone_numbers",
+        "n|rel|public.phone_numbers_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "devices",
+        "devices_user_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.devices_user_id_idx",
+        "n|idx|public.devices_user_id_idx",
+        "e|idx|public.devices_user_id_idx",
+        "n|rel|public.devices_user_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.devices",
+        "n|sch|public",
+        "n|col|public.devices.user_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "devices",
+        "devices_token_index_idx"
+      ],
+      "writes": [
+        "s|idx|public.devices_token_index_idx",
+        "n|idx|public.devices_token_index_idx",
+        "e|idx|public.devices_token_index_idx",
+        "n|rel|public.devices_token_index_idx"
+      ],
+      "reads": [
+        "n|tbl|public.devices",
+        "n|sch|public",
+        "n|col|public.devices.token_index"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "messaging_usage",
+        "messaging_usage_counter_idx"
+      ],
+      "writes": [
+        "s|idx|public.messaging_usage_counter_idx",
+        "n|idx|public.messaging_usage_counter_idx",
+        "e|idx|public.messaging_usage_counter_idx",
+        "n|rel|public.messaging_usage_counter_idx"
+      ],
+      "reads": [
+        "n|tbl|public.messaging_usage",
+        "n|sch|public",
+        "n|col|public.messaging_usage.tenant_id",
+        "n|col|public.messaging_usage.day",
+        "n|col|public.messaging_usage.counter"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "messaging_usage",
+        "messaging_usage_day_idx"
+      ],
+      "writes": [
+        "s|idx|public.messaging_usage_day_idx",
+        "n|idx|public.messaging_usage_day_idx",
+        "e|idx|public.messaging_usage_day_idx",
+        "n|rel|public.messaging_usage_day_idx"
+      ],
+      "reads": [
+        "n|tbl|public.messaging_usage",
+        "n|sch|public",
+        "n|col|public.messaging_usage.day"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "phone_numbers",
+        "phone_numbers_user_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.phone_numbers_user_id_idx",
+        "n|idx|public.phone_numbers_user_id_idx",
+        "e|idx|public.phone_numbers_user_id_idx",
+        "n|rel|public.phone_numbers_user_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.phone_numbers",
+        "n|sch|public",
+        "n|col|public.phone_numbers.user_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "phone_numbers",
+        "phone_numbers_phone_index_idx"
+      ],
+      "writes": [
+        "s|idx|public.phone_numbers_phone_index_idx",
+        "n|idx|public.phone_numbers_phone_index_idx",
+        "e|idx|public.phone_numbers_phone_index_idx",
+        "n|rel|public.phone_numbers_phone_index_idx"
+      ],
+      "reads": [
+        "n|tbl|public.phone_numbers",
+        "n|sch|public",
+        "n|col|public.phone_numbers.phone_index"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "devices"
+      ],
+      "writes": [
+        "s|fk|public.devices.devices_user_id_users_id_fk",
+        "n|fk|public.devices.devices_user_id_users_id_fk",
+        "e|fk|public.devices.devices_user_id_users_id_fk",
+        "n|con|public.devices.devices_user_id_users_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.devices",
+        "n|sch|public",
+        "n|tbl|public.users",
+        "n|sch|public",
+        "n|col|public.devices.user_id",
+        "n|col|public.users.id",
+        "e|uniqueness|public.users.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "messaging_usage"
+      ],
+      "writes": [
+        "s|fk|public.messaging_usage.messaging_usage_tenant_id_tenants_id_fk",
+        "n|fk|public.messaging_usage.messaging_usage_tenant_id_tenants_id_fk",
+        "e|fk|public.messaging_usage.messaging_usage_tenant_id_tenants_id_fk",
+        "n|con|public.messaging_usage.messaging_usage_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.messaging_usage",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.messaging_usage.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "phone_numbers"
+      ],
+      "writes": [
+        "s|fk|public.phone_numbers.phone_numbers_user_id_users_id_fk",
+        "n|fk|public.phone_numbers.phone_numbers_user_id_users_id_fk",
+        "e|fk|public.phone_numbers.phone_numbers_user_id_users_id_fk",
+        "n|con|public.phone_numbers.phone_numbers_user_id_users_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.phone_numbers",
+        "n|sch|public",
+        "n|tbl|public.users",
+        "n|sch|public",
+        "n|col|public.phone_numbers.user_id",
+        "n|col|public.users.id",
+        "e|uniqueness|public.users.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "messaging_usage"
+      ],
+      "writes": [
+        "s|pol|public.messaging_usage.messaging_usage_tenant_select",
+        "n|pol|public.messaging_usage.messaging_usage_tenant_select",
+        "e|pol|public.messaging_usage.messaging_usage_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.messaging_usage",
+        "n|sch|public",
+        "e|rls|public.messaging_usage"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "messaging_usage"
+      ],
+      "writes": [
+        "s|pol|public.messaging_usage.messaging_usage_tenant_insert",
+        "n|pol|public.messaging_usage.messaging_usage_tenant_insert",
+        "e|pol|public.messaging_usage.messaging_usage_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.messaging_usage",
+        "n|sch|public",
+        "e|rls|public.messaging_usage"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "messaging_usage"
+      ],
+      "writes": [
+        "s|pol|public.messaging_usage.messaging_usage_tenant_update",
+        "n|pol|public.messaging_usage.messaging_usage_tenant_update",
+        "e|pol|public.messaging_usage.messaging_usage_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.messaging_usage",
+        "n|sch|public",
+        "e|rls|public.messaging_usage"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "messaging_usage"
+      ],
+      "writes": [
+        "s|pol|public.messaging_usage.messaging_usage_tenant_delete",
+        "n|pol|public.messaging_usage.messaging_usage_tenant_delete",
+        "e|pol|public.messaging_usage.messaging_usage_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.messaging_usage",
+        "n|sch|public",
+        "e|rls|public.messaging_usage"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "devices",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "messaging_usage",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "phone_numbers",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "platform",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "token",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "token_index",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "last_seen_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "day",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "counter",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "count",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "phone",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "phone_index",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "verified_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "opted_out_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "devices_user_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "devices_token_index_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "token_index",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_counter_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "day",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "counter",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_day_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "day",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "phone_numbers_user_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "user_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "phone_numbers_phone_index_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "phone_index",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "devices_user_id_users_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "users",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "phone_numbers_user_id_users_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "users",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "devices",
+        "name": "devices_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "phone_numbers",
+        "name": "phone_numbers_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"messaging_usage\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"messaging_usage\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"messaging_usage\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"messaging_usage\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"messaging_usage\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"messaging_usage\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "messaging_usage",
+        "name": "messaging_usage_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"messaging_usage\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

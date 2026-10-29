@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "dade84a8-292f-4b87-8fd6-8c39eb8e651f",
+  "prevIds": [
+    "3b81f616-ccb4-4b0e-91e6-c49b1e3fc53a"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "tenants",
+        "created_by_sign_up"
+      ],
+      "writes": [
+        "s|col|public.tenants.created_by_sign_up",
+        "n|col|public.tenants.created_by_sign_up",
+        "e|col|public.tenants.created_by_sign_up"
+      ],
+      "reads": [
+        "n|tbl|public.tenants",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenants",
+        "name": "created_by_sign_up",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}
