@@ -46,6 +46,30 @@ import { relationsFrom, relationsTo } from './record-relations.js';
 import type { RecordSchemas } from './record.schemas.js';
 
 export { RECORD_DECLARATION } from './record-declaration.token.js';
+
+/**
+ * Records as the API represents them, before tags and each reader's
+ * redaction: without the tenant (the request's own, docs/tenancy.md) and
+ * with only the values of the custom fields active now (a deactivated
+ * one's stay stored). Reads and webhooks share it, so a webhook never
+ * carries what a read of the record would not.
+ */
+async function representations(
+  declaration: RecordDeclaration,
+  customFields: CustomFieldsService,
+  rows: Record<string, unknown>[],
+): Promise<Record<string, unknown>[]> {
+  const views = rows.map((row) => {
+    const { tenantId: _tenantId, ...view } = recordView(
+      declaration,
+      row,
+    ) as Record<string, unknown>;
+    return view;
+  });
+  return takes(declaration, 'custom')
+    ? customFields.visible(declaration.subject, views)
+    : views;
+}
 /** A feature module's record table (record-parts.ts provides it, for RecordStore). */
 export const RECORD_TABLE = Symbol('RECORD_TABLE');
 /** A feature module's record contract: its service, policy, table, list and schemas. */
@@ -236,8 +260,13 @@ export class RecordLifecycle {
         type: `${recordKey(this.declaration)}.${event}`,
         subject: this.declaration.subject,
         row: row as RecordRow & { tenantId: string },
-        // Never an encrypted column's value, even as ciphertext.
-        data: withoutEncrypted(recordView(this.declaration, row)),
+        // What a read shows (each receiver's redaction follows), and never
+        // an encrypted column's value, even as ciphertext.
+        data: withoutEncrypted(
+          (
+            await representations(this.declaration, this.customFields, [row])
+          )[0]!,
+        ),
       },
     ]);
   }
@@ -545,14 +574,11 @@ export class RecordPresenter {
 
   /** Records, as the caller may see them (one tag query for them all). */
   async many(user: Principal, rows: Record<string, unknown>[]) {
-    // The tenant is the request's own (docs/tenancy.md): not in a record's representation.
-    let views: Record<string, unknown>[] = rows.map((row) => {
-      const { tenantId: _tenantId, ...view } = recordView(
-        this.declaration,
-        row,
-      ) as Record<string, unknown>;
-      return view;
-    });
+    let views = await representations(
+      this.declaration,
+      this.customFields,
+      rows,
+    );
     if (takes(this.declaration, 'tags')) {
       const tags = await this.tags.tagsOf(
         this.declaration.subject,
@@ -562,10 +588,6 @@ export class RecordPresenter {
         ...view,
         tags: tags.get(view.id as string) ?? [],
       }));
-    }
-    if (takes(this.declaration, 'custom')) {
-      // Only the values of the fields active now (a deactivated one's stay stored).
-      views = await this.customFields.visible(this.declaration.subject, views);
     }
     return this.access.redactAll(user, 'read', this.declaration.subject, views);
   }

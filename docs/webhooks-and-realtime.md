@@ -99,7 +99,9 @@ change succeeded, not in one transaction with it.
   | Another active client of the **record's tenant** with scope `tenant`         | its own ability may `read` that record (roles, conditions, units; for a deletion, as it was) |
   | Any other client: scope `own`, without `read` on that record, another tenant | never                                                                                        |
 
-  Each message's `data` is redacted by its receiver's field-level `read`
+  A record's `data` is what a read of it shows (no tenant id, only the
+  active custom fields' values: one function for both), then each
+  message's is redacted by its receiver's field-level `read`
   (`AccessService.redact`: the fields it may not read are left out), and
   never carries an encrypted column. So a note a user writes in the web app
   reaches no client by default; it reaches a `tenant`-scope client that may

@@ -698,6 +698,73 @@ export function describeCapabilities(
         await receiver.close();
       }
     });
+
+    if (has('custom')) {
+      it("sends what a read shows: no deactivated custom field's value, no tenant", async () => {
+        const receiver = await webhookReceiver();
+        try {
+          const admin = node().admin();
+          const fields: string[] = [];
+          for (const key of ['legacy', 'kept']) {
+            const made = await admin
+              .post('/v1/custom-fields')
+              .send({ subject: record.subject, key, label: key, type: 'text' })
+              .expect(201);
+            fields.push(made.body.id as string);
+          }
+          const role = await admin
+            .post('/v1/access/roles')
+            .send({
+              name: `Read all ${record.path} ${randomUUID().slice(0, 8)}`,
+              permissions: [
+                { subject: record.subject, action: 'read', conditions: [] },
+              ],
+            })
+            .expect(201);
+          const client = await admin
+            .post('/v1/access/clients')
+            .send({
+              name: `client-${randomUUID().slice(0, 8)}`,
+              roleIds: [role.body.id],
+            })
+            .expect(201);
+          await node()
+            .http()
+            .post('/v1/webhook-endpoints')
+            .set('Authorization', `Bearer ${client.body.key}`)
+            .send({
+              url: receiver.url,
+              eventTypes: [`${recordKey(record)}.updated`],
+            })
+            .expect(201);
+          await admin
+            .put(`/v1/access/clients/${client.body.id}/webhook-scope`)
+            .send({ scope: 'tenant' })
+            .expect(200);
+          const id = (
+            await admin
+              .post(path)
+              .set('Idempotency-Key', randomUUID())
+              .send({
+                ...samples.body(),
+                custom: { legacy: 'old', kept: 'new' },
+              })
+              .expect(201)
+          ).body.id as string;
+          // Deactivated: its value stays stored, hidden from every read.
+          await admin.delete(`/v1/custom-fields/${fields[0]}`).expect(204);
+          await admin.patch(`${path}/${id}`).send(samples.changed).expect(200);
+          await node().deliverWebhooks();
+
+          expect(receiver.received).toHaveLength(1);
+          const data = receiver.received[0]!.body.data;
+          expect(data.custom).toEqual({ kept: 'new' });
+          expect(data).not.toHaveProperty('tenantId');
+        } finally {
+          await receiver.close();
+        }
+      });
+    }
   }
 
   if (has('numbered')) {
