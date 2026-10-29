@@ -14,6 +14,7 @@ import { Route as AcceptInvitationRouteImport } from './routes/accept-invitation
 import { Route as CancelDeletionRouteImport } from './routes/cancel-deletion'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as MagicLinkRouteImport } from './routes/magic-link'
+import { Route as PublicFormRouteImport } from './routes/public-form'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as SignUpRouteImport } from './routes/sign-up'
@@ -99,6 +100,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const MagicLinkRoute = MagicLinkRouteImport.update({
   id: '/magic-link',
   path: '/magic-link',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublicFormRoute = PublicFormRouteImport.update({
+  id: '/public-form',
+  path: '/public-form',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -423,6 +429,7 @@ export interface FileRoutesByFullPath {
   '/cancel-deletion': typeof CancelDeletionRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/magic-link': typeof MagicLinkRoute
+  '/public-form': typeof PublicFormRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -490,6 +497,7 @@ export interface FileRoutesByTo {
   '/cancel-deletion': typeof CancelDeletionRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/magic-link': typeof MagicLinkRoute
+  '/public-form': typeof PublicFormRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -559,6 +567,7 @@ export interface FileRoutesById {
   '/cancel-deletion': typeof CancelDeletionRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/magic-link': typeof MagicLinkRoute
+  '/public-form': typeof PublicFormRoute
   '/reset-password': typeof ResetPasswordRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
@@ -630,6 +639,7 @@ export interface FileRouteTypes {
     | '/cancel-deletion'
     | '/forgot-password'
     | '/magic-link'
+    | '/public-form'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
@@ -697,6 +707,7 @@ export interface FileRouteTypes {
     | '/cancel-deletion'
     | '/forgot-password'
     | '/magic-link'
+    | '/public-form'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
@@ -765,6 +776,7 @@ export interface FileRouteTypes {
     | '/cancel-deletion'
     | '/forgot-password'
     | '/magic-link'
+    | '/public-form'
     | '/reset-password'
     | '/sign-in'
     | '/sign-up'
@@ -835,6 +847,7 @@ export interface RootRouteChildren {
   CancelDeletionRoute: typeof CancelDeletionRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   MagicLinkRoute: typeof MagicLinkRoute
+  PublicFormRoute: typeof PublicFormRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
@@ -877,6 +890,13 @@ declare module '@tanstack/react-router' {
       path: '/magic-link'
       fullPath: '/magic-link'
       preLoaderRoute: typeof MagicLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/public-form': {
+      id: '/public-form'
+      path: '/public-form'
+      fullPath: '/public-form'
+      preLoaderRoute: typeof PublicFormRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/reset-password': {
@@ -1454,6 +1474,7 @@ const rootRouteChildren: RootRouteChildren = {
   CancelDeletionRoute: CancelDeletionRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   MagicLinkRoute: MagicLinkRoute,
+  PublicFormRoute: PublicFormRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,

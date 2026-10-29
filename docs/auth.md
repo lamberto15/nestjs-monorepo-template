@@ -1185,7 +1185,8 @@ Every change is audited with the API client as actor (`scim.user-*`,
 
 The public routes bots go for (`POST /v1/auth/sign-in`, `/token`, the second step `/mfa/verify`, `/sign-up`,
 `/magic-link`, `/password/forgot`, `/email/verification/resend`, and the passkey sign-ins `/passkeys/sign-in`
-and `/passkeys/token`, which count their failures per address) can ask for a challenge token, verified
+and `/passkeys/token`, which count their failures per address, and a public form's
+`POST /v1/public/forms/submit`, action `public-form`: [forms](forms.md#public-forms)) can ask for a challenge token, verified
 server-side with Cloudflare Turnstile. **Off by default**: without
 `CAPTCHA_MODE` and the keys, nothing changes for an existing deployment.
 

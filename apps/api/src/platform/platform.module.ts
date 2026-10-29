@@ -51,6 +51,11 @@ import { FormPolicy } from './forms/form.policy.js';
 import { FormsController } from './forms/forms.controller.js';
 import { FormsService } from './forms/forms.service.js';
 import { FormOptionSourcesService } from './forms/form-option-sources.service.js';
+import {
+  FormPublicLinksController,
+  PublicFormsController,
+} from './forms/form-public-links.controller.js';
+import { FormPublicLinksService } from './forms/form-public-links.service.js';
 import { FormSubmissionsController } from './forms/form-submissions.controller.js';
 import { FormSubmissionsService } from './forms/form-submissions.service.js';
 import { AnthropicProvider } from './ai/anthropic.provider.js';
@@ -580,6 +585,9 @@ export class PlatformModule {
         // Runtime forms (docs/forms.md): off per tenant until `forms.enabled`.
         FormsController,
         FormSubmissionsController,
+        FormPublicLinksController,
+        // Filling in a public form without a sign-in (POST /v1/public/forms/open, /submit).
+        PublicFormsController,
         // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
         SharedController,
         // Tenant automation rules (docs/automations.md).
@@ -893,6 +901,7 @@ export class PlatformModule {
         FormsService,
         FormSubmissionsService,
         FormOptionSourcesService,
+        FormPublicLinksService,
         // Business calendars: working hours, zone and holidays, and the deadline calculation on them.
         CalendarsService,
         // Recurring record schedules: records created from a template at each occurrence of a rule.

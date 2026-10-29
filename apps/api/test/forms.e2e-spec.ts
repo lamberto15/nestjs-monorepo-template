@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import type request from 'supertest';
 import { ChoicesRegistry } from '../src/platform/choices/choices.registry.js';
+import { formPublicLinks } from '../src/platform/forms/forms.tables.js';
 import { bootApp, type TestApp } from './support.js';
 
 const paths = (body: { errors?: { path: string }[] }) =>
@@ -649,6 +651,189 @@ describe('forms (e2e)', () => {
       .set('Authorization', `Bearer ${client.body.key}`)
       .expect(403);
     expect(denied.body.code).toBe('form_source_forbidden');
+  });
+
+  it('opens a form to anyone holding a public link, until it is revoked, expires or is used up', async () => {
+    const admin = node.admin();
+    await enable(admin);
+    const created = await admin
+      .post('/v1/forms')
+      .send({
+        slug: `public-${randomUUID().slice(0, 8)}`,
+        name: 'Public',
+        definition,
+      })
+      .expect(201);
+    const id = created.body.id as string;
+    const link = async (body: object = {}) =>
+      (await admin.post(`/v1/forms/${id}/public-links`).send(body).expect(201))
+        .body as {
+        id: string;
+        token: string;
+        url: string;
+      };
+    const first = await link({ maxSubmissions: 1 });
+    expect(first.url).toMatch(/\/public-form#frm_/);
+    const anonymous = () => node.http();
+    const open = (token: string) =>
+      anonymous().post('/v1/public/forms/open').send({ token });
+    const send = (token: string, versionId: string, answers: object) =>
+      anonymous()
+        .post('/v1/public/forms/submit')
+        .send({ token, versionId, answers });
+
+    // Not published yet: the same 404 as a forged link.
+    const unpublished = await open(first.token).expect(404);
+    expect(unpublished.body.code).toBe('form_link_not_found');
+    const version = await admin
+      .post(`/v1/forms/${id}/publish`)
+      .send({ revision: created.body.revision })
+      .expect(201);
+    const opened = await open(first.token).expect(200);
+    expect(Object.keys(opened.body).sort((a, b) => a.localeCompare(b))).toEqual(
+      ['definition', 'description', 'name', 'versionId', 'version'].sort(
+        (a, b) => a.localeCompare(b),
+      ),
+    );
+    expect(opened.body.versionId).toBe(version.body.id);
+
+    // Checked as any submission; anonymous, as `public:<link>`.
+    const invalid = await send(first.token, version.body.id, {
+      seats: 2,
+    }).expect(400);
+    expect(paths(invalid.body)).toEqual(['answers.full_name']);
+    const sent = await send(first.token, version.body.id, {
+      full_name: 'Eve',
+    }).expect(201);
+    expect(Object.keys(sent.body).sort((a, b) => a.localeCompare(b))).toEqual([
+      'createdAt',
+      'id',
+      'version',
+    ]);
+    const stored = await admin
+      .get(`/v1/forms/${id}/submissions/${sent.body.id}`)
+      .expect(200);
+    expect(stored.body).toMatchObject({
+      submittedBy: `public:${first.id}`,
+      answers: { full_name: 'Eve' },
+    });
+    // Its quota of one is used up.
+    await send(first.token, version.body.id, { full_name: 'Again' }).expect(
+      404,
+    );
+    await open(first.token).expect(404);
+
+    // Revoked, expired, forged, another tenant's: all the one 404.
+    const second = await link();
+    await open(second.token).expect(200);
+    await admin
+      .post(`/v1/forms/${id}/public-links/${second.id}/revoke`)
+      .expect(200);
+    await open(second.token).expect(404);
+    const third = await link();
+    await node.inTenant(() =>
+      node.db
+        .update(formPublicLinks)
+        .set({ expiresAt: new Date(Date.now() - 1000) })
+        .where(eq(formPublicLinks.id, third.id)),
+    );
+    await open(third.token).expect(404);
+    await open(`${first.token.slice(0, -4)}AAAA`).expect(404);
+    await open('frm_nope').expect(404);
+    const other = await node.otherTenant();
+    const forged = third.token.replace(/^frm_[^_]+_/, `frm_${other.id}_`);
+    await open(forged).expect(404);
+
+    // Archived, or forms turned off: closed too, the link kept.
+    const fourth = await link();
+    await admin.post(`/v1/forms/${id}/archive`).expect(200);
+    await open(fourth.token).expect(404);
+    await admin.post(`/v1/forms/${id}/unarchive`).expect(200);
+    await open(fourth.token).expect(200);
+    await admin
+      .put('/v1/settings/forms.enabled')
+      .send({ value: false })
+      .expect(200);
+    await open(fourth.token).expect(404);
+    await enable(admin);
+
+    // The link opens this form alone: nothing else of it, nor of the tenant.
+    await anonymous().get(`/v1/forms/${id}/published`).expect(401);
+    await anonymous().get(`/v1/forms/${id}/submissions`).expect(401);
+    const list = await admin.get(`/v1/forms/${id}/public-links`).expect(200);
+    expect(list.body.items).toHaveLength(4);
+    expect(list.body.items[0]).not.toHaveProperty('token');
+    expect(
+      list.body.items.find((item: { id: string }) => item.id === first.id),
+    ).toMatchObject({
+      submissions: 1,
+      maxSubmissions: 1,
+    });
+  });
+
+  it('makes public links only for members who edit, within bounds, and never for a form with an option source', async () => {
+    const admin = node.admin();
+    await enable(admin);
+    const { id } = await published(admin);
+    await admin
+      .post(`/v1/forms/${id}/public-links`)
+      .send({ expiresAt: new Date(Date.now() - 1000).toISOString() })
+      .expect(400);
+    await admin
+      .post(`/v1/forms/${id}/public-links`)
+      .send({
+        expiresAt: new Date(Date.now() + 400 * 86_400_000).toISOString(),
+      })
+      .expect(400);
+    for (let n = 0; n < 5; n++) {
+      await admin.post(`/v1/forms/${id}/public-links`).send({}).expect(201);
+    }
+    await admin.post(`/v1/forms/${id}/public-links`).send({}).expect(400);
+    const filler = await node.user([await role(admin, 'read', 'submit')]);
+    await filler.agent
+      .post(`/v1/forms/${id}/public-links`)
+      .send({})
+      .expect(403);
+    await filler.agent.get(`/v1/forms/${id}/public-links`).expect(403);
+    const client = await node.client();
+    await node
+      .http()
+      .post(`/v1/forms/${id}/public-links`)
+      .set('Authorization', client.auth)
+      .send({})
+      .expect(403);
+
+    const sourced = await admin
+      .post('/v1/forms')
+      .send({
+        slug: `sourced-${randomUUID().slice(0, 8)}`,
+        name: 'Sourced',
+        definition: {
+          sections: [
+            {
+              key: 'main',
+              fields: [
+                {
+                  key: 'unit',
+                  type: 'select',
+                  label: 'Unit',
+                  optionsSource: { provider: 'organizational-units' },
+                },
+              ],
+            },
+          ],
+        },
+      })
+      .expect(201);
+    await admin
+      .post(`/v1/forms/${sourced.body.id}/publish`)
+      .send({ revision: sourced.body.revision })
+      .expect(201);
+    const refused = await admin
+      .post(`/v1/forms/${sourced.body.id}/public-links`)
+      .send({})
+      .expect(400);
+    expect(refused.body.code).toBe('form_link_sources');
   });
 
   it('shows a submitter their own submissions, everyone’s only to those who read responses', async () => {

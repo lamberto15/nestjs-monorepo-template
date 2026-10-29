@@ -56,6 +56,7 @@ function useFormsApi(options: { enabled?: boolean; can?: string[] } = {}) {
     drafts: [] as { revision: number; definition: typeof definition }[],
     published: [] as unknown[],
     submitted: [] as { versionId: string; answers: Record<string, unknown> }[],
+    links: [] as Record<string, unknown>[],
   };
   server.use(
     http.get('/v1/settings', () =>
@@ -80,6 +81,32 @@ function useFormsApi(options: { enabled?: boolean; can?: string[] } = {}) {
       });
     }),
     http.get(`/v1/forms/${FORM_ID}`, () => HttpResponse.json(form())),
+    http.get(`/v1/forms/${FORM_ID}/public-links`, () =>
+      HttpResponse.json({ items: calls.links }),
+    ),
+    http.post(`/v1/forms/${FORM_ID}/public-links`, async ({ request }) => {
+      const body = (await request.json()) as { maxSubmissions?: number };
+      const link = {
+        id: '0199a3f2-0000-7000-8000-000000000f09',
+        formId: FORM_ID,
+        createdBy: 'user:x',
+        expiresAt: '2026-11-27T10:00:00.000Z',
+        revokedAt: null,
+        maxSubmissions: body.maxSubmissions ?? 1000,
+        submissions: 0,
+        lastSubmittedAt: null,
+        createdAt: at,
+      };
+      calls.links.push(link);
+      return HttpResponse.json(
+        {
+          ...link,
+          token: 'frm_secret',
+          url: 'http://localhost:5173/public-form#frm_secret',
+        },
+        { status: 201 },
+      );
+    }),
     http.get('/v1/forms/option-sources', () =>
       HttpResponse.json({
         items: [{ key: 'organizational-units', label: 'Organizational units' }],
@@ -485,6 +512,91 @@ describe('forms', () => {
       optionsSource: { provider: 'organizational-units' },
     });
     expect(topic).not.toHaveProperty('options');
+  });
+
+  it('makes a public link and shows its URL once', async () => {
+    const calls = useFormsApi();
+    await renderApp(`/forms/${FORM_ID}`);
+    const user = userEvent.setup();
+    const links = await screen.findByRole('region', { name: 'Public links' });
+    await user.type(
+      within(links).getByLabelText('Most answers (1000 if empty)'),
+      '50',
+    );
+    await user.click(
+      within(links).getByRole('button', { name: 'Make a link' }),
+    );
+    expect(await within(links).findByLabelText('The new link')).toHaveValue(
+      'http://localhost:5173/public-form#frm_secret',
+    );
+    expect(calls.links).toHaveLength(1);
+    expect(await within(links).findByText(/0 of 50 answers/)).toBeVisible();
+  });
+
+  it('fills in a public form without an account, past the link', async () => {
+    const sent: unknown[] = [];
+    server.use(
+      http.post('/v1/public/forms/open', async ({ request }) => {
+        const { token } = (await request.json()) as { token: string };
+        if (token !== 'frm_good') {
+          return HttpResponse.json(
+            { status: 404, code: 'form_link_not_found' },
+            {
+              status: 404,
+              headers: { 'content-type': 'application/problem+json' },
+            },
+          );
+        }
+        return HttpResponse.json({
+          name: 'Intake',
+          description: null,
+          versionId: VERSION_ID,
+          version: 1,
+          definition,
+        });
+      }),
+      http.post('/v1/public/forms/submit', async ({ request }) => {
+        sent.push(await request.json());
+        return HttpResponse.json(
+          {
+            id: '0199a3f2-0000-7000-8000-000000000f0a',
+            version: 1,
+            createdAt: at,
+          },
+          { status: 201 },
+        );
+      }),
+    );
+    await renderApp('/public-form#frm_good');
+    const user = userEvent.setup();
+    await user.type(await screen.findByLabelText('Name *'), 'Eve');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(
+      await screen.findByText('Thank you: your answers were sent.'),
+    ).toBeVisible();
+    expect(sent).toEqual([
+      {
+        token: 'frm_good',
+        versionId: VERSION_ID,
+        answers: { full_name: 'Eve' },
+      },
+    ]);
+  });
+
+  it('says a public link doesn’t work, and nothing more', async () => {
+    server.use(
+      http.post('/v1/public/forms/open', () =>
+        HttpResponse.json(
+          { status: 404, code: 'form_link_not_found' },
+          {
+            status: 404,
+            headers: { 'content-type': 'application/problem+json' },
+          },
+        ),
+      ),
+    );
+    await renderApp('/public-form#frm_revoked');
+    expect(await screen.findByText(/This link doesn't work/)).toBeVisible();
   });
 
   it('edits a condition visually, and the preview follows it', async () => {

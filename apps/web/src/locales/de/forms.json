@@ -140,5 +140,20 @@
     "retry": "Erneut versuchen",
     "more": "Weitere Treffer: Suche eingrenzen.",
     "preview": "Auswahl aus einer Quelle, beim Ausfüllen aufgelistet."
+  },
+  "public": {
+    "title": "Formular",
+    "invalid": "Dieser Link funktioniert nicht: Er ist vielleicht abgelaufen, widerrufen oder hat alle Antworten erhalten.",
+    "links": "Öffentliche Links",
+    "hint": "Wer einen Link hat, füllt die veröffentlichte Version ohne Konto aus, bis er abläuft, widerrufen wird oder seine Höchstzahl an Antworten erreicht.",
+    "until": "Gültig bis (leer: 30 Tage)",
+    "most": "Höchstens Antworten (leer: 1000)",
+    "create": "Link erstellen",
+    "url": "Der neue Link",
+    "once": "Jetzt kopieren: Er wird nur einmal angezeigt.",
+    "working": "Aktiv",
+    "closed": "Geschlossen",
+    "summary": "Bis {{until}} · {{submissions}} von {{most}} Antworten",
+    "revoke": "Widerrufen"
   }
 }

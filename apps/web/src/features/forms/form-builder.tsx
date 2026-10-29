@@ -50,6 +50,7 @@ import {
   GROUP_ITEMS_LIMIT,
   initialDrafts,
 } from './form-renderer';
+import { PublicLinks } from './public-links';
 import { RuleEditor } from './rule-editor';
 
 /** A section or field as the builder edits it: a stable id while its key changes. */
@@ -266,6 +267,7 @@ function Builder(props: {
           </ul>
         </div>
       )}
+      <PublicLinks formId={form.data.id} />
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="flex flex-col gap-6">
           {sections.map((section, index) => (
