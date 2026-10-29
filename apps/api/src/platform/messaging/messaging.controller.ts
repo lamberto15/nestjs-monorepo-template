@@ -37,6 +37,7 @@ import {
   registerDeviceSchema,
   setPhoneSchema,
   verifyPhoneSchema,
+  webPushSchema,
 } from './messaging.schemas.js';
 import { MessagingService } from './messaging.service.js';
 
@@ -82,6 +83,18 @@ export class MessagingController {
     @Ip() ip: string,
   ) {
     return this.messaging.registerDevice(personal(user), body, ip);
+  }
+
+  @Get('devices/web-push')
+  @Can.Anyone()
+  @ApiOperation({
+    summary: 'What a browser needs to register for push',
+    description:
+      'The VAPID public key for `pushManager.subscribe()`; then register the subscription with PUT /v1/devices (platform `web`). Null when Web Push is off (PUSH_PROVIDER).',
+  })
+  @ApiOkResponse({ standardSchema: webPushSchema })
+  webPush() {
+    return this.messaging.webPush();
   }
 
   @Get('devices')

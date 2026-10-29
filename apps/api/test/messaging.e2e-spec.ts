@@ -287,6 +287,14 @@ describe('push and SMS (e2e)', () => {
       await node.http().get('/v1/devices').expect(401);
     });
 
+    it('gives a browser no push key while Web Push is off (here the memory provider)', async () => {
+      const user = await node.user(['editor']);
+      expect(
+        (await user.agent.get('/v1/devices/web-push').expect(200)).body,
+      ).toEqual({ publicKey: null });
+      await node.http().get('/v1/devices/web-push').expect(401);
+    });
+
     it('is erased with the account and swept when stale', async () => {
       const user = await node.user(['editor']);
       const device = (

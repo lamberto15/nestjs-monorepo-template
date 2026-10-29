@@ -1228,6 +1228,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/devices/web-push": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What a browser needs to register for push
+         * @description The VAPID public key for `pushManager.subscribe()`; then register the subscription with PUT /v1/devices (platform `web`). Null when Web Push is off (PUSH_PROVIDER).
+         */
+        get: operations["MessagingController_webPush_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/devices/{id}": {
         parameters: {
             query?: never;
@@ -13592,6 +13612,42 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description No valid session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An API client, or an administrator acting as the person. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MessagingController_webPush_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description The VAPID public key for the browser's `pushManager.subscribe()`; null when Web Push is off. */
+                        publicKey: string | null;
+                    };
+                };
             };
             /** @description No valid session. */
             401: {

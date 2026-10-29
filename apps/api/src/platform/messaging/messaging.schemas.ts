@@ -24,6 +24,15 @@ export const deviceSchema = z.object({
 });
 export type DeviceView = z.infer<typeof deviceSchema>;
 
+export const webPushSchema = z.object({
+  publicKey: z
+    .string()
+    .nullable()
+    .describe(
+      "The VAPID public key for the browser's `pushManager.subscribe()`; null when Web Push is off.",
+    ),
+});
+
 export const setPhoneSchema = z
   .object({
     phone: z

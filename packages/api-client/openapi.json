@@ -13267,6 +13267,54 @@
         ]
       }
     },
+    "/v1/devices/web-push": {
+      "get": {
+        "description": "The VAPID public key for `pushManager.subscribe()`; then register the subscription with PUT /v1/devices (platform `web`). Null when Web Push is off (PUSH_PROVIDER).",
+        "operationId": "MessagingController_webPush_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publicKey": {
+                      "nullable": true,
+                      "description": "The VAPID public key for the browser's `pushManager.subscribe()`; null when Web Push is off.",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "publicKey"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid session."
+          },
+          "403": {
+            "description": "An API client, or an administrator acting as the person."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "What a browser needs to register for push",
+        "tags": [
+          "messaging"
+        ]
+      }
+    },
     "/v1/devices/{id}": {
       "delete": {
         "operationId": "MessagingController_removeDevice_v1",
