@@ -401,6 +401,61 @@ describe('operator CLI (e2e)', () => {
     });
   });
 
+  describe('backlog:*', () => {
+    it('wants exactly one of --tenant and --global, and a target', async () => {
+      await expect(ops.backlogPreview({})).rejects.toThrow(OpsError);
+      await expect(
+        ops.backlogPreview({ tenant: node.tenantId, global: true }),
+      ).rejects.toThrow(OpsError);
+      await expect(
+        ops.backlogAction('discard', 'redis', { global: true }),
+      ).rejects.toThrow(OpsError);
+    });
+
+    it("discards one tenant's outbox backlog of a type, audited as system:ops with the operator", async () => {
+      const user = await node.user([]);
+      const service = node.app.get(NotificationsService);
+      const txHost = node.app.get(TransactionHost);
+      await node.inTenant(() =>
+        inTransaction(txHost, (tx) =>
+          service.notify(tx, {
+            type: 'testItem.commented' as NotificationType,
+            to: `user:${user.id}`,
+            data: {
+              recordId: randomUUID(),
+              commentId: randomUUID(),
+              title: 'T',
+              by: 'Ada',
+              excerpt: 'Hi',
+            },
+            key: randomUUID(),
+          }),
+        ),
+      );
+      const role = process.env.APP_ROLE;
+      process.env.APP_ROLE = 'api';
+      try {
+        const plan = await ops.backlogAction('discard', 'outbox', {
+          tenant: node.tenantId,
+          type: 'testItem.commented',
+        });
+        expect(plan.summary.join(' ')).toMatch(/Discard about 1 outbox/);
+        expect(await plan.apply(operator)).toEqual({ count: 1 });
+      } finally {
+        process.env.APP_ROLE = role;
+      }
+      const [entry] = await written('ops.backlog-discarded');
+      expect(entry).toMatchObject({
+        targetType: 'outbox',
+        details: {
+          count: 1,
+          scope: { tenantId: node.tenantId, type: 'testItem.commented' },
+          operator,
+        },
+      });
+    });
+  });
+
   describe('setting:delete', () => {
     const KEY = 'auth.passwordMinLength';
 

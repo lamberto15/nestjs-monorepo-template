@@ -37,18 +37,24 @@ import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { redactValue } from '../../core/logging/redaction.js';
 import { opsEvent } from './ops-events.js';
 import {
+  backlogActionSchema,
+  backlogPreviewSchema,
+  backlogResultSchema,
+  backlogScopeSchema,
   diagnosticTestSchema,
   diagnosticsSchema,
   opsEventSchema,
   outboxStateSchema,
   purgedSchema,
   queueOverviewSchema,
+  queuePausedSchema,
   requeuedSchema,
   retriedSchema,
   type OpsEvent,
 } from './ops.schemas.js';
 import { OpsPolicy } from './ops.policy.js';
 import { OpsQueues } from './ops-queues.service.js';
+import { OpsBacklog, type BacklogScope } from './ops-backlog.service.js';
 import { OpsDiagnostics } from './ops-diagnostics.service.js';
 import { UserThrottle } from '../../iam/auth/user-throttle.guard.js';
 import { minutes } from '@nestjs/throttler';
@@ -59,6 +65,15 @@ import { AuditService } from '../../iam/audit/audit.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 
 const idsSchema = z.object({ ids: z.array(z.string()).max(1000).optional() });
+
+/** The scope as the service takes it: `before` as a Date. */
+const scopeOf = ({
+  before,
+  ...scope
+}: z.infer<typeof backlogScopeSchema>): BacklogScope => ({
+  ...scope,
+  before: before ? new Date(before) : undefined,
+});
 
 /**
  * Operations: what runs in the background. Outbox stats, dead letters (requeue,
@@ -97,6 +112,7 @@ export class OpsController {
     private readonly audit: AuditService,
     private readonly notifications: NotificationsService,
     private readonly diagnostics: OpsDiagnostics,
+    private readonly backlog: OpsBacklog,
   ) {}
 
   @Get('outbox')
@@ -231,6 +247,134 @@ export class OpsController {
       ip,
     });
     return { retried };
+  }
+
+  /** A queue stopped for every process: its jobs wait in Redis, running ones finish. */
+  @Post('queues/:name/pause')
+  @Can(OpsPolicy, 'manage')
+  @HttpCode(200)
+  @SerializeOptions({ schema: queuePausedSchema })
+  @ApiOperation({
+    summary: 'Pause a queue (every worker stops taking its jobs)',
+    description:
+      'BullMQ pause, kept in Redis: nothing is lost, and running jobs finish. Leaving maintenance mode resumes every queue. The outbox keeps queuing jobs into it: see /v1/ops/backlog. Audited.',
+  })
+  @ApiOkResponse({ standardSchema: queuePausedSchema })
+  async pauseQueue(
+    @CurrentUser() user: UserPrincipal,
+    @Param('name') name: string,
+    @Ip() ip: string,
+  ) {
+    await this.queues.pause(name);
+    await this.audit.record(user, {
+      action: 'queue.paused',
+      targetType: 'queue',
+      targetId: name,
+      ip,
+    });
+    return { name, paused: true };
+  }
+
+  @Post('queues/:name/resume')
+  @Can(OpsPolicy, 'manage')
+  @HttpCode(200)
+  @SerializeOptions({ schema: queuePausedSchema })
+  @ApiOperation({ summary: 'Resume a paused queue. Audited.' })
+  @ApiOkResponse({ standardSchema: queuePausedSchema })
+  async resumeQueue(
+    @CurrentUser() user: UserPrincipal,
+    @Param('name') name: string,
+    @Ip() ip: string,
+  ) {
+    await this.queues.resume(name);
+    await this.audit.record(user, {
+      action: 'queue.resumed',
+      targetType: 'queue',
+      targetId: name,
+      ip,
+    });
+    return { name, paused: false };
+  }
+
+  /** The dry run: what a discard or a retry with this scope would touch. */
+  @Post('backlog/preview')
+  @Can(OpsPolicy, 'view')
+  @HttpCode(200)
+  @SerializeOptions({ schema: backlogPreviewSchema })
+  @ApiOperation({
+    summary:
+      'Count the outbox and mail backlog of one tenant (or, explicitly, every tenant)',
+    description:
+      'Changes nothing. The outbox (pending messages by topic and notification type, dead letters, those being delivered) and the mail queue (jobs by state and mail class). Exactly one of tenantId and global: true. topic and type narrow the outbox, template the mail queue, before (ISO 8601) keeps to older work. Mail queued before jobs named their tenant counts under global only.',
+  })
+  @ApiOkResponse({ standardSchema: backlogPreviewSchema })
+  async previewBacklog(
+    @Body({ schema: backlogScopeSchema })
+    body: z.infer<typeof backlogScopeSchema>,
+  ) {
+    return this.backlog.preview(scopeOf(body));
+  }
+
+  /** Deletes the backlog in scope, never a mandatory notification or essential mail. */
+  @Post('backlog/discard')
+  @Can(OpsPolicy, 'manage')
+  @HttpCode(200)
+  @SerializeOptions({ schema: backlogResultSchema })
+  @ApiOperation({
+    summary: 'Discard the outbox or mail backlog in a scope',
+    description:
+      'outbox: deletes pending notifications.deliver (and other) messages not being delivered, and dead letters, in batches; a discarded notification stays in the list, marked delivered, with no push, mail or webhook. mail: removes waiting, delayed and failed jobs. Never a mandatory notification type, essential mail or running work. Up to limit (10,000) per call: call again while more. Preview first. Audited.',
+  })
+  @ApiOkResponse({ standardSchema: backlogResultSchema })
+  async discardBacklog(
+    @CurrentUser() user: UserPrincipal,
+    @Body({ schema: backlogActionSchema })
+    body: z.infer<typeof backlogActionSchema>,
+    @Ip() ip: string,
+  ) {
+    const result = await this.backlog.discard(
+      body.target,
+      scopeOf(body.scope),
+      body.limit,
+    );
+    await this.audit.record(user, {
+      action: 'ops.backlog-discarded',
+      targetType: body.target,
+      details: { scope: body.scope, ...result },
+      ip,
+    });
+    return result;
+  }
+
+  /** Runs the failed work in scope again. */
+  @Post('backlog/retry')
+  @Can(OpsPolicy, 'manage')
+  @HttpCode(200)
+  @SerializeOptions({ schema: backlogResultSchema })
+  @ApiOperation({
+    summary: 'Retry the outbox dead letters or failed mail in a scope',
+    description:
+      'outbox: requeues the dead letters with a fresh retry budget; mail: retries the failed jobs. The mail mode and the daily budgets still apply. Up to limit (10,000) per call: call again while more. Audited.',
+  })
+  @ApiOkResponse({ standardSchema: backlogResultSchema })
+  async retryBacklog(
+    @CurrentUser() user: UserPrincipal,
+    @Body({ schema: backlogActionSchema })
+    body: z.infer<typeof backlogActionSchema>,
+    @Ip() ip: string,
+  ) {
+    const result = await this.backlog.retry(
+      body.target,
+      scopeOf(body.scope),
+      body.limit,
+    );
+    await this.audit.record(user, {
+      action: 'ops.backlog-retried',
+      targetType: body.target,
+      details: { scope: body.scope, ...result },
+      ip,
+    });
+    return result;
   }
 
   /** Messages the outbox gave up on: requeued for another try (all when no ids). */

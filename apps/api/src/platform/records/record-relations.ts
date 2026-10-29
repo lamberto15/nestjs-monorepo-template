@@ -5,6 +5,7 @@ import { ProblemDetailsFilter } from '../../core/http/problem-details.filter.js'
 import {
   type AnyField,
   columnName,
+  type OnDelete,
   type Referenced,
   referencedSubject,
 } from '../fields/field.js';
@@ -19,10 +20,16 @@ import type { RecordDeclaration } from './record.js';
  *
  * - a write may only point at a live record the writer may read
  *   (RecordLifecycle, 422 `reference_not_found`);
- * - a record a required relation still refers to can't be deleted
- *   (409 `record_referenced`); an optional one empties when its record is
- *   deleted for good (the key's `set null`), and stays while that record is
- *   in the recycle bin, so a restore brings the relation back;
+ * - deleting a record that others refer to follows the relation's
+ *   `onDelete` (`.onDelete()` on the field): `restrict`, the default, refuses
+ *   it while live records refer to it (409 `record_referenced`; for a
+ *   required field the recycle bin's too, as the key would refuse the
+ *   purge); `keep` (optional fields) lets it go to the recycle bin, the
+ *   references kept, so a restore brings the relation back. An optional
+ *   reference empties when its record is deleted for good (the key's
+ *   `set null`). Restoring a record whose `restrict` reference points at one
+ *   in the recycle bin is refused (409 `reference_deleted`): restore that
+ *   one first;
  * - the referred record's related panels (`related` of
  *   GET /v1/lists/{subject}: each a page of the referring list, filtered by
  *   the field, with the caller's read permission).
@@ -39,8 +46,10 @@ export interface RecordRelation {
   /** Their table, and the field's column. */
   table: PgTable & Record<string, AnyPgColumn>;
   column: AnyPgColumn;
-  /** A required field (`restrict`); optional ones empty (`set null`). */
+  /** A required field (its key: `restrict`); optional ones empty (`set null`). */
   required: boolean;
+  /** Deleting the referred record: refused while referred to, or kept in the bin. */
+  onDelete: OnDelete;
   /** The subject referred to (`Invoice`), read when asked: its table may load later. */
   target: () => string | undefined;
   /** The table referred to. */
@@ -59,12 +68,20 @@ export function relate(
     AnyField,
   ][]) {
     if (f.kind !== 'ref') continue;
+    const onDelete = f.options.onDelete ?? 'restrict';
+    if (onDelete === 'keep' && !f.options.optional) {
+      // Its key would refuse purging the record the bin kept it for.
+      throw new Error(
+        `${declaration.subject}.${field}: onDelete('keep') needs an optional reference (one that empties when its record is purged).`,
+      );
+    }
     RELATIONS.push({
       from: declaration,
       field,
       table,
       column: table[field]!,
       required: !f.options.optional,
+      onDelete,
       target: () => referencedSubject(f),
       targetTable: () => f.options.ref!() as Referenced & PgTable,
     });

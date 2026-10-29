@@ -5,6 +5,7 @@
   "tabs": {
     "queues": "Warteschlangen",
     "outbox": "Outbox",
+    "backlog": "Rückstand",
     "events": "Live-Ereignisse",
     "diagnostics": "Diagnose"
   },
@@ -29,7 +30,15 @@
     "job": "Job",
     "attempts": "Versuche",
     "reason": "Grund",
-    "failedAt": "Fehlgeschlagen"
+    "failedAt": "Fehlgeschlagen",
+    "pause": "Anhalten",
+    "resume": "Fortsetzen",
+    "pauseLabel": "{{name}} anhalten",
+    "resumeLabel": "{{name}} fortsetzen",
+    "pauseTitle": "Warteschlange {{name}} anhalten?",
+    "resumeTitle": "Warteschlange {{name}} fortsetzen?",
+    "pauseDescription": "Kein Worker nimmt ihre Jobs, bis sie fortgesetzt wird. Nichts geht verloren; laufende Jobs werden beendet. Die Outbox fügt weiter Jobs hinzu: siehe Rückstand.",
+    "resumeDescription": "Die Worker nehmen ihre Jobs wieder."
   },
   "outbox": {
     "stats": {
@@ -109,5 +118,48 @@
       "unconfigured": "Nicht eingerichtet",
       "unavailable": "Nicht erreichbar"
     }
+  },
+  "backlog": {
+    "intro": "Zählen und bereinigen Sie den Rückstand von Outbox und Mail eines Mandanten, oder aller Mandanten, wenn Sie es ausdrücklich wählen. Pflichtbenachrichtigungen, wesentliche Mails und laufende Arbeit werden nie verworfen. Jede Änderung wird protokolliert.",
+    "tenant": "Mandanten-ID",
+    "type": "Benachrichtigungstyp",
+    "template": "Mail-Klasse",
+    "count": "Zählen",
+    "scopeHint": "Zuerst zählen: Die Aktionen gelten für den gezählten Umfang. Ein leerer Filter schließt alles ein.",
+    "outbox": "Outbox: {{pending}} ausstehend, {{dead}} Dead Letters, {{leased}} in Zustellung",
+    "mail": "Mail-Warteschlange",
+    "kind": "Art",
+    "number": "Anzahl",
+    "state": "Status",
+    "essential": "Wesentlich (bleibt)",
+    "kept": "Bleibt",
+    "capped": "Mehr Jobs als gezählt: Die Zahlen sind eine Untergrenze.",
+    "kinds": {
+      "pending": "Ausstehend",
+      "deadLetters": "Dead Letter"
+    },
+    "discard": {
+      "outbox": "Outbox-Rückstand verwerfen",
+      "mail": "Wartende Mails verwerfen"
+    },
+    "discardTitle": {
+      "outbox": "Den gezählten Outbox-Rückstand verwerfen?",
+      "mail": "Die gezählten Mails verwerfen?"
+    },
+    "discardDescription": "Endgültig gelöscht. Verworfene Benachrichtigungen bleiben in der Liste der Person, als zugestellt markiert, ohne Push, Mail oder Webhook.",
+    "retry": {
+      "outbox": "Dead Letters wiederholen",
+      "mail": "Fehlgeschlagene Mails wiederholen"
+    },
+    "retryTitle": {
+      "outbox": "Die gezählten Dead Letters wiederholen?",
+      "mail": "Die gezählten fehlgeschlagenen Mails wiederholen?"
+    },
+    "retryDescription": "Sie laufen erneut. Der Mail-Modus und die Tagesbudgets gelten weiterhin.",
+    "done": {
+      "discard": "Verworfen: {{total}}.",
+      "retry": "Wiederholt: {{total}}."
+    },
+    "global": "Alle Mandanten"
   }
 }

@@ -102,6 +102,8 @@ export class Field<
       ref?: () => Referenced;
       /** The subject the referenced table holds, when it isn't a record's table. */
       refSubject?: string;
+      /** What deleting the referenced record does (a `ref` field): record-relations.ts. */
+      onDelete?: OnDelete;
     },
   ) {}
 
@@ -137,7 +139,22 @@ export class Field<
       searchable: true,
     });
   }
+
+  /**
+   * A reference's delete rule (record-relations.ts): `restrict`, the
+   * default, refuses deleting a record live ones refer to; `keep` lets it go
+   * to the recycle bin with the references kept (optional fields only).
+   */
+  onDelete(rule: OnDelete): Field<K, C, I, O, Opt, Def> {
+    return new Field(this.kind, this.makeColumn, this.input, this.output, {
+      ...this.options,
+      onDelete: rule,
+    });
+  }
 }
+
+/** What deleting a referenced record does to the records referring to it. */
+export type OnDelete = 'restrict' | 'keep';
 
 /** Any field, whatever its types. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

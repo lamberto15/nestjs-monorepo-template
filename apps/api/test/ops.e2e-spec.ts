@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
+import { getQueueToken } from '@nestjs/bullmq';
+import { TransactionHost } from '@nestjs-cls/transactional';
 import { getDrizzleToken } from '@nestjs/drizzle';
+import type { Queue } from 'bullmq';
+import { inArray } from 'drizzle-orm';
 import { MailEvents } from '@nestjs/mail';
 import { Outbox, OutboxEvents } from '@nestjs/outbox';
 import { PostgresOutboxStore } from '@nestjs/outbox/postgres';
@@ -8,7 +12,13 @@ import { ResilienceEvents } from '@nestjs/resilience';
 import { WorkflowEvents } from '@nestjs/workflows';
 import type { Database } from '../src/core/database/drizzle.js';
 import { REDACTED } from '../src/core/logging/redaction.js';
+import { inTransaction } from '../src/core/database/transactions.js';
+import type { NotificationType } from '../src/platform/notifications/notification.types.js';
+import { notifications } from '../src/platform/notifications/notifications.tables.js';
+import { NotificationsService } from '../src/platform/notifications/notifications.service.js';
 import {
+  backlogPreviewSchema,
+  backlogResultSchema,
   opsEventSchema,
   outboxStateSchema,
   purgedSchema,
@@ -167,6 +177,176 @@ describe('operations API (e2e)', () => {
       .expect(200);
     expect(retriedSchema.parse(retried.body)).toEqual({ retried: 0 });
     await node.admin().post('/v1/ops/queues/nope/retry-failed').expect(404);
+  });
+
+  describe('backlog recovery', () => {
+    /** A stored notification and its notifications.deliver message, in a tenant. */
+    const tell = (to: string, type: string, tenant = node.tenantId) =>
+      node.inTenant(async () => {
+        const txHost = node.app.get(TransactionHost);
+        const [id] = await inTransaction(txHost, (tx) =>
+          node.app.get(NotificationsService).notify(tx, {
+            type: type as NotificationType,
+            to,
+            data:
+              type === 'security.passwordChanged'
+                ? { via: 'change', ip: '192.0.2.10' }
+                : {
+                    recordId: randomUUID(),
+                    commentId: randomUUID(),
+                    title: 'T',
+                    by: 'Ada',
+                    excerpt: 'Hi',
+                  },
+            key: randomUUID(),
+          }),
+        );
+        return id!;
+      }, tenant);
+
+    it('wants exactly one of a tenant and global', async () => {
+      await node.admin().post('/v1/ops/backlog/preview').send({}).expect(400);
+      await node
+        .admin()
+        .post('/v1/ops/backlog/preview')
+        .send({ tenantId: node.tenantId, global: true })
+        .expect(400);
+    });
+
+    it("counts, then discards one tenant's outbox backlog of a type: never a mandatory type or another tenant's, notifications kept and marked delivered, audited", async () => {
+      const user = await node.user([]);
+      const other = await node.otherTenant();
+      const otherUser = await other.user([]);
+      const mine = [
+        await tell(`user:${user.id}`, 'testItem.commented'),
+        await tell(`user:${user.id}`, 'testItem.commented'),
+      ];
+      const secure = await tell(`user:${user.id}`, 'security.passwordChanged');
+      const theirs = await tell(
+        `user:${otherUser.id}`,
+        'testItem.commented',
+        other.id,
+      );
+
+      const scope = { tenantId: node.tenantId };
+      const preview = await node
+        .admin()
+        .post('/v1/ops/backlog/preview')
+        .send(scope)
+        .expect(200);
+      expect(backlogPreviewSchema.parse(preview.body)).toEqual(preview.body);
+      expect(preview.body.outbox.pending.groups).toEqual(
+        expect.arrayContaining([
+          {
+            topic: 'notifications.deliver',
+            type: 'testItem.commented',
+            count: 2,
+            mandatory: false,
+          },
+          {
+            topic: 'notifications.deliver',
+            type: 'security.passwordChanged',
+            count: 1,
+            mandatory: true,
+          },
+        ]),
+      );
+
+      const discarded = await node
+        .admin()
+        .post('/v1/ops/backlog/discard')
+        .send({ target: 'outbox', scope, limit: 1 })
+        .expect(200);
+      expect(backlogResultSchema.parse(discarded.body)).toEqual({
+        count: 1,
+        more: true,
+      });
+      const rest = await node
+        .admin()
+        .post('/v1/ops/backlog/discard')
+        .send({ target: 'outbox', scope })
+        .expect(200);
+      expect(rest.body).toEqual({ count: 1, more: false });
+
+      const delivered = async (ids: string[], tenant: string) =>
+        node.inTenant(
+          () =>
+            node.db
+              .select({
+                id: notifications.id,
+                deliveredAt: notifications.deliveredAt,
+                readAt: notifications.readAt,
+              })
+              .from(notifications)
+              .where(inArray(notifications.id, ids)),
+          tenant,
+        );
+      for (const row of await delivered(mine, node.tenantId)) {
+        expect(row).toMatchObject({
+          deliveredAt: expect.any(Date),
+          readAt: null,
+        });
+      }
+      expect(await delivered([secure], node.tenantId)).toEqual([
+        expect.objectContaining({ deliveredAt: null }),
+      ]);
+      expect(await delivered([theirs], other.id)).toEqual([
+        expect.objectContaining({ deliveredAt: null }),
+      ]);
+      const after = await node
+        .admin()
+        .post('/v1/ops/backlog/preview')
+        .send({ global: true, type: 'testItem.commented' })
+        .expect(200);
+      expect(after.body.outbox.pending.total).toBe(1);
+
+      const [entry] = await node.auditEntries({
+        action: 'ops.backlog-discarded',
+      });
+      expect(entry).toMatchObject({
+        targetType: 'outbox',
+        details: { scope, count: 1, more: false },
+      });
+    });
+
+    it("pauses the mail queue, discards one tenant's queued mail but its essential mail, and resumes", async () => {
+      const queue = node.app.get<Queue>(getQueueToken('mail'));
+      await node.admin().post('/v1/ops/queues/mail/pause').expect(200, {
+        name: 'mail',
+        paused: true,
+      });
+      expect(await queue.isPaused()).toBe(true);
+      const job = (data: object) =>
+        queue.add('NotificationMail', { to: [], cc: [], bcc: [], ...data });
+      await job({ tenantId: node.tenantId });
+      await job({ tenantId: node.tenantId, essential: true });
+      await job({ tenantId: node.tenantId, mandatory: true });
+      await job({ tenantId: randomUUID() });
+      const preview = await node
+        .admin()
+        .post('/v1/ops/backlog/preview')
+        .send({ tenantId: node.tenantId, template: 'NotificationMail' })
+        .expect(200);
+      expect(
+        preview.body.mail.groups.reduce(
+          (sum: number, group: { count: number }) => sum + group.count,
+          0,
+        ),
+      ).toBe(3);
+      const discarded = await node
+        .admin()
+        .post('/v1/ops/backlog/discard')
+        .send({ target: 'mail', scope: { tenantId: node.tenantId } })
+        .expect(200);
+      expect(discarded.body).toEqual({ count: 1, more: false });
+      expect(await queue.getJobCountByTypes('waiting')).toBe(3);
+      await queue.drain();
+      await node.admin().post('/v1/ops/queues/mail/resume').expect(200);
+      expect(await queue.isPaused()).toBe(false);
+      expect(
+        await node.auditEntries({ action: 'queue.paused', targetId: 'mail' }),
+      ).toHaveLength(1);
+    });
   });
 
   it('streams every engine as its schema, secrets masked and no stack trace', async () => {

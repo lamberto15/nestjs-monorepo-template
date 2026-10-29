@@ -49,6 +49,26 @@
     "tooLarge": "Fail melebihi {{max}} KB.",
     "typeRefused": "Gunakan imej PNG, JPEG atau WebP."
   },
+  "domains": {
+    "title": "Domain tersuai",
+    "description": "Nama hos anda sendiri (app.example.com) tempat orang anda mencapai aplikasi, dengan logo dan warna anda bermula dari halaman log masuk. Halakan ia ke aplikasi (CNAME), terbitkan rekod TXT yang ditunjukkan, kemudian semaknya.",
+    "hostname": "Nama hos",
+    "add": "Tambah domain",
+    "none": "Belum ada domain tersuai.",
+    "verified": "Disahkan",
+    "unverified": "Belum disahkan",
+    "verify": "Semak rekod",
+    "checking": "Rekod sedang disemak. Muat semula sebentar lagi untuk melihat hasilnya.",
+    "remove": "Alih keluar",
+    "removeLabel": "Alih keluar {{hostname}}",
+    "removed": "{{hostname}} dialih keluar. Ia tidak lagi menyajikan aplikasi.",
+    "publish": "Terbitkan rekod DNS ini, kemudian semaknya.",
+    "keep": "Kekalkan rekod DNS ini diterbitkan: domain disemak setiap malam dan berhenti berfungsi tanpanya.",
+    "recordName": "Nama rekod {{type}}",
+    "recordValue": "Nilai rekod",
+    "lastError": "Semakan terakhir {{date}}: {{error}}",
+    "verifiedAt": "Disahkan {{date}}"
+  },
   "error": {
     "title": "Penjenamaan tidak dapat dimuatkan",
     "generic": "Sesuatu telah berlaku. Cuba lagi.",

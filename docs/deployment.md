@@ -381,6 +381,52 @@ even with no secret moved: their environment, secrets, command or image
 change. That is a few seconds without the database, Redis and HTTPS, so
 deploy in a quiet moment.
 
+### Custom domains (on-demand TLS)
+
+With `CUSTOM_DOMAINS=on` ([branding](branding.md#custom-domains)), a tenant
+adds a hostname of its own (`tenant.example.com` here: a placeholder; real
+hostnames never go in the repository), points it at the deployment with a
+CNAME to `APP_DOMAIN`, and proves it with a TXT record. Caddy serves it from
+the Caddyfile's last site, `https://`, every hostname `APP_DOMAIN` isn't:
+
+- **Certificates on demand.** The first TLS handshake for a hostname asks
+  the API (the global `on_demand_tls`, `ask
+  http://api:3000/v1/internal/domains/allowed?domain=<hostname>`): 200 for a
+  verified domain of an active tenant, else 404 and the handshake fails, so
+  nobody can make Caddy request certificates for names of their choosing.
+  The certificate comes by HTTP-01 or TLS-ALPN-01 (the tenant's zone is not
+  in your Cloudflare account): ports 80 and 443 must reach Caddy. Caddy keeps
+  them in its `caddy_data` volume with the app's own, and renews them,
+  asking the API again; the ACME CA's rate limits apply per hostname.
+- **Checked per request.** The site's `forward_auth` asks the API the same
+  question before every request, so a domain removed or suspended (its TXT
+  record gone, the nightly check) stops serving at once, though its
+  certificate is still cached: Caddy answers the API's 404 as it is.
+- **Rate limited.** The API counts the question per address (600 a minute,
+  then 429, which fails the handshake or the request): the TLS asks against
+  Caddy's address, the per-request checks against the visitor's. Unknown
+  hostnames are remembered for 30 s, so a flood of made-up names (TLS
+  handshakes with random SNI) reads the database at most that often per
+  name, and never more than the limit allows.
+- **The question stays inside.** `/v1/internal/*` answers 404 on every site
+  from outside; Caddy reaches the API on the Compose network. The answer only
+  says whether a hostname is a verified custom domain, which its TXT record
+  and its pages already say.
+- **Off** (the default): the API answers 404 to every hostname; no
+  certificate is ever issued for anything but `APP_DOMAIN`.
+
+The Helm chart has no on-demand edge: its Ingress serves the hostnames the
+operators list in `customDomains.hosts` (`customDomains.enabled: true` sets
+`CUSTOM_DOMAINS=on`), with one certificate, `customDomains.tlsSecretName`,
+from a cert-manager issuer that can solve those zones (HTTP-01; a
+`dnsZones`-scoped DNS-01 solver stays for the app's own domain). List a
+hostname once `GET /v1/branding/domains` says it is verified. A domain
+removed or suspended stops at once in the API (no tenant, no brand, no
+session pinned to it); take it out of `customDomains.hosts` as well, or the
+web app's shell stays on it, unbranded. On k3s behind the Cloudflare Tunnel
+(docs/deploy-k3s.md), a tenant's hostname reaches the tunnel only as a
+Cloudflare for SaaS custom hostname, which this repository doesn't set up.
+
 ### Gotenberg (PDF documents)
 
 The workers render [documents](documents.md) with
@@ -1147,8 +1193,10 @@ on every process, api and worker alike (port 3000): HTTP request durations
 pattern such as `GET /v1/notes/{id}`, unmatched requests `unmatched`; the
 scrape and `/health` are not measured), `http_requests_in_flight`, the
 process's pool (`db_pool_connections{state="total|idle|waiting"}`), jobs
-per queue and state (`queue_jobs{queue,state}`; worker-capable processes only), the outbox
-(`outbox_undelivered`, `outbox_dead_letters`, `outbox_lag_seconds`), the
+per queue and state (`queue_jobs{queue,state}`; worker-capable processes only) and how long
+each queue's oldest waiting job has waited (`queue_oldest_waiting_seconds{queue}`), the outbox
+(`outbox_undelivered`, `outbox_undelivered_by_topic{topic}` (the 50 largest topics),
+`outbox_dead_letters`, `outbox_lag_seconds`), the
 outgoing webhooks (`webhook_deliveries{state="pending|due|failed"}`,
 `webhook_delivery_lag_seconds`), approvals (`approvals_open{status="pending|changes_requested"}`,
 `approvals_overdue_seconds`: how far the most overdue pending stage is past
@@ -1241,6 +1289,9 @@ warning: look today):
 | `QueueStalled`                                               | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused)                                                                                                   | critical          |
 | `QueueBacklogGrowing`                                        | over 100 jobs wait and more than 30 min ago, for 30 min                                                                                                                             | warning           |
 | `JobsFailing`                                                | jobs failed after all their attempts in the last 15 min                                                                                                                             | warning           |
+| `MailBacklogHigh` | over 1,000 mails waiting or delayed for 10 min: a notification storm ([notifications.md](notifications.md#stopping-a-mail-storm)) | critical |
+| `QueueJobsWaitingLong` | a queue's oldest waiting job has waited over 30 min, for 10 min | warning |
+| `NotificationOutboxBacklog` | over 5,000 `notifications.deliver` outbox messages pending for 15 min ([notifications.md](notifications.md#stopping-a-mail-storm)) | warning |
 | `OutboxStuck`                                                | a due outbox message has waited over 5 min, for 5 min                                                                                                                               | critical          |
 | `OutboxDeadLetters`                                          | outbox dead letters wait for someone (requeue or purge in `/v1/ops`; purged nightly after `OUTBOX_DEAD_LETTER_RETENTION_DAYS`)                                                                                                                | warning           |
 | `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing`       | a due delivery waits over 10 min; deliveries failed for good in the last hour                                                                                                       | warning           |
@@ -1657,6 +1708,10 @@ environment (the database URL, the keys). Nothing in the API calls it.
 | `user:remove-mfa <email>` | removes the authenticator and the recovery codes, clears the failed-code counter, revokes the account's tokens |
 | `user:unlock <email>` | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes |
 | `notifications:settle <email> [--before <date>]` | drops a user's undelivered `notifications.deliver` outbox messages (all, or created before the date) and marks their notifications delivered and read; `mandatory` types are left alone. Shows the counts first; works tenant by tenant in chunks of 5,000, so a backlog of hundreds of thousands never meets the statement timeout (docs/notifications.md, "Stopping a mail storm") |
+| `backlog:count (--tenant <id\|slug> \| --global) [--topic <t>] [--type <t>] [--template <mail>] [--before <date>]` | the dry run: the outbox backlog (pending by topic and notification type, dead letters, being delivered) and the `mail` queue (jobs by state and mail class) of one tenant, or of every tenant with `--global` (exactly one). Changes nothing |
+| `backlog:discard <outbox\|mail> (--tenant … \| --global) [filters]` | deletes that backlog in batches of 1,000: pending outbox messages not being delivered and dead letters (a discarded notification stays listed, marked delivered, with no push, mail or webhook), or the mail queue's waiting, delayed and failed jobs. Never a `mandatory` notification type, essential mail or running work. Audited as `ops.backlog-discarded` (docs/notifications.md, "Stopping a mail storm") |
+| `backlog:retry <outbox\|mail> (--tenant … \| --global) [filters]` | requeues the dead letters in scope, or retries the failed mail jobs; the mail mode and budgets still apply. Audited as `ops.backlog-retried` |
+| `queue:pause <name>`, `queue:resume <name>` | pauses or resumes one queue for every worker (BullMQ, kept in Redis; nothing is lost). Leaving maintenance mode resumes every queue. Audited as `queue.paused` / `queue.resumed` |
 | `setting:delete <key> (--tenant <id\|slug> \| --platform)` | removes a stored value; the next scope's, or the default, holds again |
 | `diagnostics [--test]` | the integrations' states (see [Diagnostics](#diagnostics)); `--test` runs their safe tests too, each audited as `ops.diagnostic-tested`. Exits 1 when one is unconfigured, unavailable or fails its test. Asks nothing: it changes nothing |
 

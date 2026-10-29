@@ -1,5 +1,9 @@
 import { randomUUID } from 'node:crypto';
+import { and, desc, eq, isNull, sql } from 'drizzle-orm';
+import { getDrizzleToken } from '@nestjs/drizzle';
 import type request from 'supertest';
+import type { Database } from '../../../src/core/database/drizzle.js';
+import { testItems } from './test-items.tables.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { fieldSamples } from '../../../src/platform/fields/fields.js';
 import { describeCapabilities } from '../../record-capabilities.js';
@@ -184,6 +188,15 @@ describe('test items (e2e)', () => {
           field: 'parentId',
           title: 'title',
           required: false,
+          onDelete: 'restrict',
+        },
+        {
+          subject: 'TestItem',
+          path: 'test-items',
+          field: 'linkedId',
+          title: 'title',
+          required: false,
+          onDelete: 'keep',
         },
       ]);
     });
@@ -241,14 +254,19 @@ describe('test items (e2e)', () => {
       await child(node.admin(), foreign).expect(422);
     });
 
-    it('keeps an optional reference while its record is in the recycle bin, and after a restore', async () => {
+    it('keeps a `keep` reference while its record is in the recycle bin, and after a restore', async () => {
       const admin = node.admin();
-      const parent = (await create(admin).expect(201)).body.id as string;
-      const kid = (await child(admin, parent).expect(201)).body.id as string;
-      await admin.delete(`/v1/test-items/${parent}`).expect(204);
+      const linked = (await create(admin).expect(201)).body.id as string;
+      const kid = (
+        await create(admin, randomUUID(), {
+          ...samples.body(),
+          linkedId: linked,
+        }).expect(201)
+      ).body.id as string;
+      await admin.delete(`/v1/test-items/${linked}`).expect(204);
       expect(
-        (await admin.get(`/v1/test-items/${kid}`).expect(200)).body.parentId,
-      ).toBe(parent);
+        (await admin.get(`/v1/test-items/${kid}`).expect(200)).body.linkedId,
+      ).toBe(linked);
       // Changing another field doesn't check the reference again.
       const etag = (await admin.get(`/v1/test-items/${kid}`)).headers
         .etag as string;
@@ -257,11 +275,79 @@ describe('test items (e2e)', () => {
         .set('If-Match', etag)
         .send(changed)
         .expect(200);
+      // Nor does restoring the record it refers to, or the referring one.
+      await admin.delete(`/v1/test-items/${kid}`).expect(204);
+      await admin.post(`/v1/test-items/${kid}/restore`).expect(200);
+      await admin.post(`/v1/test-items/${linked}/restore`).expect(200);
+      expect(
+        (await admin.get(`/v1/test-items?linkedId=${linked}`).expect(200)).body
+          .items,
+      ).toMatchObject([{ id: kid }]);
+    });
+
+    it('refuses deleting a record live ones refer to (`restrict`), and restoring one onto a record in the recycle bin', async () => {
+      const admin = node.admin();
+      const parent = (await create(admin).expect(201)).body.id as string;
+      const kid = (await child(admin, parent).expect(201)).body.id as string;
+      const refused = await admin
+        .delete(`/v1/test-items/${parent}`)
+        .expect(409);
+      expect(refused.body).toMatchObject({
+        code: 'record_referenced',
+        subject: 'TestItem',
+        field: 'parentId',
+      });
+      // A child in the recycle bin doesn't hold its (optional) parent back.
+      await admin.delete(`/v1/test-items/${kid}`).expect(204);
+      await admin.delete(`/v1/test-items/${parent}`).expect(204);
+      const restoring = await admin
+        .post(`/v1/test-items/${kid}/restore`)
+        .expect(409);
+      expect(restoring.body).toMatchObject({
+        code: 'reference_deleted',
+        field: 'parentId',
+      });
+      // The parent first, then the child: the relation is live again.
       await admin.post(`/v1/test-items/${parent}/restore`).expect(200);
+      await admin.post(`/v1/test-items/${kid}/restore`).expect(200);
       expect(
         (await admin.get(`/v1/test-items?parentId=${parent}`).expect(200)).body
           .items,
       ).toMatchObject([{ id: kid }]);
+    });
+
+    it("reads a record's related page as one range of the reference's index, at most a page of the list's limit", async () => {
+      const admin = node.admin();
+      const parent = (await create(admin).expect(201)).body.id as string;
+      await child(admin, parent).expect(201);
+      await admin
+        .get(`/v1/test-items?parentId=${parent}&limit=101`)
+        .expect(400);
+      // The related panel's query (RecordStore.findPage, `?parentId=`, newest
+      // first) on the app's pool, row-level security and all: planned on the
+      // index the field declares, the tenant and the parent in its condition.
+      const db = node.app.get<Database>(getDrizzleToken());
+      const plan = await node.inTenant(() =>
+        db.transaction(async (tx) => {
+          // A tiny table must not flip the plan to a sequential scan.
+          await tx.execute(sql`set local enable_seqscan = off`);
+          const statement = tx
+            .select({ id: testItems.id })
+            .from(testItems)
+            .where(
+              and(eq(testItems.parentId, parent), isNull(testItems.deletedAt)),
+            )
+            .orderBy(desc(testItems.id))
+            .limit(11)
+            .getSQL();
+          const result = await tx.execute(
+            sql`explain (format json) ${statement}`,
+          );
+          return JSON.stringify(result.rows[0]);
+        }),
+      );
+      expect(plan).toContain('"Index Name":"test_items_parent_id_idx"');
+      expect(plan).toMatch(/"Index Cond":"[^"]*tenant_id[^"]*parent_id/);
     });
   });
 

@@ -8,6 +8,9 @@
 #   loadtest/run.sh up         start the stack (and keep it)
 #   loadtest/run.sh run        run k6 against a started stack
 #   loadtest/run.sh realtime   run the Artillery socket.io scenario against it
+#   loadtest/run.sh soak       the notification-storm soak (loadtest/soak.js) against
+#                              a started stack: 100,000 notes imported and published,
+#                              a 100/day mail budget, Redis memory sampled; not in `all`
 #   loadtest/run.sh down       remove the stack and its volumes
 #   loadtest/run.sh config     the stack's Compose configuration (a check)
 #   loadtest/run.sh compose …  any `docker compose` command on the stack (the
@@ -25,6 +28,8 @@
 # LOADTEST_REALTIME `off` leaves the Artillery socket.io run out of the default run
 # PHASE_SECONDS, SIGN_IN_RATE, LIST_RATE, CREATE_RATE, EXPORT_RATE: scenarios.js' load
 # REALTIME_RATE     new socket.io connections a second (realtime.yml, default 10)
+# SOAK_NOTES, SOAK_MAIL_LIMIT, SOAK_MAX_MAIL, SOAK_MINUTES: soak.js' load and bounds
+# SOAK_REDIS_MAX_MB the most Redis may use during the soak (default 512)
 #
 # Its own env file: the repository's .env (a deployment's) is never read.
 set -euo pipefail
@@ -234,6 +239,55 @@ realtime() {
   fi
 }
 
+# The notification-storm soak (#618): k6 runs loadtest/soak.js while Redis'
+# used memory and the containers' are sampled every 5 s into soak-memory.log;
+# the run fails on soak.js' thresholds or past SOAK_REDIS_MAX_MB.
+soak() {
+  local max_mb=${SOAK_REDIS_MAX_MB:-512}
+  [[ "$max_mb" =~ ^[1-9][0-9]*$ ]] || {
+    echo "SOAK_REDIS_MAX_MB is a whole number" >&2
+    exit 2
+  }
+  local log="$out/soak-memory.log"
+  : > "$log"
+  (
+    while :; do
+      printf '%s redis_used_bytes=%s\n' "$(date -u +%FT%TZ)" "$(
+        REDISCLI_AUTH=$(setting REDIS_PASSWORD) compose exec -T -e REDISCLI_AUTH redis \
+          redis-cli INFO memory 2> /dev/null | tr -d '\r' | sed -n 's/^used_memory://p'
+      )" >> "$log"
+      # Word splitting wanted: one argument per container id.
+      # shellcheck disable=SC2046
+      docker stats --no-stream --format '{{.Name}} {{.MemUsage}}' \
+        $(compose ps -q api worker redis 2> /dev/null) >> "$log" 2> /dev/null || true
+      sleep 5
+    done
+  ) &
+  local sampler=$!
+  local status=0
+  ADMIN_EMAIL=$(setting ADMIN_EMAIL) ADMIN_PASSWORD=$(setting ADMIN_PASSWORD) \
+    docker run --rm \
+    --network "${project}_default" \
+    --user "$(id -u):$(id -g)" \
+    -v "$PWD/loadtest:/scripts:ro" \
+    -v "$out:/out" \
+    -e BASE_URL=http://caddy \
+    -e SOAK_FILE=/out/soak.json \
+    -e K6_NO_USAGE_REPORT=true \
+    -e ADMIN_EMAIL -e ADMIN_PASSWORD \
+    -e SOAK_NOTES -e SOAK_MAIL_LIMIT -e SOAK_MAX_MAIL -e SOAK_MINUTES \
+    "$K6_IMAGE" run --quiet /scripts/soak.js || status=$?
+  kill "$sampler" 2> /dev/null || true
+  local peak
+  peak=$(sed -n 's/.*redis_used_bytes=\([0-9][0-9]*\).*/\1/p' "$log" | sort -n | tail -1)
+  echo "Redis peak used memory: $(( ${peak:-0} / 1048576 )) MB (limit ${max_mb} MB); samples in $log"
+  if (( ${peak:-0} > max_mb * 1048576 )); then
+    echo "Redis used more than SOAK_REDIS_MAX_MB" >&2
+    status=1
+  fi
+  return "$status"
+}
+
 down() {
   compose --profile backup down --volumes --remove-orphans
   rm -f "$env_file"
@@ -243,6 +297,7 @@ case "${1:-all}" in
   up) up ;;
   run) run ;;
   realtime) realtime ;;
+  soak) soak ;;
   down) down ;;
   config) compose config ;;
   compose)
@@ -256,7 +311,7 @@ case "${1:-all}" in
     if [[ "${LOADTEST_REALTIME:-on}" != off ]]; then realtime; fi
     ;;
   *)
-    echo "usage: $0 [up|run|realtime|down|config|compose …|all]" >&2
+    echo "usage: $0 [up|run|realtime|soak|down|config|compose …|all]" >&2
     exit 2
     ;;
 esac

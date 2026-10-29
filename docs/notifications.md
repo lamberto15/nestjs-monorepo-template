@@ -496,6 +496,55 @@ and its delivery completes: the outbox does not retry the mail later.
 Both act when a mail is queued: mail already waiting in the `mail` queue
 still goes. Failed jobs are kept 7 days and at most 5,000 per queue.
 
+### Recovering a backlog
+
+A storm leaves work in two places, and both must be handled: the
+PostgreSQL outbox (`notifications.deliver` messages, each one queues a
+mail when the relay delivers it) and the BullMQ `mail` queue in Redis.
+Clearing the queue alone does nothing lasting, the outbox fills it again;
+`FLUSHALL` or truncating the outbox loses every tenant's other work and
+essential mail. The tools below work on one tenant, or on every tenant
+only when asked (`--global`, `global: true`), narrowed by outbox topic,
+notification type, mail class and age, in batches of 1,000 and at most
+10,000 per API call. They never discard a `mandatory` notification type,
+essential mail (`@EssentialMail()` or a mandatory notification's) or work
+that is running. Each change is audited.
+
+1. **Stop the growth.** Set `mail.delivery` to `essential` (above): new
+   mail is held back before it is queued. If Redis is near its
+   `maxmemory`, pause the mail queue too: `pnpm ops queue:pause mail` or
+   `POST /v1/ops/queues/mail/pause` (kept in Redis, every worker stops
+   taking its jobs; nothing is lost). `MailBacklogHigh`,
+   `NotificationOutboxBacklog` and `QueueJobsWaitingLong` alert on this
+   ([deployment.md](deployment.md), "Alerting").
+2. **Count first** (changes nothing): `pnpm ops backlog:count --tenant acme`
+   or `POST /v1/ops/backlog/preview { "tenantId": "…" }`, and the same with
+   `--global`. It lists the pending outbox messages by topic and type, the
+   dead letters, those being delivered, and the mail jobs by state and
+   class, the protected ones marked. Mail queued before jobs carried their
+   tenant counts under `--global` only.
+3. **Discard what should not go**, for example the published-note
+   notifications of one tenant older than an hour:
+   `pnpm ops backlog:discard outbox --tenant acme --type note.published --before 2026-10-24T10:00:00Z`,
+   then the mail already queued: `pnpm ops backlog:discard mail --tenant acme --template NotificationMail`.
+   Over the API: `POST /v1/ops/backlog/discard { "target": "outbox", "scope": { … } }`,
+   repeated while it answers `more: true`. A discarded notification stays in
+   the person's list, unread, marked delivered: no push, mail or webhook.
+   Audited as `ops.backlog-discarded`.
+4. **Retry what failed for a reason now gone** (the Redis OOM's dead
+   letters, a provider outage's failed mail), once the cause is fixed:
+   `pnpm ops backlog:retry outbox --global --topic notifications.deliver`,
+   `pnpm ops backlog:retry mail --tenant acme`. The mail mode and the daily
+   budgets still apply to what a requeued notification queues, so a retry
+   does not start the storm again. Audited as `ops.backlog-retried`.
+5. **Resume**: `pnpm ops queue:resume mail`, then `mail.delivery` back to
+   `all`. Leaving maintenance mode resumes every queue as well.
+
+The web app's Operations page (`/ops`, Backlog) runs the same preview,
+discard and retry for operators with `Ops.manage`.
+`pnpm ops notifications:settle <email>` (above) is the same discard for
+one person, across their tenants.
+
 ## Housekeeping
 
 - **Read-all** works in batches of `READ_ALL_BATCH` (5,000) rows, each

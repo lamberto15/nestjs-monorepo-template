@@ -105,6 +105,86 @@ export const queueOverviewSchema = z.object({
 export const retriedSchema = z.object({ retried: count });
 export const requeuedSchema = z.object({ requeued: count });
 export const purgedSchema = z.object({ purged: count });
+export const queuePausedSchema = z.object({
+  name: z.string(),
+  paused: z.boolean(),
+});
+
+// ---- /v1/ops/backlog: scoped recovery of the outbox and the mail queue ----
+
+/**
+ * Which backlog: exactly one of `tenantId` and `global: true`, so another
+ * tenant's work is never touched by accident. `topic`/`type` narrow the
+ * outbox, `template` the mail queue; `before` (ISO 8601) keeps to what was
+ * created before then.
+ */
+export const backlogScopeSchema = z
+  .object({
+    tenantId: z.uuid().optional(),
+    global: z.literal(true).optional(),
+    topic: z.string().min(1).max(200).optional(),
+    type: z.string().min(1).max(200).optional(),
+    template: z.string().min(1).max(200).optional(),
+    before: z.iso.datetime({ offset: true }).optional(),
+  })
+  .refine((scope) => !!scope.tenantId !== !!scope.global, {
+    message: 'Name a tenant (tenantId) or say global: true, not both.',
+    path: ['tenantId'],
+  });
+
+export const backlogActionSchema = z.object({
+  scope: backlogScopeSchema,
+  /** The outbox (pending messages and dead letters) or the mail queue. */
+  target: z.enum(['outbox', 'mail']),
+  /** The most this call touches (default 10,000): call again while `more`. */
+  limit: z.number().int().min(1).max(50_000).optional(),
+});
+
+const outboxGroups = z.object({
+  total: count,
+  /** The largest 100 groups. */
+  groups: z.array(
+    z.object({
+      topic: z.string(),
+      /** A notification's type (the payload's `type`), when it has one. */
+      type: z.string().nullable(),
+      count,
+      /** A mandatory notification type's: never discarded. */
+      mandatory: z.boolean(),
+    }),
+  ),
+});
+
+export const backlogPreviewSchema = z.object({
+  outbox: z.object({
+    /** Waiting for the relay (no live lease): what a discard deletes. */
+    pending: outboxGroups,
+    /** Given up on: what a retry requeues (and a discard deletes). */
+    deadLetters: outboxGroups,
+    /** Being delivered now: left alone. */
+    leased: count,
+  }),
+  mail: z.object({
+    groups: z.array(
+      z.object({
+        state: z.string(),
+        /** The mail class (the job's name). */
+        template: z.string(),
+        count,
+        /** Of them, essential mail or a mandatory notification's: never discarded. */
+        essential: count,
+      }),
+    ),
+    /** More jobs than a preview reads (250,000 per state): the counts are a floor. */
+    capped: z.boolean(),
+  }),
+});
+
+export const backlogResultSchema = z.object({
+  count,
+  /** The limit was reached: call again for the rest. */
+  more: z.boolean(),
+});
 
 // ---- GET /v1/ops/diagnostics, POST /v1/ops/diagnostics/{check}/test ----
 

@@ -17,6 +17,7 @@ import {
 import { type Job, type Queue, UnrecoverableError } from 'bullmq';
 import { Counter } from 'prom-client';
 import { abortable } from '../queues/abortable.js';
+import { currentTenantId } from '../tenancy/tenant-scope.js';
 import { MetricsService } from '../metrics/metrics.service.js';
 import { MailDeliveryGate } from './mail-delivery.js';
 import {
@@ -50,6 +51,10 @@ interface QueuedMail {
   headers: Record<string, string>;
   /** The mail class carries `@EssentialMail()`: it still goes to an address that complained. */
   essential?: boolean;
+  /** Sent as essential (`send(…, { essential: true })`: a mandatory notification's); an operator's backlog discard leaves it, as it leaves `essential`. */
+  mandatory?: boolean;
+  /** The tenant it was queued in (null: none), so an operator's backlog tools can keep to one tenant's mail (OpsBacklog). */
+  tenantId?: string | null;
 }
 
 /** What a mail job ends as: sent, or skipped for every recipient. */
@@ -138,6 +143,8 @@ export class MailQueue {
           text: message.text,
           headers: { ...message.headers },
           essential: isEssentialMail(mail),
+          ...(essential ? { mandatory: true } : {}),
+          tenantId: currentTenantId(),
         },
         {
           jobId,

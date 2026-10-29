@@ -19,6 +19,7 @@
       "manageTenants": "Mandanten anlegen (die Betreiber der Installation: nur im Betreiber-Mandanten)",
       "impersonate": "Als ein anderer Benutzer handeln (Support), nie als Administrator",
       "manageSso": "Single Sign-on des Mandanten einrichten: SAML- und OpenID-Connect-Verbindungen, verifizierte E-Mail-Domains",
+      "manageDomains": "Eigene Domains des Mandanten hinzufügen, verifizieren und entfernen: eigene Hostnamen, unter denen die App erreichbar ist (platform/branding)",
       "provisionScim": "Benutzer und Gruppen über SCIM 2.0 bereitstellen (API-Clients: das SCIM-Token des Identitätsanbieters)"
     }
   },
@@ -228,6 +229,10 @@
       "label": "Aufbewahrung des Outbox",
       "description": "Löscht jede Nacht Dead Letters der Outbox, die älter als OUTBOX_DEAD_LETTER_RETENTION_DAYS sind, und Inbox-Einträge der Verbraucher, die älter als OUTBOX_INBOX_RETENTION_DAYS sind."
     },
+    "ops-backlog": {
+      "label": "Wiederherstellung von Rückständen",
+      "description": "Verwirft oder wiederholt den von einem Operator gewählten Teil des Rückstands in Outbox und Mail-Warteschlange, Mandant für Mandant, und markiert die verworfenen Benachrichtigungen als zugestellt."
+    },
     "platform-analytics": {
       "label": "Plattformanalyse",
       "description": "Zählt jede Nacht Mandanten, Benutzer, Mitgliedschaften und API-Nutzung über alle Mandanten, unterdrückt kleine Gruppen und speichert nur die Aggregate, die die Reporting-Rolle liest."
@@ -251,6 +256,10 @@
     "messaging-retention": {
       "label": "Aufbewahrung der Nachrichten",
       "description": "Entfernt jede Nacht Geräte, die DEVICES_RETENTION_DAYS lang nicht gesehen wurden, und die Betrugs-Zähler vergangener Tage."
+    },
+    "custom-domains": {
+      "label": "Prüfung eigener Domains",
+      "description": "Fragt den DNS-TXT-Eintrag der eigenen Domains eines Mandanten auf Anfrage und jede Nacht ab und beendet das Routing einer Domain, deren Eintrag fehlt."
     },
     "demo-seed": {
       "label": "Demodaten",

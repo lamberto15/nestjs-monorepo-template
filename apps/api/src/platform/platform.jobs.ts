@@ -251,12 +251,30 @@ export const ATTACHMENT_IMAGES_JOB = defineSystemJob({
   permissions: [],
 });
 
+/** OpsBacklog: an operator's scoped discard or retry of the outbox and mail backlog, tenant by tenant. */
+export const OPS_BACKLOG_JOB = defineSystemJob({
+  key: 'ops-backlog',
+  label: 'Backlog recovery',
+  description:
+    "Discards or retries an operator's chosen part of the outbox and mail backlog, one tenant at a time, and marks the discarded notifications delivered.",
+  permissions: [],
+});
+
 /** AttachmentTextService: the text of an uploaded file, for the search inside attachments, on a worker. */
 export const ATTACHMENT_TEXT_JOB = defineSystemJob({
   key: 'attachment-text',
   label: 'Attachment text extraction',
   description:
     'Extracts the text of uploaded documents (ATTACHMENT_TEXT_SEARCH) so that the search finds them.',
+  permissions: [],
+});
+
+/** BrandingDomainsProcessor and the nightly check: the DNS TXT record of each custom domain. */
+export const CUSTOM_DOMAINS_JOB = defineSystemJob({
+  key: 'custom-domains',
+  label: 'Custom domain checks',
+  description:
+    "Looks up the DNS TXT record of a tenant's custom domains when asked and every night, and stops routing a domain whose record is gone.",
   permissions: [],
 });
 
@@ -281,10 +299,12 @@ export const PLATFORM_SYSTEM_JOBS = [
   MAIL_EVENTS_RETENTION_JOB,
   WEBHOOK_DELIVERY_RETENTION_JOB,
   OUTBOX_RETENTION_JOB,
+  OPS_BACKLOG_JOB,
   PLATFORM_ANALYTICS_JOB,
   REENCRYPTION_JOB,
   RETENTION_JOB,
   MESSAGING_JOB,
   MESSAGING_INBOUND_JOB,
   MESSAGING_RETENTION_JOB,
+  CUSTOM_DOMAINS_JOB,
 ];

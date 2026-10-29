@@ -1045,3 +1045,46 @@ tests:
             exp_annotations:
               summary: 'Tenant acme stores 95% of its storage limit'
               description: "The tenant's attachments and issued documents are over 90% of its limit; past it, uploads answer 422 quota_exceeded. Raise it (PUT /v1/tenants/{id}/quotas, or the quotas.maxStorageBytes platform setting) or have the tenant free some (docs/tenancy.md, Quotas)."
+
+  - name: a mail and notification backlog
+    interval: 1m
+    input_series:
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="waiting"}'
+        values: '800x20'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="delayed"}'
+        values: '400x20'
+      - series: 'queue_jobs{job="worker",instance="10.0.0.4:3000",queue="mail",state="active"}'
+        values: '5x20'
+      - series: 'queue_oldest_waiting_seconds{job="worker",instance="10.0.0.4:3000",queue="mail"}'
+        values: '2000x20'
+      - series: 'outbox_undelivered_by_topic{job="worker",instance="10.0.0.4:3000",topic="notifications.deliver"}'
+        values: '6000x20'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: MailBacklogHigh
+        exp_alerts: []
+      - eval_time: 11m
+        alertname: MailBacklogHigh
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: 1200 mails are queued
+              description: More than 1,000 mails have waited or been delayed for 10 minutes, more than a provider's daily quota usually allows, and each holds Redis memory. A notification storm? Count it with POST /v1/ops/backlog/preview (or pnpm ops backlog:count), then follow docs/notifications.md, "Stopping a mail storm".
+      - eval_time: 11m
+        alertname: QueueJobsWaitingLong
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              queue: mail
+            exp_annotations:
+              summary: A job of queue mail has waited 33m 20s
+              description: The oldest waiting job has waited more than 30 minutes. The workers are too few or too slow for this queue, or it is paused (GET /v1/ops/queues).
+      - eval_time: 16m
+        alertname: NotificationOutboxBacklog
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: 6000 notifications wait for delivery
+              description: More than 5,000 notifications.deliver outbox messages have been pending for 15 minutes. Deleting the mail queue would not help (the outbox queues the mail again); count and discard them by tenant and type (POST /v1/ops/backlog/preview, pnpm ops backlog:count), docs/notifications.md, "Stopping a mail storm".

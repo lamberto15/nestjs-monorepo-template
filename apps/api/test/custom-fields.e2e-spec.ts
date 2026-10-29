@@ -890,7 +890,7 @@ describe('custom fields (e2e)', () => {
     const [header, line] = csv.replace(/^﻿/, '').trim().split('\n');
     expect(header).toBe(
       // A client has no zone of its own: APP_TIMEZONE (UTC here).
-      'id,number,title,body,publishedAt (UTC),code,parentId,tags,owner,createdAt (UTC),custom.amount,custom.done,custom.tags',
+      'id,number,title,body,publishedAt (UTC),code,parentId,linkedId,tags,owner,createdAt (UTC),custom.amount,custom.done,custom.tags',
     );
     expect(line).toContain('12.5,true,"[""a"",""b""]"');
 
@@ -991,7 +991,7 @@ describe('custom fields (e2e)', () => {
       .get('/v1/data/imports/test-items/template')
       .expect(200);
     expect(template.text.replace(/^\uFEFF/, '').split('\n')[0]).toBe(
-      'title,body,publishedAt (UTC),code,parentId',
+      'title,body,publishedAt (UTC),code,parentId,linkedId',
     );
     const plain = await imported(
       limited.agent,

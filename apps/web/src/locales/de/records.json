@@ -106,6 +106,12 @@
     "error": "Die verknüpften Datensätze konnten nicht geladen werden.",
     "more": "Die neuesten {{shown}} von {{total}}."
   },
+  "picker": {
+    "placeholder": "Nach Namen suchen…",
+    "searching": "Suche läuft…",
+    "none": "Kein Treffer, den Sie lesen dürfen.",
+    "failed": "Die Datensätze konnten nicht durchsucht werden."
+  },
   "duplicates": {
     "title": "Duplikate",
     "empty": "Keine wahrscheinlichen Duplikate.",
