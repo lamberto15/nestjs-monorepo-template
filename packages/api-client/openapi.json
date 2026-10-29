@@ -3310,6 +3310,156 @@
         ]
       }
     },
+    "/v1/access/clients/{clientId}/webhook-scope": {
+      "get": {
+        "operationId": "ClientWebhooksController_scope_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "own",
+                        "tenant"
+                      ],
+                      "description": "own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read."
+                    }
+                  },
+                  "required": [
+                    "scope"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "Not allowed by your permissions, no authority over the client, or a step-up is due (reauthentication_required)."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Which records' events the client's endpoints receive",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      },
+      "put": {
+        "description": "`tenant` also sends events about the tenant's records owned by users and other clients, each only when the client may read that record, redacted to the fields it may read; `own` (the default) only the client's own. Wants a recent sign-in: it widens what leaves the tenant.",
+        "operationId": "ClientWebhooksController_setScope_v1",
+        "parameters": [
+          {
+            "name": "clientId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scope": {
+                    "type": "string",
+                    "enum": [
+                      "own",
+                      "tenant"
+                    ],
+                    "description": "own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read."
+                  }
+                },
+                "required": [
+                  "scope"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "scope": {
+                      "type": "string",
+                      "enum": [
+                        "own",
+                        "tenant"
+                      ],
+                      "description": "own (the default): only the records the client owns. tenant: also its tenant's records owned by users and other clients, each only when the client may read it, without the fields it may not read."
+                    }
+                  },
+                  "required": [
+                    "scope"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No session (an API key is none)."
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          },
+          "404": {
+            "description": "feature_off: API_CLIENTS=off in this deployment.\n\nNo such client in your tenant, endpoint or delivery."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          },
+          {
+            "user-session": []
+          }
+        ],
+        "summary": "Set which records' events the client's endpoints receive",
+        "tags": [
+          "webhooks",
+          "access"
+        ]
+      }
+    },
     "/v1/webhook-senders": {
       "get": {
         "operationId": "IncomingSendersController_list_v1",

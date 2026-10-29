@@ -142,6 +142,8 @@ function api(
     retryFailed: [] as unknown[],
     deliveryQueries: [] as URLSearchParams[],
     descriptions: 0,
+    scope: 'own' as 'own' | 'tenant',
+    scopes: [] as unknown[],
   };
   server.use(
     http.get('/v1/lists/WebhookDelivery', () => {
@@ -182,6 +184,15 @@ function api(
         ],
       }),
     ),
+    http.get(`${base}/webhook-scope`, () =>
+      HttpResponse.json({ scope: state.scope }),
+    ),
+    http.put(`${base}/webhook-scope`, async ({ request }) => {
+      const body = (await request.json()) as { scope: 'own' | 'tenant' };
+      state.scopes.push(body);
+      state.scope = body.scope;
+      return HttpResponse.json(body);
+    }),
     http.get(`${base}/webhook-endpoints`, () =>
       HttpResponse.json({ items: state.endpoints }),
     ),
@@ -336,6 +347,21 @@ describe('clients and endpoints', () => {
     ).toBeVisible();
     expect(screen.getByText('Warehouse')).toBeVisible();
     expect(screen.getByText('1 event type')).toBeVisible();
+  });
+
+  it("widens the client's events to the tenant's records it may read, and back", async () => {
+    const state = api();
+    const user = userEvent.setup();
+    await renderApp(endpointsPath);
+    const scope = await screen.findByRole('switch', {
+      name: "Also send events about the tenant's other records",
+    });
+    expect(scope).not.toBeChecked();
+    await user.click(scope);
+    await waitFor(() => expect(scope).toBeChecked());
+    await user.click(scope);
+    await waitFor(() => expect(scope).not.toBeChecked());
+    expect(state.scopes).toEqual([{ scope: 'tenant' }, { scope: 'own' }]);
   });
 
   it('creates an endpoint from the catalog, shows the secret once and keeps it nowhere', async () => {

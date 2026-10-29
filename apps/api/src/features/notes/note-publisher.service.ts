@@ -13,6 +13,7 @@ import {
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
 import { AccessService } from '../../iam/access/access.service.js';
+import { RecordWebhooks } from '../../platform/webhooks/record-webhooks.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
@@ -59,6 +60,7 @@ export class NotePublisher {
     private readonly approvals: ApprovalsService,
     private readonly audit: AuditService,
     private readonly access: AccessService,
+    private readonly recordWebhooks: RecordWebhooks,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -254,32 +256,30 @@ export class NotePublisher {
     }
   }
 
-  /** Webhooks go to the API client that owns the note; a user's notes have none. */
+  /**
+   * A note's webhook: to the API client that owns it, and to the clients of
+   * its tenant subscribed with the `tenant` scope that may read it, each
+   * redacted to what it may read (RecordWebhooks, docs/webhooks-and-realtime.md
+   * "Subscriber scope"). A user's note reaches only those.
+   */
   async dispatch(tx: Transaction, type: NoteEventType, note: Note) {
-    const tenant = note.ownerId.startsWith('client:')
-      ? note.ownerId.slice('client:'.length)
-      : null;
-    if (!tenant) {
-      return;
-    }
-    const data: NoteEvent = { noteId: note.id, title: note.title };
-    await this.webhooks.dispatch(tx, { type, tenant, data });
+    await this.dispatchMany(tx, type, [note]);
   }
 
-  /** Dispatches webhook events for many notes with the package's array API. */
+  /** Dispatches webhook events for many notes in one call. */
   async dispatchMany(
     tx: Transaction,
     type: NoteEventType,
     rows: readonly Note[],
   ) {
-    const messages = rows.flatMap((note) => {
-      const tenant = note.ownerId.startsWith('client:')
-        ? note.ownerId.slice('client:'.length)
-        : null;
-      return tenant
-        ? [{ type, tenant, data: { noteId: note.id, title: note.title } }]
-        : [];
-    });
-    if (messages.length) await this.webhooks.dispatch(tx, messages);
+    await this.recordWebhooks.dispatch(
+      tx,
+      rows.map((note) => ({
+        type,
+        subject: 'Note',
+        row: note,
+        data: { noteId: note.id, title: note.title } satisfies NoteEvent,
+      })),
+    );
   }
 }

@@ -118,9 +118,9 @@ export const INVOICE = defineRecord({
 
   `events`: the data of each webhook is the record as the API shows it
   (less the fields its receiver may not read), sent to the API client that
-  owns the record (endpoints belong to clients, so a user's records send
-  none: [webhooks](webhooks-and-realtime.md)); it needs no endpoint to
-  exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
+  owns the record and to the `tenant`-scope clients of its tenant that may
+  read it (a user's records reach only those: [webhooks](webhooks-and-realtime.md),
+  "Subscriber scope"); it needs no endpoint to exist. `numbered`: the format is the declaration's `number: { prefix: 'INV',
 perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   digits; one counter per tenant, [sequences](sequences.md)); the column is
   nullable, so the capability can be added to a table with rows (those
