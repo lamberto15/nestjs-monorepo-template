@@ -26,11 +26,19 @@ export function record({
   approvals = [],
   settings = [],
 }) {
-  const refs = [...new Set(fields.filter((f) => f.ref).map((f) => f.ref))];
+  // Another feature's table is imported; the feature's own is named through its declaration (builderOf).
+  const refs = [
+    ...new Set(fields.filter((f) => f.ref).map((f) => f.ref)),
+  ].filter((ref) => ref !== t.plural);
+  const self = fields.some((f) => f.ref === t.plural);
   const searchable = capabilities.has('search');
   return [
-    `import { field } from '../../platform/fields/field.js';`,
-    `import { defineRecord } from '../../platform/records/record.js';`,
+    self
+      ? `import { field, type Referenced } from '../../platform/fields/field.js';`
+      : `import { field } from '../../platform/fields/field.js';`,
+    self
+      ? `import { defineRecord, recordTableOf } from '../../platform/records/record.js';`
+      : `import { defineRecord } from '../../platform/records/record.js';`,
     ...(settings.length
       ? [
           `import { recordSetting } from '../../platform/records/record-settings.js';`,
@@ -87,7 +95,9 @@ export function record({
         ]
       : []),
     `  fields: {`,
-    ...fields.map((f) => `    ${f.name}: ${builderOf(f, { searchable })},`),
+    ...fields.map(
+      (f) => `    ${f.name}: ${builderOf(f, { searchable, self: t })},`,
+    ),
     `  },`,
     `  capabilities: [${[...capabilities].map((c) => `'${c}'`).join(', ')}],`,
     `});`,
@@ -650,7 +660,7 @@ export function approvals({ t, approvals: actions }) {
     ` * What approval does to ${t.nouns}: one entry for each action \`${t.singular}.record.ts\``,
     ` * declares under \`approvals\` (a missing one fails the build). The policy, the flag, the`,
     ` * route and the handler are the platform's; this is the business logic.`,
-    ` * ${GENERATED('\`pnpm feature:sync\` adds an entry for an action added to the declaration.')}`,
+    ` * ${GENERATED('`pnpm feature:sync` adds an entry for an action added to the declaration.')}`,
     ` */`,
     `export const ${t.SINGULAR}_APPROVALS = recordApprovalEffects(${t.SINGULAR}, {`,
     ...actions.map((action) => approvalEntry(action, t)),

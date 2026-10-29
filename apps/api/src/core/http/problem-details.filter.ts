@@ -145,7 +145,13 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const problem = this.problem(http, request);
     this.log(exception, problem);
     const { httpAdapter } = this.adapterHost;
-    httpAdapter.setHeader(response, 'Content-Type', 'application/problem+json');
+    // The charset spelled out: the native adapter sends a type set here as
+    // it is (Express added `; charset=utf-8`), and clients saw it with one.
+    httpAdapter.setHeader(
+      response,
+      'Content-Type',
+      'application/problem+json; charset=utf-8',
+    );
     if (typeof problem.retryAfter === 'number') {
       // A 503 that says when to come back (database_busy): clients and proxies retry.
       httpAdapter.setHeader(

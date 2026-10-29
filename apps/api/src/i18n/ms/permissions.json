@@ -12,7 +12,9 @@
       "manageLegalHolds": "Letakkan dan lepaskan penahanan undang-undang: rekod disimpan walau apa pun yang dilakukan oleh padam, pembersihan atau peraturan pengekalan (iam/holds)",
       "manageRetention": "Tetapkan berapa lama penyewa menyimpan setiap jenis rekod sebelum ia dibersihkan atau dinyahkenalkan (platform/retention)",
       "manageNamingSeries": "Cipta, ubah dan padam format nombor rekod bernombor, dan tetapkan pembilangnya (platform/sequences)",
+      "manageCalendars": "Cipta, ubah dan padam kalendar perniagaan (waktu bekerja, zon waktu, cuti) yang menjadi asas pengiraan tarikh akhir (platform/calendars)",
       "manageViews": "Kongsi paparan tersimpan senarai dengan seluruh penyewa, dan ubah atau padam paparan yang dikongsi (platform/views)",
+      "manageTemplates": "Kongsi templat rekod dengan seluruh penyewa, dan ubah atau padam templat yang dikongsi (platform/templates)",
       "readAudit": "Baca log audit",
       "manageTenants": "Cipta penyewa (pengendali penggunaan: hanya dalam penyewa pengendali)",
       "impersonate": "Bertindak sebagai pengguna lain (sokongan), tidak sekali-kali sebagai pentadbir",
@@ -56,6 +58,19 @@
       "manage": "Tambah alamat ke senarai sekatan, atau alih keluar satu"
     }
   },
+  "form": {
+    "label": "Borang",
+    "names": {
+      "singular": "Borang",
+      "plural": "Borang"
+    },
+    "actions": {
+      "read": "Melihat borang yang diterbitkan dan versinya",
+      "submit": "Mengisi borang yang diterbitkan dan melihat serahan sendiri",
+      "edit": "Mencipta borang, menyunting draf, menerbitkan dan mengarkibkannya",
+      "readResponses": "Melihat serahan semua orang dan jawapannya"
+    }
+  },
   "note": {
     "label": "Nota (contoh)",
     "names": {
@@ -67,7 +82,8 @@
       "create": "Tulis nota",
       "update": "Ubah nota",
       "delete": "Padam nota",
-      "restore": "Lihat nota yang dipadam dan pulihkannya"
+      "restore": "Lihat nota yang dipadam dan pulihkannya",
+      "share": "Kongsi nota melalui pautan"
     },
     "fields": {
       "body": "Teks nota",
@@ -149,6 +165,10 @@
       "label": "Pemprosesan imej lampiran",
       "description": "Menjana imej kecil dan pratonton imej yang dimuat naik serta membuang metadata (EXIF, GPS) imej asal."
     },
+    "attachment-text": {
+      "label": "Pengekstrakan teks lampiran",
+      "description": "Mengekstrak teks dokumen yang dimuat naik (ATTACHMENT_TEXT_SEARCH) supaya carian dapat menemuinya."
+    },
     "revisions-retention": {
       "label": "Penyimpanan semakan",
       "description": "Memadam semakan rekod yang lebih lama daripada REVISIONS_RETENTION_DAYS (tidak sekali-kali yang terkini bagi sesuatu rekod), setiap malam."
@@ -172,6 +192,10 @@
     "report-runner": {
       "label": "Laporan berjadual",
       "description": "Memulakan laporan berjadual yang tiba masanya (sebagai pemiliknya), menjeda yang tidak lagi boleh dijalankan, dan merekodkan bagaimana setiap larian berakhir."
+    },
+    "record-schedules": {
+      "label": "Jadual rekod berulang",
+      "description": "Mencipta rekod bagi jadual berulang yang telah tiba masanya (sebagai pemiliknya), menamatkan jadual yang tidak lagi boleh dijalankan, dan merekodkan kejadian yang dilangkau."
     },
     "approvals": {
       "label": "Kelulusan",

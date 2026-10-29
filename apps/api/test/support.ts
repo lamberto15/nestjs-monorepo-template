@@ -9,7 +9,7 @@ import { and, desc, eq } from 'drizzle-orm';
 import { createServer, type IncomingHttpHeaders } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Type } from '@nestjs/common';
-import type { NestExpressApplication } from '@nestjs/platform-express';
+import type { NestNodeApplication } from '@nestjs/platform-node';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import {
   type InMemoryMailTransport,
@@ -42,6 +42,7 @@ import { trimEnd } from '../src/core/text/trim.js';
 import { I18nLoader } from '@nestjs/i18n';
 import { createDatabase } from '../src/core/database/drizzle.js';
 import { configureApp } from '../src/configure-app.js';
+import { createHttpAdapter } from '../src/core/http/http-setup.js';
 import { PASSWORD_HASHER_PARAMS } from '../src/iam/account/password-hashing.js';
 import { databaseUrl } from './global-setup.js';
 
@@ -278,11 +279,14 @@ export async function bootApp(
     .overrideProvider(I18nLoader)
     .useValue(new FixtureI18nLoader());
   const moduleRef = await override(builder).compile();
-  const app = moduleRef.createNestApplication<NestExpressApplication>({
-    // TEST_LOGS=1 shows the application's errors while debugging a test.
-    logger: process.env.TEST_LOGS ? ['error', 'warn'] : false,
-    rawBody: true,
-  });
+  const app = moduleRef.createNestApplication<NestNodeApplication>(
+    createHttpAdapter(),
+    {
+      // TEST_LOGS=1 shows the application's errors while debugging a test.
+      logger: process.env.TEST_LOGS ? ['error', 'warn'] : false,
+      rawBody: true,
+    },
+  );
   await configureApp(app);
   await app.listen(0, '127.0.0.1');
   const http = () => request(app.getHttpServer());

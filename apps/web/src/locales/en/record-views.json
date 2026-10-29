@@ -1,0 +1,67 @@
+{
+  "switch": "Show as",
+  "kinds": {
+    "table": "Table",
+    "board": "Board",
+    "calendar": "Calendar",
+    "timeline": "Timeline"
+  },
+  "open": "Open {{title}}",
+  "openShort": "Open",
+  "board": {
+    "notApplied": "The card was not moved: the update did not change it.",
+    "failed": "This column could not be loaded.",
+    "empty": "Nothing in this column.",
+    "moveCard": "Move {{title}}",
+    "moveTo": "Move to {{column}}",
+    "more": "Load more ({{shown}} of {{total}})"
+  },
+  "calendar": {
+    "notApplied": "The date was not changed: the update did not apply it.",
+    "allDay": "All day",
+    "reschedule": "Reschedule {{title}}",
+    "previous": "Previous",
+    "next": "Next",
+    "today": "Today",
+    "field": "Date field",
+    "mode": "Calendar view",
+    "modes": {
+      "month": "Month",
+      "week": "Week",
+      "agenda": "Agenda"
+    },
+    "failed": "The calendar could not be loaded.",
+    "empty": "Nothing in this period.",
+    "truncated": "Showing {{shown}} of {{total}} in this period. Narrow the filters to see the rest.",
+    "rescheduleTitle": "Reschedule {{title}}",
+    "rescheduleDescription": "A time of day stays as it is.",
+    "invalidDay": "Enter a valid date.",
+    "sameDay": "Choose a different date.",
+    "newDay": "New date",
+    "cancel": "Cancel",
+    "save": "Reschedule"
+  },
+  "timeline": {
+    "open": "No end yet",
+    "previous": "Earlier",
+    "next": "Later",
+    "today": "Today",
+    "zoom": "Zoom",
+    "zooms": {
+      "day": "Days",
+      "week": "Weeks",
+      "month": "Months"
+    },
+    "showList": "Show as list",
+    "showChart": "Show chart",
+    "failed": "The timeline could not be loaded.",
+    "bar": "{{title}}, from {{start}} to {{end}}",
+    "caption": "Records with their start and end",
+    "record": "Record",
+    "start": "Start",
+    "end": "End",
+    "empty": "Nothing in this period.",
+    "invalid": "Not drawn, because the end is before the start:",
+    "truncated": "Showing {{shown}} of {{total}} in this period. Narrow the filters to see the rest."
+  }
+}

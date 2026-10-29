@@ -1,0 +1,67 @@
+{
+  "switch": "Papar sebagai",
+  "kinds": {
+    "table": "Jadual",
+    "board": "Papan",
+    "calendar": "Kalendar",
+    "timeline": "Garis masa"
+  },
+  "open": "Buka {{title}}",
+  "openShort": "Buka",
+  "board": {
+    "notApplied": "Kad tidak dialihkan: kemas kini tidak mengubahnya.",
+    "failed": "Lajur ini tidak dapat dimuatkan.",
+    "empty": "Tiada apa-apa dalam lajur ini.",
+    "moveCard": "Alihkan {{title}}",
+    "moveTo": "Alihkan ke {{column}}",
+    "more": "Muatkan lagi ({{shown}} daripada {{total}})"
+  },
+  "calendar": {
+    "notApplied": "Tarikh tidak diubah: kemas kini tidak menggunakannya.",
+    "allDay": "Sepanjang hari",
+    "reschedule": "Jadual semula {{title}}",
+    "previous": "Sebelumnya",
+    "next": "Seterusnya",
+    "today": "Hari ini",
+    "field": "Medan tarikh",
+    "mode": "Paparan kalendar",
+    "modes": {
+      "month": "Bulan",
+      "week": "Minggu",
+      "agenda": "Agenda"
+    },
+    "failed": "Kalendar tidak dapat dimuatkan.",
+    "empty": "Tiada apa-apa dalam tempoh ini.",
+    "truncated": "Memaparkan {{shown}} daripada {{total}} dalam tempoh ini. Kecilkan penapis untuk melihat selebihnya.",
+    "rescheduleTitle": "Jadual semula {{title}}",
+    "rescheduleDescription": "Waktu dalam hari kekal sama.",
+    "invalidDay": "Masukkan tarikh yang sah.",
+    "sameDay": "Pilih tarikh yang lain.",
+    "newDay": "Tarikh baharu",
+    "cancel": "Batal",
+    "save": "Jadual semula"
+  },
+  "timeline": {
+    "open": "Belum tamat",
+    "previous": "Lebih awal",
+    "next": "Lebih lewat",
+    "today": "Hari ini",
+    "zoom": "Zum",
+    "zooms": {
+      "day": "Hari",
+      "week": "Minggu",
+      "month": "Bulan"
+    },
+    "showList": "Papar sebagai senarai",
+    "showChart": "Papar carta",
+    "failed": "Garis masa tidak dapat dimuatkan.",
+    "bar": "{{title}}, dari {{start}} hingga {{end}}",
+    "caption": "Rekod dengan permulaan dan penamatnya",
+    "record": "Rekod",
+    "start": "Mula",
+    "end": "Tamat",
+    "empty": "Tiada apa-apa dalam tempoh ini.",
+    "invalid": "Tidak dilukis kerana tamat sebelum mula:",
+    "truncated": "Memaparkan {{shown}} daripada {{total}} dalam tempoh ini. Kecilkan penapis untuk melihat selebihnya."
+  }
+}

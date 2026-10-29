@@ -504,7 +504,7 @@ export class TenantsService {
       ip,
     });
     await this.tenancy.run(tenant.id, () =>
-      this.invitations.send(result!.invitation, result!.token, operator),
+      this.invitations.send(result!.invitation, result!.token!, operator),
     );
     // Always invited: whether the address has an account is never read
     // here (the invite-only rule), so the answer can't tell an operator
@@ -513,9 +513,9 @@ export class TenantsService {
     return {
       ...tenant,
       administrator: {
-        email: result!.invitation.email,
+        email: result!.invitation.email!,
         status: 'invited' as const,
-        expiresAt: result!.invitation.expiresAt,
+        expiresAt: result!.invitation.expiresAt!,
       },
     };
   }

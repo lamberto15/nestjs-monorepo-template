@@ -104,6 +104,7 @@ function useTransferApi(
         name: part('name') ?? '',
         dryRun: part('dryRun') ?? '',
         ...(part('matchOn') && { matchOn: part('matchOn') }),
+        ...(part('mapping') && { mapping: part('mapping') }),
         file: /filename="([^"]*)"/.exec(raw)?.[1] ?? '',
       });
       return HttpResponse.json(
@@ -293,6 +294,82 @@ describe('matched imports', () => {
     );
     await waitFor(() => expect(calls.imports).toHaveLength(1));
     expect(calls.imports[0]).toMatchObject({ matchOn: 'id' });
+  });
+});
+
+describe('mapping a file’s columns', () => {
+  it('maps and ignores headers, shows the first row, sends only what differs, and saves the mapping', async () => {
+    useSignedIn(ALL);
+    const calls = useTransferApi();
+    const saved: unknown[] = [];
+    server.use(
+      http.get('/v1/data/imports/:name/mappings', () =>
+        HttpResponse.json({
+          items: [
+            {
+              id: '0199a3f2-0000-7000-8000-0000000000m1',
+              importer: 'test-items',
+              name: 'CRM export',
+              mapping: { Name: 'title' },
+              createdAt: '2026-10-28T10:00:00.000Z',
+              updatedAt: '2026-10-28T10:00:00.000Z',
+            },
+          ],
+        }),
+      ),
+      http.post('/v1/data/imports/:name/mappings', async ({ request }) => {
+        saved.push(await request.json());
+        return HttpResponse.json({}, { status: 201 });
+      }),
+    );
+    await renderApp('/transfers/import?name=test-items');
+    const user = userEvent.setup();
+    await screen.findByRole('table', { name: 'Columns it takes' });
+    const input = document.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    await user.upload(
+      input,
+      new File(['Name,Notes\nAda,remember\n'], 'crm.csv', {
+        type: 'text/csv',
+      }),
+    );
+    const table = await screen.findByRole('table', { name: 'Column mapping' });
+    expect(within(table).getByText('Ada')).toBeVisible();
+
+    // A saved mapping fills the choices; the rest is chosen by hand.
+    await user.click(screen.getByRole('combobox', { name: 'Saved mapping' }));
+    await user.click(await screen.findByRole('option', { name: 'CRM export' }));
+    await user.click(
+      screen.getByRole('combobox', { name: 'Column for Notes' }),
+    );
+    await user.click(
+      await screen.findByRole('option', { name: 'Ignore this column' }),
+    );
+    // The headers as mapped: `title` is there now, `body` still missing.
+    expect(
+      screen.getByText(
+        /File columns match 1 of 2 import columns. Missing: body/,
+      ),
+    ).toBeInTheDocument();
+
+    await user.type(
+      screen.getByRole('textbox', { name: 'Save this mapping as' }),
+      'CRM, no notes',
+    );
+    await user.click(screen.getByRole('button', { name: 'Save mapping' }));
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]).toEqual({
+      name: 'CRM, no notes',
+      mapping: { Name: 'title', Notes: null },
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Check the file' }));
+    await waitFor(() => expect(calls.imports).toHaveLength(1));
+    expect(JSON.parse(calls.imports[0]!.mapping!)).toEqual({
+      Name: 'title',
+      Notes: null,
+    });
   });
 });
 

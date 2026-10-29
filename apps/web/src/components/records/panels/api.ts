@@ -105,6 +105,8 @@ export const panelKeys = {
   revisions: (base: string, id: string) =>
     ['panels', base, id, 'revisions'] as const,
   document: (id: string) => ['panels', 'document', id] as const,
+  related: (base: string, id: string, path: string, field: string) =>
+    ['panels', base, id, 'related', path, field] as const,
   diff: (base: string, id: string, a: number, b: number) =>
     ['panels', base, id, 'revisions', 'diff', a, b] as const,
 };
@@ -175,6 +177,27 @@ export const listAttachments = (base: string, id: string) =>
         params: { path: { id }, query: { limit: PAGE_SIZE, cursor } },
       }),
     ),
+  );
+
+/** The first records a related panel shows; the rest are on their list. */
+export const RELATED_LIMIT = 10;
+
+/**
+ * The newest records that refer to one, with how many there are: their
+ * own list filtered by the reference (`related` of GET /v1/lists/{subject}),
+ * which shows only those the user may read.
+ */
+export const listRelated = (path: string, field: string, id: string) =>
+  unwrap(
+    client.GET(`/v1/${path}`, {
+      params: {
+        path: {},
+        query: { [field]: id, limit: RELATED_LIMIT, count: 'true' },
+      },
+    }) as Promise<{
+      data?: { items: Record<string, unknown>[]; total?: number | null };
+      response: Response;
+    }>,
   );
 
 /** `GET /v1/attachments/{id}/download` redirects to a signed link: a plain link follows it. */

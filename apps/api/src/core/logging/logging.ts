@@ -10,12 +10,18 @@ import {
 import { trace } from '@opentelemetry/api';
 import { inDatabaseContext } from '../database/database-observer.js';
 import { matchedRouteKey } from '../http/route-key.js';
-import type { NextFunction, Request, Response } from 'express';
+import type {
+  NodeRequest as Request,
+  NodeResponse as Response,
+} from '@nestjs/platform-node';
 import {
   observeRefusalStatus,
   recordTelemetryFailure,
 } from '../observability/telemetry-health.js';
 import { type LogRedaction, logRedaction } from './redaction.js';
+
+/** Hands the request on, or an error to the error handlers (connect-style). */
+type NextFunction = (error?: unknown) => void;
 
 const LEVELS: LogLevel[] = [
   'verbose',
@@ -185,6 +191,8 @@ export class RequestLogMiddleware implements NestMiddleware {
     res.setHeader('X-Request-Id', requestId);
 
     const started = process.hrtime.bigint();
+    // Read now: by `finish` a closed connection has no socket left to read it from.
+    const ip = req.ip;
     res.on('finish', () => {
       const path = req.originalUrl.split('?')[0];
       if (path.startsWith('/health')) {
@@ -197,7 +205,7 @@ export class RequestLogMiddleware implements NestMiddleware {
         path,
         status: res.statusCode,
         durationMs: Number(process.hrtime.bigint() - started) / 1e6,
-        ip: req.ip,
+        ip,
         principal: user ? `${user.kind}:${user.id}` : undefined,
       };
       const message = `${req.method} ${path} ${res.statusCode}`;

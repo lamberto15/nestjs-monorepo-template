@@ -1,12 +1,16 @@
 import {
+  Body,
   Controller,
   Delete,
   Get,
+  Headers,
   HttpCode,
   HttpStatus,
   Ip,
   Param,
+  ParseIntPipe,
   ParseUUIDPipe,
+  Post,
   Query,
   Redirect,
 } from '@nestjs/common';
@@ -18,6 +22,9 @@ import {
   ApiCookieAuth,
   ApiForbiddenResponse,
   ApiFoundResponse,
+  ApiHeader,
+  ApiOkResponse,
+  ApiPreconditionFailedResponse,
   ApiNoContentResponse,
   ApiNotFoundResponse,
   ApiOperation,
@@ -26,7 +33,14 @@ import {
 } from '@nestjs/swagger';
 import { z } from 'zod';
 import type { Principal } from '../../iam/auth/principal.js';
+import { Etag, ifMatchHeader } from '../../core/http/etag.js';
 import { RENDITION_NAMES } from '../images/renditions.js';
+import {
+  attachmentRestoreSchema,
+  attachmentSchema,
+  attachmentVersionListSchema,
+} from './attachment.schemas.js';
+import { AttachmentVersionsService } from './attachment-versions.service.js';
 import {
   AttachmentsService,
   DOWNLOAD_LINK_TTL,
@@ -63,7 +77,94 @@ type DownloadQuery = z.infer<typeof downloadQuerySchema>;
 @Can.Anyone() // Checked by the service: the record's own rules.
 @Controller('attachments')
 export class AttachmentsController {
-  constructor(private readonly attachments: AttachmentsService) {}
+  constructor(
+    private readonly attachments: AttachmentsService,
+    private readonly versions: AttachmentVersionsService,
+  ) {}
+
+  @Get(':id')
+  @Etag()
+  @ApiOperation({
+    summary: 'An attachment',
+    description:
+      'Whoever may read its record. Its ETag is what `If-Match` takes to replace or restore it (`POST …/attachments/{attachmentId}/versions`, `…/versions/{version}/restore`).',
+  })
+  @ApiOkResponse({ standardSchema: attachmentSchema })
+  @ApiNotFoundResponse()
+  get(@CurrentUser() user: Principal, @Param('id', ParseUUIDPipe) id: string) {
+    return this.attachments.get(user, id);
+  }
+
+  @Get(':id/versions')
+  @ApiOperation({
+    summary: "An attachment's versions, newest first",
+    description:
+      'The current file (`current: true`) and the earlier ones, with who uploaded each, when, and its revision note. Whoever may read its record.',
+  })
+  @ApiOkResponse({ standardSchema: attachmentVersionListSchema })
+  @ApiNotFoundResponse()
+  listVersions(
+    @CurrentUser() user: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    return this.versions.list(user, id);
+  }
+
+  @Get(':id/versions/:version/download')
+  @Redirect()
+  @ApiOperation({
+    summary: 'Download one version of an attachment',
+    description: `Whoever may read its record. Redirects to a signed link to that version's file, valid for ${DOWNLOAD_LINK_TTL}, as a download (never inline). The current version downloads as \`GET /v1/attachments/{id}/download\` does.`,
+  })
+  @ApiFoundResponse({ description: 'To the file (a signed link).' })
+  @ApiNotFoundResponse({
+    description:
+      'No such attachment, or version (attachment_version_not_found).',
+  })
+  downloadVersion(
+    @CurrentUser() user: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('version', ParseIntPipe) version: number,
+  ) {
+    return this.versions.download(user, id, version);
+  }
+
+  @Post(':id/versions/:version/restore')
+  @HttpCode(HttpStatus.OK)
+  @Etag()
+  @ApiHeader(ifMatchHeader())
+  @ApiOperation({
+    summary: 'Restore an earlier version of an attachment',
+    description:
+      "Who may change its record. The version's bytes become the current file again as a new version (nothing is lost), scanned again like an upload. Audited (attachment.version-restored). With `If-Match` (the attachment's ETag) refused (412) if it changed since you read it.",
+  })
+  @ApiOkResponse({ standardSchema: attachmentSchema })
+  @ApiForbiddenResponse({ description: 'You may not change its record.' })
+  @ApiNotFoundResponse({
+    description:
+      'No such attachment, or version (attachment_version_not_found).',
+  })
+  @ApiConflictResponse({
+    description:
+      'An issued document (attachment_locked), still being scanned or processed (attachment_busy), or at the limit of versions.',
+  })
+  @ApiPreconditionFailedResponse({
+    description: 'It changed since you read it (precondition_failed).',
+  })
+  restoreVersion(
+    @CurrentUser() user: Principal,
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('version', ParseIntPipe) version: number,
+    @Body({ schema: attachmentRestoreSchema }) body: { note?: string },
+    @Headers('if-match') ifMatch: string | undefined,
+    @Ip() ip: string,
+  ) {
+    return this.versions.restore(user, id, version, {
+      ifMatch,
+      note: body.note,
+      ip,
+    });
+  }
 
   @Get(':id/download')
   @Redirect()

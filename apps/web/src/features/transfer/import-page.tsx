@@ -46,17 +46,21 @@ import { Page, PageHeader } from '@/components/page-header';
 import { formatSize } from '@/components/records/panels/attachments-panel';
 import {
   catalogQuery,
+  type ImportMapping,
   startImport,
   templateUrl,
   type TransferFormat,
 } from './api';
+import { ColumnMapping } from './column-mapping';
+import { parseCsv } from './csv';
 import { TransferStatus } from './transfer-status';
 
 /**
  * Import into a subject: the columns it takes (and a template to fill), the
  * file, optionally a check without writing (`dryRun`), then the job's
- * progress and the refused rows. The API reads columns by their header name:
- * there is no mapping step.
+ * progress and the refused rows. The API reads columns by their header name;
+ * a CSV's or JSON file's headers can be mapped to the columns first (and the
+ * mapping saved for the next file).
  */
 export function ImportPage(props: { name?: string }) {
   const { t, i18n } = useTranslation('transfer');
@@ -64,6 +68,8 @@ export function ImportPage(props: { name?: string }) {
   const [chosen, setChosen] = useState(props.name);
   const [files, setFiles] = useState<File[]>([]);
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
+  const [samples, setSamples] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<ImportMapping>({});
   const [dryRun, setDryRun] = useState(true);
   const [matchOn, setMatchOn] = useState('');
   const [percent, setPercent] = useState<number>();
@@ -75,6 +81,7 @@ export function ImportPage(props: { name?: string }) {
       file: File;
       dryRun: boolean;
       matchOn?: string;
+      mapping?: ImportMapping;
     }) => startImport(input, setPercent),
     onMutate: () => setPercent(0),
     onSettled: () => setPercent(undefined),
@@ -84,6 +91,8 @@ export function ImportPage(props: { name?: string }) {
       if (!input.dryRun) {
         setFiles([]);
         setFileHeaders([]);
+        setSamples([]);
+        setMapping({});
         setMatchOn('');
       }
     },
@@ -105,6 +114,14 @@ export function ImportPage(props: { name?: string }) {
   const importer = imports.find((i) => i.name === (chosen ?? imports[0]?.name));
   const matchKeys = importer?.matchKeys ?? [];
   const file = files[0];
+  // The headers as the server will read them, the mapping applied.
+  const mappedHeaders = fileHeaders.flatMap((header) =>
+    Object.hasOwn(mapping, header)
+      ? mapping[header] === null
+        ? []
+        : [mapping[header]!]
+      : [header],
+  );
 
   const start = () => {
     if (importer && file)
@@ -113,6 +130,7 @@ export function ImportPage(props: { name?: string }) {
         file,
         dryRun,
         matchOn: matchOn || undefined,
+        mapping,
       });
   };
 
@@ -135,6 +153,7 @@ export function ImportPage(props: { name?: string }) {
               value={importer.name}
               onValueChange={(value) => {
                 setChosen(value ?? undefined);
+                setMapping({});
                 setMatchOn('');
                 setJobId(undefined);
               }}
@@ -225,12 +244,15 @@ export function ImportPage(props: { name?: string }) {
               const selected = next.slice(-1);
               setFiles(selected);
               setFileHeaders([]);
+              setSamples([]);
+              setMapping({});
               setMatchOn('');
               setJobId(undefined);
               const chosenFile = selected[0];
               if (chosenFile) {
-                void matchableHeaders(chosenFile).then((headers) => {
+                void fileProfile(chosenFile).then(({ headers, sample }) => {
                   setFileHeaders(headers);
+                  setSamples(sample);
                   const matches = matchKeys.filter((key) =>
                     headers.includes(key),
                   );
@@ -295,15 +317,25 @@ export function ImportPage(props: { name?: string }) {
             </FileUploadList>
           </FileUpload>
           {file && fileHeaders.length > 0 && (
+            <ColumnMapping
+              importer={importer.name}
+              columns={importer.columns.map((column) => column.name)}
+              headers={fileHeaders}
+              samples={samples}
+              mapping={mapping}
+              onChange={setMapping}
+            />
+          )}
+          {file && fileHeaders.length > 0 && (
             <p role="status" className="-mt-3 text-xs text-muted-foreground">
               {t('import.profile', {
                 matched: importer.columns.filter((column) =>
-                  fileHeaders.includes(column.name),
+                  mappedHeaders.includes(column.name),
                 ).length,
                 expected: importer.columns.length,
                 missing:
                   importer.columns
-                    .filter((column) => !fileHeaders.includes(column.name))
+                    .filter((column) => !mappedHeaders.includes(column.name))
                     .map((column) => column.name)
                     .join(', ') || t('import.noneMissing'),
               })}
@@ -360,9 +392,12 @@ export function ImportPage(props: { name?: string }) {
   );
 }
 
-async function matchableHeaders(file: File): Promise<string[]> {
-  // This optional matched-import hint needs only the first JSON object/header;
-  // keep it bounded so a large upload is never copied wholesale to JS memory.
+/** A CSV's or JSON array's headers and its first row's values: what the mapping shows. */
+async function fileProfile(
+  file: File,
+): Promise<{ headers: string[]; sample: string[] }> {
+  // Only the first object or lines are needed: a bounded read keeps a large
+  // upload from being copied wholesale to JS memory.
   const text = await file
     .slice(0, 1024 * 1024)
     .text()
@@ -371,14 +406,24 @@ async function matchableHeaders(file: File): Promise<string[]> {
     try {
       const value: unknown = JSON.parse(text);
       const first = Array.isArray(value) ? value[0] : undefined;
-      return first && typeof first === 'object' ? Object.keys(first) : [];
+      if (!first || typeof first !== 'object')
+        return { headers: [], sample: [] };
+      const entries = Object.entries(first as Record<string, unknown>);
+      return {
+        headers: entries.map(([key]) => key),
+        sample: entries.map(([, cell]) =>
+          typeof cell === 'object' ? JSON.stringify(cell) : String(cell ?? ''),
+        ),
+      };
     } catch {
-      return [];
+      return { headers: [], sample: [] };
     }
   }
-  if (!file.name.toLowerCase().endsWith('.csv')) return [];
-  const firstLine = text.split(/\r?\n/, 1)[0] ?? '';
-  return firstLine
-    .split(',')
-    .map((cell) => cell.trim().replace(/^"|"$/g, '').replaceAll('""', '"'));
+  if (!file.name.toLowerCase().endsWith('.csv'))
+    return { headers: [], sample: [] };
+  // The first two lines are enough (a quoted line break aside, which only
+  // shortens the sample).
+  const lines = text.split(/\r?\n/, 2).join('\n');
+  const [headers = [], sample = []] = parseCsv(lines);
+  return { headers: headers.map((cell) => cell.trim()), sample };
 }

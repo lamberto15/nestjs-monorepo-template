@@ -12,7 +12,9 @@
       "manageLegalHolds": "设置和解除法律保全：无论删除、清除或保留规则如何，相关记录都会保留（iam/holds）",
       "manageRetention": "设置租户将每种记录保留多久，之后清除或匿名化（platform/retention）",
       "manageNamingSeries": "创建、更改和删除编号记录的编号格式，并设置其计数器（platform/sequences）",
+      "manageCalendars": "创建、更改和删除用于计算截止时间的营业日历（工作时间、时区、节假日）（platform/calendars）",
       "manageViews": "与整个租户共享列表的已保存视图，并更改或删除共享视图（platform/views）",
+      "manageTemplates": "与整个租户共享记录模板，并更改或删除共享模板（platform/templates）",
       "readAudit": "查看审计日志",
       "manageTenants": "创建租户（部署的运营者：仅在运营者租户中）",
       "impersonate": "以其他用户身份操作（支持），绝不以管理员身份",
@@ -56,6 +58,19 @@
       "manage": "向屏蔽列表添加或移除地址"
     }
   },
+  "form": {
+    "label": "表单",
+    "names": {
+      "singular": "表单",
+      "plural": "表单"
+    },
+    "actions": {
+      "read": "查看已发布的表单及其版本",
+      "submit": "填写已发布的表单，并查看自己的提交",
+      "edit": "创建表单、编辑草稿、发布和归档表单",
+      "readResponses": "查看所有人的提交及其答案"
+    }
+  },
   "note": {
     "label": "笔记（示例）",
     "names": {
@@ -67,7 +82,8 @@
       "create": "撰写笔记",
       "update": "更改笔记",
       "delete": "删除笔记",
-      "restore": "查看已删除的笔记并恢复"
+      "restore": "查看已删除的笔记并恢复",
+      "share": "通过链接共享笔记"
     },
     "fields": {
       "body": "笔记的正文",
@@ -149,6 +165,10 @@
       "label": "附件图片处理",
       "description": "为上传的图片生成缩略图和预览图，并移除原图的元数据（EXIF、GPS）。"
     },
+    "attachment-text": {
+      "label": "附件文本提取",
+      "description": "提取上传文档的文本（ATTACHMENT_TEXT_SEARCH），以便搜索能够找到它们。"
+    },
     "revisions-retention": {
       "label": "修订保留",
       "description": "每晚删除早于 REVISIONS_RETENTION_DAYS 的记录修订（绝不删除记录的最新修订）。"
@@ -172,6 +192,10 @@
     "report-runner": {
       "label": "定时报表",
       "description": "启动到期的定时报表（以其所有者身份），暂停无法再运行的报表，并记录每次运行的结果。"
+    },
+    "record-schedules": {
+      "label": "周期记录计划",
+      "description": "按计划所有者的身份创建到期的周期计划记录，结束无法再运行的计划，并记录跳过的执行。"
     },
     "approvals": {
       "label": "审批",

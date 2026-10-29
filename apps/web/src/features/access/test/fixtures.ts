@@ -196,6 +196,7 @@ export const bob: Member = {
     { roleId: ids.viewer, expiresAt: '2026-01-01T00:00:00.000Z' },
   ],
   unitIds: [ids.sales],
+  managedByScim: false,
 };
 
 export const carol: Member = {
@@ -351,7 +352,8 @@ export const invitation = {
   roleExpiresAt: { [ids.viewer]: '2026-12-31T00:00:00.000Z' },
   unitIds: [],
   invitedBy: 'ada@example.com',
-  expired: false,
+  status: 'sent' as const,
+  sentAt: '2026-10-17T00:00:00.000Z',
   expiresAt: '2026-10-20T00:00:00.000Z',
   createdAt: '2026-10-17T00:00:00.000Z',
 };

@@ -48,6 +48,11 @@ export const userViewSchema = z.object({
   unitIds: z
     .array(z.uuid())
     .describe('The organizational units they are a current member of.'),
+  managedByScim: z
+    .boolean()
+    .describe(
+      "Provisioned over SCIM: the tenant's identity provider is its source of truth (docs/identity.md).",
+    ),
 });
 
 /** A role of the tenant, with its permissions and how many users hold it. */
@@ -230,4 +235,92 @@ export const principalSchema = z.object({
     .describe(
       'A user: the membership in this tenant and the account; a client: not revoked.',
     ),
+});
+
+/** GET /access/users/{id}/explanation's query. */
+export const explainQuerySchema = z
+  .object({
+    subject: z
+      .string()
+      .min(1)
+      .max(100)
+      .describe('A subject of the catalog (GET /access/catalog).')
+      .meta({ example: 'Note' }),
+    recordId: z
+      .uuid()
+      .optional()
+      .describe(
+        'One of its records, looked up as you; left out: on any record (some at least).',
+      ),
+  })
+  .strict();
+
+/** A yes, a no, or `null`: withheld, a field hidden from you decides it. */
+const verdict = z.boolean().nullable();
+
+/** Why a member may or may not act on a subject or a record (GET /access/users/{id}/explanation). */
+export const explanationSchema = z.object({
+  user: z.object({ id: z.uuid(), name: z.string(), email: z.string() }),
+  subject: z.string(),
+  recordId: z.uuid().nullable(),
+  roles: z
+    .array(
+      z.object({
+        id: z.uuid(),
+        name: z.string(),
+        expiresAt: z.iso.datetime().nullable(),
+        expired: z.boolean().describe('An ended grant: it counts for nothing.'),
+      }),
+    )
+    .describe("The member's role grants, ended ones too."),
+  units: z
+    .object({
+      direct: z.array(z.uuid()),
+      andBelow: z.array(z.uuid()),
+      ledAndBelow: z.array(z.uuid()),
+    })
+    .describe(
+      'Their current units, as `inMyUnits`, `inMyUnitsAndBelow` and `inUnitsILeadAndBelow` read them.',
+    ),
+  actions: z.array(
+    z.object({
+      action: z.string(),
+      allowed: verdict.describe(
+        'With a record: on it; without: on some records at least.',
+      ),
+      fields: z
+        .array(z.string())
+        .nullable()
+        .describe(
+          'The declared fields it may touch (with a record: on it); null: withheld.',
+        ),
+      grants: z
+        .array(
+          z.object({
+            roleId: z
+              .uuid()
+              .nullable()
+              .describe('The role it comes with; null: built in.'),
+            expiresAt: z.iso.datetime().nullable(),
+            all: z
+              .boolean()
+              .describe('`all.manage`: anything (an administrator).'),
+            fields: z
+              .array(z.string())
+              .nullable()
+              .describe('Only these declared fields; null: all.'),
+            matches: verdict.describe(
+              'Whether it reaches the record (always true without one).',
+            ),
+            conditions: z.array(
+              conditionSchema.extend({
+                params: z.record(z.string(), z.unknown()).nullable(),
+                matches: verdict,
+              }),
+            ),
+          }),
+        )
+        .describe("The permissions of the member's roles for this action."),
+    }),
+  ),
 });

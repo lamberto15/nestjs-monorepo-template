@@ -60,6 +60,8 @@ const CAPABILITY_DOCS = {
   events:
     'Webhook events of its changes (`<item>.created`…). False with WEBHOOKS=off.',
   numbered: 'A human-readable number (`number`, `INV-2026-00042`).',
+  share:
+    'Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open).',
   approvals: 'An action on the records may need approval (GET /v1/approvals).',
 } satisfies Record<Capability | 'approvals', string>;
 
@@ -103,6 +105,91 @@ export const attachmentLimitsSchema = z
   .describe(
     "What a record's attachment may be, as the upload route enforces it; null when the subject takes no attachments.",
   );
+
+/** Records that refer to the subject's: a related panel of its records (record-relations.ts). */
+export const listRelatedSchema = z.object({
+  subject: z
+    .string()
+    .describe(
+      'The referring records: their own list is GET /v1/lists/{subject}.',
+    )
+    .meta({ example: 'InvoiceLine' }),
+  path: z
+    .string()
+    .describe(
+      "Their list, under /v1: a record's related ones are `GET /v1/<path>?<field>=<id>` (paginated, newest first, only those the caller may read).",
+    )
+    .meta({ example: 'invoice-lines' }),
+  field: z
+    .string()
+    .describe("Their field holding the record's id.")
+    .meta({ example: 'invoiceId' }),
+  title: z
+    .string()
+    .nullable()
+    .describe(
+      'The field a client names each one by (their first text field); null when none.',
+    )
+    .meta({ example: 'title' }),
+  required: z
+    .boolean()
+    .describe(
+      'Required: a record they refer to cannot be deleted (409 `record_referenced`). Optional: the field empties when it is deleted for good.',
+    ),
+});
+/**
+ * The record views a subject declares (`views` of its record or list
+ * source), each naming list fields: a board of an enum field's values, a
+ * calendar of date fields, a timeline of a start and an end.
+ */
+export const listViewsSchema = z
+  .object({
+    board: z
+      .object({
+        field: z
+          .string()
+          .describe("The enum field whose values are the board's columns.")
+          .meta({ example: 'status' }),
+        readOnly: z
+          .boolean()
+          .describe(
+            'The cards are not moved: the field is not changed through `PATCH`.',
+          ),
+      })
+      .optional(),
+    calendar: z
+      .object({
+        fields: z
+          .array(z.string())
+          .describe(
+            'The `date` (all-day) and `datetime` fields to plan by, one at a time.',
+          )
+          .meta({ example: ['dueAt'] }),
+        readOnly: z
+          .boolean()
+          .describe('The dates are not changed through `PATCH`.'),
+      })
+      .optional(),
+    timeline: z
+      .object({
+        start: z.string().describe('The field a bar starts at.'),
+        end: z
+          .string()
+          .describe('The field a bar ends at; empty: the bar is still open.'),
+      })
+      .optional(),
+  })
+  .nullable()
+  .describe(
+    'The views besides the table that this subject declares and this caller can use: a field they may not filter by leaves its view out. Null when none. Fetch their records with the list route, bounded by `filter` on the fields named here.',
+  );
+
+/** What a record or list source declares as `views` (readOnly defaults to false). */
+export interface ListViewsDeclaration {
+  board?: { field: string; readOnly?: boolean };
+  calendar?: { fields: readonly string[]; readOnly?: boolean };
+  timeline?: { start: string; end: string };
+}
 
 /** What GET /v1/lists/{subject} answers. */
 export const listMetadataSchema = z.object({
@@ -155,6 +242,12 @@ export const listMetadataSchema = z.object({
     })
     .describe("The list's limits, the same on every list."),
   capabilities: listCapabilitiesSchema,
+  related: z
+    .array(listRelatedSchema)
+    .describe(
+      "The records that refer to this subject's (a `ref` field of theirs), which the caller may list and filter by that field: a record's related panels.",
+    ),
+  views: listViewsSchema,
   attachmentLimits: attachmentLimitsSchema,
   documentTemplates: z
     .array(documentTemplateSchema)

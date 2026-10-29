@@ -71,6 +71,16 @@ const notEmpty = () =>
       'Move or delete the units under it, end its memberships, and move what refers to it (records, saved views) first.',
   });
 
+/** What a preview throws to roll its transaction back, carrying its result. */
+class PreviewRollback<T> extends Error {
+  constructor(readonly result: T) {
+    super('preview');
+  }
+}
+
+/** The users an access-impact preview compares at most (`truncated` past them). */
+export const IMPACT_USERS_LIMIT = 500;
+
 const rethrowNameTaken = (name: string) => (error: unknown) => {
   throw pgErrorCode(error) === UNIQUE_VIOLATION ? nameTaken(name) : error;
 };
@@ -229,6 +239,123 @@ export class OrganizationalUnitsService {
     });
     this.access.invalidate();
     return unit;
+  }
+
+  /**
+   * What a move of the unit would change, without making it: the change
+   * itself runs (its checks, its 404s and 409s) in a transaction that is
+   * rolled back (`impactOf()`). Only the members of the units above it,
+   * before and after, can gain or lose reach: the move takes the units
+   * under it along.
+   */
+  async previewUpdate(
+    actor: UserPrincipal,
+    id: string,
+    changes: { type?: UnitType; name?: string; parentId?: string | null },
+  ) {
+    const member = organizationalUnitMemberships;
+    return this.impactOf(
+      () =>
+        this.db
+          .selectDistinct({ id: member.userId })
+          .from(member)
+          .where(
+            and(
+              currentMembership(),
+              or(
+                inArray(member.unitId, this.tree.ancestors(id)),
+                changes.parentId
+                  ? inArray(
+                      member.unitId,
+                      this.tree.ancestors(changes.parentId),
+                    )
+                  : undefined,
+              ),
+            ),
+          )
+          .orderBy(member.userId)
+          .limit(IMPACT_USERS_LIMIT + 1)
+          .then((rows) => rows.map((row) => row.id)),
+      () => this.update(actor, id, changes),
+    );
+  }
+
+  /**
+   * Who gains or loses reach under `inMyUnitsAndBelow` and
+   * `inUnitsILeadAndBelow` if `apply` ran: each of `userIds()`' units are
+   * read as the access engine reads them (`AccessService.unitContext()`),
+   * before and after `apply`, in one transaction that is then rolled back,
+   * so nothing changes and nothing is audited. The first
+   * IMPACT_USERS_LIMIT users only (`truncated`).
+   */
+  async impactOf(
+    userIds: () => Promise<string[]>,
+    apply: () => Promise<unknown>,
+  ) {
+    try {
+      await inTransaction(this.txHost, async (tx) => {
+        const candidates = await userIds();
+        const ids = candidates.slice(0, IMPACT_USERS_LIMIT);
+        const reach = () =>
+          Promise.all(ids.map((id) => this.access.unitContext(id)));
+        const before = await reach();
+        await apply();
+        const after = await reach();
+        const people = ids.length
+          ? await tx
+              .select({ id: users.id, name: users.name, email: users.email })
+              .from(users)
+              .where(inArray(users.id, ids))
+          : [];
+        const diff = (from: string[], to: string[]) => ({
+          gains: to.filter((unit) => !from.includes(unit)),
+          loses: from.filter((unit) => !to.includes(unit)),
+        });
+        const changes = ids.flatMap((id, i) => {
+          const andBelow = diff(
+            before[i]!.unitIdsAndBelow,
+            after[i]!.unitIdsAndBelow,
+          );
+          const ledAndBelow = diff(
+            before[i]!.ledUnitIdsAndBelow,
+            after[i]!.ledUnitIdsAndBelow,
+          );
+          const person = people.find((row) => row.id === id);
+          return [andBelow, ledAndBelow].some(
+            (change) => change.gains.length || change.loses.length,
+          )
+            ? [
+                {
+                  userId: id,
+                  name: person?.name ?? '',
+                  email: person?.email ?? '',
+                  andBelow,
+                  ledAndBelow,
+                },
+              ]
+            : [];
+        });
+        throw new PreviewRollback({
+          changes,
+          truncated: candidates.length > IMPACT_USERS_LIMIT,
+        });
+      });
+    } catch (error) {
+      if (error instanceof PreviewRollback) {
+        return error.result as {
+          changes: {
+            userId: string;
+            name: string;
+            email: string;
+            andBelow: { gains: string[]; loses: string[] };
+            ledAndBelow: { gains: string[]; loses: string[] };
+          }[];
+          truncated: boolean;
+        };
+      }
+      throw error;
+    }
+    throw new Error('A preview always rolls back.');
   }
 
   /**

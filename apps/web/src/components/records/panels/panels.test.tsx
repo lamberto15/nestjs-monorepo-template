@@ -17,6 +17,7 @@ import {
   MAYA,
   TEST_RECORD,
   sampleRevisions,
+  panelsDescription,
   usePanelsApi,
 } from '@/test/panels-api';
 import { renderComponent } from '@/test/render-component';
@@ -1408,6 +1409,46 @@ describe('the panels on a record', () => {
     await waitFor(() => expect(calls.described).toBe(1));
     await act(() => Promise.resolve());
     nothingShown();
+  });
+
+  it('lists the records that refer to it, newest first, from their own list', async () => {
+    usePanelsApi();
+    const asked: URLSearchParams[] = [];
+    server.use(
+      http.get('/v1/lists/TestItem', () =>
+        HttpResponse.json({
+          ...panelsDescription(),
+          related: [
+            {
+              subject: 'TestItem',
+              path: 'test-items',
+              field: 'parentId',
+              title: 'title',
+              required: false,
+            },
+          ],
+        }),
+      ),
+      http.get('/v1/test-items', ({ request }) => {
+        asked.push(new URL(request.url).searchParams);
+        return HttpResponse.json({
+          items: [
+            { id: 'c2', title: 'Second child', number: 'TI-2026-00002' },
+            { id: 'c1', title: null, number: 'TI-2026-00001' },
+          ],
+          nextCursor: 'next',
+          total: 12,
+        });
+      }),
+    );
+    await mountPanels(ALL);
+    await open('Related');
+    expect(await screen.findByText('Second child')).toBeVisible();
+    // No title: its number.
+    expect(screen.getByText('TI-2026-00001')).toBeVisible();
+    expect(screen.getByText('The newest 2 of 12.')).toBeVisible();
+    expect(asked[0]?.get('parentId')).toBe(ID);
+    expect(asked[0]?.get('limit')).toBe('10');
   });
 
   it('shows nothing to a user who may not read the record', async () => {

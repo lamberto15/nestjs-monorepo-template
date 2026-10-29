@@ -56,6 +56,7 @@ export const RESERVED_ACTIONS = [
   'pdf',
   'watch',
   'bulk',
+  'shares',
 ];
 
 /** `markPaid` → `mark-paid`: the action in the route's path. */
