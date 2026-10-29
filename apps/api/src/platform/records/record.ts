@@ -39,6 +39,7 @@ import {
   type RecordApproval,
   RESERVED_ACTIONS,
 } from './record-approvals.js';
+import { type ComputedFields, planComputed } from './record-computed.js';
 import type { ListViewsDeclaration } from '../lists/list-metadata.schemas.js';
 import type { RecordRouteSpec } from './record-routes.js';
 import { relate } from './record-relations.js';
@@ -134,6 +135,11 @@ export interface RecordDeclaration<
    */
   views?: ListViewsDeclaration;
   fields: F;
+  /**
+   * Values computed from the fields on read, never stored
+   * (`total: computed.money('quantity * unitPrice')`): see record-computed.ts.
+   */
+  computed?: ComputedFields;
   capabilities: C;
 }
 
@@ -183,6 +189,7 @@ export function defineRecord<
       );
     }
   }
+  planComputed(declaration);
   return declaration;
 }
 
