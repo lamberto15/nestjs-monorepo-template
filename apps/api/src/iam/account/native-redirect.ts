@@ -2,10 +2,12 @@ import { createHash, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 
 /**
- * A native app's redirect URI (NATIVE_REDIRECT_URIS): absolute, a custom
- * scheme (RFC 8252 §7.1) or an https universal / app link (§7.2), with no
- * fragment (the code goes in the query). Never a scheme a browser runs
- * (`javascript:`, `data:`) or plain http, which anyone on the path reads.
+ * A native app's redirect URI (NATIVE_REDIRECT_URIS): absolute, with no
+ * fragment (the code goes in the query), and either an https universal /
+ * app link (RFC 8252 §7.2) or a private-use scheme in reverse domain name
+ * notation (§7.1: `com.example.app:`), never one a browser runs itself
+ * (`javascript:`, `data:`, plain `http:`): an allowlist of shapes, not a
+ * denylist of schemes.
  */
 export function isNativeRedirectUri(value: string) {
   let url: URL;
@@ -16,9 +18,8 @@ export function isNativeRedirectUri(value: string) {
   }
   return (
     !value.includes('#') &&
-    !['http:', 'javascript:', 'data:', 'file:', 'blob:', 'about:'].includes(
-      url.protocol,
-    )
+    (url.protocol === 'https:' ||
+      /^[a-z][a-z0-9-]*(\.[a-z0-9-]+)+:$/.test(url.protocol))
   );
 }
 

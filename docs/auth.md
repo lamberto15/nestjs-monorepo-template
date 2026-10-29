@@ -1191,8 +1191,9 @@ one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
   `GET /v1/auth/oidc/{provider}/login` (or the SSO connection's `login`)
   with `redirectUri` and `codeChallenge` in the system browser
   (ASWebAuthenticationSession, Custom Tabs). `redirectUri` must be one of
-  `NATIVE_REDIRECT_URIS` (the app's scheme or a universal / app link,
-  matched exactly; empty: none, 400). The callback starts no session: it
+  `NATIVE_REDIRECT_URIS` (a reverse-DNS private-use scheme,
+  `com.example.app:/auth`, or an https universal / app link, matched
+  exactly; empty: none, 400). The callback starts no session: it
   redirects to `redirectUri?code=…` (or `?error=sign_in_failed` /
   `sso_failed`). No linking or step-up this way.
 - **Magic link:** the app asks with `POST /v1/auth/magic-link` and keeps

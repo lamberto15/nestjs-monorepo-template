@@ -13,7 +13,7 @@ vi.hoisted(() => {
   Object.assign(process.env, {
     GITHUB_CLIENT_ID: 'native-test',
     // Made at runtime (a local hook refuses key-like literals).
-    GITHUB_CLIENT_SECRET: Math.random().toString(36).slice(2),
+    GITHUB_CLIENT_SECRET: crypto.randomUUID(),
     NATIVE_REDIRECT_URIS: 'com.example.app:/auth',
   });
 });
