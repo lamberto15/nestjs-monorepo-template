@@ -80,9 +80,11 @@ patch); `POST /v1/choices/{set}/validate` runs the same check for a client.
 Permission to set the record's own field stays the record route's (field-level
 permissions, [permissions](permissions.md)).
 
-Not in this first version: choice-typed custom fields and the generator option
-(`field.choice`), the web app's cascading `Select`, caching, and the form
-builder's provider picker (#549); they build on `ChoicesRegistry`.
+Runtime forms name a provider without parameters as a choice field's
+`optionsSource` ([forms](forms.md#option-sources)). Not in this first version:
+choice-typed custom fields and the generator option (`field.choice`), the web
+app's cascading `Select`, caching, and dependent sources in forms; they build
+on `ChoicesRegistry`.
 
 Tests: `choices.registry.spec.ts`, `choices.service.spec.ts`,
 `apps/api/test/choices.e2e-spec.ts`.

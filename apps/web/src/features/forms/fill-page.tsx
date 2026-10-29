@@ -210,6 +210,7 @@ export function FillPage(props: { formId: string }) {
           </Progress>
         )}
         <FormRenderer
+          formId={props.formId}
           definition={form.definition}
           value={values}
           onChange={(key, value) => setDrafts({ ...values, [key]: value })}

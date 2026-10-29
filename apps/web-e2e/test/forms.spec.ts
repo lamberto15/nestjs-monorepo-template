@@ -144,3 +144,49 @@ test('a wizard is filled in page by page with the keyboard, a repeatable group w
     page.getByText('Thank you: your answers were sent.'),
   ).toBeVisible();
 });
+
+test('a field takes its choices from an option source, and its value is checked on sending', async ({
+  page,
+}) => {
+  const name = `E2E unit ${Date.now()}`;
+  const unit = await page.request.post('/v1/access/organizational-units', {
+    data: { type: 'team', name },
+  });
+  expect(unit.ok(), await unit.text()).toBe(true);
+  const created = await page.request.post('/v1/forms', {
+    data: {
+      slug: `e2e-sources-${Date.now()}`,
+      name: 'E2E sources',
+      definition: {
+        sections: [
+          {
+            key: 'main',
+            fields: [
+              {
+                key: 'unit',
+                type: 'radio',
+                label: 'Unit',
+                required: true,
+                optionsSource: { provider: 'organizational-units' },
+              },
+            ],
+          },
+        ],
+      },
+    },
+  });
+  expect(created.ok(), await created.text()).toBe(true);
+  const form = (await created.json()) as { id: string; revision: number };
+  const published = await page.request.post(`/v1/forms/${form.id}/publish`, {
+    data: { revision: form.revision },
+  });
+  expect(published.ok(), await published.text()).toBe(true);
+
+  await page.goto(`/forms/${form.id}/fill`);
+  await page.getByLabel('Search Unit').fill(name);
+  await page.getByLabel(name).check();
+  await page.getByRole('button', { name: 'Send' }).click();
+  await expect(
+    page.getByText('Thank you: your answers were sent.'),
+  ).toBeVisible();
+});

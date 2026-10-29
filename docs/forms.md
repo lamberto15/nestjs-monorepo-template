@@ -44,13 +44,15 @@ DELETE /v1/forms/{id}                     only a form never published
 
 - **The definition** is `{ format, sections[] }`, a section
   `{ key, title?, description?, visibleWhen?, startsPage?, fields[] }`, a field
-  `{ key, type, label, help?, placeholder?, required?, default?, options?, validation?, visibleWhen?, requiredWhen?, fields?, translations? }`.
+  `{ key, type, label, help?, placeholder?, required?, default?, options?, optionsSource?, validation?, visibleWhen?, requiredWhen?, fields?, translations? }`.
   **Formats**: 1 is fields and sections; 2 adds conditions
   ([Conditions](#conditions)); 3 adds pages and repeatable groups
-  ([Pages and repeatable groups](#pages-and-repeatable-groups)). A
+  ([Pages and repeatable groups](#pages-and-repeatable-groups)); 4 adds
+  option sources ([Option sources](#option-sources)). A
   definition sent without `format` takes the latest; a stored version keeps
   meaning what it meant, and what a later format adds is refused in an
-  earlier one (a condition in format 1, a page or a group before 3).
+  earlier one (a condition in format 1, a page or a group before 3, a
+  source before 4).
   Types: `text`, `textarea`, `email`, `url`, `integer`, `decimal`, `date`,
   `checkbox`, `select`, `multiSelect`, `radio`, `group`. Texts are plain (no HTML);
   patterns run on RE2. A key is a slug (`^[a-z][a-z0-9_]{0,49}$`), unique in
@@ -143,6 +145,51 @@ Format 3 (`apps/api/src/platform/forms/form-schema.ts`):
   submissions read as they did; a draft is saved as format 3 by the
   builder.
 
+## Option sources
+
+A choice field (`select`, `radio`, `multiSelect`) can take its choices from
+a **provider registered by trusted server code** in place of `options`:
+`"optionsSource": { "provider": "organizational-units" }` (format 4). The
+providers are the choices registry's ([choices](choices.md)): never a URL, a
+query or a script from a request. The code is
+`apps/api/src/platform/forms/form-option-sources.service.ts`.
+
+```text
+GET /v1/forms/option-sources            the providers an editor may name (Form.edit)
+GET /v1/forms/{id}/options/{key}        ?q=&limit=: a published field's choices
+```
+
+- **Registered, at save and publish**: a provider that isn't registered,
+  that takes parameters (dependent choices aren't for forms yet), or that the
+  editor may not use is refused at
+  `definition.sections.<s>.fields.<f>.optionsSource.provider`. A sourced
+  field takes no `options` and no `default`, and its conditions only
+  `isEmpty` (its values aren't known when the form is saved). A group's
+  fields take no source.
+- **Read through the form**: the choices of the published version's field
+  `key`, never of a provider by name (404 for a field without one), to whoever
+  has a right on forms and whom the provider lets use it (403
+  `form_source_forbidden` otherwise: the built-in units are for users, not
+  API clients). The provider's queries run in the request's transaction,
+  behind row-level security, and return only what the caller may see (its
+  permissions, field-level ones included, are the provider's to apply):
+  another tenant's rows never show.
+- **Bounded**: `limit` 20 by default, at most 50, `hasMore` when more match
+  (narrow with `q`, at most 100 characters); a sourced multiSelect holds at
+  most 50 values. Each provider call has 5 seconds: a slow or failing one is a
+  503 `form_source_unavailable`, never a partial answer.
+- **Checked on sending**, by value only: each answer (each value of a list)
+  must be one the provider's `has` accepts for the person sending, so a
+  label, another tenant's id or a choice removed since is refused at
+  `answers.<key>` (`answers.<key>.<index>`). A submission stores the value
+  (an id), never the label; a stored submission isn't checked again, so it
+  stays as it was sent when a choice is later removed or renamed.
+- **Adding one**: register a `ChoiceProvider` with no `params` from an
+  injectable's constructor (`ChoicesBuiltins` registers
+  `organizational-units`, the example; docs/choices.md). Forms never write to
+  the provider's records: a later workflow or approval reads the stored
+  value and does its own checks.
+
 ## Submissions
 
 ```text
@@ -194,7 +241,10 @@ another tenant's form or submission is a 404, even by id.
   (`not`, groups in groups) made through the API shows as such and can be
   removed, not edited. A section can **start a new page**; a
   **Repeatable group** field has its own fields (added, edited and removed
-  under it) and its fewest and most items. Saved drafts are format 3. **Save draft** sends the whole draft under the
+  under it) and its fewest and most items. A choice field's **Choices
+  from** is "Listed here" (its options) or one of the option sources the
+  server offers; the preview says that such choices are listed when the
+  form is filled in. Saved drafts are format 4. **Save draft** sends the whole draft under the
   revision it was read at; a 409 says someone else saved meanwhile, and the
   server's problems are listed at their paths. **Publish** is offered once
   the changes are saved.
@@ -210,11 +260,13 @@ another tenant's form or submission is a 404, even by id.
   new page's heading. A group's items each have their inputs and a remove
   button (down to the fewest), and **Add** adds one (up to the most); each
   item keeps a stable id, so removing one never moves another's answers.
+  A sourced field has a search box and lists the server's choices (a
+  failure says so, with **Try again**); what was chosen keeps its label
+  while searching, and only its value is sent.
 - **Submissions** (`/forms/{id}/submissions`): everyone's with
   `Form.readResponses`, one's own otherwise, each with its version and
   answers.
 
 ## Not yet
 
-Choice sources (#549) build on this.
 Public, anonymous forms are #583.

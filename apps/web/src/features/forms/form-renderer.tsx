@@ -17,10 +17,19 @@ import {
 } from '@nestjs-monorepo-template/ui/components/select';
 import { Button } from '@nestjs-monorepo-template/ui/components/button';
 import { Textarea } from '@nestjs-monorepo-template/ui/components/textarea';
+import { Skeleton } from '@nestjs-monorepo-template/ui/components/skeleton';
+import { useQuery } from '@tanstack/react-query';
 import { PlusIcon, TrashIcon } from 'lucide-react';
+import { useDeferredValue, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDescribedBy } from '@/lib/form';
-import type { FormDefinition, FormField, FormSection, GroupField } from './api';
+import {
+  type FormDefinition,
+  type FormField,
+  type FormSection,
+  type GroupField,
+  sourceOptionsQuery,
+} from './api';
 import { walkForm } from './rules';
 
 /** What an input holds while the person types: text, a checkbox, choices. */
@@ -237,10 +246,13 @@ export function answersOf(
  * of its type, labelled, with its help and its error at `answers.<key>`.
  * Controlled: the caller holds the drafts. A preview in the builder and the
  * page people fill in draw it the same way; `page` draws one page of a
- * wizard (pagesOf), its conditions read from every answer.
+ * wizard (pagesOf), its conditions read from every answer. A field with an
+ * option source reads its choices from the published form `formId`; in a
+ * preview (no `formId`) it says where they will come from.
  */
 export function FormRenderer(props: {
   definition: FormDefinition;
+  formId?: string;
   value: AnswerDrafts;
   onChange: (key: string, draft: AnswerDraft) => void;
   errors?: Record<string, string>;
@@ -283,6 +295,16 @@ export function FormRenderer(props: {
                     }
                     onChange={(next) => props.onChange(field.key, next)}
                     errors={props.errors ?? {}}
+                  />
+                ) : field.optionsSource ? (
+                  <SourcedInput
+                    key={field.key}
+                    formId={props.formId}
+                    field={{ ...field, required: required.has(field.key) }}
+                    idPrefix={props.idPrefix ?? 'form'}
+                    draft={props.value[field.key] as FieldDraft}
+                    onChange={(draft) => props.onChange(field.key, draft)}
+                    error={props.errors?.[`answers.${field.key}`]}
                   />
                 ) : (
                   <AnswerInput
@@ -403,6 +425,111 @@ function GroupInput(props: {
       </div>
       {error && <FieldError id={errorId} errors={[{ message: error }]} />}
     </FieldSet>
+  );
+}
+
+/**
+ * A choice field whose choices come from its option source, through the
+ * form (GET /v1/forms/{id}/options/{key}): a search box narrows them (the
+ * server answers at most 20), the labels of what was chosen are kept while
+ * searching, and a failure says so with a retry. Only values are sent.
+ */
+function SourcedInput(props: {
+  formId?: string;
+  field: FormField;
+  idPrefix: string;
+  draft: FieldDraft;
+  onChange: (draft: FieldDraft) => void;
+  error?: string;
+}) {
+  const { t } = useTranslation('forms');
+  const { field } = props;
+  const [search, setSearch] = useState('');
+  const q = useDeferredValue(search.trim());
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  const options = useQuery({
+    ...sourceOptionsQuery(props.formId ?? '', field.key, q),
+    enabled: props.formId !== undefined,
+  });
+  if (props.formId === undefined) {
+    return (
+      <Field>
+        <FieldLabel>{field.label}</FieldLabel>
+        <FieldDescription>{t('source.preview')}</FieldDescription>
+      </Field>
+    );
+  }
+  const items = options.data?.items ?? [];
+  const chosen = (
+    Array.isArray(props.draft)
+      ? props.draft
+      : typeof props.draft === 'string'
+        ? [props.draft]
+        : []
+  ).filter((value) => !items.some((item) => item.value === value));
+  const searchId = `${props.idPrefix}-${field.key}-search`;
+  return (
+    <div className="flex flex-col gap-2">
+      <Field>
+        <FieldLabel htmlFor={searchId} className="sr-only">
+          {t('source.search', { label: field.label })}
+        </FieldLabel>
+        <Input
+          id={searchId}
+          type="search"
+          value={search}
+          placeholder={t('source.search', { label: field.label })}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+      </Field>
+      {options.isPending ? (
+        <Skeleton className="h-9 w-full" aria-busy />
+      ) : options.isError ? (
+        <div className="flex items-center gap-2">
+          <p role="alert" className="text-sm text-destructive">
+            {t('source.error', { label: field.label })}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void options.refetch()}
+          >
+            {t('source.retry')}
+          </Button>
+        </div>
+      ) : (
+        <>
+          <AnswerInput
+            field={{
+              ...field,
+              options: [
+                ...chosen.map((value) => ({
+                  value,
+                  label: labels[value] ?? value,
+                })),
+                ...items,
+              ],
+            }}
+            idPrefix={props.idPrefix}
+            draft={props.draft}
+            onChange={(draft) => {
+              setLabels({
+                ...labels,
+                ...Object.fromEntries(
+                  items.map((item) => [item.value, item.label]),
+                ),
+              });
+              props.onChange(draft);
+            }}
+            error={props.error}
+          />
+          {options.data.hasMore && (
+            <p className="text-sm text-muted-foreground">{t('source.more')}</p>
+          )}
+        </>
+      )}
+    </div>
   );
 }
 

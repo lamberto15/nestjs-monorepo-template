@@ -58,7 +58,10 @@
     "minItems": "Mindestanzahl Einträge",
     "maxItems": "Höchstanzahl Einträge",
     "groupFields": "Felder jedes Eintrags {{label}}",
-    "addGroupField": "Feld zur Gruppe hinzufügen"
+    "addGroupField": "Feld zur Gruppe hinzufügen",
+    "choicesFrom": "Auswahl aus",
+    "listedHere": "Hier aufgeführt",
+    "sourceHint": "Der Server listet sie beim Ausfüllen auf, so wie jede Person sie sehen darf, und prüft jede Antwort."
   },
   "types": {
     "text": "Kurzer Text",
@@ -130,5 +133,12 @@
     "step": "Schritt {{n}} von {{total}}",
     "next": "Weiter",
     "previous": "Zurück"
+  },
+  "source": {
+    "search": "{{label}} durchsuchen",
+    "error": "Die Auswahl für {{label}} konnte nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "more": "Weitere Treffer: Suche eingrenzen.",
+    "preview": "Auswahl aus einer Quelle, beim Ausfüllen aufgelistet."
   }
 }
