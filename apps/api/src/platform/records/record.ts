@@ -70,6 +70,7 @@ export const CAPABILITIES = [
   'events',
   'numbered',
   'share',
+  'automation',
   'merge',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];

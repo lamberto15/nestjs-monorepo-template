@@ -158,6 +158,7 @@ describe('PermissionCatalog', () => {
       'Access',
       'Platform',
       'Approval',
+      'AutomationRule',
       'Ops',
       'MailSuppression',
       'DataQuality',

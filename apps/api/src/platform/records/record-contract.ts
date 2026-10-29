@@ -14,6 +14,7 @@ import { AccessService } from '../../iam/access/access.service.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { ApprovalsService } from '../approvals/approvals.service.js';
+import { AutomationsService } from '../automations/automations.service.js';
 import { applyingEffect } from './record-approvals.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
@@ -166,6 +167,7 @@ export class RecordLifecycle {
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
     private readonly approvals: ApprovalsService,
+    private readonly automations: AutomationsService,
   ) {
     if (takes(declaration, 'numbered')) {
       // Its number formats: the declared one, or the tenant's naming series.
@@ -292,6 +294,24 @@ export class RecordLifecycle {
       });
     }
     await this.emit(tx, 'created', row);
+    await this.automate(tx, 'created', row);
+  }
+
+  /** With `automation`: the tenant's rules this change triggers run once it commits. */
+  private async automate(
+    tx: Transaction,
+    event: 'created' | 'updated',
+    after: RecordRow,
+    before?: RecordRow,
+  ) {
+    if (takes(this.declaration, 'automation')) {
+      await this.automations.changed(tx, {
+        subject: this.declaration.subject,
+        event,
+        before,
+        after,
+      });
+    }
   }
 
   /**
@@ -418,6 +438,7 @@ export class RecordLifecycle {
       });
     }
     await this.emit(tx, 'updated', after);
+    await this.automate(tx, 'updated', after, before);
   }
 
   /** `row` as it is once deleted (in the recycle bin, or as it was when deleted for good). */

@@ -259,6 +259,12 @@ import { RecentsController } from './recents/recents.controller.js';
 import { RecentsRetentionJob } from './recents/recents-retention.job.js';
 import { RecentsService } from './recents/recents.service.js';
 import { SharedController } from './shares/shared.controller.js';
+import { AutomationRulePolicy } from './automations/automation.policy.js';
+import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
+import { AutomationRunHandler } from './automations/automation-run.handler.js';
+import { AutomationsController } from './automations/automations.controller.js';
+import { AutomationsRegistry } from './automations/automations.registry.js';
+import { AutomationsService } from './automations/automations.service.js';
 import { DataQualityController } from './data-quality/data-quality.controller.js';
 import { DataQualityPolicy } from './data-quality/data-quality.policy.js';
 import { DataQualityProcessor } from './data-quality/data-quality.processor.js';
@@ -560,6 +566,8 @@ export class PlatformModule {
         FormSubmissionsController,
         // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
         SharedController,
+        // Tenant automation rules (docs/automations.md).
+        AutomationsController,
         DataQualityController,
         ImportMappingsController,
         RetentionController,
@@ -585,6 +593,7 @@ export class PlatformModule {
               ...COMMENT_NOTIFICATIONS,
               ...ACKNOWLEDGMENT_NOTIFICATIONS,
               ...APPROVAL_NOTIFICATIONS,
+              ...AUTOMATION_NOTIFICATIONS,
               ...ATTACHMENT_NOTIFICATIONS,
               // Development only, with the route that sends it.
               ...inDevelopment(...TEST_NOTIFICATIONS),
@@ -881,6 +890,11 @@ export class PlatformModule {
         DataQualityProcessor,
         DataQualityPolicy,
         ShareCodeMail,
+        // Automation rules: features register an AutomationTarget (the `automation` capability); runs come through the outbox.
+        AutomationsRegistry,
+        AutomationsService,
+        AutomationRulePolicy,
+        AutomationRunHandler,
         // Saved column mappings of an import (docs/data-transfer.md).
         ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
@@ -976,6 +990,8 @@ export class PlatformModule {
         DataQualityRegistry,
         SharesRegistry,
         SharesService,
+        AutomationsRegistry,
+        AutomationsService,
         SearchRegistry,
         ListsRegistry,
         SequencesService,

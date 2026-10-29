@@ -1,0 +1,100 @@
+{
+  "nav": "Automatisierungen",
+  "title": "Automatisierungsregeln",
+  "description": "Wenn ein Datensatz erstellt oder geändert wird und die Bedingungen erfüllt, laufen die Aktionen: ein Feld setzen, ein Tag hinzufügen, Personen benachrichtigen oder einen Webhook senden. Eine Regel läuft als die Person, die sie aktiviert hat, mit deren Berechtigungen.",
+  "new": "Neue Regel",
+  "none": "Noch keine Automatisierungsregeln.",
+  "more": "Mehr anzeigen",
+  "never": "Noch nie gelaufen",
+  "version": "v{{version}}",
+  "runs": "Läufe",
+  "runsOf": "Läufe von {{name}}",
+  "editButton": "Bearbeiten",
+  "edit": "{{name}} bearbeiten",
+  "activate": "Aktivieren",
+  "disable": "Deaktivieren",
+  "deleteButton": "Löschen",
+  "delete": "{{name}} löschen",
+  "saved": "Regel als Entwurf gespeichert.",
+  "newTitle": "Neue Automatisierungsregel",
+  "editTitle": "Automatisierungsregel bearbeiten",
+  "runsTitle": "Läufe von {{name}}",
+  "runsDescription": "Die letzten Läufe, neueste zuerst: was jeder getan hat oder warum er fehlschlug.",
+  "noRuns": "Noch keine Läufe.",
+  "done": {
+    "activate": "{{name}} ist aktiv.",
+    "disable": "{{name}} ist deaktiviert.",
+    "delete": "{{name}} wurde gelöscht."
+  },
+  "columns": {
+    "name": "Name",
+    "subject": "Wann",
+    "status": "Status",
+    "lastRun": "Letzter Lauf",
+    "actions": "Aktionen"
+  },
+  "status": {
+    "draft": "Entwurf",
+    "active": "Aktiv",
+    "disabled": "Deaktiviert"
+  },
+  "reason": {
+    "manual": "von Hand",
+    "owner_inactive": "Eigentümer ausgeschieden",
+    "run_limit": "lief zu oft",
+    "failing": "schlug wiederholt fehl",
+    "subject_gone": "Datensätze nicht mehr vorhanden"
+  },
+  "run": {
+    "succeeded": "Erfolgreich",
+    "failed": "Fehlgeschlagen"
+  },
+  "trigger": {
+    "created": "erstellt",
+    "updated": "geändert"
+  },
+  "action": {
+    "setField": "Feld setzen",
+    "addTag": "Tag hinzufügen",
+    "notify": "Benachrichtigen",
+    "webhook": "Webhook"
+  },
+  "refusal": {
+    "forbidden": "von den Berechtigungen nicht erlaubt",
+    "field_forbidden": "dieses Feld darf nicht geändert werden",
+    "unknown_tag": "kein solches Tag",
+    "no_recipient": "niemand zu benachrichtigen, der den Datensatz sehen darf",
+    "client_cannot_read": "der Client darf den Datensatz nicht lesen"
+  },
+  "builder": {
+    "description": "Simulieren Sie sie, um zu sehen, was sie jetzt täte, ohne es zu tun. Sie wird als Entwurf gespeichert: Aktivieren Sie sie in der Liste.",
+    "name": "Name",
+    "subject": "Datensätze",
+    "trigger": "Wenn ein Datensatz",
+    "field": "Nur wenn sich dieses Feld ändert",
+    "anyField": "Beliebiges Feld",
+    "conditions": "Bedingungen",
+    "conditionsHint": "Die Filter der Liste, wie in ihrer Adresse: ein Filter wie title.contains und sein Wert.",
+    "filter": "Filter",
+    "value": "Wert",
+    "addCondition": "Bedingung hinzufügen",
+    "removeCondition": "Bedingung entfernen",
+    "actions": "Aktionen",
+    "actionType": "Aktion",
+    "setField": "Feld",
+    "tag": "Tag",
+    "userIds": "Benutzer-IDs, durch Kommas getrennt",
+    "clientId": "API-Client-ID",
+    "addAction": "Aktion hinzufügen",
+    "removeAction": "Aktion entfernen",
+    "cancel": "Abbrechen",
+    "simulate": "Simulieren",
+    "save": "Entwurf speichern"
+  },
+  "simulation": {
+    "title": "Simulation",
+    "summary": "{{matched}} passende Datensätze unter den letzten {{limit}}, die Sie sehen dürfen. Nichts wurde geändert.",
+    "truncated": "Es können mehr passen.",
+    "noTrigger": "Die Feldänderung wird nicht nachgespielt: Datensätze werden so geprüft, wie sie jetzt sind."
+  }
+}

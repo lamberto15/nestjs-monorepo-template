@@ -47,6 +47,7 @@ const technical = [
     ['Background jobs', '/background-work'],
     ['Webhooks and realtime', '/webhooks-and-realtime'],
     ['Approvals', '/approvals'],
+    ['Automation rules', '/automations'],
     ['Notifications', '/notifications'],
     ['Tags', '/tags'],
     ['Comments', '/comments'],
