@@ -110,6 +110,7 @@ Everything is in `docs/`; a name below is its file (`tags` is
   break-glass, `TENANCY=single`), `encryption`, `retention` (and legal holds).
 - **Background and integrations:** `background-work` (queues, mail, outbox,
   workflows, cron), `webhooks-and-realtime`, `notifications`,
+  `automations` (tenant rules: triggers, conditions, actions, simulation),
   `deliverability`, `ai`, `documents` (PDFs).
 - **Record add-ons:** `tags`, `comments`, `attachments` (and avatars),
   `revisions`, `acknowledgments`, `approvals`, `saved-views`, `templates`

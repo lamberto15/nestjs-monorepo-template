@@ -259,6 +259,17 @@
     "ops": {
       "label": "Operator CLI",
       "description": "Break-glass commands run on a server (pnpm ops): a one-time password, removing two-factor, unlocking an account, deleting a setting, creating an administrator."
+    },
+    "automations": {
+      "label": "Automation rules",
+      "description": "Runs the tenant's automation rules on the records' changes (their actions as the rule's owner), and disables a rule whose owner left, that runs too often or keeps failing."
+    }
+  },
+  "automation-rule": {
+    "label": "Automation rules",
+    "actions": {
+      "read": "See automation rules and their runs",
+      "manage": "Create, simulate, activate and disable automation rules (they run with your permissions)"
     }
   }
 }

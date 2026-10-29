@@ -35,6 +35,7 @@ import {
   recordKey,
   RecordAccessFinder,
   RecordAttachments,
+  RecordAutomation,
   RecordBulk,
   RecordComments,
   RecordDataQuality,
@@ -62,6 +63,7 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   search: RecordSearch,
   transfer: RecordTransfer,
   share: RecordShares,
+  automation: RecordAutomation,
   merge: RecordMerge,
 };
 

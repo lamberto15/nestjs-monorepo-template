@@ -51,6 +51,11 @@ import {
 } from '../revisions/revisions.registry.js';
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
 import { type ShareTarget, SharesRegistry } from '../shares/shares.registry.js';
+import {
+  type AutomationRecord,
+  type AutomationTarget,
+  AutomationsRegistry,
+} from '../automations/automations.registry.js';
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
 import { TagsService } from '../tags/tags.service.js';
@@ -319,6 +324,66 @@ export class RecordShares implements ShareTarget {
     return Object.fromEntries(
       fields.filter((name) => name in shown).map((name) => [name, shown[name]]),
     );
+  }
+}
+
+/** The field kinds a rule's `setField` may set: plain values, never a reference, money or JSON. */
+const SETTABLE_KINDS = new Set([
+  'string',
+  'text',
+  'int',
+  'decimal',
+  'bool',
+  'enum',
+]);
+
+/**
+ * Rules may act on its records (platform/automations): RecordLifecycle
+ * reports each create and update; a `setField` changes a record as its
+ * PATCH route would, as the rule's owner.
+ */
+@Injectable()
+export class RecordAutomation implements AutomationTarget {
+  readonly subject: string;
+  readonly path: string;
+  readonly table: PgTable;
+  readonly columns: AutomationTarget['columns'];
+  readonly list: AutomationTarget['list'];
+  readonly fields: readonly string[];
+  readonly settable: AutomationTarget['settable'];
+  readonly tags: boolean;
+  constructor(
+    @Inject(RECORD_CONTRACT) private readonly c: RecordContract,
+    registry: AutomationsRegistry,
+  ) {
+    const declaration = c.declaration;
+    this.subject = declaration.subject;
+    this.path = declaration.path;
+    this.table = c.table as unknown as PgTable;
+    this.columns = { id: c.table.id!, updatedAt: c.table.updatedAt! };
+    this.list = c.list;
+    this.fields = Object.keys(declaration.fields);
+    const update = c.schemas.update.shape as Record<string, z.ZodType>;
+    this.settable = Object.fromEntries(
+      Object.entries(declaration.fields)
+        .filter(([name, f]) => SETTABLE_KINDS.has(f.kind) && update[name])
+        .map(([name]) => [name, update[name]!]),
+    );
+    this.tags = takes(declaration, 'tags');
+    registry.register(this);
+  }
+  title(row: AutomationRecord) {
+    return titleOf(this.c.declaration, row);
+  }
+  view(row: AutomationRecord) {
+    return recordView(this.c.declaration, row) as Record<string, unknown>;
+  }
+  async update(
+    principal: Principal,
+    row: AutomationRecord,
+    dto: Record<string, unknown>,
+  ) {
+    await this.c.service.update(principal, row, dto);
   }
 }
 
