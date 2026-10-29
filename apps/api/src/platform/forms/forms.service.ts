@@ -33,6 +33,7 @@ import {
   type SchemaIssue,
 } from './form-schema.js';
 import { FORM_LIST } from './form.list.js';
+import { FormOptionSourcesService } from './form-option-sources.service.js';
 import { FormPolicy } from './form.policy.js';
 import type {
   CreateFormDto,
@@ -116,6 +117,7 @@ export class FormsService {
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly audit: AuditService,
     private readonly policy: FormPolicy,
+    private readonly sources: FormOptionSourcesService,
   ) {}
 
   async rights(principal: RequestPrincipal): Promise<FormRights> {
@@ -306,7 +308,10 @@ export class FormsService {
     if (form.revision !== dto.revision) {
       throw conflict(form);
     }
-    const issues = issuesOf(dto.definition, form.keyTypes);
+    const issues = [
+      ...issuesOf(dto.definition, form.keyTypes),
+      ...(await this.sources.issues(principal, dto.definition)),
+    ];
     if (issues.length) {
       throw invalid(issues, 'definition');
     }
@@ -375,7 +380,11 @@ export class FormsService {
           message: `Version ${form.publishedVersion} is this draft already.`,
         });
       }
-      const issues = issuesOf(form.draft, form.keyTypes);
+      const issues = [
+        ...issuesOf(form.draft, form.keyTypes),
+        // A source unregistered, or the editor's right to it gone, since the save.
+        ...(await this.sources.issues(principal, form.draft)),
+      ];
       if (fieldsOf(form.draft).length === 0) {
         issues.push({
           path: 'sections',
@@ -530,6 +539,30 @@ export class FormsService {
       definition: version.definition,
       publishedAt: version.publishedAt.toISOString(),
     };
+  }
+
+  /** The option sources an editor may give a field (docs/forms.md, "Option sources"). */
+  async optionSources(principal: RequestPrincipal) {
+    if (!(await this.policy.edit(principal))) {
+      throw new ForbiddenException();
+    }
+    return this.sources.usable(principal);
+  }
+
+  /** A published field's choices from its source, for whoever may fill the form in. */
+  async sourceOptions(
+    principal: RequestPrincipal,
+    id: string,
+    key: string,
+    query: { q?: string; limit?: number },
+  ) {
+    const rights = await this.rights(principal);
+    const form = await this.find(id, {
+      ...NO_RIGHTS,
+      read: Object.values(rights).some(Boolean),
+    });
+    const version = await this.currentVersion(form);
+    return this.sources.options(principal, version.definition, key, query);
   }
 
   /** The published version of a form that has one. */

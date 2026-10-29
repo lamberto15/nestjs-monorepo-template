@@ -31,6 +31,9 @@ import { walkForm } from './form-rules.js';
  *   default, whatever the client sent; it is never required.
  */
 
+/** The most choices of a sourced multiSelect: each is a provider's check. */
+export const SOURCED_CHOICES = 50;
+
 /** The answers as JSON, in bytes, at most (under the request's own 100 KiB). */
 export const MAX_ANSWERS_BYTES = 64 * 1024;
 
@@ -79,6 +82,13 @@ const numberOf = (value: unknown) => {
 export function checkValue(field: FormField, value: unknown): Checked {
   const rules = field.validation ?? {};
   const values = (field.options ?? []).map((option) => option.value);
+  // A sourced field's values are the provider's: their shape here, whether
+  // the person may pick them in FormOptionSourcesService.answerIssues.
+  const isChoice = (item: unknown) =>
+    typeof item === 'string' &&
+    (field.optionsSource
+      ? item.length > 0 && item.length <= 200
+      : values.includes(item));
   switch (field.type) {
     case 'checkbox':
       if (typeof value !== 'boolean') return refuse('Must be true or false.');
@@ -119,15 +129,14 @@ export function checkValue(field: FormField, value: unknown): Checked {
     }
     case 'select':
     case 'radio':
-      if (typeof value !== 'string' || !values.includes(value)) {
-        return refuse('Must be one of the options.');
-      }
+      if (!isChoice(value)) return refuse('Must be one of the options.');
       return { ok: true, value };
     case 'multiSelect': {
       if (!Array.isArray(value)) return refuse('Must be a list of options.');
-      if (value.length > values.length) return refuse('Too many choices.');
+      const most = field.optionsSource ? SOURCED_CHOICES : values.length;
+      if (value.length > most) return refuse('Too many choices.');
       for (const [index, item] of value.entries()) {
-        if (typeof item !== 'string' || !values.includes(item)) {
+        if (!isChoice(item)) {
           return refuse('Must be one of the options.', index);
         }
         if (value.indexOf(item) !== index) {

@@ -18,17 +18,17 @@ import {
  * a section or a field, `requiredWhen` on a field, form-rules.ts); 3 adds
  * pages (a section that `startsPage`: a wizard) and the repeatable `group`
  * field (its own `fields`, one level, `minItems` / `maxItems` under a hard
- * cap). A stored definition stays valid and means what it meant; what a
- * later format adds is refused in an earlier one. Extension point (a later
- * issue), additive: `optionsSource` (a server-registered provider) in place
- * of `options`. Every object is strict: an unknown property is refused,
- * not stored.
+ * cap); 4 adds `optionsSource` on a choice field in place of `options`
+ * (a provider trusted code registered, form-option-sources.service.ts). A stored
+ * definition stays valid and means what it meant; what a later format adds
+ * is refused in an earlier one. Every object is strict: an unknown property
+ * is refused, not stored.
  */
 
 /** The descriptor formats read, oldest first; new definitions are the last. */
-export const FORM_SCHEMA_FORMATS = [1, 2, 3] as const;
+export const FORM_SCHEMA_FORMATS = [1, 2, 3, 4] as const;
 /** The format a new definition takes. */
-export const FORM_SCHEMA_FORMAT = 3;
+export const FORM_SCHEMA_FORMAT = 4;
 
 /** The field types a form may have. `radio` is a single choice drawn as radio buttons. */
 export const FORM_FIELD_TYPES = [
@@ -262,6 +262,20 @@ const fieldShape = z
       .max(FORM_LIMITS.options)
       .optional()
       .describe('The choices of select, multiSelect and radio.'),
+    optionsSource: z
+      .object({
+        provider: z
+          .string()
+          .regex(/^[a-z][a-z0-9-]{0,63}$/)
+          .describe(
+            'A provider registered by trusted server code (GET /v1/forms/option-sources), never a URL or a query.',
+          ),
+      })
+      .strict()
+      .optional()
+      .describe(
+        'In place of `options` (format 4): the choices come from the provider, filtered to what the person filling in may see, and each answer is checked against it on the server. Read them at GET /v1/forms/{id}/options/{key}.',
+      ),
     validation: validationSchema.optional(),
     visibleWhen: formConditionSchema
       .optional()
@@ -281,7 +295,7 @@ const fieldShape = z
 
 /** A field of a group: no group in it (one level), no conditions of its own. */
 export const groupFieldSchema = fieldShape
-  .omit({ visibleWhen: true, requiredWhen: true })
+  .omit({ visibleWhen: true, requiredWhen: true, optionsSource: true })
   .extend({ type: z.enum(GROUP_FIELD_TYPES) })
   .strict();
 export type GroupField = z.infer<typeof groupFieldSchema>;
@@ -493,6 +507,9 @@ export function definitionIssues(
           message: `A published version has "${field.key}" as ${fixed}: its type can't change. Use a new key.`,
         });
       }
+      if (field.optionsSource !== undefined) {
+        issues.push(...sourceIssues(field, path, definition.format));
+      }
       issues.push(...fieldIssues(field, path, valueIssues));
       if (field.type === 'group') {
         issues.push(
@@ -506,6 +523,36 @@ export function definitionIssues(
       }
       if (!earlier.has(field.key)) earlier.set(field.key, field);
     }
+  }
+  return issues;
+}
+
+/** A choice field's option source's own problems (whether it is registered: the service's). */
+function sourceIssues(
+  field: FormField,
+  path: string,
+  format: number,
+): SchemaIssue[] {
+  const at = `${path}.optionsSource`;
+  if (format < 4)
+    return [{ path: at, message: 'Option sources take format 4.' }];
+  if (!CHOICE_TYPES.includes(field.type)) {
+    return [
+      { path: at, message: `A ${field.type} field takes no option source.` },
+    ];
+  }
+  const issues: SchemaIssue[] = [];
+  if (field.options !== undefined) {
+    issues.push({
+      path: `${path}.options`,
+      message: 'Options or an option source, not both.',
+    });
+  }
+  if (field.default !== undefined) {
+    issues.push({
+      path: `${path}.default`,
+      message: 'A field with an option source takes no default.',
+    });
   }
   return issues;
 }
@@ -599,7 +646,9 @@ function fieldIssues(
     }
     return issues;
   }
-  if (CHOICE_TYPES.includes(field.type)) {
+  const sourced = 'optionsSource' in field && field.optionsSource !== undefined;
+  // A sourced field's choices are the provider's (sourceIssues): none here.
+  if (CHOICE_TYPES.includes(field.type) && !sourced) {
     if (options.length === 0) {
       issues.push({
         path: `${path}.options`,
@@ -616,7 +665,7 @@ function fieldIssues(
       }
       seen.add(option.value);
     }
-  } else if (field.options !== undefined) {
+  } else if (!sourced && field.options !== undefined) {
     issues.push({
       path: `${path}.options`,
       message: `A ${field.type} field takes no options.`,
@@ -688,7 +737,7 @@ function fieldIssues(
       issues.push({ path: `${path}.validation.pattern`, message: problem });
     }
   }
-  if (issues.length === 0 && field.default !== undefined) {
+  if (issues.length === 0 && !sourced && field.default !== undefined) {
     const problem = valueIssues(field, field.default);
     if (problem !== null) {
       issues.push({ path: `${path}.default`, message: problem });

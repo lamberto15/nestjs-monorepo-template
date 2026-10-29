@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { MAX_CHOICES } from '../choices/choices.schemas.js';
 import { formDefinitionSchema } from './form-schema.js';
 import { FORM_STATUSES } from './forms.tables.js';
 
@@ -134,4 +135,44 @@ export const formSubmissionSchema = z.object({
   status: z.enum(['submitted']),
   answers: z.record(z.string(), z.unknown()),
   createdAt: z.iso.datetime(),
+});
+
+/** `GET /forms/option-sources`: the providers an editor may give a choice field. */
+export const formOptionSourcesSchema = z.object({
+  items: z.array(
+    z.object({
+      key: z
+        .string()
+        .meta({ example: 'organizational-units' })
+        .describe("A field's `optionsSource.provider`."),
+      label: z.string(),
+    }),
+  ),
+});
+
+/** Query of `GET /forms/{id}/options/{key}`. */
+export const formOptionsQuerySchema = z
+  .object({
+    q: z.string().trim().min(1).max(100).optional(),
+    limit: z.coerce.number().int().min(1).max(MAX_CHOICES).optional(),
+  })
+  .strict();
+export type FormOptionsQuery = z.infer<typeof formOptionsQuerySchema>;
+
+/** A sourced field's choices for the person filling in. */
+export const formOptionsSchema = z.object({
+  field: z.string(),
+  items: z.array(
+    z.object({
+      value: z
+        .string()
+        .describe('What the answer holds and the server checks.'),
+      label: z
+        .string()
+        .describe('For display only: never sent back or trusted.'),
+    }),
+  ),
+  hasMore: z
+    .boolean()
+    .describe('More match: narrow with `q` (an answer holds at most `limit`).'),
 });

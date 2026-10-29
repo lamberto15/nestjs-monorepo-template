@@ -323,7 +323,7 @@ describe('forms (e2e)', () => {
       .post(`/v1/forms/${id}/publish`)
       .send({ revision: saved.body.revision })
       .expect(201);
-    expect(v2.body.definition.format).toBe(3);
+    expect(v2.body.definition.format).toBe(4);
 
     const missing = await submit(filler.agent, id, {
       versionId: v2.body.id,
@@ -424,7 +424,7 @@ describe('forms (e2e)', () => {
       .post(`/v1/forms/${id}/publish`)
       .send({ revision: saved.body.revision })
       .expect(201);
-    expect(v2.body.definition.format).toBe(3);
+    expect(v2.body.definition.format).toBe(4);
     expect(v2.body.definition.sections[1].startsPage).toBe(true);
 
     // Each item at its index, an unknown key in an item too.
