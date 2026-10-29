@@ -178,6 +178,8 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
   private static readonly MAX_AGE_MS = 60_000;
   /** Until when each cached ability holds: a minute at most, never past a grant's expiry. */
   private readonly validUntil = new Map<string, number>();
+  /** The loads under way, by version and key: concurrent misses share one. */
+  private readonly loading = new Map<string, Promise<Cached>>();
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
   private get db() {
@@ -651,6 +653,27 @@ export class AccessService implements OnModuleInit, OnApplicationShutdown {
       return cached;
     }
     const version = this.version;
+    // Misses at the same moment share one load: redactAll() over an export's
+    // batch of 1,000 rows would otherwise query the grants and units 1,000
+    // times at once, every time the entry expires, and drain the pool.
+    const pendingKey = `${version}:${key}`;
+    const pending = this.loading.get(pendingKey);
+    if (pending) {
+      return pending;
+    }
+    const loading = this.loadFresh(principal, key, version).finally(() =>
+      this.loading.delete(pendingKey),
+    );
+    this.loading.set(pendingKey, loading);
+    return loading;
+  }
+
+  /** load()'s miss: builds the ability and caches it while still current. */
+  private async loadFresh(
+    principal: Principal,
+    key: string,
+    version: number,
+  ): Promise<Cached> {
     const [{ held, nextExpiry }, { context, nextChange }] = await Promise.all([
       this.loadPermissions(principal),
       this.loadContext(principal),

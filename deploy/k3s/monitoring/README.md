@@ -109,11 +109,11 @@ Check the release health and PVC placement:
 ```sh
 helm list -n monitoring
 kubectl get pods,svc,pvc -n monitoring -o wide
-kubectl get servicemonitor -n monitoring app-api app-worker -o yaml
+kubectl get servicemonitor -n monitoring app-api app-worker app-worker-heavy -o yaml
 ```
 
 In Prometheus, open **Status → Targets** and confirm `api` has one target per API replica and `worker`
-has one target, all `UP`. In **Status → Rules**, confirm the app alert groups are loaded. The rules are
+(and `worker-heavy`, with `heavyWorker.enabled`) has one target, all `UP`. In **Status → Rules**, confirm the app alert groups are loaded. The rules are
 selected by `release: monitoring` from the app chart's `PrometheusRule`.
 
 In Grafana Explore, select Loki and query `{namespace="nestjs-monorepo", container="api"}`. Alloy

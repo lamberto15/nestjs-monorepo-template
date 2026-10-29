@@ -1,0 +1,25 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: app-worker-heavy
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [nestjs-monorepo]
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: app
+      app.kubernetes.io/component: worker-heavy
+  jobLabel: app.kubernetes.io/component
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      authorization:
+        type: Bearer
+        credentials:
+          name: metrics-token
+          key: token

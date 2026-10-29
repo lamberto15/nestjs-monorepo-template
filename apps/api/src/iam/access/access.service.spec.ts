@@ -366,3 +366,20 @@ describe('AccessService: explaining access', () => {
     expect(explained).toMatchObject({ allowed: true, fields: [] });
   });
 });
+
+describe('AccessService: loading an ability', () => {
+  it('loads once for a batch redacted at the same moment', async () => {
+    const access = accessWith(read([]));
+    const rows = Array.from({ length: 50 }, (_, i) => ({
+      id: `note-${i}`,
+      title: 'Title',
+      body: 'Body',
+    }));
+    const { loadPermissions } = access as unknown as {
+      loadPermissions: () => unknown;
+    };
+    await access.redactAll(sam, 'read', 'Note', rows);
+    // An export's batch of 1,000 rows queried the grants once per row.
+    expect(loadPermissions).toHaveBeenCalledTimes(1);
+  });
+});

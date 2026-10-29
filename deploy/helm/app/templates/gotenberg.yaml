@@ -84,7 +84,8 @@ spec:
       targetPort: http
 {{- if .Values.networkPolicy.enabled }}
 ---
-# Only the worker renders PDFs: nothing else may reach Chromium.
+# Only the workers render PDFs (worker-heavy holds the documents queue when
+# heavyWorker.enabled): nothing else may reach Chromium.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -101,6 +102,11 @@ spec:
         - podSelector:
             matchLabels:
               {{- include "app.selector" (dict "ctx" . "component" "worker") | nindent 14 }}
+        {{- if .Values.heavyWorker.enabled }}
+        - podSelector:
+            matchLabels:
+              {{- include "app.selector" (dict "ctx" . "component" "worker-heavy") | nindent 14 }}
+        {{- end }}
       ports:
         - port: 3000
 {{- end }}
