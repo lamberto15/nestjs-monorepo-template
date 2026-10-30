@@ -177,10 +177,10 @@ time rather than checking your domain into this repository:
 | `PASSKEY_APPLE_APPS`        | `TEAMID.com.example.app` (optional)   |
 | `PASSKEY_ANDROID_APPS`      | `com.example.app:AA:BB:…` (optional)  |
 | `NATIVE_REDIRECT_URIS`      | `com.example.app:/auth` (optional)    |
-| `GOOGLE_CLIENT_ID`          | Google's client ID (optional)         |
-| `MICROSOFT_CLIENT_ID`       | Microsoft's client ID (optional)      |
-| `MICROSOFT_TENANT_ID`       | `common` or a tenant ID (optional)    |
-| `GITHUB_CLIENT_ID`          | GitHub's client ID (optional)         |
+| `OIDC_GOOGLE_CLIENT_ID`     | Google's client ID (optional)         |
+| `OIDC_MICROSOFT_CLIENT_ID`  | Microsoft's client ID (optional)      |
+| `OIDC_MICROSOFT_TENANT_ID`  | `common` or a tenant ID (optional)    |
+| `OIDC_GITHUB_CLIENT_ID`     | GitHub's client ID (optional)         |
 
 For Web Push, make the key pair once (`npx web-push generate-vapid-keys`, or
 `pnpm setup`), put the private key in `app-secrets` as
@@ -198,7 +198,8 @@ deploy passes them when set.
 
 For "Sign in with" ([configuration](configuration.md)), register the app with
 the provider (callback `<APP_URL>/v1/auth/oidc/<provider>/callback`), set its
-client ID variable, and add its secret to `app-secrets` as
+`OIDC_<PROVIDER>_CLIENT_ID` variable (GitHub refuses variable names that
+start with `GITHUB_`; the deploy passes it as `<PROVIDER>_CLIENT_ID`), and add its secret to `app-secrets` as
 `google_client_secret`, `microsoft_client_secret` or `github_client_secret`
 (the deploy checks it is there). On the cluster host, so the secret never
 passes through GitHub:
