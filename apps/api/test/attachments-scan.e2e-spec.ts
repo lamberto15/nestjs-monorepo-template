@@ -186,9 +186,9 @@ describe('attachment malware scanning (e2e, MALWARE_SCANNER=memory)', () => {
     // Its job is lost once its first attempt failed (a Redis without persistence restarted).
     await vi.waitFor(
       async () => {
-        expect(await (await queue.getJob(stuck.body.id))?.getState()).toBe(
-          'delayed',
-        );
+        expect(
+          await (await queue.getJob(`${stuck.body.id}-v1`))?.getState(),
+        ).toBe('delayed');
       },
       { timeout: 10_000, interval: 100 },
     );
@@ -197,7 +197,9 @@ describe('attachment malware scanning (e2e, MALWARE_SCANNER=memory)', () => {
 
     const retry = node.app.get(AttachmentScanRetryJob);
     const retryJob = (at: Date) =>
-      queue.getJob(`${stuck.body.id}-${Math.floor(at.getTime() / RETRY_MS)}`);
+      queue.getJob(
+        `${stuck.body.id}-v1-${Math.floor(at.getTime() / RETRY_MS)}`,
+      );
     // Just uploaded: not yet (its own job may still be on its way).
     const now = new Date();
     await retry.run(now);
@@ -278,7 +280,7 @@ describe('attachment malware scanning (e2e, MALWARE_SCANNER=memory)', () => {
         .toBuffer();
 
     const imageJob = (id: string) =>
-      node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES)).getJob(id);
+      node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES)).getJob(`${id}-v1`);
 
     const renditionStatusOf = async (id: string) => {
       const [row] = await db
