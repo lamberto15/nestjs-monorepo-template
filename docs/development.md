@@ -142,7 +142,7 @@ tenant: memberships, roles, units, the features' records, the files (under
 
 `.devcontainer/` is a [development container](https://containers.dev)
 (VS Code's Dev Containers, GitHub Codespaces, `devcontainer up`): a
-workspace with Node.js 24 and pnpm 12.15.0 (the versions of `package.json`'s
+workspace with Node.js 26 and pnpm 12.15.0 (the versions of `package.json`'s
 `devEngines`), psql and redis-cli, next to the development services
 (PostgreSQL, Redis, Mailpit, Gotenberg) taken from `compose.yaml` and
 `compose.dev.yaml` with `extends`, so their pinned images are the same.

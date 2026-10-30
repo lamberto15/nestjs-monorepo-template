@@ -4,7 +4,7 @@
 
 ## Prerequisites
 
-Use Node.js 24, pnpm matching the workspace's declared version (see root `package.json`), Git and Docker with the Compose plugin. The repository can also be opened in the supplied devcontainer instead of installing the host toolchain.
+Use Node.js 26, pnpm matching the workspace's declared version (see root `package.json`), Git and Docker with the Compose plugin. The repository can also be opened in the supplied devcontainer instead of installing the host toolchain.
 
 ## Start the workspace
 

@@ -8,7 +8,7 @@ packages:
 saveExact: true
 # exceljs 4.4.0 (its latest) still asks for uuid ^8, which has a moderate
 # advisory (GHSA-w5hq-g745-h8pq, fixed in 11.1.1). It only calls v4(), through
-# require(): uuid 14 is ESM, which Node 24's require() loads.
+# require(): uuid 14 is ESM, which Node 26's require() loads.
 overrides:
   # Patched transitive versions for advisories not yet reflected in Nest's
   # Express platform dependency ranges (2026-10).

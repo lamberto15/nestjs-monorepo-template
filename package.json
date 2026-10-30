@@ -62,7 +62,7 @@
     "turbo": "2.11.9"
   },
   "engines": {
-    "node": "^24.0.0"
+    "node": "^26.0.0"
   },
   "devEngines": {
     "packageManager": {
@@ -72,7 +72,7 @@
     },
     "runtime": {
       "name": "node",
-      "version": "^24.0.0",
+      "version": "^26.0.0",
       "onFail": "download"
     }
   }
