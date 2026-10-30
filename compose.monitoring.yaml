@@ -181,7 +181,7 @@ services:
   redis-exporter:
     # The Alpine build: redis/redis.sh reads REDIS_PASSWORD_FILE (the scratch
     # one has no shell, and its --redis.password-file wants a JSON map).
-    image: oliver006/redis_exporter:v1.95.0-alpine
+    image: oliver006/redis_exporter:v1.96.0-alpine
     restart: unless-stopped
     entrypoint: ['sh', '/etc/redis-scripts/redis.sh', 'exporter']
     environment:
