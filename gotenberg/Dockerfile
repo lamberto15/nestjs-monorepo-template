@@ -20,7 +20,7 @@
 # GOTENBERG_VERSION together (CI's gotenberg-image job checks they match);
 # PDFCPU_VERSION follows Gotenberg's own Dockerfile (build/Dockerfile).
 
-ARG GOTENBERG_VERSION=v8.38.1
+ARG GOTENBERG_VERSION=v8.39.0
 ARG PDFCPU_VERSION=v0.15.0
 
 # Built on the build machine's platform for the target's (no emulation). The
@@ -39,12 +39,7 @@ RUN for module in "github.com/gotenberg/gotenberg/v8@$GOTENBERG_VERSION" "github
       && cp -r "$dir" "$(echo "$module" | cut -d/ -f2)" || exit 1; \
     done \
  && chmod -R u+w gotenberg pdfcpu
-# Gotenberg v8.38.1 pins Echo v5.4.0; Trivy found two advisories fixed in v5.4.1.
-# And go-jose v4.1.5: CVE-2026-116587 (a DoS parsing RSA JWKs), fixed in v4.1.6.
 RUN cd gotenberg \
- && go mod edit -require=github.com/labstack/echo/v5@v5.4.1 -require=github.com/go-jose/go-jose/v4@v4.1.6 \
- && go mod download github.com/labstack/echo/v5@v5.4.1 github.com/go-jose/go-jose/v4@v4.1.6 \
- && go get golang.org/x/net@v0.61.0 golang.org/x/crypto@v0.58.0 \
  && go build -mod=readonly -trimpath -o /out/gotenberg \
       -ldflags "-s -w -X 'github.com/gotenberg/gotenberg/v8/cmd.Version=${GOTENBERG_VERSION#v}'" \
       ./cmd/gotenberg-chromium
@@ -54,7 +49,7 @@ RUN cd pdfcpu \
       -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model.VersionStr=$PDFCPU_VERSION' -X main.builtBy=gotenberg" \
       ./cmd/pdfcpu
 
-FROM gotenberg/gotenberg:8.38.1-chromium@sha256:5da4ab7b8fe7326537369e17b661be765d9a2887f77722faacdbe6d55812fb96
+FROM gotenberg/gotenberg:8.39.0-chromium@sha256:558943677cf9092df83ff654c2645856dcb9ddf777f359243789688e74f3bcdd
 USER root
 # Changes the Debian step's cache key: CI passes a new value per run, so the
 # upgrade below is today's, not the first build's. A local build without it
