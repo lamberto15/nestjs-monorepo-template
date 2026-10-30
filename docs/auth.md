@@ -1195,7 +1195,28 @@ one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
   `com.example.app:/auth`, or an https universal / app link, matched
   exactly; empty: none, 400). The callback starts no session: it
   redirects to `redirectUri?code=…` (or `?error=sign_in_failed` /
-  `sso_failed`). No linking or step-up this way.
+  `sso_failed`).
+- **Link a provider, or step up through one, when signed in:** the app's
+  token asks `POST /v1/auth/identities/{provider}/native { purpose:
+  'link' | 'reauthenticate', redirectUri, codeChallenge }` → `{ url }`
+  and opens that `url` in the system browser. It carries a one-time ticket
+  (five minutes) bound to the user, the token session (`sid`), the
+  purpose, `redirectUri` and the challenge, since that browser doesn't
+  know who the person is. A link wants a recent sign-in and refuses an
+  identity that is another account's (audited `user.identity-linked`); a
+  step-up asks the provider to authenticate the user again
+  (`prompt=login`, `max_age=0`) and accepts only an identity already
+  theirs (audited `auth.reauthenticated` / `auth.reauthentication-failed`,
+  `via: token`). The browser lands on `redirectUri?code=…` (or
+  `?error=link_failed` / `reauthentication_failed`). A link is only
+  judged there and written at completion, so a ticket opened in someone
+  else's browser links nothing. The same token then posts `POST /v1/auth/identities/native/complete { handoffCode,
+  codeVerifier, code?, recoveryCode?, refreshToken? }`: a link answers the
+  identity, a step-up new tokens with `auth_time` now (as
+  `/auth/reauthenticate` does for a password; `refreshToken` revokes the
+  old pair). The code works for that session only, never at
+  `/auth/token/exchange`. A browser session uses `?link=true` and
+  `?reauthenticate=true` instead (400 `token_session_required`).
 - **Magic link:** the app asks with `POST /v1/auth/magic-link` and keeps
   that response's cookie (the link works only where it was asked for),
   opens `WEB_URL/magic-link?token=…` as a universal / app link, and posts

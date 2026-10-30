@@ -11,7 +11,13 @@ import {
 } from '@nestjs/authentication';
 import { ConfigService } from '@nestjs/config';
 import { t } from '@nestjs/i18n';
-import { tokenClaims } from '../auth/authentication-method.js';
+import type { CoreEnv } from '../../core/config/core.env.js';
+import { Tenancy } from '../../core/tenancy/tenancy.service.js';
+import { AuditService } from '../audit/audit.service.js';
+import {
+  authenticationOf,
+  tokenClaims,
+} from '../auth/authentication-method.js';
 import { deviceLabel } from './devices.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { SignInContext } from '../auth/sign-in-context.js';
@@ -19,11 +25,17 @@ import { UsersRepository } from '../auth/users.repository.js';
 import type { IamEnv } from '../iam.env.js';
 import { SsoPolicyService } from '../sso/sso-policy.service.js';
 import {
+  type NativeAccountFlow,
   type NativeHandoff,
   NativeHandoffs,
   type NativeLogin,
 } from './native-handoff.js';
 import { nativeRedirect, verifiesChallenge } from './native-redirect.js';
+import {
+  ReauthenticationRefused,
+  reauthenticationUrl,
+} from './oidc-reauthentication.js';
+import { OidcAccounts } from './account.handlers.js';
 import { SecurityAlertsService } from './security-alerts.service.js';
 import { SignInLog } from './sign-in-log.service.js';
 
@@ -36,8 +48,15 @@ import { SignInLog } from './sign-in-log.service.js';
  * into tokens, with the same two-factor and tenant handling, audit,
  * sign-in log and new-device notification as POST /auth/token.
  *
+ * A signed-in app links a provider, or steps up through one, the same way:
+ * its token asks for a one-time ticket (`ticket()`) the system browser
+ * opens, bound to the user, the token's session (`sid`), the purpose, the
+ * redirect URI and the PKCE challenge; the callback's code works only for
+ * that session (`complete()`), never as a sign-in.
+ *
  * Custom: @nestjs/authentication's provider and magic-link sign-ins end in
- * a session cookie; it has no token result for them (RFC 8252's flow).
+ * a session cookie; it has no token result for them (RFC 8252's flow), and
+ * its link flow needs a browser session, which a token-only app has not.
  */
 @Injectable()
 export class NativeSignIn {
@@ -51,7 +70,10 @@ export class NativeSignIn {
     private readonly oidc: OidcService,
     private readonly magicLinks: MagicLinkService,
     private readonly signInContext: SignInContext,
-    private readonly config: ConfigService<IamEnv, true>,
+    private readonly audit: AuditService,
+    private readonly tenancy: Tenancy,
+    private readonly oidcAccounts: OidcAccounts,
+    private readonly config: ConfigService<IamEnv & CoreEnv, true>,
   ) {}
 
   /**
@@ -113,23 +135,98 @@ export class NativeSignIn {
     login: NativeLogin,
   ) {
     const method = `oidc:${provider}`;
-    const { userId, authenticatedAt } = await this.signInContext.run(
-      method,
-      async () => {
-        const finished = await this.oidc.finish(provider, query, {
-          signIn: false,
+    const { account } = login;
+    if (account && account.provider !== provider) {
+      await this.forget(query.state);
+      throw new BadRequestException("Another provider than the ticket's.");
+    }
+    const finish = () =>
+      this.signInContext.run(
+        method,
+        async () => {
+          const finished = await this.oidc.finish(provider, query, {
+            signIn: false,
+          });
+          return {
+            userId: finished.userId,
+            authenticatedAt: this.signInContext.toldAuthenticatedAt(),
+            identity: this.signInContext.toldIdentity(),
+          };
+        },
+        account?.purpose === 'link'
+          ? { linking: { id: account.userId } }
+          : account
+            ? {
+                reauthenticating: {
+                  userId: account.userId,
+                  startedAt: account.startedAt,
+                  tenantId: account.tenantId,
+                },
+              }
+            : {},
+      );
+    let finished: Awaited<ReturnType<typeof finish>>;
+    try {
+      finished = await finish();
+    } catch (error) {
+      if (error instanceof ReauthenticationRefused) {
+        await this.forget(query.state);
+        await this.audited(account!, 'auth.reauthentication-failed', {
+          reason: error.reason,
         });
-        return {
-          userId: finished.userId,
-          authenticatedAt: this.signInContext.toldAuthenticatedAt(),
-        };
-      },
-    );
+      }
+      throw error;
+    }
+    const { userId, authenticatedAt, identity } = finished;
     await this.forget(query.state);
     if (!userId) {
       throw new Error(`OidcService.finish(${provider}) resolved no account`);
     }
-    return this.handOff(login, { userId, method, authenticatedAt });
+    if (account) {
+      // The resolver links to, or re-authenticates, that user only.
+      if (userId !== account.userId) {
+        throw new Error('A native link or step-up resolved another account');
+      }
+      if (account.purpose === 'reauthenticate') {
+        await this.audited(account, 'auth.reauthenticated', {});
+      }
+    }
+    return this.handOff(login, {
+      userId,
+      method,
+      authenticatedAt,
+      ...(account && {
+        account: {
+          purpose: account.purpose,
+          sid: account.sid,
+          provider: account.provider,
+          tenantId: account.tenantId,
+          ...(identity && { identity }),
+        },
+      }),
+    });
+  }
+
+  /** A step-up's verdict, as the browser's (AccountService.signInWithProvider): account-level, in no tenant's log. */
+  private async audited(
+    account: NativeAccountFlow,
+    action: string,
+    details: Record<string, unknown>,
+  ) {
+    const user = await this.users.findActive(account.userId);
+    await this.tenancy.none(() =>
+      this.audit.record(user, {
+        action,
+        targetType: 'user',
+        targetId: account.userId,
+        details: {
+          method: 'oidc',
+          provider: account.provider,
+          via: 'token',
+          ...details,
+        },
+      }),
+    );
   }
 
   /** The URL that hands `login`'s app a code for this sign-in. */
@@ -148,9 +245,164 @@ export class NativeSignIn {
     return nativeRedirect(login.redirectUri, { code });
   }
 
-  /** Where a native login that failed sends the app: its URI with `?error=`. */
-  failed(login: NativeLogin, error: string) {
-    return nativeRedirect(login.redirectUri, { error });
+  /**
+   * Where a native login that failed sends the app: its URI with `?error=`
+   * (by default `sign_in_failed`, or a ticket's `link_failed` /
+   * `reauthentication_failed`).
+   */
+  failed(login: NativeLogin, error?: string) {
+    return nativeRedirect(login.redirectUri, {
+      error:
+        error ??
+        (!login.account
+          ? 'sign_in_failed'
+          : login.account.purpose === 'link'
+            ? 'link_failed'
+            : 'reauthentication_failed'),
+    });
+  }
+
+  /**
+   * A ticket for a signed-in app to link `provider` or step up through it
+   * (docs/auth.md, "Native and mobile apps"): token clients only (a browser
+   * has `?link=true` and `?reauthenticate=true`), a token session with its
+   * `sid`, and an allow-listed `redirectUri`. The URL its system browser
+   * opens: the login route with the ticket, which starts the provider's
+   * login there (its transaction cookie is the browser's).
+   */
+  async ticket(
+    user: UserPrincipal,
+    session: unknown,
+    provider: string,
+    body: {
+      purpose: NativeAccountFlow['purpose'];
+      redirectUri: string;
+      codeChallenge: string;
+    },
+  ) {
+    const sid = tokenSessionOf(session);
+    if (!sid) {
+      throw new BadRequestException({
+        code: 'token_session_required',
+        message:
+          'For an app signed in with tokens: a browser links and steps up with `?link=true` and `?reauthenticate=true`.',
+      });
+    }
+    const login = this.nativeLogin(body)!;
+    const ticket = await this.handoffs.issueTicket({
+      ...login,
+      account: {
+        purpose: body.purpose,
+        userId: user.id,
+        sid,
+        provider,
+        startedAt: Date.now(),
+        tenantId: user.tenantId ?? null,
+      },
+    });
+    const url = new URL(
+      `/v1/auth/oidc/${encodeURIComponent(provider)}/login`,
+      this.config.get('APP_URL', { infer: true }),
+    );
+    url.searchParams.set('ticket', ticket);
+    return { url: url.toString() };
+  }
+
+  /**
+   * The login route opened with a ticket: spent, and the provider's login
+   * started in this browser, remembered as the ticket's link or step-up (a
+   * step-up asks the provider to authenticate the user again). 400 for a
+   * ticket unknown, used, expired or of another provider.
+   */
+  async startTicket(provider: string, ticket: string) {
+    const login = await this.handoffs.takeTicket(ticket);
+    if (!login || login.account.provider !== provider) {
+      throw new BadRequestException({
+        code: 'invalid_ticket',
+        message: 'This ticket is unknown, used or expired: ask for another.',
+      });
+    }
+    const redirect = await this.oidc.start(provider, {});
+    const url =
+      login.account.purpose === 'reauthenticate'
+        ? reauthenticationUrl(redirect.url)
+        : new URL(redirect.url);
+    // From now: the provider's `auth_time` must not be older than the login.
+    await this.remember(url.searchParams.get('state')!, {
+      ...login,
+      account: { ...login.account, startedAt: Date.now() },
+    });
+    return { ...redirect, url: url.toString() };
+  }
+
+  /**
+   * The code of a ticket's callback, with its verifier, for the signed-in
+   * app that asked for the ticket: the same user and token session, else
+   * 401 (the code is spent either way). A link answers its provider; a
+   * step-up new tokens with `auth_time` now (the provider's, when it told),
+   * in the same tenant and device, with two-factor as for the exchange
+   * (without a code, 401 `mfa_required` and the code still works); the
+   * family of the `refreshToken` sent, if any, is revoked.
+   */
+  async complete(
+    user: UserPrincipal,
+    session: unknown,
+    input: {
+      code: string;
+      codeVerifier: string;
+      refreshToken?: string;
+      secondFactor: { code?: string; recoveryCode?: string };
+    },
+  ) {
+    const taken = await this.handoffs.takeCode(input.code);
+    const sid = tokenSessionOf(session);
+    if (
+      !taken?.handoff.account ||
+      !verifiesChallenge(input.codeVerifier, taken.handoff.codeChallenge) ||
+      taken.handoff.userId !== user.id ||
+      !sid ||
+      taken.handoff.account.sid !== sid
+    ) {
+      throw new UnauthorizedException(t('auth.invalidCode'));
+    }
+    const { handoff } = taken;
+    const { account } = handoff;
+    if (account!.purpose === 'link') {
+      // Only now, by the app that holds the verifier and the session.
+      if (account!.identity) {
+        await this.oidcAccounts.linkNative(user.id, account!.identity);
+      }
+      return { purpose: 'link' as const, provider: account!.provider };
+    }
+    try {
+      const tokens = await this.tokens.issue(user.id, {
+        method: handoff.method,
+        claims: tokenClaims(
+          [],
+          handoff.authenticatedAt
+            ? new Date(handoff.authenticatedAt)
+            : new Date(),
+          account!.tenantId,
+          { method: handoff.method, device: deviceOfClaims(session) },
+        ),
+        secondFactor: input.secondFactor,
+      });
+      // The old family keeps its old time: it goes with the new one issued.
+      if (input.refreshToken) {
+        await this.tokens.revoke(input.refreshToken);
+      }
+      return { purpose: 'reauthenticate' as const, ...tokens };
+    } catch (error) {
+      if (
+        error instanceof AuthenticationError &&
+        error.code === 'mfa_required' &&
+        !input.secondFactor.code &&
+        !input.secondFactor.recoveryCode
+      ) {
+        await this.handoffs.restoreCode(input.code, handoff, taken.ttlMs);
+      }
+      throw error;
+    }
   }
 
   /**
@@ -195,6 +447,8 @@ export class NativeSignIn {
     const taken = await this.handoffs.takeCode(input.code);
     if (
       !taken ||
+      // A link's or a step-up's code completes its session only, never signs in.
+      taken.handoff.account ||
       !verifiesChallenge(input.codeVerifier, taken.handoff.codeChallenge)
     ) {
       throw new UnauthorizedException(t('auth.invalidCode'));
@@ -274,4 +528,19 @@ export class NativeSignIn {
     );
     return tenantId;
   }
+}
+
+/** The `sid` of a token client's session (its access token's claims), if it is one. */
+function tokenSessionOf(session: unknown) {
+  if (authenticationOf(session)?.via !== 'token') {
+    return undefined;
+  }
+  const sid = (session as { sid?: unknown }).sid;
+  return typeof sid === 'string' && sid ? sid : undefined;
+}
+
+/** The `dev` claim of a token client's claims (tokenClaims()), if any. */
+function deviceOfClaims(session: unknown) {
+  const device = (session as { dev?: unknown } | undefined)?.dev;
+  return typeof device === 'string' ? device : undefined;
 }
