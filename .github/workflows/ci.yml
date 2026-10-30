@@ -389,7 +389,7 @@ jobs:
       # the Compose files with dummy values and accepted by `docker stack config`
       # (which needs no Swarm). The script's unit tests run in feature-smoke.
       - name: Install Node.js (the script has no dependencies)
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           install: false
@@ -421,7 +421,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm and Node.js
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -463,7 +463,7 @@ jobs:
         with:
           fetch-depth: 0
       - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -681,7 +681,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -726,7 +726,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -791,7 +791,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -885,7 +885,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -992,7 +992,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm, Node.js and the dependencies
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           cache: true
@@ -1053,7 +1053,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Install pnpm (the audit reads the lockfile only)
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           install: false
@@ -1849,7 +1849,7 @@ jobs:
         with:
           name: release-manifest-v1
       - name: Install Node.js (the notes have no dependencies)
-        uses: pnpm/setup@a0881977cd8ea73b1ed212236c99ca10dcc80cf4 # v3.1.1
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
           runtime: node@24
           install: false
