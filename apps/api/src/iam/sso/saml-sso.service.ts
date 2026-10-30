@@ -187,9 +187,12 @@ export class SamlSso {
         SAMLResponse: samlResponse,
       }));
     } catch (error) {
-      throw new SsoRefused(
-        `response_invalid:${(error as Error).message.slice(0, 120)}`,
-      );
+      const message = (error as Error).message;
+      // node-saml checks idpIssuer itself since 5.2; keep our reason for it.
+      if (message.startsWith('Unknown SAML issuer')) {
+        throw new SsoRefused('issuer_mismatch');
+      }
+      throw new SsoRefused(`response_invalid:${message.slice(0, 120)}`);
     }
     if (!profile) {
       throw new SsoRefused('no_assertion');
