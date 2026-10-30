@@ -40,6 +40,10 @@ jobs:
       PUSH_PROVIDER: ${{ vars.PUSH_PROVIDER }}
       WEB_PUSH_VAPID_PUBLIC_KEY: ${{ vars.WEB_PUSH_VAPID_PUBLIC_KEY }}
       WEB_PUSH_SUBJECT: ${{ vars.WEB_PUSH_SUBJECT }}
+      # Native apps for passkeys and app attestation (docs/auth.md), each
+      # comma-separated; unset: none.
+      PASSKEY_APPLE_APPS: ${{ vars.PASSKEY_APPLE_APPS }}
+      PASSKEY_ANDROID_APPS: ${{ vars.PASSKEY_ANDROID_APPS }}
     steps:
       - name: Require production deployment to be enabled
         env:
@@ -171,6 +175,14 @@ jobs:
               --set-string env.WEB_PUSH_SUBJECT="$WEB_PUSH_SUBJECT"
               --set-string secretFiles.common.WEB_PUSH_VAPID_PRIVATE_KEY_FILE=web_push_vapid_private_key)
           fi
+          # Helm splits --set values on commas, so a list escapes them.
+          apps=()
+          if [ -n "$PASSKEY_APPLE_APPS" ]; then
+            apps+=(--set-string env.PASSKEY_APPLE_APPS="${PASSKEY_APPLE_APPS//,/\\,}")
+          fi
+          if [ -n "$PASSKEY_ANDROID_APPS" ]; then
+            apps+=(--set-string env.PASSKEY_ANDROID_APPS="${PASSKEY_ANDROID_APPS//,/\\,}")
+          fi
           helm upgrade --install app deploy/helm/app \
             --namespace nestjs-monorepo \
             --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
@@ -183,7 +195,7 @@ jobs:
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
             --set-string env.MAIL_FROM="$MAIL_FROM" \
-            "${push[@]}"
+            "${push[@]}" "${apps[@]}"
       - name: Verify API rollout
         run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
       - name: Verify web rollout
