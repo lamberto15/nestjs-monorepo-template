@@ -1195,7 +1195,31 @@ one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
   `com.example.app:/auth`, or an https universal / app link, matched
   exactly; empty: none, 400). The callback starts no session: it
   redirects to `redirectUri?code=…` (or `?error=sign_in_failed` /
-  `sso_failed`). No linking or step-up this way.
+  `sso_failed`).
+- **Link a provider, or step up through one, when signed in:** the app's
+  token asks `POST /v1/auth/identities/{provider}/native { purpose:
+  'link' | 'reauthenticate', redirectUri, codeChallenge }` → `{ url }`
+  and opens that `url` in the system browser. It carries a one-time ticket
+  (five minutes) bound to the user, the token session (`sid`), the
+  purpose, `redirectUri` and the challenge, since that browser doesn't
+  know who the person is. A link wants a recent sign-in and refuses an
+  identity that is another account's; a step-up accepts only an identity
+  already theirs. Both ask the provider to authenticate the person again
+  (`prompt=login`, `max_age=0`), so a link ticket sent to someone else
+  doesn't connect their identity in one silent click. The browser lands on
+  `redirectUri?code=…` (or `?error=link_failed` /
+  `reauthentication_failed`). A link is only judged there: it is written
+  (audited `user.identity-linked`) when the app completes it, with its
+  verifier and session. The same token then posts
+  `POST /v1/auth/identities/native/complete { handoffCode,
+  codeVerifier, code?, recoveryCode?, refreshToken? }`: a link answers the
+  identity, a step-up new tokens with `auth_time` now (as
+  `/auth/reauthenticate` does for a password; `refreshToken` revokes the
+  old pair; audited `auth.reauthenticated`, or
+  `auth.reauthentication-failed` for a refused identity or a wrong code,
+  `via: token`). The code works for that session only, never at
+  `/auth/token/exchange`. A browser session uses `?link=true` and
+  `?reauthenticate=true` instead (400 `token_session_required`).
 - **Magic link:** the app asks with `POST /v1/auth/magic-link` and keeps
   that response's cookie (the link works only where it was asked for),
   opens `WEB_URL/magic-link?token=…` as a universal / app link, and posts

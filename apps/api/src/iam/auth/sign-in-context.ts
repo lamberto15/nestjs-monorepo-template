@@ -14,11 +14,22 @@ interface SignInState {
   authenticatedAt?: Date;
   /** A step-up through a provider: the sign-in must be this user's, and fresh. */
   reauthenticating?: ProviderReauthentication;
+  /** A native app's link: the identity goes to this user (the package's `linkTo` needs a browser session). */
+  linking?: { id: string };
+  /** The identity a native link would connect: written when its app completes it, not by the callback. */
+  identity?: NativeIdentity;
   /** The tenant the new session acts in, when the sign-in names one (a step-up keeps its session's). */
   tenantId?: string;
 }
 
 const SIGN_IN = Symbol('sign-in');
+
+/** A provider's identity, as `user_identities` keeps it. */
+export interface NativeIdentity {
+  provider: string;
+  subject: string;
+  email: string | null;
+}
 
 /**
  * The sign-in under way, for the session it creates. The package's own
@@ -41,17 +52,25 @@ export class SignInContext {
   /**
    * Runs `fn` as a sign-in by `method`: the session it creates records it.
    * `reauthenticating`: the sign-in is a step-up through a provider
-   * (OidcAccounts checks it is that user's, and fresh).
+   * (OidcAccounts checks it is that user's, and fresh). `linking`: it
+   * connects the provider to that user instead (a native app's link).
    */
   run<T>(
     method: string,
     fn: () => Promise<T>,
-    { reauthenticating }: { reauthenticating?: ProviderReauthentication } = {},
+    {
+      reauthenticating,
+      linking,
+    }: {
+      reauthenticating?: ProviderReauthentication;
+      linking?: { id: string };
+    } = {},
   ): Promise<T> {
     return this.cls.run({ ifNested: 'inherit' }, () => {
       this.cls.set(SIGN_IN, {
         method,
         ...(reauthenticating && { reauthenticating }),
+        ...(linking && { linking }),
       } satisfies SignInState);
       return fn();
     });
@@ -76,6 +95,31 @@ export class SignInContext {
       return undefined;
     }
     return this.cls.get<SignInState | undefined>(SIGN_IN)?.reauthenticating;
+  }
+
+  /** The user a native app's link connects the provider to, if the sign-in under way is one. */
+  linking(): { id: string } | undefined {
+    if (!this.cls.isActive()) {
+      return undefined;
+    }
+    return this.cls.get<SignInState | undefined>(SIGN_IN)?.linking;
+  }
+
+  /** The identity the native link under way would connect (OidcAccounts tells it). */
+  identityToLink(identity: NativeIdentity) {
+    if (!this.cls.isActive()) {
+      return;
+    }
+    const state = this.cls.get<SignInState | undefined>(SIGN_IN);
+    this.cls.set(SIGN_IN, { ...state, identity });
+  }
+
+  /** What `identityToLink()` told, if it did. */
+  toldIdentity(): NativeIdentity | undefined {
+    if (!this.cls.isActive()) {
+      return undefined;
+    }
+    return this.cls.get<SignInState | undefined>(SIGN_IN)?.identity;
   }
 
   /**

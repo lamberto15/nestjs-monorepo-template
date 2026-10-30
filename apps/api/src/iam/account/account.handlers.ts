@@ -7,7 +7,7 @@ import {
   inTransaction,
   type DrizzleTransactions,
 } from '../../core/database/transactions.js';
-import { Injectable, Logger } from '@nestjs/common';
+import { ConflictException, Injectable, Logger } from '@nestjs/common';
 import {
   AuthenticationRegistry,
   EmailVerificationHandler,
@@ -26,7 +26,11 @@ import { and, eq } from 'drizzle-orm';
 import type { Database } from '../../core/database/drizzle.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { UserPrincipal } from '../auth/principal.js';
-import { authTimeOf, SignInContext } from '../auth/sign-in-context.js';
+import {
+  authTimeOf,
+  type NativeIdentity,
+  SignInContext,
+} from '../auth/sign-in-context.js';
 import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
 import { SignUpTenant } from '../access/sign-up-tenant.js';
 import type { IamEnv } from '../iam.env.js';
@@ -256,8 +260,13 @@ export class OidcAccounts extends OidcAccountResolver {
   async resolveUser(
     profile: OidcProfile,
     _tokens: OAuthTokens,
-    { linkTo }: OidcResolveContext,
+    context: OidcResolveContext,
   ) {
+    // A browser's link (the package's), else a native app's (ours).
+    const nativeLink = context.linkTo
+      ? undefined
+      : this.signInContext.linking();
+    const linkTo = context.linkTo ?? nativeLink;
     const reauthenticating = linkTo
       ? undefined
       : this.signInContext.reauthenticating();
@@ -285,6 +294,16 @@ export class OidcAccounts extends OidcAccountResolver {
       return known.active ? { id: known.userId } : null;
     }
     if (linkTo) {
+      if (nativeLink) {
+        // Written when the app completes it (its verifier, its session):
+        // a ticket opened in someone else's browser links nothing.
+        this.signInContext.identityToLink({
+          provider: profile.provider,
+          subject: profile.subject,
+          email: profile.email ?? null,
+        });
+        return { id: linkTo.id };
+      }
       return this.link(linkTo.id, profile);
     }
     if (!profile.email || !profile.emailVerified) {
@@ -410,7 +429,41 @@ export class OidcAccounts extends OidcAccountResolver {
     return { id: known.userId };
   }
 
-  private async link(userId: string, profile: OidcProfile) {
+  /**
+   * A native link its app completed (NativeSignIn.complete()): the
+   * identity checked again (another account may have connected it since
+   * the callback), then connected. 409 `identity_taken` when it is now
+   * someone else's.
+   */
+  async linkNative(userId: string, identity: NativeIdentity) {
+    const [known] = await this.db
+      .select({ userId: userIdentities.userId })
+      .from(userIdentities)
+      .where(
+        and(
+          eq(userIdentities.provider, identity.provider),
+          eq(userIdentities.subject, identity.subject),
+        ),
+      );
+    if (known?.userId === userId) {
+      return;
+    }
+    if (known) {
+      throw new ConflictException({
+        code: 'identity_taken',
+        message: 'This identity is connected to another account.',
+      });
+    }
+    await this.link(userId, {
+      ...identity,
+      email: identity.email ?? undefined,
+    });
+  }
+
+  private async link(
+    userId: string,
+    profile: Pick<OidcProfile, 'provider' | 'subject' | 'email'>,
+  ) {
     await this.db.insert(userIdentities).values({
       provider: profile.provider,
       subject: profile.subject,

@@ -48692,6 +48692,17 @@
               "pattern": "^[A-Za-z0-9_-]{43}$",
               "description": "PKCE (RFC 7636, S256): the base64url SHA-256 of a `codeVerifier` the app keeps for POST /auth/token/exchange."
             }
+          },
+          {
+            "name": "ticket",
+            "required": false,
+            "in": "query",
+            "description": "A signed-in app's link or step-up: the `url` of POST /auth/identities/{provider}/native carries it.",
+            "schema": {
+              "description": "A signed-in app's link or step-up: the `url` of POST /auth/identities/{provider}/native carries it.",
+              "type": "string",
+              "maxLength": 128
+            }
           }
         ],
         "responses": {
@@ -48818,6 +48829,238 @@
           }
         ],
         "summary": "The providers connected to your account",
+        "tags": [
+          "auth",
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/identities/{provider}/native": {
+      "post": {
+        "description": "For an app signed in with tokens (a browser session: 400 `token_session_required`; use `?link=true` / `?reauthenticate=true`). Answers the `url` to open in the system browser: a one-time ticket, for five minutes, bound to you, this token session, the purpose, `redirectUri` (one of NATIVE_REDIRECT_URIS) and `codeChallenge`. A step-up asks the provider to authenticate you again. The browser lands on `redirectUri?code=…` (or `?error=link_failed` / `reauthentication_failed`): POST /auth/identities/native/complete with the verifier. docs/auth.md, \"Native and mobile apps\".",
+        "operationId": "OidcController_nativeTicket_v1",
+        "parameters": [
+          {
+            "name": "provider",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "link",
+                      "reauthenticate"
+                    ],
+                    "description": "`link`: connect the provider to your account (wants a recent sign-in, as the browser's). `reauthenticate`: step up through a provider already connected."
+                  },
+                  "redirectUri": {
+                    "type": "string",
+                    "maxLength": 2048,
+                    "description": "One of NATIVE_REDIRECT_URIS: where the browser hands back `?code=` or `?error=`."
+                  },
+                  "codeChallenge": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9_-]{43}$",
+                    "description": "PKCE (RFC 7636, S256): the base64url SHA-256 of a `codeVerifier` the app keeps for POST /auth/token/exchange."
+                  }
+                },
+                "required": [
+                  "purpose",
+                  "redirectUri",
+                  "codeChallenge"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "description": "The login route with the ticket: open it in the system browser."
+                    }
+                  },
+                  "required": [
+                    "url"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Link a provider, or step up through one, from a native app",
+        "tags": [
+          "auth",
+          "account"
+        ]
+      }
+    },
+    "/v1/auth/identities/native/complete": {
+      "post": {
+        "description": "With the token session that asked for the ticket. A link answers the identity (an identity already another account's was refused at the callback: `?error=link_failed`, nothing changed; connected to one since: 409 `identity_taken`). The link is written only now. A step-up answers new tokens with a fresh `auth_time`, as POST /auth/reauthenticate does for a password: send `refreshToken` to revoke the old pair. Two-factor on: without a code, 401 `mfa_required` and the handoff code still works (for its minute); a wrong one spends it.",
+        "operationId": "OidcController_nativeComplete_v1",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "handoffCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 128,
+                    "description": "The `code` the ticket's `redirectUri` was handed."
+                  },
+                  "codeVerifier": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9._~-]{43,128}$",
+                    "description": "The PKCE verifier of the ticket's `codeChallenge`."
+                  },
+                  "code": {
+                    "description": "A step-up with two-factor on: a code from the app.",
+                    "type": "string",
+                    "pattern": "^\\d{6}$"
+                  },
+                  "recoveryCode": {
+                    "type": "string",
+                    "maxLength": 64
+                  },
+                  "refreshToken": {
+                    "description": "A step-up: your current refresh token, revoked once the new pair is issued.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 512
+                  }
+                },
+                "required": [
+                  "handoffCode",
+                  "codeVerifier"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "oneOf": [
+                    {
+                      "type": "object",
+                      "properties": {
+                        "purpose": {
+                          "type": "string",
+                          "enum": [
+                            "link"
+                          ]
+                        },
+                        "identity": {
+                          "type": "object",
+                          "properties": {
+                            "provider": {
+                              "type": "string"
+                            },
+                            "email": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time",
+                              "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                            }
+                          },
+                          "required": [
+                            "provider",
+                            "email",
+                            "createdAt"
+                          ],
+                          "additionalProperties": false
+                        }
+                      },
+                      "required": [
+                        "purpose",
+                        "identity"
+                      ],
+                      "additionalProperties": false
+                    },
+                    {
+                      "type": "object",
+                      "properties": {
+                        "purpose": {
+                          "type": "string",
+                          "enum": [
+                            "reauthenticate"
+                          ]
+                        },
+                        "accessToken": {
+                          "type": "string",
+                          "description": "A JWT with `auth_time` now: `Authorization: Bearer …`."
+                        },
+                        "refreshToken": {
+                          "type": "string",
+                          "description": "Single use: POST /auth/token/refresh."
+                        },
+                        "expiresIn": {
+                          "type": "integer",
+                          "minimum": -9007199254740991,
+                          "maximum": 9007199254740991,
+                          "description": "Seconds until the access token expires."
+                        }
+                      },
+                      "required": [
+                        "purpose",
+                        "accessToken",
+                        "refreshToken",
+                        "expiresIn"
+                      ],
+                      "additionalProperties": false
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unknown, used or expired code, another verifier, user or session; a second factor required or wrong."
+          }
+        },
+        "security": [
+          {
+            "user-token": []
+          }
+        ],
+        "summary": "Finish a native link or step-up with its handoff code",
         "tags": [
           "auth",
           "account"

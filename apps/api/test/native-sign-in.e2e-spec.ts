@@ -1,6 +1,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { OidcService } from '@nestjs/authentication';
+import { ForbiddenException } from '@nestjs/common';
 import { getDrizzleToken } from '@nestjs/drizzle';
+import { eq } from 'drizzle-orm';
 import request from 'supertest';
 import type { Database } from '../src/core/database/drizzle.js';
 import { OidcAccounts } from '../src/iam/account/account.handlers.js';
@@ -65,7 +67,11 @@ describe('native sign-in: handoff codes for provider sign-ins and magic links (e
           { accessToken: 'at' },
           {},
         );
-        return { url: '/', cookies: [], userId: user!.id };
+        // As the package: an account the resolver refuses is a 403.
+        if (!user) {
+          throw new ForbiddenException('account not allowed');
+        }
+        return { url: '/', cookies: [], userId: user.id };
       });
   }
 
@@ -211,5 +217,267 @@ describe('native sign-in: handoff codes for provider sign-ins and magic links (e
       .post('/v1/auth/magic-link/handoff')
       .send({ token, codeChallenge: challenge })
       .expect(401);
+  });
+
+  describe('a signed-in app links a provider, or steps up through one', () => {
+    /** The user's tokens, as the app holds them. */
+    async function tokensOf(user: { email: string; password: string }) {
+      const issued = await node
+        .http()
+        .post('/v1/auth/token')
+        .send({ email: user.email, password: user.password })
+        .expect(200);
+      return issued.body as { accessToken: string; refreshToken: string };
+    }
+
+    const ticket = (
+      accessToken: string,
+      purpose: 'link' | 'reauthenticate',
+      challenge: string,
+    ) =>
+      node
+        .http()
+        .post('/v1/auth/identities/github/native')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({ purpose, redirectUri: REDIRECT_URI, codeChallenge: challenge });
+
+    /** The ticket's URL opened in the system browser, to its callback: where it lands. */
+    async function openTicket(url: string) {
+      const { pathname, search } = new URL(url);
+      const started = await node.http().get(`${pathname}${search}`).expect(302);
+      const provider = new URL(started.headers.location!);
+      const landed = await node
+        .http()
+        .get('/v1/auth/oidc/github/callback')
+        .query({ state: provider.searchParams.get('state'), code: 'pc' })
+        .expect(302);
+      return { provider, back: new URL(landed.headers.location!) };
+    }
+
+    const complete = (accessToken: string, body: Record<string, unknown>) =>
+      node
+        .http()
+        .post('/v1/auth/identities/native/complete')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send(body);
+
+    const identitiesOf = (userId: string) =>
+      node.db
+        .select()
+        .from(userIdentities)
+        .where(eq(userIdentities.userId, userId));
+
+    it('links GitHub with a one-time ticket, completed by the session that asked only', async () => {
+      const me = await node.user([]);
+      const other = await node.user([]);
+      const mine = await tokensOf(me);
+      providerAnswers(`gh-new-${me.id}`);
+      // A browser session links with ?link=true, not a ticket.
+      await me.agent
+        .post('/v1/auth/identities/github/native')
+        .send({
+          purpose: 'link',
+          redirectUri: REDIRECT_URI,
+          codeChallenge: pkce().challenge,
+        })
+        .expect(400);
+      await node
+        .http()
+        .post('/v1/auth/identities/github/native')
+        .set('Authorization', `Bearer ${mine.accessToken}`)
+        .send({
+          purpose: 'link',
+          redirectUri: 'com.evil.app:/auth',
+          codeChallenge: pkce().challenge,
+        })
+        .expect(400);
+
+      // Another user's token: refused, and the code is spent.
+      const first = pkce();
+      const { url } = (
+        await ticket(mine.accessToken, 'link', first.challenge).expect(201)
+      ).body as { url: string };
+      const { provider, back } = await openTicket(url);
+      // A fresh login at the provider: never one silent click.
+      expect(provider.searchParams.get('prompt')).toBe('login');
+      const code = back.searchParams.get('code')!;
+      await complete((await tokensOf(other)).accessToken, {
+        handoffCode: code,
+        codeVerifier: first.verifier,
+      }).expect(401);
+      await complete(mine.accessToken, {
+        handoffCode: code,
+        codeVerifier: first.verifier,
+      }).expect(401);
+      // The ticket worked once.
+      const { pathname, search } = new URL(url);
+      await node.http().get(`${pathname}${search}`).expect(400);
+      expect(await identitiesOf(other.id)).toEqual([]);
+      // Its callback ran, yet nothing is linked: only a completion links
+      // (a ticket opened in someone else's browser links nothing).
+      expect(await identitiesOf(me.id)).toEqual([]);
+
+      // Never a sign-in: the exchange refuses a link's code.
+      const second = pkce();
+      const next = await openTicket(
+        (await ticket(mine.accessToken, 'link', second.challenge).expect(201))
+          .body.url,
+      );
+      await exchange({
+        handoffCode: next.back.searchParams.get('code'),
+        codeVerifier: second.verifier,
+      }).expect(401);
+
+      const third = pkce();
+      const last = await openTicket(
+        (await ticket(mine.accessToken, 'link', third.challenge).expect(201))
+          .body.url,
+      );
+      const linked = await complete(mine.accessToken, {
+        handoffCode: last.back.searchParams.get('code'),
+        codeVerifier: third.verifier,
+      }).expect(200);
+      expect(linked.body).toMatchObject({
+        purpose: 'link',
+        identity: { provider: 'github' },
+      });
+      expect(await identitiesOf(me.id)).toMatchObject([
+        { provider: 'github', subject: `gh-new-${me.id}` },
+      ]);
+      expect(
+        await node.auditEntries({
+          action: 'user.identity-linked',
+          targetId: me.id,
+        }),
+      ).toHaveLength(1);
+    });
+
+    it("refuses to link an identity that is another account's, and changes nothing", async () => {
+      const owner = await person();
+      const me = await node.user([]);
+      const mine = await tokensOf(me);
+      providerAnswers(`gh-${owner.id}`);
+      const { challenge } = pkce();
+      const { back } = await openTicket(
+        (await ticket(mine.accessToken, 'link', challenge).expect(201)).body
+          .url,
+      );
+      expect(back.searchParams.get('error')).toBe('link_failed');
+      expect(back.searchParams.get('code')).toBeNull();
+      expect(await identitiesOf(me.id)).toEqual([]);
+      expect(await identitiesOf(owner.id)).toHaveLength(1);
+    });
+
+    it('steps up through a connected provider: new tokens, for that user only', async () => {
+      const me = await person();
+      const mine = await tokensOf(me);
+      providerAnswers(`gh-${me.id}`);
+      const { verifier, challenge } = pkce();
+      const { provider, back } = await openTicket(
+        (
+          await ticket(mine.accessToken, 'reauthenticate', challenge).expect(
+            201,
+          )
+        ).body.url,
+      );
+      // The provider is asked to authenticate the user again.
+      expect(provider.searchParams.get('prompt')).toBe('login');
+      expect(provider.searchParams.get('max_age')).toBe('0');
+      const stepped = await complete(mine.accessToken, {
+        handoffCode: back.searchParams.get('code'),
+        codeVerifier: verifier,
+        refreshToken: mine.refreshToken,
+      }).expect(200);
+      expect(stepped.body).toMatchObject({ purpose: 'reauthenticate' });
+      const signedIn = await node
+        .http()
+        .get('/v1/auth/me')
+        .set('Authorization', `Bearer ${stepped.body.accessToken}`)
+        .expect(200);
+      expect(signedIn.body.user.id).toBe(me.id);
+      // The old pair's family is revoked.
+      await node
+        .http()
+        .post('/v1/auth/token/refresh')
+        .send({ refreshToken: mine.refreshToken })
+        .expect(401);
+      expect(
+        await node.auditEntries({
+          action: 'auth.reauthenticated',
+          actor: `user:${me.id}`,
+        }),
+      ).toContainEqual(
+        expect.objectContaining({
+          details: expect.objectContaining({ method: 'oidc', via: 'token' }),
+        }),
+      );
+
+      // Someone else's GitHub: refused, back in the app with an error.
+      const stranger = await person();
+      const again = await tokensOf(me);
+      providerAnswers(`gh-${stranger.id}`);
+      const refused = await openTicket(
+        (
+          await ticket(
+            again.accessToken,
+            'reauthenticate',
+            pkce().challenge,
+          ).expect(201)
+        ).body.url,
+      );
+      expect(refused.back.searchParams.get('error')).toBe(
+        'reauthentication_failed',
+      );
+    });
+
+    it('asks a step-up for the second factor, and records a wrong one', async () => {
+      const me = await person();
+      const enrollment = await me.agent.post('/v1/auth/mfa/enroll').expect(200);
+      const confirmed = await me.agent
+        .post('/v1/auth/mfa/confirm')
+        .send({ code: totp(enrollment.body.secret) })
+        .expect(200);
+      // A TOTP code works once: the confirmation spent this one.
+      const [recoveryCode] = confirmed.body.recoveryCodes as string[];
+      const mine = await node
+        .http()
+        .post('/v1/auth/token')
+        .send({ email: me.email, password: me.password, recoveryCode })
+        .expect(200);
+      providerAnswers(`gh-${me.id}`);
+      const { verifier, challenge } = pkce();
+      const { back } = await openTicket(
+        (
+          await ticket(
+            mine.body.accessToken,
+            'reauthenticate',
+            challenge,
+          ).expect(201)
+        ).body.url,
+      );
+      const handoffCode = back.searchParams.get('code');
+      // Without a code: asked for, and the handoff code still works.
+      const asked = await complete(mine.body.accessToken, {
+        handoffCode,
+        codeVerifier: verifier,
+      }).expect(401);
+      expect(JSON.stringify(asked.body)).toContain('mfa_required');
+      await complete(mine.body.accessToken, {
+        handoffCode,
+        codeVerifier: verifier,
+        code: '000000',
+      }).expect(401);
+      const [failed] = (await node.auditEntries({
+        action: 'auth.reauthentication-failed',
+        actor: `user:${me.id}`,
+      })) as { details: Record<string, unknown> }[];
+      expect(failed.details).toMatchObject({ reason: 'code', via: 'token' });
+      expect(
+        await node.auditEntries({
+          action: 'auth.reauthenticated',
+          actor: `user:${me.id}`,
+        }),
+      ).toEqual([]);
+    });
   });
 });

@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   HttpException,
   Delete,
@@ -8,6 +9,7 @@ import {
   HttpCode,
   NotFoundException,
   Param,
+  Post,
   Query,
   Redirect,
   Req,
@@ -35,12 +37,15 @@ import {
   ApiBearerAuth,
   ApiConflictResponse,
   ApiCookieAuth,
+  ApiCreatedResponse,
   ApiFoundResponse,
   ApiNoContentResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
+import { Throttle, minutes } from '@nestjs/throttler';
 import { z } from 'zod';
 import { AllowInMaintenance } from '../../core/http/maintenance.js';
 import { listSchema } from '../../core/http/pagination.js';
@@ -56,7 +61,11 @@ import {
 } from './oidc-reauthentication.js';
 import { ReauthenticationService } from './reauthentication.service.js';
 import { NativeSignIn } from './native-sign-in.service.js';
-import { nativeLoginQuery } from './native-redirect.js';
+import {
+  codeChallenge,
+  codeVerifier,
+  nativeLoginQuery,
+} from './native-redirect.js';
 
 const identitySchema = z.object({
   provider: z.string(),
@@ -95,7 +104,70 @@ const loginQuerySchema = z.object({
       '`true`: re-authenticate the signed-in user through the provider (step-up), with a fresh login there.',
     ),
   ...nativeLoginQuery,
+  ticket: z
+    .string()
+    .max(128)
+    .optional()
+    .catch(undefined)
+    .describe(
+      "A signed-in app's link or step-up: the `url` of POST /auth/identities/{provider}/native carries it.",
+    ),
 });
+
+const nativeTicketSchema = z.object({
+  purpose: z
+    .enum(['link', 'reauthenticate'])
+    .describe(
+      "`link`: connect the provider to your account (wants a recent sign-in, as the browser's). `reauthenticate`: step up through a provider already connected.",
+    ),
+  redirectUri: z
+    .string()
+    .max(2048)
+    .describe(
+      'One of NATIVE_REDIRECT_URIS: where the browser hands back `?code=` or `?error=`.',
+    ),
+  codeChallenge,
+});
+
+const nativeCompleteSchema = z.object({
+  handoffCode: z
+    .string()
+    .min(1)
+    .max(128)
+    .describe("The `code` the ticket's `redirectUri` was handed."),
+  codeVerifier: codeVerifier.describe(
+    "The PKCE verifier of the ticket's `codeChallenge`.",
+  ),
+  code: z
+    .string()
+    .regex(/^\d{6}$/)
+    .optional()
+    .describe('A step-up with two-factor on: a code from the app.'),
+  recoveryCode: z.string().max(64).optional(),
+  refreshToken: z
+    .string()
+    .min(1)
+    .max(512)
+    .optional()
+    .describe(
+      'A step-up: your current refresh token, revoked once the new pair is issued.',
+    ),
+});
+
+const nativeCompletedSchema = z.discriminatedUnion('purpose', [
+  z.object({ purpose: z.literal('link'), identity: identitySchema }),
+  z.object({
+    purpose: z.literal('reauthenticate'),
+    accessToken: z
+      .string()
+      .describe('A JWT with `auth_time` now: `Authorization: Bearer …`.'),
+    refreshToken: z.string().describe('Single use: POST /auth/token/refresh.'),
+    expiresIn: z
+      .number()
+      .int()
+      .describe('Seconds until the access token expires.'),
+  }),
+]);
 
 /**
  * What the provider sends back, and all that `OidcService.finish` reads
@@ -165,9 +237,15 @@ export class OidcController {
       reauthenticate,
       redirectUri,
       codeChallenge,
+      ticket,
     }: z.infer<typeof loginQuerySchema>,
     @Res({ passthrough: true }) res: Response,
   ) {
+    if (ticket !== undefined) {
+      // A signed-in app's link or step-up: the ticket says whose, and how.
+      this.configured(provider);
+      return this.native.startTicket(provider, ticket);
+    }
     const native = this.native.nativeLogin({ redirectUri, codeChallenge });
     if (native) {
       // A native app's sign-in (no session here: its code, then tokens).
@@ -264,12 +342,15 @@ export class OidcController {
     if (native) {
       try {
         return {
-          url: await this.native.finishProvider(provider, query, native),
+          url: await this.native.finishProvider(provider, query, native, ip),
         };
       } catch (error) {
         // The app's browser lands back in the app, never on a problem page.
-        if (error instanceof HttpException) {
-          return { url: this.native.failed(native, 'sign_in_failed') };
+        if (
+          error instanceof HttpException ||
+          error instanceof ReauthenticationRefused
+        ) {
+          return { url: this.native.failed(native) };
         }
         throw error;
       }
@@ -324,6 +405,91 @@ export class OidcController {
   @ApiOkResponse({ standardSchema: listSchema(identitySchema) })
   async identities(@CurrentUser() user: UserPrincipal) {
     return { items: await this.account.identities(user.id) };
+  }
+
+  // A browser session has `?link=true`; a token-only app asks for a ticket.
+  // Linking wants a recent sign-in, as the browser's link does.
+  @UserOnly()
+  @Can.Anyone()
+  @RecentAuthentication({
+    when: (request) =>
+      (request as { body?: { purpose?: unknown } }).body?.purpose === 'link',
+  })
+  @Post('identities/:provider/native')
+  @HttpCode(201)
+  @ApiBearerAuth('user-token')
+  @ApiTags('account')
+  @ApiOperation({
+    summary: 'Link a provider, or step up through one, from a native app',
+    description:
+      'For an app signed in with tokens (a browser session: 400 `token_session_required`; use `?link=true` / `?reauthenticate=true`). Answers the `url` to open in the system browser: a one-time ticket, for five minutes, bound to you, this token session, the purpose, `redirectUri` (one of NATIVE_REDIRECT_URIS) and `codeChallenge`. A step-up asks the provider to authenticate you again. The browser lands on `redirectUri?code=…` (or `?error=link_failed` / `reauthentication_failed`): POST /auth/identities/native/complete with the verifier. docs/auth.md, "Native and mobile apps".',
+  })
+  @ApiCreatedResponse({
+    standardSchema: z.object({
+      url: z
+        .string()
+        .describe(
+          'The login route with the ticket: open it in the system browser.',
+        ),
+    }),
+  })
+  async nativeTicket(
+    @CurrentUser() user: UserPrincipal,
+    @CurrentSession() session: unknown,
+    @Param('provider') provider: string,
+    @Body({ schema: nativeTicketSchema })
+    body: z.infer<typeof nativeTicketSchema>,
+  ) {
+    notWhileImpersonating(user);
+    // As the browser's: an address the person proved.
+    verifiedEmailOnly(user);
+    this.configured(provider);
+    return this.native.ticket(user, session, provider, body);
+  }
+
+  // The code is 256 random bits, bound to its verifier and this session.
+  @Throttle({ default: { limit: 10, ttl: minutes(15) } })
+  @UserOnly()
+  @Can.Anyone()
+  @Post('identities/native/complete')
+  @HttpCode(200)
+  @ApiBearerAuth('user-token')
+  @ApiTags('account')
+  @ApiOperation({
+    summary: 'Finish a native link or step-up with its handoff code',
+    description:
+      "With the token session that asked for the ticket. A link answers the identity (an identity already another account's was refused at the callback: `?error=link_failed`, nothing changed; connected to one since: 409 `identity_taken`). The link is written only now. A step-up answers new tokens with a fresh `auth_time`, as POST /auth/reauthenticate does for a password: send `refreshToken` to revoke the old pair. Two-factor on: without a code, 401 `mfa_required` and the handoff code still works (for its minute); a wrong one spends it.",
+  })
+  @ApiOkResponse({ standardSchema: nativeCompletedSchema })
+  @ApiUnauthorizedResponse({
+    description:
+      'Unknown, used or expired code, another verifier, user or session; a second factor required or wrong.',
+  })
+  async nativeComplete(
+    @CurrentUser() user: UserPrincipal,
+    @CurrentSession() session: unknown,
+    @Body({ schema: nativeCompleteSchema })
+    body: z.infer<typeof nativeCompleteSchema>,
+    @Ip() ip: string,
+  ) {
+    const done = await this.native.complete(
+      user,
+      session,
+      {
+        code: body.handoffCode,
+        codeVerifier: body.codeVerifier,
+        refreshToken: body.refreshToken,
+        secondFactor: { code: body.code, recoveryCode: body.recoveryCode },
+      },
+      ip,
+    );
+    if (done.purpose === 'reauthenticate') {
+      return done;
+    }
+    const identity = (await this.account.identities(user.id)).find(
+      (item) => item.provider === done.provider,
+    );
+    return { purpose: done.purpose, identity };
   }
 
   @UserOnly()
