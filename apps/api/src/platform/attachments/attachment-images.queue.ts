@@ -54,10 +54,12 @@ export class AttachmentImagesQueue {
    * failure is logged, not thrown: the image stays `pending` and the retry job
    * queues it again within minutes.
    */
-  async enqueue(attachmentId: string, again?: string) {
+  async enqueue(attachmentId: string, version: number, again?: string) {
     try {
       await this.queue.add('process', withTenant({ attachmentId }), {
-        jobId: again ? `${attachmentId}-${again}` : attachmentId,
+        // Per version: a replaced file is a new job, not the finished one
+        // of the version before it (a job id is queued once).
+        jobId: `${attachmentId}-v${version}${again ? `-${again}` : ''}`,
         // The retry job queues a pending image again every few minutes while
         // the disk or the database fails: keep the failures bounded (the
         // queues' default keeps them seven days).

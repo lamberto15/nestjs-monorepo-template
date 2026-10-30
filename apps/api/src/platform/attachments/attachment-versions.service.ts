@@ -440,9 +440,9 @@ export class AttachmentVersionsService {
       return updated;
     });
     if (row.scanStatus === 'pending') {
-      await this.scans.enqueue(row.id);
+      await this.scans.enqueue(row.id, row.version);
     } else if (row.renditionStatus === 'pending') {
-      await this.images.enqueue(row.id);
+      await this.images.enqueue(row.id, row.version);
     }
     this.attachments.changed(principal, row, row.id, 'processed');
     // The superseded file's renditions are derived: only the file itself is history.

@@ -125,7 +125,7 @@ export class AttachmentScanService {
             this.attachments.changed(system, row, row.id, 'scanned');
             // An image is processed only once it may be served.
             if (row.renditionStatus === 'pending') {
-              await this.images.enqueue(row.id);
+              await this.images.enqueue(row.id, row.version);
             }
           }
           return 'clean';
@@ -158,7 +158,7 @@ export class AttachmentScanService {
           return this.release(system);
         }
         const stale = await this.db
-          .select({ id: attachments.id })
+          .select({ id: attachments.id, version: attachments.version })
           .from(attachments)
           .where(
             and(
@@ -169,8 +169,8 @@ export class AttachmentScanService {
           .orderBy(asc(attachments.createdAt))
           .limit(BATCH);
         const period = String(Math.floor(now.getTime() / RETRY_MS));
-        for (const { id } of stale) {
-          await this.queue.enqueue(id, period);
+        for (const { id, version } of stale) {
+          await this.queue.enqueue(id, version, period);
         }
         return stale.length;
       },
@@ -220,7 +220,7 @@ export class AttachmentScanService {
       for (const row of rows) {
         this.attachments.changed(system, row, row.id, 'scanned');
         if (row.renditionStatus === 'pending') {
-          await this.images.enqueue(row.id);
+          await this.images.enqueue(row.id, row.version);
         }
       }
       released += rows.length;
@@ -302,7 +302,7 @@ export class AttachmentScanService {
         back ? 'processed' : 'removed',
       );
       if (back?.renditionStatus === 'pending') {
-        await this.images.enqueue(back.id);
+        await this.images.enqueue(back.id, back.version);
       }
     }
   }
