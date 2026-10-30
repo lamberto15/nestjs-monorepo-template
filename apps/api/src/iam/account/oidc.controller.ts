@@ -342,7 +342,7 @@ export class OidcController {
     if (native) {
       try {
         return {
-          url: await this.native.finishProvider(provider, query, native),
+          url: await this.native.finishProvider(provider, query, native, ip),
         };
       } catch (error) {
         // The app's browser lands back in the app, never on a problem page.
@@ -470,13 +470,19 @@ export class OidcController {
     @CurrentSession() session: unknown,
     @Body({ schema: nativeCompleteSchema })
     body: z.infer<typeof nativeCompleteSchema>,
+    @Ip() ip: string,
   ) {
-    const done = await this.native.complete(user, session, {
-      code: body.handoffCode,
-      codeVerifier: body.codeVerifier,
-      refreshToken: body.refreshToken,
-      secondFactor: { code: body.code, recoveryCode: body.recoveryCode },
-    });
+    const done = await this.native.complete(
+      user,
+      session,
+      {
+        code: body.handoffCode,
+        codeVerifier: body.codeVerifier,
+        refreshToken: body.refreshToken,
+        secondFactor: { code: body.code, recoveryCode: body.recoveryCode },
+      },
+      ip,
+    );
     if (done.purpose === 'reauthenticate') {
       return done;
     }

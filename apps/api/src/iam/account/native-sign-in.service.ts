@@ -133,6 +133,7 @@ export class NativeSignIn {
     provider: string,
     query: Record<string, string | undefined>,
     login: NativeLogin,
+    ip?: string,
   ) {
     const method = `oidc:${provider}`;
     const { account } = login;
@@ -171,9 +172,12 @@ export class NativeSignIn {
     } catch (error) {
       if (error instanceof ReauthenticationRefused) {
         await this.forget(query.state);
-        await this.audited(account!, 'auth.reauthentication-failed', {
-          reason: error.reason,
-        });
+        await this.audited(
+          account!,
+          'auth.reauthentication-failed',
+          { reason: error.reason },
+          ip,
+        );
       }
       throw error;
     }
@@ -187,9 +191,8 @@ export class NativeSignIn {
       if (userId !== account.userId) {
         throw new Error('A native link or step-up resolved another account');
       }
-      if (account.purpose === 'reauthenticate') {
-        await this.audited(account, 'auth.reauthenticated', {});
-      }
+      // A step-up's success is audited by complete(), once its second
+      // factor checked out and its tokens exist.
     }
     return this.handOff(login, {
       userId,
@@ -209,9 +212,10 @@ export class NativeSignIn {
 
   /** A step-up's verdict, as the browser's (AccountService.signInWithProvider): account-level, in no tenant's log. */
   private async audited(
-    account: NativeAccountFlow,
+    account: { userId: string; provider: string },
     action: string,
     details: Record<string, unknown>,
+    ip: string | undefined,
   ) {
     const user = await this.users.findActive(account.userId);
     await this.tenancy.none(() =>
@@ -225,6 +229,7 @@ export class NativeSignIn {
           via: 'token',
           ...details,
         },
+        ip,
       }),
     );
   }
@@ -310,9 +315,11 @@ export class NativeSignIn {
 
   /**
    * The login route opened with a ticket: spent, and the provider's login
-   * started in this browser, remembered as the ticket's link or step-up (a
-   * step-up asks the provider to authenticate the user again). 400 for a
-   * ticket unknown, used, expired or of another provider.
+   * started in this browser, remembered as the ticket's link or step-up.
+   * Both ask the provider to authenticate the user again: a link ticket
+   * sent to someone else must not connect their identity in one silent
+   * click (their provider session), whoever then catches the redirect. 400
+   * for a ticket unknown, used, expired or of another provider.
    */
   async startTicket(provider: string, ticket: string) {
     const login = await this.handoffs.takeTicket(ticket);
@@ -323,10 +330,7 @@ export class NativeSignIn {
       });
     }
     const redirect = await this.oidc.start(provider, {});
-    const url =
-      login.account.purpose === 'reauthenticate'
-        ? reauthenticationUrl(redirect.url)
-        : new URL(redirect.url);
+    const url = reauthenticationUrl(redirect.url);
     // From now: the provider's `auth_time` must not be older than the login.
     await this.remember(url.searchParams.get('state')!, {
       ...login,
@@ -353,6 +357,7 @@ export class NativeSignIn {
       refreshToken?: string;
       secondFactor: { code?: string; recoveryCode?: string };
     },
+    ip?: string,
   ) {
     const taken = await this.handoffs.takeCode(input.code);
     const sid = tokenSessionOf(session);
@@ -391,15 +396,29 @@ export class NativeSignIn {
       if (input.refreshToken) {
         await this.tokens.revoke(input.refreshToken);
       }
+      await this.audited(
+        { userId: user.id, provider: account!.provider },
+        'auth.reauthenticated',
+        {},
+        ip,
+      );
       return { purpose: 'reauthenticate' as const, ...tokens };
     } catch (error) {
-      if (
-        error instanceof AuthenticationError &&
-        error.code === 'mfa_required' &&
-        !input.secondFactor.code &&
-        !input.secondFactor.recoveryCode
-      ) {
-        await this.handoffs.restoreCode(input.code, handoff, taken.ttlMs);
+      if (error instanceof AuthenticationError) {
+        if (!input.secondFactor.code && !input.secondFactor.recoveryCode) {
+          // Only asked for: the code stays for the retry.
+          if (error.code === 'mfa_required') {
+            await this.handoffs.restoreCode(input.code, handoff, taken.ttlMs);
+          }
+        } else {
+          // A wrong second factor, as the browser's step-up records it.
+          await this.audited(
+            { userId: user.id, provider: account!.provider },
+            'auth.reauthentication-failed',
+            { reason: 'code' },
+            ip,
+          );
+        }
       }
       throw error;
     }

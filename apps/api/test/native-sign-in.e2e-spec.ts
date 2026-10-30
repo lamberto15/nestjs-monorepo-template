@@ -297,7 +297,9 @@ describe('native sign-in: handoff codes for provider sign-ins and magic links (e
       const { url } = (
         await ticket(mine.accessToken, 'link', first.challenge).expect(201)
       ).body as { url: string };
-      const { back } = await openTicket(url);
+      const { provider, back } = await openTicket(url);
+      // A fresh login at the provider: never one silent click.
+      expect(provider.searchParams.get('prompt')).toBe('login');
       const code = back.searchParams.get('code')!;
       await complete((await tokensOf(other)).accessToken, {
         handoffCode: code,
@@ -426,6 +428,58 @@ describe('native sign-in: handoff codes for provider sign-ins and magic links (e
       expect(refused.back.searchParams.get('error')).toBe(
         'reauthentication_failed',
       );
+    });
+
+    it('asks a step-up for the second factor, and records a wrong one', async () => {
+      const me = await person();
+      const enrollment = await me.agent.post('/v1/auth/mfa/enroll').expect(200);
+      await me.agent
+        .post('/v1/auth/mfa/confirm')
+        .send({ code: totp(enrollment.body.secret) })
+        .expect(200);
+      const mine = await node
+        .http()
+        .post('/v1/auth/token')
+        .send({
+          email: me.email,
+          password: me.password,
+          code: totp(enrollment.body.secret),
+        })
+        .expect(200);
+      providerAnswers(`gh-${me.id}`);
+      const { verifier, challenge } = pkce();
+      const { back } = await openTicket(
+        (
+          await ticket(
+            mine.body.accessToken,
+            'reauthenticate',
+            challenge,
+          ).expect(201)
+        ).body.url,
+      );
+      const handoffCode = back.searchParams.get('code');
+      // Without a code: asked for, and the handoff code still works.
+      const asked = await complete(mine.body.accessToken, {
+        handoffCode,
+        codeVerifier: verifier,
+      }).expect(401);
+      expect(JSON.stringify(asked.body)).toContain('mfa_required');
+      await complete(mine.body.accessToken, {
+        handoffCode,
+        codeVerifier: verifier,
+        code: '000000',
+      }).expect(401);
+      const [failed] = (await node.auditEntries({
+        action: 'auth.reauthentication-failed',
+        actor: `user:${me.id}`,
+      })) as { details: Record<string, unknown> }[];
+      expect(failed.details).toMatchObject({ reason: 'code', via: 'token' });
+      expect(
+        await node.auditEntries({
+          action: 'auth.reauthenticated',
+          actor: `user:${me.id}`,
+        }),
+      ).toEqual([]);
     });
   });
 });
