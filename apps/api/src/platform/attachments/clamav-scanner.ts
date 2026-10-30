@@ -67,7 +67,7 @@ export class ClamavScanner extends MalwareScanner {
         done(new Error(`clamd did not answer within ${timeoutMs} ms.`)),
       );
       socket.on('error', (error) => done(error));
-      socket.on('data', (chunk) => reply.push(chunk));
+      socket.on('data', (chunk) => reply.push(Buffer.from(chunk)));
       socket.on('end', () => {
         try {
           done(
