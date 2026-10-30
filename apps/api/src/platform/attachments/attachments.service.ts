@@ -281,9 +281,9 @@ export class AttachmentsService implements PersonalDataSource {
       });
       if (row.scanStatus === 'pending') {
         // The scan queues the image job when it finds the file clean.
-        await this.scans.enqueue(row.id);
+        await this.scans.enqueue(row.id, row.version);
       } else if (row.renditionStatus === 'pending') {
-        await this.images.enqueue(row.id);
+        await this.images.enqueue(row.id, row.version);
       }
       this.changed(principal, row, row.id, 'added');
       return view(row);

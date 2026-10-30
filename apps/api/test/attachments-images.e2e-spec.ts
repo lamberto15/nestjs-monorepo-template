@@ -360,6 +360,44 @@ describe('image attachments (e2e)', () => {
     expect(Buffer.compare(await disk.getBuffer(row.key), gif)).toBe(0);
   });
 
+  it('processes a replaced image too, so that an earlier version can be restored', async () => {
+    const { editor, note } = await noteOfEditor();
+    const added = await upload(
+      editor,
+      note.id,
+      await photo(),
+      'photo.jpg',
+      'image/jpeg',
+    ).expect(201);
+    await processed(added.body.id);
+    const etag = async () =>
+      (await editor.agent.get(`/v1/attachments/${added.body.id}`).expect(200))
+        .headers.etag as string;
+
+    const replaced = await editor.agent
+      .post(`/v1/test-items/${note.id}/attachments/${added.body.id}/versions`)
+      .set('If-Match', await etag())
+      .attach('file', await solid(300, 200).png().toBuffer(), {
+        filename: 'second.png',
+        contentType: 'image/png',
+      })
+      .expect(201);
+    expect(replaced.body).toMatchObject({
+      version: 2,
+      renditionStatus: 'pending',
+    });
+    // Its own job, not the finished one of version 1.
+    await processed(added.body.id);
+    expect((await rowOf(added.body.id)).renditionStatus).toBe('ready');
+
+    const restored = await editor.agent
+      .post(`/v1/attachments/${added.body.id}/versions/1/restore`)
+      .set('If-Match', await etag())
+      .send({})
+      .expect(200);
+    expect(restored.body).toMatchObject({ version: 3 });
+  });
+
   it('leaves an image it cannot process as uploaded, marks it failed, and does not try again', async () => {
     const { editor, note } = await noteOfEditor();
     const failedBefore = await metric('failed');
@@ -388,7 +426,7 @@ describe('image attachments (e2e)', () => {
     expect(await metric('failed')).toBeGreaterThan(failedBefore);
     // One attempt: the same bytes would fail again.
     const queue = node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES));
-    const job = await queue.getJob(added.body.id);
+    const job = await queue.getJob(`${added.body.id}-v1`);
     expect(job?.attemptsMade).toBe(1);
     expect(await job?.getState()).toBe('completed');
     const entries = await db
@@ -409,7 +447,7 @@ describe('image attachments (e2e)', () => {
     ).expect(201);
     expect(added.body).toMatchObject({ renditionStatus: null, renditions: {} });
     const queue = node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES));
-    expect(await queue.getJob(added.body.id)).toBeUndefined();
+    expect(await queue.getJob(`${added.body.id}-v1`)).toBeUndefined();
     const missing = await editor.agent
       .get(`/v1/attachments/${added.body.id}/download?rendition=preview`)
       .expect(404);
@@ -510,10 +548,10 @@ describe('image attachments (e2e)', () => {
     it('queues an image that is still pending five minutes on, not before', async () => {
       const { editor, id } = await pendingImage();
       const queue = node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES));
-      expect(await queue.getJob(id)).toBeUndefined();
+      expect(await queue.getJob(`${id}-v1`)).toBeUndefined();
       const retry = node.app.get(AttachmentImagesRetryJob);
       const retryJob = (at: Date) =>
-        queue.getJob(`${id}-${Math.floor(at.getTime() / RETRY_MS)}`);
+        queue.getJob(`${id}-v1-${Math.floor(at.getTime() / RETRY_MS)}`);
 
       // Just uploaded: its own job may still be on its way.
       const now = new Date();
@@ -672,7 +710,9 @@ describe('image attachments (e2e)', () => {
       await node.app.get(AttachmentImagesRetryJob).run(later);
       const queue = node.app.get<Queue>(getQueueToken(ATTACHMENT_IMAGES));
       expect(
-        await queue.getJob(`${id}-${Math.floor(later.getTime() / RETRY_MS)}`),
+        await queue.getJob(
+          `${id}-v1-${Math.floor(later.getTime() / RETRY_MS)}`,
+        ),
       ).toBeUndefined();
       // A job gone meanwhile: nothing to do, and no error.
       await host.onFailed(undefined, new Error(STALLED_REASON));

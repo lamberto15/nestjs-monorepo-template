@@ -49,10 +49,12 @@ export class AttachmentScanQueue {
    * logged, not thrown: the file stays pending and the retry job queues it
    * again within minutes.
    */
-  async enqueue(attachmentId: string, again?: string) {
+  async enqueue(attachmentId: string, version: number, again?: string) {
     try {
       await this.queue.add('scan', withTenant({ attachmentId }), {
-        jobId: again ? `${attachmentId}-${again}` : attachmentId,
+        // Per version: a replaced file is a new job, not the finished one
+        // of the version before it (a job id is queued once).
+        jobId: `${attachmentId}-v${version}${again ? `-${again}` : ''}`,
         attempts: this.config.get('MALWARE_SCAN_ATTEMPTS', { infer: true }),
         backoff: { type: 'exponential', delay: 5000 },
         // The retry job queues a pending file again every few minutes while

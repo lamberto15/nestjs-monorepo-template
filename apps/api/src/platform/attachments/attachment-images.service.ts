@@ -222,7 +222,7 @@ export class AttachmentImagesService {
           return this.release();
         }
         const stale = await this.db
-          .select({ id: attachments.id })
+          .select({ id: attachments.id, version: attachments.version })
           .from(attachments)
           .where(
             and(
@@ -235,8 +235,8 @@ export class AttachmentImagesService {
           .orderBy(asc(attachments.updatedAt))
           .limit(BATCH);
         const period = String(Math.floor(now.getTime() / RETRY_MS));
-        for (const { id } of stale) {
-          await this.queue.enqueue(id, period);
+        for (const { id, version } of stale) {
+          await this.queue.enqueue(id, version, period);
         }
         return stale.length;
       },
