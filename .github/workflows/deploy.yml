@@ -44,6 +44,14 @@ jobs:
       # comma-separated; unset: none.
       PASSKEY_APPLE_APPS: ${{ vars.PASSKEY_APPLE_APPS }}
       PASSKEY_ANDROID_APPS: ${{ vars.PASSKEY_ANDROID_APPS }}
+      NATIVE_REDIRECT_URIS: ${{ vars.NATIVE_REDIRECT_URIS }}
+      # Sign in with (docs/configuration.md): a provider is on when its client
+      # ID is set; its secret is the Secret's <provider>_client_secret.
+      # GitHub refuses variable names that start with GITHUB_, hence OIDC_.
+      OIDC_GOOGLE_CLIENT_ID: ${{ vars.OIDC_GOOGLE_CLIENT_ID }}
+      OIDC_MICROSOFT_CLIENT_ID: ${{ vars.OIDC_MICROSOFT_CLIENT_ID }}
+      OIDC_MICROSOFT_TENANT_ID: ${{ vars.OIDC_MICROSOFT_TENANT_ID }}
+      OIDC_GITHUB_CLIENT_ID: ${{ vars.OIDC_GITHUB_CLIENT_ID }}
     steps:
       - name: Require production deployment to be enabled
         env:
@@ -158,6 +166,14 @@ jobs:
               jq -e '.data.web_push_vapid_private_key != null' > /dev/null ||
               { echo "::error::PUSH_PROVIDER has web-push: add web_push_vapid_private_key to app-secrets"; exit 1; }
           fi
+          for provider in google microsoft github; do
+            id="OIDC_${provider^^}_CLIENT_ID"
+            if [ -n "${!id}" ]; then
+              kubectl -n nestjs-monorepo get secret app-secrets -o json |
+                jq -e --arg key "${provider}_client_secret" '.data[$key] != null' > /dev/null ||
+                { echo "::error::$id is set: add ${provider}_client_secret to app-secrets"; exit 1; }
+            fi
+          done
           kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
           kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
       - name: Upgrade to the CI-verified release
@@ -183,6 +199,20 @@ jobs:
           if [ -n "$PASSKEY_ANDROID_APPS" ]; then
             apps+=(--set-string env.PASSKEY_ANDROID_APPS="${PASSKEY_ANDROID_APPS//,/\\,}")
           fi
+          if [ -n "$NATIVE_REDIRECT_URIS" ]; then
+            apps+=(--set-string env.NATIVE_REDIRECT_URIS="${NATIVE_REDIRECT_URIS//,/\\,}")
+          fi
+          sso=()
+          for provider in GOOGLE MICROSOFT GITHUB; do
+            id="OIDC_${provider}_CLIENT_ID"
+            if [ -n "${!id}" ]; then
+              sso+=(--set-string env."${provider}_CLIENT_ID"="${!id}"
+                --set-string secretFiles.common."${provider}_CLIENT_SECRET_FILE"="${provider,,}_client_secret")
+            fi
+          done
+          if [ -n "$OIDC_MICROSOFT_CLIENT_ID" ] && [ -n "$OIDC_MICROSOFT_TENANT_ID" ]; then
+            sso+=(--set-string env.MICROSOFT_TENANT_ID="$OIDC_MICROSOFT_TENANT_ID")
+          fi
           helm upgrade --install app deploy/helm/app \
             --namespace nestjs-monorepo \
             --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
@@ -195,7 +225,7 @@ jobs:
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
             --set-string env.MAIL_FROM="$MAIL_FROM" \
-            "${push[@]}" "${apps[@]}"
+            "${push[@]}" "${apps[@]}" "${sso[@]}"
       - name: Verify API rollout
         run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
       - name: Verify web rollout
