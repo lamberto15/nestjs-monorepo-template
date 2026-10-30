@@ -4,7 +4,7 @@ The **same Markdown in `docs/`** is the source for GitHub and a searchable ViteP
 
 ## Local commands
 
-With the repository's Node.js 24 and pnpm toolchain, run the following from the root:
+With the repository's Node.js 26 and pnpm toolchain, run the following from the root:
 
 ```bash
 pnpm docs:check     # check local links and selected source-code claims

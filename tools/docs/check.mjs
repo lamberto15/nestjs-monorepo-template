@@ -61,7 +61,7 @@ for (const from of files) {
 // documentation reviewers must reassess the corresponding claims.
 const contracts = [
   ['workspace', 'pnpm-workspace.yaml', /apps\/\*/],
-  ['Node 24', 'package.json', /"version": "\^24\.0\.0"/],
+  ['Node 26', 'package.json', /"version": "\^26\.0\.0"/],
   ['Nest API', 'apps/api/package.json', /"@nestjs\/common"/],
   ['React web', 'apps/web/package.json', /"react":/],
   [

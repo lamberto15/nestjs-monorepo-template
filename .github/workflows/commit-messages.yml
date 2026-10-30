@@ -36,7 +36,7 @@ jobs:
       - name: Install pnpm and Node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           install: false
       # The root's tooling alone (commitlint), from the lockfile.
       - run: pnpm install --frozen-lockfile --filter nestjs-monorepo-template

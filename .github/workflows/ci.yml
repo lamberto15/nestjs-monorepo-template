@@ -391,7 +391,7 @@ jobs:
       - name: Install Node.js (the script has no dependencies)
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           install: false
       - name: The stack file renders and is valid
         env:
@@ -423,7 +423,7 @@ jobs:
       - name: Install pnpm and Node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
@@ -465,7 +465,7 @@ jobs:
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
@@ -683,7 +683,7 @@ jobs:
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
@@ -728,7 +728,7 @@ jobs:
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
@@ -793,7 +793,7 @@ jobs:
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
@@ -887,7 +887,7 @@ jobs:
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
@@ -994,7 +994,7 @@ jobs:
       - name: Install pnpm, Node.js and the dependencies
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
@@ -1055,7 +1055,7 @@ jobs:
       - name: Install pnpm (the audit reads the lockfile only)
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           install: false
       - name: No high or critical advisories in production dependencies
         run: pnpm audit --prod --audit-level high
@@ -1851,7 +1851,7 @@ jobs:
       - name: Install Node.js (the notes have no dependencies)
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           install: false
       # The notes hold commit subjects and pull request titles: they go to
       # files and the release, never to the log.

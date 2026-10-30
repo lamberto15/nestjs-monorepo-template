@@ -37,10 +37,10 @@ updates:
       interval: weekly
     # Node.js is a coordinated platform choice: the runtime image, the
     # build image, package.json engines/devEngines and CI must agree.
-    # Keep receiving Node 24 patch updates; migrate to 26 only in a dedicated PR.
+    # Keep receiving Node 26 patch updates; migrate to 28 only in a dedicated PR.
     ignore:
       - dependency-name: node
-        versions: ['>=25.0.0']
+        versions: ['>=27.0.0']
   - package-ecosystem: docker-compose
     directory: /
     schedule:

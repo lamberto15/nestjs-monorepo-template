@@ -61,7 +61,7 @@ jobs:
       - name: Install Node.js (the lint has no dependencies)
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
         with:
-          runtime: node@24
+          runtime: node@26
           install: false
       # squawk's image (pinned in lint.mjs) is pulled here; its containers
       # run without network. The fixtures and the migrations are the pull
