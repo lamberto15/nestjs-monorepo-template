@@ -433,18 +433,16 @@ describe('native sign-in: handoff codes for provider sign-ins and magic links (e
     it('asks a step-up for the second factor, and records a wrong one', async () => {
       const me = await person();
       const enrollment = await me.agent.post('/v1/auth/mfa/enroll').expect(200);
-      await me.agent
+      const confirmed = await me.agent
         .post('/v1/auth/mfa/confirm')
         .send({ code: totp(enrollment.body.secret) })
         .expect(200);
+      // A TOTP code works once: the confirmation spent this one.
+      const [recoveryCode] = confirmed.body.recoveryCodes as string[];
       const mine = await node
         .http()
         .post('/v1/auth/token')
-        .send({
-          email: me.email,
-          password: me.password,
-          code: totp(enrollment.body.secret),
-        })
+        .send({ email: me.email, password: me.password, recoveryCode })
         .expect(200);
       providerAnswers(`gh-${me.id}`);
       const { verifier, challenge } = pkce();
