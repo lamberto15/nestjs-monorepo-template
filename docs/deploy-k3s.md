@@ -174,12 +174,19 @@ time rather than checking your domain into this repository:
 | `PUSH_PROVIDER`             | `web-push` (optional; unset: no push) |
 | `WEB_PUSH_VAPID_PUBLIC_KEY` | the VAPID public key                  |
 | `WEB_PUSH_SUBJECT`          | `mailto:ops@example.com`              |
+| `PASSKEY_APPLE_APPS`        | `TEAMID.com.example.app` (optional)   |
+| `PASSKEY_ANDROID_APPS`      | `com.example.app:AA:BB:…` (optional)  |
 
 For Web Push, make the key pair once (`npx web-push generate-vapid-keys`, or
 `pnpm setup`), put the private key in `app-secrets` as
 `web_push_vapid_private_key` (the deploy checks it is there), and set the three
 variables above. Every deploy passes them: the release is rebuilt from these
 values, so a setting made by hand with `helm upgrade` is gone after the next one.
+
+For native apps (passkeys, `/.well-known/apple-app-site-association` and
+`/.well-known/assetlinks.json`, app attestation: [auth](auth.md)), set
+`PASSKEY_APPLE_APPS` and `PASSKEY_ANDROID_APPS`, each comma-separated; the
+deploy passes them when set.
 
 Set `K3S_DEPLOY_ENABLED` to `true` only after the database, certificate, route,
 and deploy identity have passed their checks. Backups are optional for
