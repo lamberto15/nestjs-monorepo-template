@@ -54,7 +54,7 @@ RUN cd pdfcpu \
       -ldflags "-s -w -X 'main.version=$PDFCPU_VERSION' -X 'github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model.VersionStr=$PDFCPU_VERSION' -X main.builtBy=gotenberg" \
       ./cmd/pdfcpu
 
-FROM gotenberg/gotenberg:8.38.1-chromium@sha256:5da4ab7b8fe7326537369e17b661be765d9a2887f77722faacdbe6d55812fb96
+FROM gotenberg/gotenberg:8.39.0-chromium@sha256:558943677cf9092df83ff654c2645856dcb9ddf777f359243789688e74f3bcdd
 USER root
 # Changes the Debian step's cache key: CI passes a new value per run, so the
 # upgrade below is today's, not the first build's. A local build without it
