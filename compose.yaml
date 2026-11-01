@@ -38,7 +38,7 @@ services:
       retries: 10
 
   redis:
-    image: redis:8.10.2-alpine
+    image: redis:8.10.3-alpine
     restart: unless-stopped
     logging: *logging
     # Append-only file: queued jobs survive a restart. noeviction: BullMQ must
