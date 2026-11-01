@@ -48,7 +48,7 @@
     "@nestjs/idempotency": "0.0.3",
     "@nestjs/locks": "0.0.5",
     "@nestjs/mail": "0.0.1",
-    "@nestjs/observe": "0.3.18",
+    "@nestjs/observe": "0.3.19",
     "@nestjs/outbox": "0.1.3",
     "@nestjs/platform-node": "12.3.2",
     "@nestjs/platform-socket.io": "12.3.2",
@@ -106,7 +106,7 @@
   "devDependencies": {
     "@nestjs-monorepo-template/api-client": "workspace:*",
     "@nestjs/cli": "12.0.11",
-    "@nestjs/schematics": "12.0.11",
+    "@nestjs/schematics": "12.0.12",
     "@nestjs/testing": "12.3.2",
     "@opentelemetry/sdk-trace": "3.0.0",
     "@types/compression": "1.8.1",
