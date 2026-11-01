@@ -681,11 +681,13 @@ pages, ETags. Usage, the bell-icon recipe included:
 
 `main` is never edited directly, not even for a one-line docs fix. Every change:
 
-1. **A branch in its own worktree.** `git fetch origin`, then
+1. **A branch in a worktree.** `git fetch origin`, then
    `git worktree add --no-track -b <type>/<name> .claude/worktrees/<name> origin/main`
    (`.claude/worktrees/` is in `.git/info/exclude`; `--no-track`, or the branch
    tracks `main` and a plain `git push` fails). Push with `git push -u origin HEAD`.
-   Parallel work gets one worktree each, on disjoint files where possible.
+   Group related tasks and issues into one worktree and PR; use a separate one
+   only for unrelated work, work needing its own review or revert, or work that
+   would block the rest. Separate worktrees stay on disjoint files where possible.
 2. **Push reviewable commits early and validate in CI** (see AGENTS.md).
    Open a draft PR after the first implementation commit while work continues;
    push incremental commits so CI runs during implementation. Do not run the
