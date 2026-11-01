@@ -579,7 +579,7 @@ importers:
         version: 0.15.1(supports-color@10.2.2)
       '@size-limit/file':
         specifier: 14.3.0
-        version: 14.3.0(size-limit@14.2.0)
+        version: 14.3.0(size-limit@14.3.0)
       '@tailwindcss/vite':
         specifier: 4.3.3
         version: 4.3.3(vite@8.3.4(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
@@ -632,8 +632,8 @@ importers:
         specifier: 3.0.3
         version: 3.0.3(@types/node@26.6.6)(supports-color@10.2.2)(typescript@6.0.3)(vite@8.3.4(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.15)(yaml@2.9.1))
       size-limit:
-        specifier: 14.2.0
-        version: 14.2.0
+        specifier: 14.3.0
+        version: 14.3.0
       tailwindcss:
         specifier: 4.3.3
         version: 4.3.3
@@ -10254,8 +10254,8 @@ packages:
   sisteransi@1.0.5:
     resolution: {integrity: sha512-bLGGlR1QxBcynn2d5YmDX4MGjlZvy2MRBDRNHLJ8VI6l6+9FUiyTFNJ0IveOSP0bcXgVDPRcfGqA0pjaqUpfVg==}
 
-  size-limit@14.2.0:
-    resolution: {integrity: sha512-/h8+T+2TxSdZhKRv70gtjAfMKK72p6+FEJMqEZHjzbLXfACF6esikRT8aHqmVLQvT+9lNlAa8GOAVFC3XeI1VA==}
+  size-limit@14.3.0:
+    resolution: {integrity: sha512-SoT7DtEYQ9AkOIyrNmmHu8IyJyA3P/Q6EUVjUUinT0iBuaI6IOpWxwyI+teUxg8WdLwcTwbu9moKvw/LGlCE7g==}
     engines: {node: ^22.19.0 || ^24.5.0 || >=26.0.0}
     hasBin: true
 
@@ -15571,9 +15571,9 @@ snapshots:
 
   '@sindresorhus/merge-streams@4.0.0': {}
 
-  '@size-limit/file@14.3.0(size-limit@14.2.0)':
+  '@size-limit/file@14.3.0(size-limit@14.3.0)':
     dependencies:
-      size-limit: 14.2.0
+      size-limit: 14.3.0
 
   '@socket.io/component-emitter@3.1.2': {}
 
@@ -21155,7 +21155,7 @@ snapshots:
 
   sisteransi@1.0.5: {}
 
-  size-limit@14.2.0:
+  size-limit@14.3.0:
     dependencies:
       lilconfig: 3.1.4
       nanospinner: 1.2.2
