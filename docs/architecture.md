@@ -27,7 +27,7 @@ packages/
   api-client/          the typed client (@nestjs-monorepo-template/api-client)
   ui/                  shared components, shadcn/ui and Dice UI as source (@nestjs-monorepo-template/ui)
 caddy/  dev/           the HTTPS proxy's image (it serves the web app too); the development services' files
-gotenberg/             the PDF renderer's image (Gotenberg, thin on the official one)
+gotenberg/             the PDF renderer's smoke-test page (Gotenberg runs the official image)
 backup/                the backup image: pg_dump and the uploaded files on a schedule
 monitoring/            Prometheus rules and their tests, Alertmanager, the blackbox probe
 loadtest/              the k6 and realtime load tests (run.sh, scenarios)

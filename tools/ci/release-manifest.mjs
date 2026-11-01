@@ -13,7 +13,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const components = { api: '', caddy: '/caddy', gotenberg: '/gotenberg' };
+export const components = { api: '', caddy: '/caddy' };
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;
 const execute = (command, args) =>
@@ -33,7 +33,9 @@ export function validateManifest(manifest, repository) {
     throw new Error('Invalid release manifest identity');
   if (
     !manifest.images ||
+    // `gotenberg`: manifests before the official image replaced ours.
     Object.keys(manifest.images)
+      .filter((key) => key !== 'gotenberg')
       .sort((a, b) => a.localeCompare(b))
       .join() !==
       Object.keys(components)
@@ -263,7 +265,6 @@ export function releasePlan(
     outputs.image =
       outputs.api_image =
       outputs.caddy =
-      outputs.gotenberg =
         true;
   const directory = join(env.RUNNER_TEMP ?? tmpdir(), 'ci-release-plan');
   mkdirSync(directory, { recursive: true });

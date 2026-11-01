@@ -163,7 +163,7 @@ export function expectedJobs(f) {
     image: f.image,
     'backup-image': f.backup,
     'caddy-image': f.caddy,
-    'gotenberg-image': f.gotenberg,
+    'gotenberg-check': f.gotenberg,
   };
   return Object.entries(rules)
     .filter(([, needed]) => needed)

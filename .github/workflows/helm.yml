@@ -64,8 +64,7 @@ jobs:
           helm template alloy "$RUNNER_TEMP/charts/alloy" -n monitoring -f deploy/k3s/monitoring/alloy.values.yaml > "$RUNNER_TEMP/alloy.yaml"
           digest="sha256:$(printf '%064d' 0)"
           helm template app deploy/helm/app -n nestjs-monorepo -f deploy/helm/app/values.single-node.yaml \
-            --set image.digest="$digest" --set web.image.digest="$digest" \
-            --set gotenberg.image.digest="$digest" > "$RUNNER_TEMP/app-single-node.yaml"
+            --set image.digest="$digest" --set web.image.digest="$digest" > "$RUNNER_TEMP/app-single-node.yaml"
 
           # One of each main service, with no public ingress or LoadBalancer.
           test "$(yq 'select(.kind == "Deployment" and .metadata.name == "monitoring-grafana") | .spec.replicas' "$RUNNER_TEMP/kps.yaml")" = 1
@@ -180,13 +179,11 @@ jobs:
           helm lint deploy/helm/app --strict \
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$digest" \
-            --set web.image.digest="$digest" \
-            --set gotenberg.image.digest="$digest"
+            --set web.image.digest="$digest"
           helm template app deploy/helm/app -n nestjs-monorepo \
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$digest" \
-            --set web.image.digest="$digest" \
-            --set gotenberg.image.digest="$digest" > "$RUNNER_TEMP/single-node.yaml"
+            --set web.image.digest="$digest" > "$RUNNER_TEMP/single-node.yaml"
           grep -q 'storageClassName: "local-hdd"' "$RUNNER_TEMP/single-node.yaml"
           grep -q 'ReadWriteOnce' "$RUNNER_TEMP/single-node.yaml"
           test "$(grep -Fc "@$digest" "$RUNNER_TEMP/single-node.yaml")" -ge 5

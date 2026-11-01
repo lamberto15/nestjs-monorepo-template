@@ -32,8 +32,9 @@ covers its pinned Prometheus, Grafana, Alertmanager, Loki and Alloy releases.
 ## Install
 
 Images are pinned by commit SHA or digest (`:latest` is refused). CI publishes
-`ghcr.io/<owner>/<repo>` (the API), `/caddy` and `/gotenberg`
-([deployment.md](deployment.md), "Published images").
+`ghcr.io/<owner>/<repo>` (the API) and `/caddy`
+([deployment.md](deployment.md), "Published images"); Gotenberg is the
+official image, pinned by digest in the chart's `values.yaml`.
 
 ```bash
 kubectl create secret generic app-secrets \
@@ -48,7 +49,6 @@ helm upgrade --install app deploy/helm/app --wait \
   --set domain=app.example.com \
   --set image.repository=ghcr.io/<owner>/<repo> --set image.tag=<commit-sha> \
   --set web.image.repository=ghcr.io/<owner>/<repo>/caddy --set web.image.tag=<tag> \
-  --set gotenberg.image.repository=ghcr.io/<owner>/<repo>/gotenberg --set gotenberg.image.tag=<tag> \
   --set secret.existingSecret=app-secrets \
   --set redisUrl=redis://redis.example:6379/0 \
   --set ingress.className=nginx --set ingress.tlsSecretName=app-tls

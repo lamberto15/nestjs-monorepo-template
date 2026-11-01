@@ -1,5 +1,5 @@
 # Single-node profile. Keep credentials in the existing Kubernetes Secret.
-# The deploy job supplies the three CI image digests.
+# The deploy job supplies the two CI image digests (app, web); Gotenberg is the official image.
 domain: example.com
 redisUrl: redis://redis:6379/0
 image:
@@ -10,10 +10,6 @@ web:
   replicas: 1
   podDisruptionBudget:
     enabled: false
-gotenberg:
-  image:
-    repository: ghcr.io/lamberto15/nestjs-monorepo-template/gotenberg
-
 env:
   WEB_URL: https://example.com
   CORS_ORIGINS: https://example.com

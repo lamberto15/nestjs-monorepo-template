@@ -26,8 +26,7 @@ guesses, decide the layout. The audit behind it: issue
   caches that `main` and the nightly run write, and never write them. A pull
   request's cache serves only its own later pushes, and its export cost 40 s
   (API image), 110 s (Caddy) and 290 s (backup, through
-  `compose.ci-cache.yaml`). Gotenberg's pull-request builds key their Debian
-  upgrade by day, so a pull request's later pushes reuse it.
+  `compose.ci-cache.yaml`).
 - **Selective, not exhaustive, on a pull request:** `changes`
   (`tools/ci/changes.mjs`) routes by path. The gate (`ci-gate`) requires
   exactly the classified jobs, so a skipped job never leaves a check pending.
@@ -91,8 +90,9 @@ Where the time went:
 - **Web:** `caddy-image` (4.5 min, p95 7.2): 38.6 s of build, ~96 s pulling
   the cached install layer and ~110 s exporting the cache. Then
   `unit (web whole)` (4.2 min).
-- **Gotenberg:** `APT_REFRESH=run_id` rebuilt its Debian upgrade on every
-  pull request (3–7 min).
+- **Gotenberg:** its image was rebuilt (a Debian upgrade, two Go programs,
+  3–7 min) and published; it is now the official one, so `gotenberg-check`
+  only pulls, renders a PDF and scans it.
 
 Failures, by cause: `template-without-notes` broke on `main`/nightly in 4 of
 6 runs (references to the notes feature outside it, which no pull request
@@ -202,5 +202,5 @@ Deploy workflow consumes a successful main release manifest through the protecte
 production environment. No production variables or credentials are changed. Manifest bootstrap
 is an explicit full manual build on `main`; it does not deploy. Mixed digest
 render tests prove the chart receives the manifest's rebuilt API digest and reused
-web/Gotenberg digests. See [CI and publishing](deployment.md#ci) for trust checks
+web digest. See [CI and publishing](deployment.md#ci) for trust checks
 and retention/recovery behavior.

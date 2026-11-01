@@ -28,7 +28,7 @@ What Swarm lacks, and what replaces it:
 
 | Compose | Swarm |
 | --- | --- |
-| `build:` | Images are pulled: `APP_IMAGE`, `GOTENBERG_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
+| `build:` | Images are pulled: `APP_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below); Gotenberg's is the official image, pinned in `compose.prod.yaml`. `--with-registry-auth` hands a private registry's login to the nodes. |
 | `depends_on` | Ignored. A task that starts before PostgreSQL or Redis fails its healthcheck or exits, and `restart_policy` retries it. |
 | one-shot `migrate` | A `replicated-job` service the script deploys and waits for before the app is touched. |
 | bind mounts (`Caddyfile`, `redis.sh`) | Swarm configs. |
@@ -37,7 +37,7 @@ What Swarm lacks, and what replaces it:
 
 ## Images
 
-CI publishes the app, Gotenberg and Caddy images to GHCR
+CI publishes the app and Caddy images to GHCR
 ([deployment.md](deployment.md), "CI"); `CADDY_IMAGE` is the published
 `ghcr.io/<owner>/<repo>/caddy:<full commit SHA>` (Caddy with the Cloudflare DNS
 module and the web app; nothing in it is one deployment's). The backup service
@@ -48,7 +48,7 @@ docker build -t ghcr.io/<owner>/<repo>/backup:1 backup && docker push ghcr.io/<o
 ```
 
 `.env` (or the shell): `APP_IMAGE=ghcr.io/<owner>/<repo>:<full commit SHA>`,
-`GOTENBERG_IMAGE`, `CADDY_IMAGE` (the same commit as `APP_IMAGE`: it holds the web
+`CADDY_IMAGE` (the same commit as `APP_IMAGE`: it holds the web
 build that fits that API), `BACKUP_IMAGE`. Never `latest`: a deploy
 names the version it runs, and a rollback goes back to the one before it.
 

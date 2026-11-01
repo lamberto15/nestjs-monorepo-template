@@ -87,9 +87,8 @@ jobs:
         env:
           APP_DIGEST: ${{ steps.release.outputs.api }}
           WEB_DIGEST: ${{ steps.release.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
         run: |
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+          for digest in "$APP_DIGEST" "$WEB_DIGEST"; do
             [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
           done
       - name: Install Helm 4.3.1
@@ -105,7 +104,6 @@ jobs:
         env:
           APP_DIGEST: ${{ steps.release.outputs.api }}
           WEB_DIGEST: ${{ steps.release.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
         run: |
           test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
           test "$APP_URL" = "https://$APP_DOMAIN"
@@ -114,7 +112,6 @@ jobs:
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
             --set-string domain="$APP_DOMAIN" \
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
@@ -124,12 +121,11 @@ jobs:
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
             --set-string domain="$APP_DOMAIN" \
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
             --set-string env.MAIL_FROM="$MAIL_FROM" > "$RUNNER_TEMP/app.yaml"
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+          for digest in "$APP_DIGEST" "$WEB_DIGEST"; do
             grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
           done
           for value in "$APP_DOMAIN" "$APP_URL" "$MAIL_FROM"; do
@@ -180,7 +176,6 @@ jobs:
         env:
           APP_DIGEST: ${{ steps.release.outputs.api }}
           WEB_DIGEST: ${{ steps.release.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
         run: |
           # The release is rebuilt from these values (no --reuse-values), so
           # push is passed on every deploy, or not at all.
@@ -220,7 +215,6 @@ jobs:
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
             --set-string domain="$APP_DOMAIN" \
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \

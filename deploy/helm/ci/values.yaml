@@ -8,10 +8,6 @@ web:
   image:
     repository: ghcr.io/example/app/caddy
     tag: '1'
-gotenberg:
-  image:
-    repository: ghcr.io/example/app/gotenberg
-    tag: '1'
 prometheusRule:
   enabled: true
 ingress:

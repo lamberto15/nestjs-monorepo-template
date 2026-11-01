@@ -12,7 +12,7 @@ if (process.env.REQUIRE_HELM && !available)
   throw new Error('Helm is required for release render validation');
 
 test(
-  'Helm lint and render preserve rebuilt API and reused web/Gotenberg digests',
+  'Helm lint and render preserve rebuilt API and reused web digests',
   { skip: !available },
   () => {
     const repository = 'example/template';
@@ -21,7 +21,7 @@ test(
       repository,
       sourceSha: 'a'.repeat(40),
       runId: 1,
-      published: { api: digest(1), caddy: digest(2), gotenberg: digest(3) },
+      published: { api: digest(1), caddy: digest(2) },
     });
     const mixed = createManifest({
       repository,
@@ -34,7 +34,6 @@ test(
     for (const [component, path] of [
       ['api', 'image'],
       ['caddy', 'web.image'],
-      ['gotenberg', 'gotenberg.image'],
     ]) {
       values.push(
         '--set',

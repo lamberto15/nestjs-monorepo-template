@@ -46,7 +46,7 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
   assert.ok(infra.stack && infra.services && infra.image);
   assert.ok(!infra.api && !infra.web);
   assert.ok(route('backup/Dockerfile').backup);
-  assert.ok(route('gotenberg/Dockerfile').gotenberg);
+  assert.ok(route('gotenberg/smoke.html').gotenberg);
   assert.ok(route('caddy/Dockerfile').caddy);
   assert.ok(route('tools/feature/add.mjs').generator);
   assert.ok(route('tools/deploy/rolling.mjs').stack);
@@ -161,11 +161,10 @@ test('gate rejects missing results, failures, cancellations and unexpected skips
 });
 
 test('publication gate rejects a failed or skipped required image', () => {
-  const flags = { api_image: 'true', caddy: 'false', gotenberg: 'false' };
+  const flags = { api_image: 'true', caddy: 'false' };
   const needs = {
     publish: { result: 'success' },
     'publish-caddy': { result: 'skipped' },
-    'publish-gotenberg': { result: 'skipped' },
   };
   publicationGate(flags, needs);
   assert.throws(
@@ -202,8 +201,8 @@ test('ordinary API, web and docs pull requests occupy few runners', () => {
 
 test('root dependency routing never hides another affected image or an unknown path', () => {
   for (const files of [
-    ['pnpm-lock.yaml', 'gotenberg/Dockerfile', 'backup/Dockerfile'],
-    ['backup/Dockerfile', 'gotenberg/Dockerfile', 'pnpm-lock.yaml'],
+    ['pnpm-lock.yaml', 'gotenberg/smoke.html', 'backup/Dockerfile'],
+    ['backup/Dockerfile', 'gotenberg/smoke.html', 'pnpm-lock.yaml'],
   ]) {
     const flags = classify({ files });
     assert.ok(

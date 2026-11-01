@@ -226,12 +226,14 @@ customDomains:
   tlsSecretName: ""
 
 # PDF documents (docs/documents.md): Gotenberg, reachable only by the worker.
+# The official image, pinned by digest (the same release as compose.prod.yaml's;
+# CI's gotenberg-check job compares them). A release does not rebuild it.
 gotenberg:
   enabled: true
   image:
-    repository: ghcr.io/example/app/gotenberg
-    tag: ""
-    digest: ""
+    repository: docker.io/gotenberg/gotenberg
+    tag: 8.39.0-chromium
+    digest: sha256:558943677cf9092df83ff654c2645856dcb9ddf777f359243789688e74f3bcdd
   resources:
     requests: { cpu: 250m, memory: 512Mi, ephemeral-storage: 128Mi }
     limits: { cpu: "1", memory: 1Gi, ephemeral-storage: 1Gi }

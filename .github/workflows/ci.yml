@@ -398,7 +398,6 @@ jobs:
           APP_DOMAIN: app.example.test
           ACME_EMAIL: ops@example.test
           APP_IMAGE: ghcr.io/example/app:0000000000000000000000000000000000000000
-          GOTENBERG_IMAGE: ghcr.io/example/app/gotenberg:0000000000000000000000000000000000000000
           CADDY_IMAGE: ghcr.io/example/app/caddy:1
           BACKUP_IMAGE: ghcr.io/example/app/backup:1
           POSTGRES_PASSWORD: ci
@@ -1389,69 +1388,51 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-  # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
-  # top of), which renders the PDF documents: its pins agree with each other
-  # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
-  # run that can publish) and passes the same scan. Its own cache scope.
-  # Published by publish-gotenberg, as the app image is.
-  gotenberg-image:
+  # Gotenberg, which renders the PDF documents, is the official image, pinned
+  # by version and digest: nothing is built or published here. Its pins agree
+  # (compose.prod.yaml, compose.dev.yaml, the chart), the pinned image renders
+  # a PDF with production's flags, and it passes the same scan as ours.
+  gotenberg-check:
     needs: changes
     if: needs.changes.outputs.gotenberg == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - name: One Gotenberg release everywhere, with the same flags
+        id: pin
         run: |
-          # The FROM line (Dependabot raises it) and the release the Go programs are built from.
-          base=$(grep -oE '^FROM gotenberg/gotenberg:[^ ]+' gotenberg/Dockerfile | cut -d' ' -f2)
-          source=$(grep -oE '^ARG GOTENBERG_VERSION=v[0-9.]+' gotenberg/Dockerfile | cut -d= -f2)
-          dev=$(yq '.services.gotenberg.image' compose.dev.yaml)
-          echo "base: $base, source: $source, development: $dev"
-          case "$base" in
-            "gotenberg/gotenberg:${source#v}-chromium@sha256:"*) ;;
-            *) echo "::error file=gotenberg/Dockerfile::FROM $base is not GOTENBERG_VERSION $source's Chromium image, pinned by digest"; exit 1 ;;
+          prod=$(yq -r '.services.gotenberg.image' compose.prod.yaml | tr -d '"' | sed -E 's/^\$\{GOTENBERG_IMAGE:-(.*)\}$/\1/')
+          dev=$(yq -r '.services.gotenberg.image' compose.dev.yaml | tr -d '"')
+          values=deploy/helm/app/values.yaml
+          chart="$(yq -r '.gotenberg.image.repository' $values | sed 's#^docker.io/##'):$(yq -r '.gotenberg.image.tag' $values)@$(yq -r '.gotenberg.image.digest' $values)"
+          echo "production: $prod, development: $dev, chart: $chart"
+          case "$prod" in
+            gotenberg/gotenberg:*-chromium@sha256:*) ;;
+            *) echo "::error file=compose.prod.yaml::services.gotenberg.image is $prod, not the official Chromium image pinned by version and digest"; exit 1 ;;
           esac
-          if [ "$dev" != "$base" ]; then
-            echo "::error file=compose.dev.yaml::services.gotenberg.image is $dev, gotenberg/Dockerfile builds on $base"
+          if [ "$dev" != "$prod" ]; then
+            echo "::error file=compose.dev.yaml::services.gotenberg.image is $dev, compose.prod.yaml's is $prod"
+            exit 1
+          fi
+          if [ "$chart" != "$prod" ]; then
+            echo "::error file=$values::gotenberg.image is $chart, compose.prod.yaml's is $prod"
             exit 1
           fi
           if [ "$(yq -o json '.services.gotenberg.command' compose.prod.yaml)" != "$(yq -o json '.services.gotenberg.command' compose.dev.yaml)" ]; then
             echo "::error file=compose.dev.yaml::services.gotenberg.command differs from compose.prod.yaml's"
             exit 1
           fi
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          # The runner is thrown away: removing the builder took 30-90 s.
-          cleanup: false
-      - name: The day (a pull request's Debian upgrade)
-        id: day
-        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
-      - name: Build the Gotenberg image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: gotenberg
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          load: true
-          tags: gotenberg:ci
-          # A new value per workflow run: the Debian upgrade runs again (the
-          # cache would keep the first one's packages for ever), and the
-          # publish job of the same run reuses this very build. A pull request
-          # publishes nothing: its value is the day's, so its later pushes
-          # reuse that upgrade (3-7 min) from its own cache.
-          build-args: APT_REFRESH=${{ github.event_name == 'pull_request' && format('pr-{0}', steps.day.outputs.day) || github.run_id }}
-          cache-from: type=gha,scope=gotenberg
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=gotenberg,mode=max' || '' }}
+          echo "image=$prod" >> "$GITHUB_OUTPUT"
       # The unit and e2e tests answer with a stub PDF, never Gotenberg's: only
-      # here does the image render for real (its Go programs rebuilt, its
-      # Debian packages, Chromium among them, upgraded this very run).
+      # here does the image render for real.
       - name: It renders a PDF that opens
+        env:
+          IMAGE: ${{ steps.pin.outputs.image }}
         run: |
           # Production's flags (compose.prod.yaml), the container as it runs there.
           mapfile -t command < <(yq -r '.services.gotenberg.command[]' compose.prod.yaml)
-          docker run -d --name gotenberg-smoke -p 127.0.0.1:3100:3000 gotenberg:ci "${command[@]}"
+          docker run -d --name gotenberg-smoke -p 127.0.0.1:3100:3000 "$IMAGE" "${command[@]}"
           timeout 60 sh -c 'until curl -fsS http://127.0.0.1:3100/health >/dev/null; do sleep 1; done'
           # The request the API's PdfRenderer makes.
           curl -fsS http://127.0.0.1:3100/forms/chromium/convert/html \
@@ -1460,7 +1441,7 @@ jobs:
             -o "$RUNNER_TEMP/smoke.pdf"
           head -c 5 "$RUNNER_TEMP/smoke.pdf" | grep -q '^%PDF-'
           tail -c 1024 "$RUNNER_TEMP/smoke.pdf" | grep -aq '%%EOF'
-          # The image's own pdfcpu (the one built here) reads it as a whole: one A4 page.
+          # The image's own pdfcpu reads it as a whole: one A4 page.
           docker cp "$RUNNER_TEMP/smoke.pdf" gotenberg-smoke:/tmp/smoke.pdf
           docker exec gotenberg-smoke pdfcpu validate -m relaxed /tmp/smoke.pdf
           docker exec gotenberg-smoke pdfcpu info /tmp/smoke.pdf | grep -E 'Page count: +1$'
@@ -1476,30 +1457,12 @@ jobs:
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           skip-setup-trivy: true
-          image-ref: gotenberg:ci
+          image-ref: ${{ steps.pin.outputs.image }}
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
-      - name: Export the verified image
-        if: needs.changes.outputs.publish == 'true'
-        run: |
-          docker save gotenberg:ci -o "${{ runner.temp }}/gotenberg.tar"
-          (cd "${{ runner.temp }}" && sha256sum gotenberg.tar > gotenberg.tar.sha256)
-          docker image inspect --format '{{.Id}}' gotenberg:ci > "${{ runner.temp }}/gotenberg.id"
-      - name: Transfer the verified image
-        if: needs.changes.outputs.publish == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: image-gotenberg
-          path: |
-            ${{ runner.temp }}/gotenberg.tar
-            ${{ runner.temp }}/gotenberg.tar.sha256
-            ${{ runner.temp }}/gotenberg.id
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 2
 
   ci-gate:
     name: CI gate
@@ -1520,7 +1483,7 @@ jobs:
         image,
         backup-image,
         caddy-image,
-        gotenberg-image,
+        gotenberg-check,
       ]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -1614,88 +1577,6 @@ jobs:
           image: ghcr.io/${{ github.repository }}
           digest: ${{ steps.push.outputs.digest }}
 
-  publish-gotenberg:
-    name: Publish gotenberg
-    if: >-
-      !cancelled() && needs.ci-gate.result == 'success' &&
-      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.gotenberg == 'true'
-    needs: [changes, ci-gate]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      digest: ${{ steps.push.outputs.digest }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: image-gotenberg
-          path: ${{ runner.temp }}/image
-      - name: Load the verified image
-        run: |
-          (cd "${{ runner.temp }}/image" && sha256sum -c gotenberg.tar.sha256)
-          docker load -i "${{ runner.temp }}/image/gotenberg.tar"
-          test "$(docker image inspect --format '{{.Id}}' gotenberg:ci)" = "$(cat "${{ runner.temp }}/image/gotenberg.id")"
-      - name: Tags for the verified image
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}/gotenberg
-          flavor: latest=false
-          tags: |
-            type=sha,format=long,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      - name: Log in to GHCR
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push without rebuilding
-        id: push
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          REPOSITORY: ghcr.io/${{ github.repository }}/gotenberg
-        run: |
-          set -euo pipefail
-          while IFS= read -r tag; do
-            docker tag gotenberg:ci "$tag"
-            docker push "$tag"
-          done <<< "$TAGS"
-          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
-          ref="${REPOSITORY,,}:$GITHUB_SHA"
-          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
-          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.0
-          cache: true
-      - name: No fixable high or critical vulnerabilities in the image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          skip-setup-trivy: true
-          image-ref: ${{ steps.push.outputs.ref }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          trivyignores: .trivyignore.yaml
-          cache-dir: ${{ runner.temp }}/trivy
-      - name: Sign the image, attest its provenance and SBOM
-        uses: ./.github/actions/sign-image
-        with:
-          image: ghcr.io/${{ github.repository }}/gotenberg
-          digest: ${{ steps.push.outputs.digest }}
-
   publish-caddy:
     name: Publish caddy
     if: >-
@@ -1782,7 +1663,7 @@ jobs:
     name: Verify release manifest
     if: >-
       !cancelled() && needs.ci-gate.result == 'success' && needs.changes.outputs.publish == 'true'
-    needs: [changes, ci-gate, publish, publish-caddy, publish-gotenberg]
+    needs: [changes, ci-gate, publish, publish-caddy]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -1793,7 +1674,6 @@ jobs:
     outputs:
       api: ${{ steps.manifest.outputs.api }}
       caddy: ${{ steps.manifest.outputs.caddy }}
-      gotenberg: ${{ steps.manifest.outputs.gotenberg }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -1821,7 +1701,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLISHED: >-
-            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}","gotenberg":"${{ needs.publish-gotenberg.outputs.digest }}"}
+            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}"}
         run: node tools/ci/release-manifest.mjs
       - name: Preserve successful release evidence
         uses: actions/upload-artifact@v7
@@ -1834,7 +1714,7 @@ jobs:
   release:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
     needs:
-      [ci-gate, publish, publish-gotenberg, publish-caddy, release-manifest]
+      [ci-gate, publish, publish-caddy, release-manifest]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -1862,7 +1742,6 @@ jobs:
           TAG: ${{ github.ref_name }}
           IMAGE_VERSION: ${{ needs.publish.outputs.version }}
           APP_DIGEST: ${{ needs.publish.outputs.digest }}
-          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
           CADDY_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
         run: |
           set -euo pipefail
@@ -1874,7 +1753,7 @@ jobs:
           if [ -n "$previous" ]; then fields+=(-f "previous_tag_name=$previous"); fi
           gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${fields[@]}" --jq .body > "$dir/changes.md"
           node tools/release/notes.mjs --tag "$TAG" --previous "${previous:-none}" \
-            --image-version "$IMAGE_VERSION" --app-digest "$APP_DIGEST" --gotenberg-digest "$GOTENBERG_DIGEST" --caddy-digest "$CADDY_DIGEST" \
+            --image-version "$IMAGE_VERSION" --app-digest "$APP_DIGEST" --caddy-digest "$CADDY_DIGEST" \
             --changes "$dir/changes.md" --out "$dir/notes.md"
           if gh release view "$TAG" --json tagName --jq .tagName > "$dir/existing" 2>&1; then
             gh release edit "$TAG" --notes-file "$dir/notes.md"
@@ -1921,9 +1800,8 @@ jobs:
         env:
           APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
           WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
         run: |
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+          for digest in "$APP_DIGEST" "$WEB_DIGEST"; do
             [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
           done
       - name: Install Helm 4.3.1
@@ -1939,7 +1817,6 @@ jobs:
         env:
           APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
           WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
         run: |
           test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
           test "$APP_URL" = "https://$APP_DOMAIN"
@@ -1948,7 +1825,6 @@ jobs:
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
             --set-string domain="$APP_DOMAIN" \
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
@@ -1958,12 +1834,11 @@ jobs:
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
             --set-string domain="$APP_DOMAIN" \
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
             --set-string env.MAIL_FROM="$MAIL_FROM" > "$RUNNER_TEMP/app.yaml"
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
+          for digest in "$APP_DIGEST" "$WEB_DIGEST"; do
             grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
           done
           for value in "$APP_DOMAIN" "$APP_URL" "$MAIL_FROM"; do
@@ -2006,7 +1881,6 @@ jobs:
         env:
           APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
           WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
         run: |
           # The release is rebuilt from these values (no --reuse-values), so
           # push is passed on every deploy, or not at all.
@@ -2024,7 +1898,6 @@ jobs:
             -f deploy/helm/app/values.single-node.yaml \
             --set image.digest="$APP_DIGEST" \
             --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
             --set-string domain="$APP_DOMAIN" \
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \

@@ -21,7 +21,7 @@ const previous = createManifest({
   repository,
   sourceSha: oldSha,
   runId: 10,
-  published: { api: dig(1), caddy: dig(2), gotenberg: dig(3) },
+  published: { api: dig(1), caddy: dig(2) },
 });
 const record = {
   id: 10,
@@ -119,17 +119,17 @@ test('reuse checks registry, exact main identity, SBOM and source-bound provenan
     return cmd === 'gh' && args[0] === 'api' ? JSON.stringify(record) : '';
   };
   verifyImages(previous, repository, newSha, runner);
-  assert.equal(calls.filter(([cmd]) => cmd === 'docker').length, 3);
+  assert.equal(calls.filter(([cmd]) => cmd === 'docker').length, 2);
   assert.equal(
     calls.filter(([cmd, args]) => cmd === 'cosign' && args[0] === 'verify')
       .length,
-    3,
+    2,
   );
   assert.equal(
     calls.filter(
       ([cmd, args]) => cmd === 'cosign' && args[0] === 'verify-attestation',
     ).length,
-    3,
+    2,
   );
   assert.equal(
     calls.filter(
@@ -138,7 +138,7 @@ test('reuse checks registry, exact main identity, SBOM and source-bound provenan
         args.includes('--source-digest') &&
         args.includes(oldSha),
     ).length,
-    3,
+    2,
   );
   assert.ok(
     calls.find(
@@ -198,7 +198,7 @@ test('cumulative image routing includes failed intervening releases', () => {
   assert.ok(cumulative.image && cumulative.caddy);
   assert.ok(!cumulative.gotenberg);
   assert.ok(calls[1].includes(oldSha));
-  assert.equal(Object.keys(components).length, 3);
+  assert.equal(Object.keys(components).length, 2);
 });
 
 test('release planning revalidates cumulative failures, separates runtime builds, and requires explicit bootstrap', () => {
@@ -239,7 +239,7 @@ test('release planning revalidates cumulative failures, separates runtime builds
     );
     assert.equal(chartPlan.publish, true);
     assert.equal(chartPlan.previous.sourceSha, oldSha);
-    assert.ok(!chart.api_image && !chart.caddy && !chart.gotenberg);
+    assert.ok(!chart.api_image && !chart.caddy);
     const infra = classify({ files: ['compose.prod.yaml'] });
     assert.ok(infra.image);
     assert.equal(infra.api_image, false);
@@ -269,7 +269,7 @@ test('release planning revalidates cumulative failures, separates runtime builds
       ).publish,
       true,
     );
-    assert.ok(built.api_image && built.caddy && built.gotenberg);
+    assert.ok(built.api_image && built.caddy);
     for (const event of ['schedule', 'workflow_dispatch', 'pull_request'])
       assert.equal(
         releasePlan(

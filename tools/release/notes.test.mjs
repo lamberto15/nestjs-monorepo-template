@@ -231,10 +231,6 @@ describe('render', () => {
     assert.match(notes, /`ghcr\.io\/owner\/repo:0\.2\.0` \| `sha256:aaa` \|/);
     assert.match(
       notes,
-      /`ghcr\.io\/owner\/repo\/gotenberg:0\.2\.0` \| see the package page \|/,
-    );
-    assert.match(
-      notes,
       /`ghcr\.io\/owner\/repo\/caddy:0\.2\.0` \| see the package page \|/,
     );
     assert.match(notes, /tagged with the commit, `abc123`/);

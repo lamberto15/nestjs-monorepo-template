@@ -352,7 +352,6 @@ export function createDeployer({
       const code = await verify({
         ...processEnv,
         APP_IMAGE: options.image,
-        GOTENBERG_IMAGE: '',
         CADDY_IMAGE: '',
       });
       if (code !== 0) {

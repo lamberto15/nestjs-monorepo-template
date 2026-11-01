@@ -6,7 +6,6 @@ export function publicationGate(flags, needs, plan = {}) {
   for (const [job, flag] of [
     ['publish', 'api_image'],
     ['publish-caddy', 'caddy'],
-    ['publish-gotenberg', 'gotenberg'],
   ]) {
     const expected = flags[flag] === 'true' ? 'success' : 'skipped';
     if (needs[job]?.result !== expected)

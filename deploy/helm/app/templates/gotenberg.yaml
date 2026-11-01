@@ -1,5 +1,5 @@
 {{- if .Values.gotenberg.enabled }}
-# The flags of compose.prod.yaml's gotenberg (CI's gotenberg-image job compares those with dev's).
+# The flags of compose.prod.yaml's gotenberg (CI's gotenberg-check job compares those with dev's).
 apiVersion: apps/v1
 kind: Deployment
 metadata:

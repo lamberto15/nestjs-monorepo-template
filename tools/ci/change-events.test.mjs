@@ -177,5 +177,5 @@ test('scheduled, manual and version-tag events validate comprehensively; only ex
     null,
   );
   assert.equal(result.publish, true);
-  assert.ok(result.api_image && result.caddy && result.gotenberg);
+  assert.ok(result.api_image && result.caddy);
 });
