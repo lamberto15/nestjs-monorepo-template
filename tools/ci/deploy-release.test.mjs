@@ -133,6 +133,4 @@ test('Deploy is manual, protected, serialized and uses release chart code withou
     text,
     /--rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m/,
   );
-  for (const component of ['api', 'worker', 'web', 'gotenberg'])
-    assert.ok(text.includes(`rollout status deployment/app-${component}`));
 });

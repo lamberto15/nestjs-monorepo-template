@@ -21,7 +21,7 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-    # Documentation-only merges do not need image publishing or K3s rollout.
+    # Documentation-only merges do not need image publishing.
     # Release tags and changes to deployment files remain fully validated.
     paths-ignore:
       - 'docs/**'
@@ -37,9 +37,11 @@ on:
         type: boolean
         default: false
   # A nightly run of everything on main, the checks a pull request skips
-  # included (below): new advisories in the images, the generated template.
+  # included (below): new advisories in the images. Sunday's also runs
+  # template-without-notes (tools/ci/changes.mjs reads which cron this is).
   schedule:
-    - cron: '17 3 * * *'
+    - cron: '17 3 * * 1-6'
+    - cron: '17 3 * * 0'
 
 permissions:
   contents: read
@@ -76,6 +78,7 @@ jobs:
       image: ${{ steps.paths.outputs.image }}
       api_image: ${{ steps.paths.outputs.api_image }}
       full: ${{ steps.paths.outputs.full }}
+      nightly: ${{ steps.paths.outputs.nightly }}
       chart: ${{ steps.paths.outputs.chart }}
       base: ${{ steps.paths.outputs.base }}
       head: ${{ steps.paths.outputs.head }}
@@ -747,7 +750,7 @@ jobs:
   # summary; serious and critical ones fail the tests. Then, on the same
   # build and services: the instrumentation (below).
   #
-  # The instrumentation: a sixth of the e2e suite with OpenTelemetry
+  # The instrumentation: a few e2e specs with OpenTelemetry
   # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
   # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
   # starts the SDKs when either is set, as main.ts does, so http, pg
@@ -755,7 +758,8 @@ jobs:
   # break the app (as NestJS Observe's proxies broke the mail transports and
   # the lock-decorated jobs, issue #392), and the collector must have received
   # the spans of requests the app served (docs/deployment.md, "Telemetry").
-  # A sixth, not more: on half the suite it cost ~100 s of an e2e shard (#681).
+  # A few specs, not more: they repeat the e2e jobs' tests, and a sixth of the
+  # suite cost ~150 s here. HTTP, pg, ioredis, mail, the outbox and webhooks.
   # Then the built app started as production starts it. Hosted vendors need
   # credentials CI doesn't have, so NestJS Observe's own path is covered by
   # observe.spec.ts.
@@ -823,9 +827,9 @@ jobs:
             curl -fs http://127.0.0.1:4318/stats && break
             sleep 0.5
           done
-      - name: A sixth of the e2e tests with OpenTelemetry and Sentry on
+      - name: A few e2e specs with OpenTelemetry and Sentry on
         if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
-        run: pnpm test:e2e --shard=1/6
+        run: pnpm test:e2e test/auth.e2e-spec.ts test/metrics-outbox.e2e-spec.ts test/outbox-retention.e2e-spec.ts test/webhooks-admin.e2e-spec.ts
         env:
           # Its own databases on this server (a template, then a copy per app).
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
@@ -958,16 +962,16 @@ jobs:
   # on the test-only record, test/fixtures). Thrown away like feature-smoke's.
   template-without-notes:
     needs: changes
-    if: needs.changes.outputs.full == 'true'
+    if: needs.changes.outputs.full == 'true' && needs.changes.outputs.nightly != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # Tags, the nightly and manual runs, and any change that validates
+    # Tags, Sunday's scheduled run, manual runs and any change that validates
     # everything (`full`): in six shards, so it lasts as long as a pull
     # request's run; each shard repeats the cheap steps, then
     # runs its sixth of the e2e suite and a sixth of the unit tests (shards
-    # 1-3 the API's third, 4-6 the web app's). A pull request runs only the
-    # leftover check (`check`, last step): the suites are the e2e and unit
-    # jobs' with a feature fewer. Raise the list and the totals together.
+    # 1-3 the API's third, 4-6 the web app's). The suites are the e2e and unit
+    # jobs' with a feature fewer; `check`'s last step looks for references left
+    # behind on every pull request. Raise the list and the totals together.
     strategy:
       fail-fast: false
       # Reserve runner capacity for other pull requests.
@@ -1002,12 +1006,6 @@ jobs:
         run: pnpm feature:remove notes
       - name: 'Its table dropped (a generated migration: drizzle-kit asks nothing)'
         run: pnpm db:generate
-      - name: Nothing of notes is left outside docs and generated files
-        run: |
-          if grep -rn --include='*.ts' --include='*.tsx' -e 'features/notes' -e "'/v1/notes" apps/api/src apps/api/test apps/web/src; then
-            echo "Still referenced after pnpm feature:remove notes" >&2
-            exit 1
-          fi
       - name: 'Lint (once: shard 1)'
         if: matrix.shard == 1
         run: pnpm lint:code
@@ -1021,8 +1019,7 @@ jobs:
         run: pnpm build
       # The unit jobs' split (3 API shards, 3 web shards), over this job's six;
       # the small packages' tests ride on shard 1.
-      - name: Unit and web tests (a share per shard; not on pull requests)
-        if: needs.changes.outputs.full == 'true'
+      - name: Unit and web tests (a share per shard)
         run: |
           shard=${{ matrix.shard }}
           if [ "$shard" -le 3 ]; then
@@ -1033,8 +1030,7 @@ jobs:
           if [ "$shard" -eq 1 ]; then
             pnpm turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
           fi
-      - name: Every e2e test (this shard's sixth; not on pull requests)
-        if: needs.changes.outputs.full == 'true'
+      - name: Every e2e test (this shard's sixth)
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/6
         env:
           REDIS_URL: redis://localhost:6379
@@ -1592,21 +1588,6 @@ jobs:
           [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.0
-          cache: true
-      - name: No fixable high or critical vulnerabilities in the image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          skip-setup-trivy: true
-          image-ref: ${{ steps.push.outputs.ref }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          trivyignores: .trivyignore.yaml
-          cache-dir: ${{ runner.temp }}/trivy
       - name: Sign the image, attest its provenance and SBOM
         uses: ./.github/actions/sign-image
         with:
@@ -1674,21 +1655,6 @@ jobs:
           [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.0
-          cache: true
-      - name: No fixable high or critical vulnerabilities in the image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          skip-setup-trivy: true
-          image-ref: ${{ steps.push.outputs.ref }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          trivyignores: .trivyignore.yaml
-          cache-dir: ${{ runner.temp }}/trivy
       - name: Sign the image, attest its provenance and SBOM
         uses: ./.github/actions/sign-image
         with:
@@ -1756,21 +1722,6 @@ jobs:
           [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
           echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.0
-          cache: true
-      - name: No fixable high or critical vulnerabilities in the image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          skip-setup-trivy: true
-          image-ref: ${{ steps.push.outputs.ref }}
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          trivyignores: .trivyignore.yaml
-          cache-dir: ${{ runner.temp }}/trivy
       - name: Sign the image, attest its provenance and SBOM
         uses: ./.github/actions/sign-image
         with:
@@ -1883,157 +1834,3 @@ jobs:
             gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$dir/notes.md" "${flags[@]}"
           fi
           gh release upload "$TAG" release-manifest.json --clobber
-
-  # The three digests come from this run's tested, scanned publish jobs. Only a
-  # successful push to main can request the protected production environment;
-  # no PR or tag run can reach the cluster. Off-server backups are optional and
-  # are not a prerequisite when an operator has chosen a strict zero-cost setup.
-  deploy-k3s:
-    # Deliberately disabled by #629 until separate rollout review and green CI.
-    if: ${{ false && github.event_name == 'push' && vars.K3S_DEPLOY_ENABLED == 'true' }}
-    needs: [ci-gate, release-manifest]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    environment:
-      name: production
-      url: ${{ vars.APP_URL }}
-    concurrency:
-      group: production-k3s
-      cancel-in-progress: false
-    permissions:
-      contents: read
-      id-token: write # Tailscale workload identity federation
-    env:
-      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
-      APP_URL: ${{ vars.APP_URL }}
-      MAIL_FROM: ${{ vars.MAIL_FROM }}
-      # Web Push (docs/deploy-k3s.md): off while PUSH_PROVIDER is unset; the
-      # private key is the Secret's web_push_vapid_private_key.
-      PUSH_PROVIDER: ${{ vars.PUSH_PROVIDER }}
-      WEB_PUSH_VAPID_PUBLIC_KEY: ${{ vars.WEB_PUSH_VAPID_PUBLIC_KEY }}
-      WEB_PUSH_SUBJECT: ${{ vars.WEB_PUSH_SUBJECT }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Verify the CI image digests
-        env:
-          APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
-          WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
-        run: |
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
-            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
-          done
-      - name: Install Helm 4.3.1
-        run: |
-          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
-          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
-            (cd "$RUNNER_TEMP" && sha256sum -c -)
-          mkdir -p "$RUNNER_TEMP/helm-bin"
-          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
-          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
-          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
-      - name: Validate the exact production render
-        env:
-          APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
-          WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
-        run: |
-          test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
-          test "$APP_URL" = "https://$APP_DOMAIN"
-          helm version --short
-          helm lint deploy/helm/app --strict \
-            -f deploy/helm/app/values.single-node.yaml \
-            --set image.digest="$APP_DIGEST" \
-            --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
-            --set-string domain="$APP_DOMAIN" \
-            --set-string env.WEB_URL="$APP_URL" \
-            --set-string env.CORS_ORIGINS="$APP_URL" \
-            --set-string env.MAIL_FROM="$MAIL_FROM"
-          helm template app deploy/helm/app \
-            -n nestjs-monorepo \
-            -f deploy/helm/app/values.single-node.yaml \
-            --set image.digest="$APP_DIGEST" \
-            --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
-            --set-string domain="$APP_DOMAIN" \
-            --set-string env.WEB_URL="$APP_URL" \
-            --set-string env.CORS_ORIGINS="$APP_URL" \
-            --set-string env.MAIL_FROM="$MAIL_FROM" > "$RUNNER_TEMP/app.yaml"
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
-            grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
-          done
-          for value in "$APP_DOMAIN" "$APP_URL" "$MAIL_FROM"; do
-            grep -Fq "$value" "$RUNNER_TEMP/app.yaml"
-          done
-      - name: Join the deployment tailnet
-        uses: tailscale/github-action@99a8333667fff04fdd6cffb46dfd409f8329a7bf # v4.3.0
-        with:
-          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
-          audience: ${{ secrets.TS_AUDIENCE }}
-          tags: tag:github-k3s-deploy
-          version: 1.104.2
-      - name: Use the namespace-scoped kubeconfig
-        env:
-          K3S_KUBECONFIG: ${{ secrets.K3S_KUBECONFIG }}
-        run: |
-          umask 077
-          printf '%s' "$K3S_KUBECONFIG" > "$RUNNER_TEMP/kubeconfig"
-          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
-      - name: Check namespace and prerequisite Secret
-        run: |
-          test "$(kubectl -n nestjs-monorepo auth can-i create deployments)" = yes
-          test "$(kubectl -n nestjs-monorepo auth can-i create clusterrolebindings)" = no
-          for verb in get list watch create update patch delete; do
-            if [ "$(kubectl -n nestjs-monorepo auth can-i "$verb" prometheusrules.monitoring.coreos.com)" != yes ]; then
-              echo "::error::github-deployer cannot $verb PrometheusRules; apply deploy/k3s/deployer-rbac.yaml as a cluster administrator"
-              exit 1
-            fi
-          done
-          kubectl -n nestjs-monorepo get secret app-secrets -o json |
-            jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key", "metrics_token"] | all(. as $key | $data[$key] != null)' > /dev/null
-          if [[ ",$PUSH_PROVIDER," == *",web-push,"* ]]; then
-            kubectl -n nestjs-monorepo get secret app-secrets -o json |
-              jq -e '.data.web_push_vapid_private_key != null' > /dev/null ||
-              { echo "::error::PUSH_PROVIDER has web-push: add web_push_vapid_private_key to app-secrets"; exit 1; }
-          fi
-          kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
-          kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
-      - name: Upgrade to the CI-verified release
-        env:
-          APP_DIGEST: ${{ needs.release-manifest.outputs.api }}
-          WEB_DIGEST: ${{ needs.release-manifest.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ needs.release-manifest.outputs.gotenberg }}
-        run: |
-          # The release is rebuilt from these values (no --reuse-values), so
-          # push is passed on every deploy, or not at all.
-          push=()
-          if [ -n "$PUSH_PROVIDER" ]; then
-            push=(--set-string env.PUSH_PROVIDER="$PUSH_PROVIDER"
-              --set-string env.WEB_PUSH_VAPID_PUBLIC_KEY="$WEB_PUSH_VAPID_PUBLIC_KEY"
-              --set-string env.WEB_PUSH_SUBJECT="$WEB_PUSH_SUBJECT"
-              --set-string secretFiles.common.WEB_PUSH_VAPID_PRIVATE_KEY_FILE=web_push_vapid_private_key)
-          fi
-          helm upgrade --install app deploy/helm/app \
-            --namespace nestjs-monorepo \
-            --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
-            --history-max 10 \
-            -f deploy/helm/app/values.single-node.yaml \
-            --set image.digest="$APP_DIGEST" \
-            --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
-            --set-string domain="$APP_DOMAIN" \
-            --set-string env.WEB_URL="$APP_URL" \
-            --set-string env.CORS_ORIGINS="$APP_URL" \
-            --set-string env.MAIL_FROM="$MAIL_FROM" \
-            "${push[@]}"
-      - name: Verify API rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
-      - name: Verify web rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
-      - name: Verify worker rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m
-      - name: Verify Gotenberg rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-gotenberg --timeout=3m

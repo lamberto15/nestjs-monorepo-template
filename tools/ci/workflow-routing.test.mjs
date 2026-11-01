@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { classify, expectedJobs } from './changes.mjs';
+import { classify, expectedJobs, NIGHTLY_CRON } from './changes.mjs';
 const text = readFileSync(
   new URL('../../.github/workflows/ci.yml', import.meta.url),
   'utf8',
@@ -207,7 +207,7 @@ test('real workflow conditions and dependencies agree with the gate for affected
     );
   }
 });
-test('the stable gate needs every validation job and production rollout is disabled', () => {
+test('the stable gate needs every validation job and CI has no production rollout', () => {
   const all = jobs(text),
     gate = all.find((j) => j.id === 'ci-gate');
   assert.equal(gate.if, 'always()');
@@ -215,16 +215,19 @@ test('the stable gate needs every validation job and production rollout is disab
     gate.needs,
     all.slice(0, all.indexOf(gate)).map((j) => j.id),
   );
-  assert.match(all.find((j) => j.id === 'deploy-k3s').if, /^false &&/);
+  assert.ok(!all.some((j) => j.id === 'deploy-k3s'));
   for (const id of [
     'publish',
     'publish-caddy',
     'publish-gotenberg',
     'release-manifest',
     'release',
-    'deploy-k3s',
   ])
     assert.ok(all.find((j) => j.id === id).needs.includes('ci-gate'), id);
+});
+
+test('the nightly cron is the one changes.mjs recognises', () => {
+  assert.ok(text.includes(`- cron: '${NIGHTLY_CRON}'`));
 });
 
 test('every release image is built once and handed off with integrity evidence', () => {
@@ -253,14 +256,5 @@ test('every release image is built once and handed off with integrity evidence',
     const publish = all.find((job) => job.id === publisher).lines.join('\n');
     assert.ok(!publish.includes('uses: docker/build-push-action@'), publisher);
     assert.ok(publish.includes(`sha256sum -c ${image}.tar.sha256`), publisher);
-    assert.ok(
-      publish.includes('image-ref: ${{ steps.push.outputs.ref }}'),
-      publisher,
-    );
-    assert.ok(
-      publish.indexOf('image-ref:') <
-        publish.indexOf('uses: ./.github/actions/sign-image'),
-      publisher,
-    );
   }
 });

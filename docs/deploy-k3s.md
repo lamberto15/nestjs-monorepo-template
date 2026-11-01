@@ -225,7 +225,7 @@ revision, and deploys with Helm 4 `--rollback-on-failure`. No runner rebuilds an
 image for deployment. The chart runs migrations before starting new pods;
 readiness waits for PostgreSQL and Redis. Failed Helm upgrades roll back;
 subsequent rollout/public checks report failures for operator investigation.
-Automatic deployment in CI remains disabled.
+CI never deploys.
 
 On an application failure, inspect `helm history app -n nestjs-monorepo`,
 then roll back to the last healthy revision. A rollback changes workloads and
@@ -255,7 +255,7 @@ digests. It does not rebuild images or substitute tags. The existing production
 variables and secrets above are reused; `K3S_DEPLOY_ENABLED` must be `true`.
 
 Helm waits for readiness and migration Jobs and rolls back failed upgrades. The
-workflow then checks API, worker, web and Gotenberg rollouts and public readiness.
-Automatic deployment in `ci.yml` remains disabled; publication alone does not
+workflow then checks public readiness.
+`ci.yml` has no deployment job; publication alone does not
 change production. Select a previous successful release run to roll back application
 images with its matching chart, respecting the migration compatibility guidance.

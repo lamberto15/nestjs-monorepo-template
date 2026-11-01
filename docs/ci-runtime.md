@@ -34,9 +34,9 @@ guesses, decide the layout. The audit behind it: issue
   `tools/ci/changes.test.mjs` pins the jobs an ordinary API, web or docs
   pull request runs: a new job there is a runner every such pull request
   waits for.
-- **Comprehensive where it costs no pull request:** the nightly run (and
-  tags, manual runs and changes that classify as `full`) adds
-  `template-without-notes` (six shards) and the images. `web.yml` adds
+- **Comprehensive where it costs no pull request:** the nightly run adds the
+  images; Sunday's scheduled run, tags, manual runs and changes that classify
+  as `full` also add `template-without-notes` (six shards). `web.yml` adds
   Lighthouse.
 - **Flaky is a bug, not a retry:** Playwright's one CI retry stays, but a
   retried attempt's trace is uploaded (`playwright-report`), so a flake
@@ -197,7 +197,7 @@ for example fewer app boots per file, with isolation and thresholds kept.
 
 ## Release rollout
 
-Automatic rollout remains hard-disabled in CI. The separately reviewed manual
+CI never rolls out a release. The separately reviewed manual
 Deploy workflow consumes a successful main release manifest through the protected
 production environment. No production variables or credentials are changed. Manifest bootstrap
 is an explicit full manual build on `main`; it does not deploy. Mixed digest
