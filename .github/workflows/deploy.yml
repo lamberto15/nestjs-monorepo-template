@@ -213,6 +213,14 @@ jobs:
           if [ -n "$OIDC_MICROSOFT_CLIENT_ID" ] && [ -n "$OIDC_MICROSOFT_TENANT_ID" ]; then
             sso+=(--set-string env.MICROSOFT_TENANT_ID="$OIDC_MICROSOFT_TENANT_ID")
           fi
+          # Optional, and made by a database administrator: mapping a key the
+          # Secret lacks would stop the pods mounting it.
+          monitor=()
+          if kubectl -n nestjs-monorepo get secret app-secrets -o json |
+            jq -e '.data.database_monitor_url != null' > /dev/null; then
+            monitor=(--set-string secretFiles.api.DATABASE_MONITOR_URL_FILE=database_monitor_url
+              --set-string secretFiles.worker.DATABASE_MONITOR_URL_FILE=database_monitor_url)
+          fi
           helm upgrade --install app deploy/helm/app \
             --namespace nestjs-monorepo \
             --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
@@ -225,7 +233,7 @@ jobs:
             --set-string env.WEB_URL="$APP_URL" \
             --set-string env.CORS_ORIGINS="$APP_URL" \
             --set-string env.MAIL_FROM="$MAIL_FROM" \
-            "${push[@]}" "${apps[@]}" "${sso[@]}"
+            "${push[@]}" "${apps[@]}" "${sso[@]}" "${monitor[@]}"
       - name: Verify public readiness
         run: |
           curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 --max-time 10 \

@@ -43,7 +43,7 @@ const PHASE_SECONDS = Number(__ENV.PHASE_SECONDS || 60);
 const GAP_SECONDS = 10;
 const RATES = {
   // Below what two replicas hash: scrypt (N = 2^17) takes ~0.4 s of a CPU
-  // and 128 MiB each, so sign-ins queued past that OOM-kill an api replica
+  // and 128 MiB each, so sign-ins past that queue, then answer 503 server_busy
   // (docs/development.md, "Load tests").
   signIn: Number(__ENV.SIGN_IN_RATE || 2),
   list: Number(__ENV.LIST_RATE || 50),

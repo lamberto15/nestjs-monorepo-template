@@ -54,8 +54,9 @@ def main() -> int:
             "MFA encryption key": base64.b64encode(secrets.token_bytes(32)).decode(),
             "data encryption key": base64.b64encode(secrets.token_bytes(32)).decode(),
             "blind index key": base64.b64encode(secrets.token_bytes(32)).decode(),
+            "metrics token": secrets.token_hex(24),
         }
-        print("\nSave these six independent values in your password manager. Do not paste them into chat.\n")
+        print("\nSave these seven independent values in your password manager. Do not paste them into chat.\n")
         for label, value in generated.items():
             print(f"{label}: {value}")
         print()
@@ -78,6 +79,7 @@ def main() -> int:
             "data_encryption_keys": generated["data encryption key"],
             "blind_index_keys": generated["blind index key"],
             "mail_api_key": mail_api_key,
+            "metrics_token": generated["metrics token"],
         }
         manifest = {
             "apiVersion": "v1",

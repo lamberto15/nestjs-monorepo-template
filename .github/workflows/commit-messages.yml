@@ -1,11 +1,10 @@
 # Pull requests: what the squash merge puts on main follows Conventional
 # Commits, by the rules the commit-msg hook applies (commitlint.config.js,
-# docs/development.md "Git hooks"). The squash takes the commit's subject
-# when a pull request has one commit (GitHub counts merge commits too) and
-# the title otherwise (the repository's COMMIT_OR_PR_TITLE setting). So the
-# title is always checked (it can become main's subject with the next
-# push), and the commit's subject while it's the only one. `edited` runs it
-# again when the title changes.
+# docs/development.md "Git hooks"). The squash takes the title (the
+# repository's PR_TITLE setting), so the title is always checked; the
+# commit's subject too while it's the only one (docs/releases.md, "Repository
+# settings", says this check can go). `edited` runs it again when the title
+# changes.
 #
 # The title and the subject are the pull request's text: they're read from
 # the event's JSON and git, never expanded into the script, and printed only

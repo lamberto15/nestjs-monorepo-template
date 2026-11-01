@@ -51,13 +51,14 @@ request, not an expected backup size.
    [`create-app-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-app-secret.py)
    interactively on the cluster host. It reads PostgreSQL and Redis credentials from
    their existing Secrets, prompts for the Resend API key, generates separate
-   runtime and maintenance passwords plus four signing/encryption keys, and
-   creates `app-secrets` through standard input. Save its six generated values
+   runtime and maintenance passwords, four signing/encryption keys and the
+   metrics token, and
+   creates `app-secrets` through standard input. Save its seven generated values
    in a password manager before confirming the prompt. The Secret has
    `database_url`, `database_owner_url`,
    `database_maintenance_url`, `jwt_secret`, `mfa_encryption_keys`,
-   `data_encryption_keys`, `blind_index_keys`, `redis_password`, and
-   `mail_api_key`. Use
+   `data_encryption_keys`, `blind_index_keys`, `redis_password`, `mail_api_key`,
+   and `metrics_token`. Use
    separate `app_runtime`, `app`, and `app_maintenance` database URLs. The
    migration Job creates and grants application roles; only that Job receives
    the owner URL through its projected Secret keys. The Redis password matches
