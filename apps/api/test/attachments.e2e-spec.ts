@@ -664,6 +664,63 @@ describe('attachments (e2e)', () => {
     });
   });
 
+  it('starts a replaced document with no requests, keeping the earlier answers', async () => {
+    const { editor, note } = await noteOfEditor();
+    const answered = await node.user(['viewer']);
+    const waiting = await node.user(['viewer']);
+    const attached = (
+      await editor.agent
+        .post(`/v1/test-items/${note.id}/attachments`)
+        .attach('file', PDF, {
+          filename: 'policy.pdf',
+          contentType: 'application/pdf',
+        })
+        .expect(201)
+    ).body as { id: string };
+    const base = `/v1/attachments/${attached.id}`;
+    await editor.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({
+        recipients: [`user:${answered.id}`, `user:${waiting.id}`],
+      })
+      .expect(201);
+    await answered.agent.post(`${base}/acknowledge`).expect(200);
+
+    const { headers } = await editor.agent.get(base).expect(200);
+    await editor.agent
+      .post(`/v1/test-items/${note.id}/attachments/${attached.id}/versions`)
+      .set('If-Match', headers.etag as string)
+      .attach('file', PDF, {
+        filename: 'policy-2.pdf',
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    // Nobody has been asked about the new file: the old answer doesn't count.
+    const board = await editor.agent.get(`${base}/acknowledgments`).expect(200);
+    expect(board.body).toMatchObject({ version: 2, total: 0 });
+    await waiting.agent.post(`${base}/acknowledge`).expect(404);
+    expect(
+      (await waiting.agent.get('/v1/acknowledgments').expect(200)).body.items,
+    ).toEqual([]);
+
+    const earlier = await editor.agent
+      .get(`${base}/acknowledgments?version=1`)
+      .expect(200);
+    expect(earlier.body).toMatchObject({
+      version: 1,
+      total: 2,
+      acknowledged: 1,
+    });
+
+    await editor.agent
+      .post(`${base}/acknowledgment-requests`)
+      .send({ recipients: [`user:${waiting.id}`] })
+      .expect(201);
+    const asked = await waiting.agent.post(`${base}/acknowledge`).expect(200);
+    expect(asked.body).toMatchObject({ version: 2 });
+  });
+
   it('asks people to acknowledge a version of a document, reminds them, and records who confirmed', async () => {
     const { editor, note } = await noteOfEditor();
     const reader = await node.user(['viewer']);

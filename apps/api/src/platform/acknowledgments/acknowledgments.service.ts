@@ -58,12 +58,10 @@ export const REMINDER_INTERVAL_MS = 24 * 60 * 60 * 1000;
 const MINE_LIMIT = 100;
 
 /**
- * The version of a document an acknowledgment is for. Attachments are not
- * versioned yet, so every document is version 1; when they are (#590), this
- * is the one place that reads the attachment's current version, and the
- * `version` column of existing rows is that version's number.
+ * The version of a document an acknowledgment is for: the attachment's
+ * current one, so a replaced file starts with no requests.
  */
-export const versionOf = (_attachment: Attachment) => 1;
+export const versionOf = (attachment: Attachment) => attachment.version;
 
 /**
  * "Did these people read this version of this document?": a request per
@@ -398,8 +396,12 @@ export class AcknowledgmentsService implements PersonalDataSource {
       .where(
         and(
           eq(acks.recipient, principalKey(principal)),
+          // A request for an earlier version can no longer be answered.
           status === 'pending'
-            ? isNull(acks.acknowledgedAt)
+            ? and(
+                isNull(acks.acknowledgedAt),
+                eq(acks.version, attachments.version),
+              )
             : isNotNull(acks.acknowledgedAt),
         ),
       )

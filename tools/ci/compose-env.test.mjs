@@ -24,7 +24,10 @@ const offered = [...example.matchAll(/^(?:# )?([A-Z][A-Z0-9_]+)=/gm)].map(
 );
 // Never for a deployment: compose.loadtest.yaml sets the first, and
 // development and tests the second.
-const notForADeployment = new Set(['RATE_LIMIT_MULTIPLIER', 'SSO_ALLOW_LOOPBACK']);
+const notForADeployment = new Set([
+  'RATE_LIMIT_MULTIPLIER',
+  'SSO_ALLOW_LOOPBACK',
+]);
 // Compose builds REDIS_URL from the password, so the app needs only the URL.
 const builtByCompose = new Set(['REDIS_PASSWORD']);
 // migrate's alone: api and worker must never hold the owner's URL.
