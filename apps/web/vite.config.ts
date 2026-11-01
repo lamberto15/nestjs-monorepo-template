@@ -175,12 +175,6 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   server: {
-    // Vite's `localhost` default binds one loopback address (::1 in the
-    // devcontainer), which a port forward to 127.0.0.1 misses. The
-    // devcontainer sets WEB_DEV_HOST to `::`, every address, IPv4 and IPv6
-    // (.devcontainer/compose.yaml), where nothing is published on the host;
-    // elsewhere it is unset and Vite's default stays.
-    host: process.env.WEB_DEV_HOST,
     proxy,
   },
   // `vite preview` (the built app, what the browser tests open) proxies the

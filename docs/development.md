@@ -13,10 +13,6 @@ administrator the first start made (below), or as a demo member the seed
 printed ([monorepo](monorepo.md), "Running it"). Swagger UI is at
 http://localhost:3000/api.
 
-Or open the repository in its [devcontainer](#devcontainer): the same
-services, Node.js and pnpm at the repository's versions, nothing to install;
-`pnpm dev` there runs the API and the web app.
-
 Every command runs from the repository root. The API lives in `apps/api`
 ([architecture](architecture.md)); the root's scripts run its tasks there,
 through Turborepo or `pnpm --filter` ([monorepo](monorepo.md)).
@@ -112,7 +108,7 @@ tenant: memberships, roles, units, the features' records, the files (under
   - `NODE_ENV` is set to `development` (or `test`). Unset doesn't count,
     although the app treats it as development: `env.development.example`
     sets it (add `NODE_ENV=development` to a `.env.development` made
-    before), the devcontainer too. A production container
+    before). A production container
     (`NODE_ENV=production`) refuses before connecting to anything.
   - The database is marked as a development database: the database-wide
     setting `app.dev_database = on`. NODE_ENV alone proves nothing because
@@ -137,87 +133,6 @@ tenant: memberships, roles, units, the features' records, the files (under
   another NODE_ENV, then a run on a marked one: members sign in to the demo
   tenant only, the roles' conditions, the operators see none of it, the
   audit; and a second run that changes nothing).
-
-## Devcontainer
-
-`.devcontainer/` is a [development container](https://containers.dev)
-(VS Code's Dev Containers, GitHub Codespaces, `devcontainer up`): a
-workspace with Node.js 26 and pnpm 12.15.0 (the versions of `package.json`'s
-`devEngines`), psql and redis-cli, next to the development services
-(PostgreSQL, Redis, Mailpit, Gotenberg) taken from `compose.yaml` and
-`compose.dev.yaml` with `extends`, so their pinned images are the same.
-
-- **No Floci (AWS locally)**, to keep it lean: nothing in the development
-  workflow needs it. Files go to the local disk (`apps/api/.data`) and mail
-  over SMTP straight to Mailpit, the app's own alternatives to S3 and SES
-  (set in the container's environment). To work on the S3 or SES code
-  paths, use `pnpm services:up` on the host, which runs Floci.
-
-- **Open the main checkout**, not a worktree: a worktree's `.git` file
-  points at a path on the host, which the container doesn't have.
-- **On creation** (`.devcontainer/post-create.sh`): `pnpm install`, and
-  `apps/api/.env.development` copied from `apps/api/env.development.example`
-  when there is none (yours, if you have one, comes with the repository's
-  folder). Then `pnpm dev` (the API and the web app; ports 3000 and 5173
-  are forwarded, Mailpit's inbox as `mailpit:8025`) and `pnpm db:seed:demo`.
-- **The web app** is at http://localhost:5173, as on the host: Vite's proxy
-  reaches the API on the container's `localhost:3000`. The container sets
-  `WEB_DEV_HOST=::`, which `apps/web/vite.config.ts` hands to Vite's
-  `server.host`: Vite listens on every address, IPv4 and IPv6, so the
-  forwarded port reaches it whichever loopback the editor uses (Vite's
-  `localhost` default binds `::1` alone there). Nothing is published on the
-  host; on the host the variable is unset and Vite keeps its default.
-- **The services' addresses:** the workspace shares PostgreSQL's network,
-  so the file's `127.0.0.1:5432` reaches it; Redis, Mailpit and Gotenberg
-  are reached by name, set in the container's environment
-  (`.devcontainer/compose.yaml`) with `STORAGE_DRIVER=local` and
-  `MAIL_TRANSPORT=smtp`: the environment wins over the file. `NODE_ENV` is
-  `development` there, and the database is marked as a development one when
-  it's created: the demo seed runs.
-- **The e2e tests** use the container's services instead of starting their
-  own: `TEST_DATABASE_URL` (the server, as its superuser, whose password is
-  `PGPASSWORD`) and `REDIS_URL` are set (see "Tests"). No Docker inside the
-  container: the load tests run on the host.
-- **Its own Compose project** (`nestjs-monorepo-template-devcontainer`),
-  with its own volumes and nothing published on the host, so it runs beside
-  `pnpm services:up` and never near a production stack:
-  `.devcontainer/compose.yaml` is its only file, so Compose never reads the
-  root's `.env` (production's).
-- **`node_modules` are the container's** (volumes, one per workspace
-  package: the root, `apps/api`, `apps/web`, `packages/api-client`,
-  `packages/ui`; `post-create.sh` gives them to the `node` user): the Linux
-  binaries of oxlint, esbuild, turbo, lefthook, Vite's Rolldown and
-  Tailwind's oxide never replace the host's. A package added to the
-  workspace (a frontend under `apps/`, a library under `packages/`) needs a
-  volume for its own `node_modules` too, and its line in `post-create.sh`'s
-  `chown`.
-- **PostgreSQL checks passwords on loopback too** (`POSTGRES_INITDB_ARGS:
-  --auth-host=scram-sha-256`): the image trusts 127.0.0.1 by default, which
-  is the workspace's way in; `database-roles.e2e-spec.ts` proves a rotated
-  password is refused.
-- **`pnpm migrate`** (what a deploy runs, also making the maintenance role
-  of `DATABASE_MAINTENANCE_URL`) reads the environment only, as on the
-  host: `set -a; . apps/api/.env.development; set +a; pnpm migrate` (the
-  file's `MAIL_FROM` line upsets `sh`: harmless). `pnpm dev` and
-  `pnpm db:seed:demo` migrate on start (`MIGRATE_ON_START`).
-- **`devcontainer up` asks for `--allow=fs.read=…`** with a recent Docker
-  (buildx bake checks the CLI's generated Dockerfile in a temporary
-  directory): `BUILDX_BAKE_ENTITLEMENTS_FS=0 devcontainer up …`.
-- **CI builds it** (`.github/workflows/devcontainer.yml`, when
-  `.devcontainer/**`, `compose.yaml`, `compose.dev.yaml`,
-  `apps/web/vite.config.ts`, `pnpm-lock.yaml` or the workflow change, and on
-  demand): the pinned `@devcontainers/cli` runs `devcontainer up` (with
-  `BUILDX_BAKE_ENTITLEMENTS_FS=0`; so `post-create.sh` and `pnpm install`),
-  then `.devcontainer/smoke-test.sh` starts `pnpm dev` and fetches
-  `127.0.0.1:5173/`, `[::1]:5173/` and `127.0.0.1:5173/health` (the API
-  through Vite's proxy), failing on any answer outside 2xx and printing the
-  dev server's log. Not a required check (a pull request that touches none
-  of those files has no run). The same two steps run locally from the main
-  checkout: `devcontainer up --workspace-folder .`, then
-  `devcontainer exec --workspace-folder . sh .devcontainer/smoke-test.sh`.
-  The CLI's version is raised by hand in the workflow.
-- Dependabot raises the base image; pnpm's version is raised with
-  `devEngines` by hand (`PNPM_VERSION`).
 
 ## Dependencies are pinned
 
@@ -276,8 +191,7 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
   AppModule loads.
   - The run starts a throwaway PostgreSQL in **Docker** (on tmpfs, no fsync)
     and a `redis-server` (Redis 7.0 or newer, as the app requires: the
-    `EXPIRE NX` of the failure counters is 7.0's), or uses `TEST_DATABASE_URL` and `REDIS_URL` (CI,
-    and the [devcontainer](#devcontainer), which sets both).
+    `EXPIRE NX` of the failure counters is 7.0's), or uses `TEST_DATABASE_URL` and `REDIS_URL` (CI sets both).
     Docker must be running; without it, set `TEST_DATABASE_URL` to a
     superuser of a server of your own, the development one for instance
     (`apps/api/.env.development`'s `DATABASE_OWNER_URL`, with `postgres` as

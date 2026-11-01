@@ -28,7 +28,7 @@ export const keys = [
 const roots =
   /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig[^/]*\.json|\.oxlintrc\.json|\.npmrc|\.nvmrc)$/;
 const inert =
-  /^(docs\/|\.claude\/|\.changeset\/[^/]*\.md$|\.devcontainer\/|deploy\/(helm|k3s)\/|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
+  /^(docs\/|\.claude\/|\.changeset\/[^/]*\.md$|deploy\/(helm|k3s)\/|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
 
 export function classify({ files, full = false, complete = true }) {
   const flags = Object.fromEntries(keys.map((key) => [key, false]));

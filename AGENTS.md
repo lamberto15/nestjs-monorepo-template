@@ -98,7 +98,7 @@ Everything is in `docs/`; a name below is its file (`tags` is
 
 - **Start here:** `architecture` (where things are, layers, processes),
   `monorepo` (root scripts, Turborepo, the web app), `development` (setup,
-  commands, tests, migrations, demo seed, devcontainer, git workflow and
+  commands, tests, migrations, demo seed, git workflow and
   hooks, browser and load tests, typed client), `pitfalls` (mistakes already
   made), `roadmap`.
 - **Features:** `adding-a-feature` (`pnpm feature:add`; changing one: edit
