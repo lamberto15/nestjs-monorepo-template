@@ -263,10 +263,9 @@ up` stops with "cannot create secret … in read-only service …: `file` is
   restarted: the Caddyfile is a bind mount, read at start.
 
 - **A Dependabot bump of Gotenberg is half a bump.** It raises the `FROM`
-  line of `gotenberg/Dockerfile` (and, separately, `compose.dev.yaml`'s
-  image), but not `GOTENBERG_VERSION` (the release its Go programs are built
-  from) nor the other file: raise those by hand in the same pull request.
-  CI's `gotenberg-image` job fails until the three agree.
+  line of `gotenberg/Dockerfile`, but not `compose.dev.yaml`'s image: raise
+  that by hand in the same pull request. CI's `gotenberg-image` job fails
+  until the two agree.
 
 - **A Drizzle query runs when it is awaited, in the awaiter's context.**
   `tenancy.run(tenantId, () => db.select()…)` returned the query unawaited,
