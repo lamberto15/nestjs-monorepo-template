@@ -358,9 +358,11 @@ name), `id`, `data`. Every table with a `tenant_id` is in it, a feature's
 own included (`tenantTables()`, read from the Drizzle declarations), paged
 by its primary key; each page is read in that tenant's scope and filtered
 by its `tenant_id` too, so the wall holds: never another tenant's row, nor
-a row of no tenant, never the bypass. Left out: the hashes of stored
-credentials (`keyHash`, `tokenHash`); the stored files themselves (their
-rows are in it: names, sizes, keys). The job runs as the operator in the
+a row of no tenant, never the bypass. Left out: stored credentials' hashes
+and secrets (properties ending in `Hash` or `Secret`, and `secret`:
+`keyHash`, `tokenHash`, `clientSecret`); the stored files themselves (their
+rows are in it: names, sizes, keys). Other encrypted columns are in it as
+stored, as ciphertext (`spPrivateKey`, a device's `token`). The job runs as the operator in the
 operators' tenant, so the file is theirs (`tenants/<operator tenant>/transfers/`)
 and outlives the tenant it copies; it stays as long as BullMQ keeps the
 job (7 days). Operators only (the route's `@OperatorOnly()` and
