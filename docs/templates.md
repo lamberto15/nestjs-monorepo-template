@@ -24,6 +24,10 @@ GET /v1/templates/{id}/preview
 POST /v1/notes     # the preview's `values`, plus what the user adds
 ```
 
+The shipped `notes` is hand-written and registers no template source (only
+`recordParts()` does), so `Note` above is a stand-in for a generated record's
+subject: `GET /v1/templates/subjects` lists what takes templates.
+
 | Route                            | Does                                                                                                                                                                                         |
 | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /v1/templates/subjects`     | the records you may create, with the create fields you may set in a template                                                                                                                 |

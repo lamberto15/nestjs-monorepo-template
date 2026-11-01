@@ -6,7 +6,7 @@ and **record presence** (who else is on this record). Each is the caller's own
 or permission-scoped, and each reads existing state instead of keeping a copy.
 
 Code: `platform/inbox`, `platform/recents`, `platform/presence`; the web app's
-`features/inbox`, `features/recents`, `features/presence`.
+`features/work`.
 
 ## Work inbox
 
@@ -99,7 +99,7 @@ the same one. Ephemeral and advisory.
 
 ## The web app
 
-- **Inbox** (`/inbox`, in the menu for everyone): the list with an item per
+- **Inbox** (`/work`, in the menu for everyone): the list with an item per
   line, its link, deadline and a Dismiss button where allowed; it reloads
   when a notification arrives.
 - **Recent** (sidebar group, hidden while empty): the person's recent records
