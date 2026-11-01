@@ -123,6 +123,6 @@
     "typescript": "6.0.3",
     "vitest": "5.0.5",
     "xml-crypto": "6.4.0",
-    "xml-encryption": "4.0.0"
+    "xml-encryption": "6.0.2"
   }
 }
