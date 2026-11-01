@@ -14,6 +14,13 @@ updates:
       # vitest and its plugins share one version: one pull request moves them together.
       vitest:
         patterns: ['vitest', '@vitest/*']
+      # Each set shares one version: a lone bump leaves them mismatched.
+      tiptap:
+        patterns: ['@tiptap/*']
+      storybook:
+        patterns: ['storybook', '@storybook/*']
+      size-limit:
+        patterns: ['size-limit', '@size-limit/*']
     ignore:
       # @types/node follows the Node.js major the app runs on (devEngines.runtime,
       # the Dockerfile's node image, CI's runtime): raise it with them, by hand.
