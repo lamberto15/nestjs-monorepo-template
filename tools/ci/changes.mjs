@@ -147,6 +147,9 @@ export function comparisonFiles(data, { pr = false, expected } = {}) {
 // The jobs a run must pass (ci.yml's ci-gate), by the classified paths. A
 // check folded into a job (the OpenAPI diff in check, the hardened stack in
 // image) runs as one of its steps, under the same flags.
+// The scheduled run that leaves out template-without-notes (ci.yml's `on:`).
+export const NIGHTLY_CRON = '17 3 * * 1-6';
+
 export function expectedJobs(f) {
   const rules = {
     changes: true,
@@ -158,7 +161,7 @@ export function expectedJobs(f) {
     e2e: f.api || f.services,
     'e2e-web': f.api || f.web || f.services,
     'feature-smoke': f.generator || f.tools || f.services,
-    'template-without-notes': f.full,
+    'template-without-notes': f.full && !f.nightly,
     security: f.app || f.tools,
     image: f.image,
     'backup-image': f.backup,
@@ -231,14 +234,16 @@ export function runChanges(
     files.length > 0 &&
     files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
     Boolean(compare(base, head));
+  const nightly = event.schedule === NIGHTLY_CRON;
   const outputs = {
     ...flags,
+    nightly,
     base,
     head,
     affected,
     publish: plan.publish,
     release_ready: !plan.error,
-    expected: JSON.stringify(expectedJobs(flags)),
+    expected: JSON.stringify(expectedJobs({ ...flags, nightly })),
   };
   appendFileSync(
     env.GITHUB_OUTPUT,

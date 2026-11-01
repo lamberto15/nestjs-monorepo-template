@@ -2127,7 +2127,7 @@ yours takes. Time a restore of a real dump once and set
 The **CI / CD** workflow (`.github/workflows/ci.yml`) validates changes and,
 for eligible releases, publishes images and release notes. Its filename remains
 stable because image signatures and provenance identify that workflow path.
-Automatic deployment in CI remains explicitly disabled. The separately reviewed
+CI never deploys. The separately reviewed
 manual **Deploy** workflow accepts a verified release run ID through the protected
 production environment; see [manual deployment](deploy-k3s.md#deploy-a-verified-release-manually).
 
@@ -2168,9 +2168,9 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | `changes` | classification, expected jobs and cumulative image rebuild plan |
 | `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, OpenAPI breaking-change report, bundle budget and Storybook, leftover-notes guard |
 | `unit-web` | web unit coverage, whole, thresholds enforced directly |
-| `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a sixth of the e2e suite instrumented and the built app's trace check |
+| `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a few e2e specs instrumented and the built app's trace check |
 | `feature-smoke` | generated features, schema/client generation and their E2E tests |
-| `template-without-notes` | exhaustive generated-template variant; nightly/manual/release or conservative full fallback |
+| `template-without-notes` | exhaustive generated-template variant; weekly/manual/release or conservative full fallback |
 | `stack-config` | Compose secrets, hardening and settings, then the Swarm stack render |
 | `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
 | `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
@@ -2218,8 +2218,8 @@ to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamberto15/nestjs-monorepo-template`)
 Each affected image is built once, scanned and runtime-validated. A Docker image
 archive, checksum and image config ID transfer that exact build to runtime and
 publish jobs; publication does
-not run another build. The pushed immutable digest is scanned before signing,
-provenance and SBOM generation. Publication requires **CI gate** success.
+not run another build or scan. The pushed immutable digest is signed, with its
+provenance and SBOM. Publication requires **CI gate** success.
 
 The versioned `release-manifest-v1` artifact contains `release-manifest.json`:
 `version: 1`, repository, source SHA, run ID and the API, Caddy/Web and Gotenberg

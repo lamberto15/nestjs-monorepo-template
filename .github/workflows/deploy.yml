@@ -226,14 +226,6 @@ jobs:
             --set-string env.CORS_ORIGINS="$APP_URL" \
             --set-string env.MAIL_FROM="$MAIL_FROM" \
             "${push[@]}" "${apps[@]}" "${sso[@]}"
-      - name: Verify API rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-api --timeout=3m
-      - name: Verify web rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-web --timeout=3m
-      - name: Verify worker rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-worker --timeout=3m
-      - name: Verify Gotenberg rollout
-        run: kubectl -n nestjs-monorepo rollout status deployment/app-gotenberg --timeout=3m
       - name: Verify public readiness
         run: |
           curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 --max-time 10 \
