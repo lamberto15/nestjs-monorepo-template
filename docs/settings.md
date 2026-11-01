@@ -153,13 +153,13 @@ value: a mode forced by `APP_MODE`, below, stays, and the route still answers
 
 Both refusals are problem documents with `Retry-After: 30`. Always working,
 in both modes (`@AllowInMaintenance()`, `core/http/maintenance.ts`):
-`/health`, `/metrics`, `GET /v1/features` (it carries `mode`, for a client to
+`/health` (and `/health/version`), `/metrics`, `GET /v1/features` (it carries `mode`, for a client to
 show a banner), signing in and out by every method (`/v1/auth`: `methods`,
 `sign-in`, `mfa/verify`, `sign-out`, `me`; `token`, `token/refresh` and
 `token/revoke`; `passkeys/sign-in/options`, `passkeys/sign-in` and
 `passkeys/token`; `oidc/{provider}/login` and `callback`; `sso/discover` and
-every SSO connection's login, callbacks and SAML routes; `magic-link/verify`),
-`/v1/ops`, the two operator routes
+every SSO connection's login, callbacks and SAML routes; `magic-link/verify` and `magic-link/handoff`; `app-attestation/challenge` and `keys`),
+`/v1/ops`, Caddy's custom-domain check (`/v1/internal/domains/allowed`), the two operator routes
 `PUT`/`DELETE /v1/settings/{key}/platform` and the tenant switch
 (`GET /v1/auth/tenants`, `POST /v1/auth/tenant`), so the operators can always
 turn the mode off again, however they sign in, and token clients keep renewing
