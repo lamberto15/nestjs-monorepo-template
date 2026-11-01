@@ -11,6 +11,7 @@ run without Docker.
 
 1. **Builds** the images (`docker compose build`), or **pulls** them when
    `APP_IMAGE` is set (a published image: [deployment](deployment.md), "Publishing and rolling back images").
+   `--skip-build` skips this step, the pull and its `VERIFY_IMAGES` check included.
 2. **Starts** PostgreSQL and Redis if they are not running (a no-op otherwise).
 3. **Migrates**: `docker compose run --rm migrate`, while the old containers still serve.
 4. For each service (`api`, then `worker`), with *n* containers running:

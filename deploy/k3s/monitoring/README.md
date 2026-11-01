@@ -171,8 +171,8 @@ the same Prometheus and Loki sources as Application Overview. Apply the dashboar
 upgrading the app. Filter evidence by incident ID or request ID without adding either as a Loki label.
 
 For activity snapshots, provision a statistics-only pg_monitor URL as `database_monitor_url` in the
-app's protected Secret and map it to `DATABASE_MONITOR_URL_FILE` for API/worker through Helm's
-`secretFiles` values. The existing namespace-scoped CI deployer cannot provision cluster-wide database
+app's protected Secret; the deploy workflow then maps it to `DATABASE_MONITOR_URL_FILE` for API/worker
+(Helm's `secretFiles`). The existing namespace-scoped CI deployer cannot provision cluster-wide database
 roles; use the deployment's database administrator workflow. See [Automatic database incidents](../../../docs/deployment.md#automatic-database-incidents)
 for limits, connection budgeting, missing-credential behavior, metrics, and the isolated staging check.
 No external alert receiver is enabled by this dashboard.

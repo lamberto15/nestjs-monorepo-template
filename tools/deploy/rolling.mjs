@@ -24,8 +24,8 @@ export const DEFAULTS = {
   build: true,
   migrate: true,
   healthTimeoutS: 120,
-  // Caddy re-reads the api replicas' DNS every 5 s and health-checks them
-  // every 5 s (caddy/Caddyfile): the old ones stay until the new are routed.
+  // Caddy re-reads the api replicas' DNS every 5 s (caddy/Caddyfile): the old
+  // ones stay until the new are routed.
   settleS: 10,
   pollMs: 1000,
   project: undefined,
