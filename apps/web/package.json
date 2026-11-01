@@ -27,7 +27,7 @@
     "@tanstack/react-router": "1.170.46",
     "@tanstack/react-table": "9.3.1",
     "@tiptap/markdown": "3.32.0",
-    "@tiptap/pm": "3.32.0",
+    "@tiptap/pm": "3.32.1",
     "@tiptap/react": "3.32.0",
     "@tiptap/starter-kit": "3.32.0",
     "cn": "0.5.0",
