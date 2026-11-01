@@ -28,11 +28,12 @@ not a signature and implies no legal consent.
 - **Audit**: `acknowledgment.requested`, `-reminded`, `-withdrawn`,
   `-acknowledged`, with the attachment as target, the `version` and name in
   the details. Realtime and webhooks are not sent.
-- **Versions**: attachments are not versioned yet, so every document is
-  version 1 (`versionOf()` in `acknowledgments.service.ts`, the one place to
-  change when versions exist). A request is for one version, and a new
-  version starts with no requests: ask again; the earlier version's
-  answers stay, and the dashboard shows them with `?version=`. An
+- **Versions**: a request is for the document's current version
+  ([attachments](attachments.md), "Versions"; `versionOf()` in
+  `acknowledgments.service.ts`). Replacing or restoring the file makes a new
+  version, which starts with no requests: ask again. The earlier version's
+  answers stay, and the dashboard shows them with `?version=`; its unanswered
+  requests leave `GET /v1/acknowledgments` and can't be answered. An
   acknowledgment never carries to a newer version.
 - **Deactivation**: a removed attachment takes its requests and answers with
   it (the audit log keeps who acknowledged what); a deleted record's
