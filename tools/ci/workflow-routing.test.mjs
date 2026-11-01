@@ -226,6 +226,16 @@ test('the stable gate needs every validation job and CI has no production rollou
     assert.ok(all.find((j) => j.id === id).needs.includes('ci-gate'), id);
 });
 
+test('the signing action installs the Trivy its SBOM step runs', () => {
+  const action = readFileSync(
+    new URL('../../.github/actions/sign-image/action.yml', import.meta.url),
+    'utf8',
+  );
+  const install = action.indexOf('uses: aquasecurity/setup-trivy@');
+  assert.ok(install >= 0);
+  assert.ok(install < action.indexOf('run: trivy image'));
+});
+
 test('the nightly cron is the one changes.mjs recognises', () => {
   assert.ok(text.includes(`- cron: '${NIGHTLY_CRON}'`));
 });
