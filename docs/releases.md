@@ -172,8 +172,9 @@ owner's decision:
    organization `nestjs-monorepo-template`; otherwise rename it to a scope
    you own (in `package.json` and wherever it is imported). Projects built on
    the template rename it to theirs.
-2. **The package.** Remove `"private": true`, give it a license other than
-   `UNLICENSED`, and a `repository` (`url`, `directory: packages/api-client`)
+2. **The package.** Remove `"private": true`, check its license (`package.json`
+   says `PolyForm-Noncommercial-1.0.0` today) is the one you want to publish
+   under, and give it a `repository` (`url`, `directory: packages/api-client`)
    matching this repository, which npm's provenance checks. `access` is
    `public` (`.changeset/config.json`).
 3. **npm's trusted publishing** (no npm token in GitHub): on npmjs.com, the

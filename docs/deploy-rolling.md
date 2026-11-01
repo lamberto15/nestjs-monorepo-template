@@ -17,7 +17,8 @@ run without Docker.
    1. `up -d --no-deps --no-recreate --scale <service>=2n`: *n* new containers next to the old ones;
    2. waits until every new one is `healthy` (the image's `/health/live` check, probed every 10 s, every 2 s while starting);
    3. waits `--settle` seconds (10): Caddy re-reads the replicas' DNS every 5 s
-      and health-checks them every 5 s (`caddy/Caddyfile`), so the new ones are routed before the old ones go;
+      (`refresh 5s` in `caddy/Caddyfile`; it runs no active health checks on
+      dynamic upstreams), so the new ones are routed before the old ones go;
    4. `docker stop` + `docker rm` on the **old containers by id** (a scale-down
       would remove the highest numbers, which are the new ones). Back to *n*.
 
@@ -98,7 +99,7 @@ files, Caddy with the shipped `dynamic a` block on another port):
 
 Health endpoints are the exception: a draining replica answers 503 on
 `/health` **and** `/health/live` (Terminus), so do not use them as the probe
-of a load test, and Caddy's own `/health` check takes up to 5 s to notice. Real
+of a load test. Real
 routes are served until the server stops listening.
 
 ## Rolling back

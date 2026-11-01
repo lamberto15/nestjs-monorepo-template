@@ -14,16 +14,16 @@ pnpm deploy:blue-green rollback
 
 ## Blue-green or rolling
 
-| | Rolling (`docker compose up -d`, the default) | Blue-green |
+| | Rolling (`pnpm deploy:rolling`, [rolling deploys](deploy-rolling.md)) | Blue-green |
 | --- | --- | --- |
 | Rollback | redeploy the old image: minutes | `rollback`: seconds, the old colour is still running |
 | Test before traffic | health check only | a smoke check on the new colour while it takes no traffic |
-| Resources during a deploy | one replica more at most | 2 × the API (both colours) |
+| Resources during a deploy | 2 × the API for the few seconds of the roll | 2 × the API (both colours) until the old colour stops (`--grace`, 300 s) |
 | Moving parts | none | `compose.blue-green.yaml` and a script |
 
 Choose blue-green when a bad release must be undone at once, or when the
 release should be tested against the real database before it serves anyone.
-Stay with rolling when the host has no room for a second set of API replicas.
+Stay with rolling when the host has no room for a second set of API replicas for minutes at a time.
 
 ## Prerequisites
 

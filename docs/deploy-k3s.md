@@ -144,8 +144,8 @@ compromised or the deployer role changes.
 Configure a Tailscale workload identity federation client for the GitHub
 repository with the `tag:github-k3s-deploy` tag. Tailnet policy must allow
 that tag to reach only your cluster's Tailscale address on TCP port 6443. Store
-the client ID and audience as `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE` in the
-`production` environment.
+the client ID and audience as the `TS_OAUTH_CLIENT_ID` and `TS_AUDIENCE`
+environment secrets (not variables) of `production`.
 The deploy job has `id-token: write` for this federation and joins as an
 ephemeral node.
 
