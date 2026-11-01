@@ -1390,9 +1390,9 @@ jobs:
           retention-days: 2
 
   # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
-  # top of), which renders the PDF documents: its pins agree with each other
-  # and with compose.dev.yaml, then it builds (its Debian upgrade fresh each
-  # run that can publish) and passes the same scan. Its own cache scope.
+  # top of), which renders the PDF documents: its FROM line agrees with
+  # compose.dev.yaml, then it builds (its Debian upgrade fresh each run that
+  # can publish) and passes the same scan. Its own cache scope.
   # Published by publish-gotenberg, as the app image is.
   gotenberg-image:
     needs: changes
@@ -1403,14 +1403,13 @@ jobs:
       - uses: actions/checkout@v7
       - name: One Gotenberg release everywhere, with the same flags
         run: |
-          # The FROM line (Dependabot raises it) and the release the Go programs are built from.
+          # The FROM line (Dependabot raises it) and compose.dev.yaml's image.
           base=$(grep -oE '^FROM gotenberg/gotenberg:[^ ]+' gotenberg/Dockerfile | cut -d' ' -f2)
-          source=$(grep -oE '^ARG GOTENBERG_VERSION=v[0-9.]+' gotenberg/Dockerfile | cut -d= -f2)
           dev=$(yq '.services.gotenberg.image' compose.dev.yaml)
-          echo "base: $base, source: $source, development: $dev"
+          echo "base: $base, development: $dev"
           case "$base" in
-            "gotenberg/gotenberg:${source#v}-chromium@sha256:"*) ;;
-            *) echo "::error file=gotenberg/Dockerfile::FROM $base is not GOTENBERG_VERSION $source's Chromium image, pinned by digest"; exit 1 ;;
+            gotenberg/gotenberg:*-chromium@sha256:*) ;;
+            *) echo "::error file=gotenberg/Dockerfile::FROM $base is not a Gotenberg Chromium image, pinned by digest"; exit 1 ;;
           esac
           if [ "$dev" != "$base" ]; then
             echo "::error file=compose.dev.yaml::services.gotenberg.image is $dev, gotenberg/Dockerfile builds on $base"

@@ -475,9 +475,9 @@ database credentials with it.
   (`docker compose up -d --scale gotenberg=0`). The app starts either way:
   nothing calls Gotenberg until a document is asked for.
 - **Raising its version:** Dependabot proposes the `FROM` line;
-  `GOTENBERG_VERSION` in the Dockerfile and `compose.dev.yaml`'s image
-  follow it in the same pull request (`gotenberg-image` fails until they
-  match, and while the two Compose files' flags differ).
+  `compose.dev.yaml`'s image follows it in the same pull request
+  (`gotenberg-image` fails until they match, and while the two Compose
+  files' flags differ).
 
 ### Resource limits
 
