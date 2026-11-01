@@ -469,7 +469,7 @@ page is a frontend follow-up.
 ## Break-glass
 
 An operator reads a tenant that never invited them (an incident, a support
-case the tenant can't open the door for). The owner's decision is pending
+case the tenant can't open the door for). No owner decision is recorded
 (#227); this is the recommended option, built so it can be removed whole.
 
 | | |

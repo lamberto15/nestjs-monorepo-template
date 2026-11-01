@@ -694,11 +694,10 @@ pages, ETags. Usage, the bell-icon recipe included:
    push incremental commits so CI runs during implementation. Do not run the
    full build/test suite locally and then repeat it in CI. Use focused local
    checks only to investigate CI failures or when the owner asks. Commits follow
-   Conventional Commits. The squash commit takes the commit's subject when the
-   PR has one commit and the PR title otherwise (the repository's
-   `COMMIT_OR_PR_TITLE` setting; GitHub counts merge commits too), so both
-   must be conventional: the commit-msg hook checks each commit, CI the PR's
-   title, and the commit's subject while it's the only one (below, "Git hooks").
+   Conventional Commits. The squash commit takes the PR title (the repository's
+   `PR_TITLE` setting), so it must be conventional: the commit-msg hook checks
+   each commit, CI the PR's title, and the commit's subject while it's the only
+   one (below, "Git hooks").
 3. **A pull request** to `main` on `origin`. Big features get two independent
    reviews (security and code) before merging; verify fix commits too, not
    only the first diff.
@@ -768,13 +767,13 @@ They look at the staged files only, so a commit waits a second or two:
   check before every commit and CI run them.
 - **Skipping:** `git commit --no-verify` skips both hooks, `LEFTHOOK=0 git
   commit …` too; `LEFTHOOK_EXCLUDE=oxlint` skips one job.
-- **CI** (`.github/workflows/commit-messages.yml`) checks what the squash
-  merge can put on main, with the same rules except that merge commits,
-  `fixup!` and version numbers fail there: the pull request's title, again whenever
-  it's edited, and the subject of its commit while it has only one. A wrong
-  title: edit it. A wrong single commit's subject changes only with a
-  force-push: push a second commit instead (`git commit --allow-empty -m
-  "chore: …"`), and the squash takes the title.
+- **CI** (`.github/workflows/commit-messages.yml`) checks, with the same rules
+  except that merge commits, `fixup!` and version numbers fail there: the pull
+  request's title, which the squash puts on main, again whenever it's edited,
+  and the subject of its commit while it has only one. A wrong title: edit it.
+  A wrong single commit's subject changes only with a force-push: push a second
+  commit instead (`git commit --allow-empty -m "chore: …"`), and the check
+  stops applying.
 - **Worktrees share the hooks** (`.git/hooks`); `pnpm install` in any
   checkout (or `pnpm exec lefthook install`) writes them, pointing at that
   checkout's lefthook. Commits never rewrite them (`no_auto_install`). Where

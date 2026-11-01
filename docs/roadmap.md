@@ -75,8 +75,8 @@ first project is built on the template; until then they report only.
   records (**done** (#220): docs/tenancy.md, "Operators"); the migrate-time wall check
   compares the policies' expressions, roles and kind too (**done** (#221): docs/tenancy.md,
   "The wall"); break-glass (operators read any tenant without its invitation, read
-  only, an hour, told to it: built (#339) as the recommended option, the owner's
-  decision pending, #227; docs/tenancy.md, "Break-glass").
+  only, an hour, told to it: built (#339) as the recommended option, no owner decision
+  recorded, #227; docs/tenancy.md, "Break-glass").
   Tenant export and deletion are done (#226; get, rename and deactivation, #195);
   per-tenant senders for incoming webhooks are done (#234: docs/webhooks-and-realtime.md,
   "Incoming webhooks of a tenant").
@@ -84,8 +84,6 @@ first project is built on the template; until then they report only.
   @nestjs/authentication can take a verified external factor (ask upstream).
 - **Load-test anchor:** `main` has none yet; run the Load test workflow on `main` once
   to set it.
-- **Owner actions (from #8):** squash commits titled by the PR (`PR_TITLE`); allow
-  GitHub Actions to create pull requests; push the first tag, `v0.1.0`.
 - **Cleanup:** review unused checkouts and their data volumes before deleting them.
 
 ## Decisions for the owner (recommendation first)
