@@ -455,21 +455,25 @@ with the password (and with a token client's passkey).
 | `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
 | `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
 | `POST /v1/access/users`, only with non-empty `roleIds` | an invitation with privileges (one without roles isn't asked) |
-| `POST /v1/access/invitations/{id}/send` | a link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks) |
+| `POST /v1/access/invitations/{id}/send`, `POST /v1/access/invitations/{id}/resend` | a link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks) |
 | `PATCH /v1/access/invitations/{id}`, only with `roleIds` or `email` | roles are privileges; a new address sends them to another mailbox |
 | `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
 | `POST /v1/access/users/{id}/impersonate` | acting as someone |
 | `POST /v1/tenants/{id}/export`, `POST /v1/tenants/{id}/deletion` | the operators' copy of every record of a tenant; a tenant erased after its grace period ([tenancy](tenancy.md)) |
 | `POST /v1/tenants/{id}/break-glass` | an operator reading a tenant that never invited them ([tenancy](tenancy.md#break-glass)) |
-| `POST /v1/sso/connections`, `PATCH`/`DELETE /v1/sso/connections/{id}`, `POST /v1/sso/domains`, `DELETE /v1/sso/domains/{id}`, `PUT /v1/sso/policy`, `PUT`/`DELETE /v1/sso/exemptions/{userId}` | who may sign in to the tenant, and how ([Enterprise SSO](#enterprise-sso)) |
-| `POST /v1/access/clients/{clientId}/webhook-endpoints`, `…/{id}/rotate-secret`; `POST /v1/webhook-senders`, `…/{id}/rotate-secret` | where a client's events go, and who may write into the tenant's webhooks: a new destination or secret ([webhooks-and-realtime](webhooks-and-realtime.md)) |
+| `POST /v1/sso/connections`, `PATCH`/`DELETE /v1/sso/connections/{id}`, `POST /v1/sso/saml/metadata`, `POST /v1/sso/domains`, `DELETE /v1/sso/domains/{id}`, `PUT /v1/sso/policy`, `PUT`/`DELETE /v1/sso/exemptions/{userId}` | who may sign in to the tenant, and how ([Enterprise SSO](#enterprise-sso)) |
+| `POST /v1/access/clients/{clientId}/webhook-endpoints`, `…/{id}/rotate-secret`, `PUT /v1/access/clients/{clientId}/webhook-scope`; `POST /v1/webhook-senders`, `…/{id}/rotate-secret` | where a client's events go, and who may write into the tenant's webhooks: a new destination or secret ([webhooks-and-realtime](webhooks-and-realtime.md)) |
+| `POST /v1/auth/identities/{provider}/native`, only with `purpose: link` | a token client's way to link a provider ([Native and mobile apps](#native-and-mobile-apps)) |
+| `POST /v1/branding/domains`, `POST /v1/branding/domains/{id}/verify`, `DELETE /v1/branding/domains/{id}` | the hosts the tenant's branding answers on ([branding](branding.md)) |
 
 Not protected, on purpose: signing out (sessions, everywhere), data export
 (a user can read their data anyway), consents, the profile, role
 definitions and invitations without roles (frequent administration, behind
 permissions and audited; add the decorator if a project wants them).
-There is no route to change the address or to remove the password yet:
-they take the decorator when they come.
+There is no route to change a verified address or to remove the password yet
+([onboarding](#administrator-onboarding)'s placeholder replacement,
+`POST /v1/auth/email/change`, wants the current password instead): they take
+the decorator when they come.
 
 ### Re-authenticating
 
@@ -1485,7 +1489,8 @@ chosen one afterwards. `ADMIN_ONBOARDING=off` keeps it from being flagged.
   password, after the scrypt cost was raised, does not).
 - Reachable meanwhile: `me`, sign-out, the features, the email and password
   routes above, re-authentication, the two-factor routes (`/auth/mfa`) and
-  the passkey registration routes, switching tenant. The routes shared with
+  the passkey registration routes, your tenants, switching tenant and accepting
+  an invitation. The routes shared with
   the two-factor enrolment (`auth.requireMfa`) carry both decorators, so
   the two guards never lock each other out.
 - API clients and impersonations are never restricted.
@@ -1514,6 +1519,8 @@ never loosen it. Unset, every policy is today's behaviour.
   `GET /v1/auth/me` (its `mfaEnrollmentRequired: true` tells the web app to
   show the set-up), `/v1/auth/mfa…` (status, `enroll`, `confirm`),
   `/v1/auth/reauthenticate` (enrolling wants a recent sign-in),
+  `POST /v1/auth/email/verify`, `/email/verification`, `/email/change` and
+  `/password/change` (shared with [onboarding](#administrator-onboarding)),
   `GET /v1/features` (the deployment-wide switches the web app reads to
   draw the set-up, e.g. `mfa`; any signed-in caller sees them anyway), signing out
   (`/sign-out`, `/sign-out-everywhere`), `GET /v1/auth/tenants`,
@@ -1663,7 +1670,7 @@ matches IPv4 rules). The address is the request's `req.ip`: the app trusts
 header, as the bundled Caddy does, and that proxy must be the only way in. A
 header the caller adds is ignored: the address is the last one a trusted
 hop did not vouch for. Direct to the app, without a proxy, the peer's own
-address is used. The editor on `/api-clients/$id` is a frontend follow-up.
+address is used. The editor is on `/api-clients/$id`.
 
 Each client's requests are counted per day and route, and a `dailyQuota`
 (`PATCH /v1/access/clients/{id}`) caps them (429 `quota_exceeded`): see

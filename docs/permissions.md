@@ -271,9 +271,10 @@ The built-in `Access` permissions (`ACCESS_PERMISSIONS`,
 | `Access.manageRoles`, `manageUsers`, `manageClients`, `manageOrganizationalUnits` | roles; invitations, memberships, roles and units of users; API clients and their keys; the organizational units and their members ("Organization structure") |
 | `Access.readAudit` | the audit log and the sign-in log |
 | `Access.impersonate` | acting as another user (support), never as an administrator |
-| `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageViews`, `manageTemplates` | custom field definitions; settings and feature flags; tags; naming series and their counters; saved views and record templates shared with the tenant |
+| `Access.manageCustomFields`, `manageSettings`, `manageTags`, `manageNamingSeries`, `manageCalendars`, `manageViews`, `manageTemplates` | custom field definitions; settings and feature flags; tags; naming series and their counters; business calendars; saved views and record templates shared with the tenant |
 | `Access.manageRetention`, `manageLegalHolds`                                                     | retention rules; legal holds ([retention](retention.md))                                                                         |
 | `Access.manageSso`                                                                               | the tenant's SAML and OpenID Connect connections and verified domains ([auth](auth.md), "Enterprise SSO")                        |
+| `Access.manageDomains`                                                                           | the tenant's custom domains ([branding](branding.md))                                                                            |
 | `Access.provisionScim`                                                                           | SCIM 2.0 provisioning: API clients only, the identity provider's token ([auth](auth.md), "Enterprise SSO")                       |
 | `Access.manageTenants`; `Platform.breakGlass`                                                    | as above                                                                                                                         |
 
@@ -511,11 +512,11 @@ service it calls that does check refuses it. `GET /v1/access/catalog`
 lists every job (`systemJobs`: key, actor, label, permissions). The
 template's: `seed`, `audit-retention`, `soft-delete-purge`, `sign-up-tenant-sweep`, `tenant-deletion`, `sso` (IAM,
 `iam/iam.jobs.ts`); `account-deletion`, `usage-rollup`,
-`attachment-sweep`, `attachment-scan`, `attachment-images`, `revisions-retention`, `notification-retention`,
-`notification-digests`, `notification-delivery`, `report-runner`,
-`approvals`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `outbox-retention`, `ops-backlog`, `platform-analytics`,
+`attachment-sweep`, `attachment-scan`, `attachment-images`, `attachment-text`, `revisions-retention`, `notification-retention`, `recents-retention`,
+`notification-digests`, `notification-delivery`, `report-runner`, `record-schedules`, `automations`,
+`approvals`, `custom-domains`, `exchange-rates`, `mail-intake`, `mail-events-retention`, `webhook-delivery-retention`, `outbox-retention`, `ops-backlog`, `platform-analytics`,
 `reencryption`, `retention`, `messaging`, `messaging-inbound`, `messaging-retention` (platform,
-`platform/platform.jobs.ts`); `note-publication` (notes); `demo-seed` (the
+`platform/platform.jobs.ts`); `ops` (the operator CLI, `cli/ops.jobs.ts`); `note-publication` (notes); `demo-seed` (the
 demo seed, `src/demo/demo.jobs.ts`, [development](development.md), "Demo data").
 
 **Run it** with `SystemContext.run()`, the one way in:

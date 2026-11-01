@@ -28,7 +28,7 @@ an account or every account has an employee record.
 
 ## Getting people in
 
-A membership starts in one of four ways. Roles are never implied: each path
+A membership starts in one of five ways. Roles are never implied: each path
 says which it gives.
 
 | Path | Default | Account | Membership and roles | Audit |
