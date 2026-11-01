@@ -3,7 +3,7 @@ description: >
   Keyless-sign a pushed image with cosign (GitHub OIDC), attest its SLSA
   build provenance and sign its SBOM (CycloneDX, from Trivy) as an
   attestation. The calling job needs id-token: write, attestations: write
-  and packages: write, Trivy installed, and a login to the registry.
+  and packages: write, and a login to the registry.
   docs/deployment.md, "Signing and verifying images".
 inputs:
   image:
@@ -28,7 +28,11 @@ runs:
         subject-name: ${{ inputs.image }}
         subject-digest: ${{ inputs.digest }}
         push-to-registry: true
-    # Trivy is already installed in the job (it scanned the image).
+    - name: Install Trivy
+      uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
+      with:
+        version: v0.76.0
+        cache: true
     - name: Generate the SBOM
       shell: bash
       env:
