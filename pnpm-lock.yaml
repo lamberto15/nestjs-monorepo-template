@@ -408,8 +408,8 @@ importers:
         specifier: 4.8.4
         version: 4.8.4(supports-color@10.2.2)
       stream-json:
-        specifier: 3.7.0
-        version: 3.7.0
+        specifier: 3.8.0
+        version: 3.8.0
       undici:
         specifier: 8.12.3
         version: 8.12.3
@@ -10404,11 +10404,11 @@ packages:
       vite-plus:
         optional: true
 
-  stream-chain@4.2.6:
-    resolution: {integrity: sha512-1zeJ8CrtJfmiba26ui8jXkq/xLRFvhzkdH02D5QLO9Cnovgeb28IJxg88DdraWnjnkbOol/++uIAybJbJhk7ig==}
+  stream-chain@4.4.1:
+    resolution: {integrity: sha512-4MWXw+Si0RW3HAYQN3MdxpgTJA6Te9StiLtdkZO248DLPsRipqBbuiQSkyYLpCDEuvqGfqb2B5dEGxiEfHYkNQ==}
 
-  stream-json@3.7.0:
-    resolution: {integrity: sha512-rCSBdcBP/bPk6T8QFcxAj1MSzAuc5i49cYW6IE7sYObNEPccBJIUiL6fU9c9BWt40aJK0siVynLX7lWaW8alXw==}
+  stream-json@3.8.0:
+    resolution: {integrity: sha512-xD0bPEoPgaaEpEu2HSq1spYAs5LSJrLAlo44SHycE+aI8W0IrU2cklY7fiQKhRTVbuvxNUij06vIiz1NBT+AZA==}
 
   streamsearch@1.1.0:
     resolution: {integrity: sha512-Mcc5wHehp9aXz1ax6bZUyY5afg9u2rv5cqQI3mRrYkGC8rW2hM02jWuwjtL++LS5qinSyhj2QfLyNsuc+VsExg==}
@@ -21350,11 +21350,11 @@ snapshots:
       - react
       - utf-8-validate
 
-  stream-chain@4.2.6: {}
+  stream-chain@4.4.1: {}
 
-  stream-json@3.7.0:
+  stream-json@3.8.0:
     dependencies:
-      stream-chain: 4.2.6
+      stream-chain: 4.4.1
 
   streamsearch@1.1.0: {}
 
