@@ -36,7 +36,7 @@ guesses, decide the layout. The audit behind it: issue
   waits for.
 - **Comprehensive where it costs no pull request:** the nightly run adds the
   images; Sunday's scheduled run, tags, manual runs and changes that classify
-  as `full` also add `template-without-notes` (six shards). `web.yml` adds
+  as `full` also add `template-without-notes` (two shards). `web.yml` adds
   Lighthouse.
 - **Flaky is a bug, not a retry:** Playwright's one CI retry stays, but a
   retried attempt's trace is uploaded (`playwright-report`), so a flake
