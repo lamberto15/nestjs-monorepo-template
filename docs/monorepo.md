@@ -63,8 +63,7 @@ features/x`. `nest g library` writes `apps/api/libs/` and its alias into
   `migrate`) see the whole shell, and so do the `dev` scripts: they pass
   `--env-mode=loose` (Turborepo's flag for it), because the `dev` task is
   never cached, so there's no hash to protect, and the API reads well over
-  a hundred variables (each feature may add more) that a shell or the
-  devcontainer sets over `apps/api/.env.development`: a `passThroughEnv`
+  a hundred variables (each feature may add more) that a shell sets over `apps/api/.env.development`: a `passThroughEnv`
   list would drift. In strict mode they'd vanish (`DATABASE_URL: expected
 string`).
 - CI keeps the cache between runs (`actions/cache`, `.github/workflows/ci.yml`).
@@ -123,8 +122,6 @@ web app needs the API, so `dev:web` alone suits an API already running.
 - **What shows** follows the API: `GET /v1/features` (the deployment
   switches, `REPORTS=off` hides the reports page…) and `GET /v1/auth/me`'s
   `can` (the permissions). Hiding is for the user; the API refuses either way.
-- **In the devcontainer** `pnpm dev` runs it too, at the same address
-  (port 5173 is forwarded; [development](development.md), "Devcontainer").
 
 ### What's in it
 

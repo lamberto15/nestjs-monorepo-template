@@ -2155,7 +2155,7 @@ manual full runs and `v*` tags are comprehensive too.
 | Compose service images | database/browser E2E and generator smoke on those images |
 | Stack/images | stack config (secrets, hardening, Swarm render) and image checks, with the hardened runtime |
 | CI orchestration | routing, gate, manifest and workflow syntax tests |
-| Docs, Helm/K3s, devcontainer | the corresponding companion workflow |
+| Docs, Helm/K3s | the corresponding companion workflow |
 
 The classifier has explicit routes for infrastructure, generators, migrations and
 image contexts. Workspace lint/build/coverage tasks use Turbo's `--affected` with

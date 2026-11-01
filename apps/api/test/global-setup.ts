@@ -142,9 +142,8 @@ function removeStaleContainers() {
 
 /**
  * One PostgreSQL 18 for the run: TEST_DATABASE_URL when it's set (CI's
- * service, the devcontainer's; a superuser, as its POSTGRES_USER; without
- * a password in the URL, node-postgres reads PGPASSWORD, as the
- * devcontainer sets it), otherwise a throwaway Docker
+ * service; a superuser, as its POSTGRES_USER; without a password in the URL,
+ * node-postgres reads PGPASSWORD), otherwise a throwaway Docker
  * container: on tmpfs, tuned for speed (no fsync), reachable from loopback
  * only, removed with everything in it at the end of the run. Passwords are
  * checked (scram-sha-256, as CI's service and a deployment do), so the

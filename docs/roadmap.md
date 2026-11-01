@@ -491,8 +491,6 @@ After 10's commit hooks.
 - **lefthook:** Prettier (not on `docs/`, which reflows tables) and oxlint on staged
   files, plus a commit-message check. There is no `db:check` or `client:check` in the
   hooks; CI owns those.
-- **Devcontainer:** `test/global-setup.ts` starts its own PostgreSQL and Redis, so it
-  needs an env override to reuse the devcontainer's services.
 
 ## 11. Push and SMS
 

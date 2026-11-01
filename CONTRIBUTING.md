@@ -30,7 +30,7 @@ pnpm dev            # the API on :3000 and the web app on :5173
 ```
 
 Node.js 26 (`.nvmrc`, `engines` in `package.json`) and pnpm (`devEngines` in
-`package.json`) are the versions the image and CI use. The devcontainer has both.
+`package.json`) are the versions the image and CI use.
 
 ## Workflow
 

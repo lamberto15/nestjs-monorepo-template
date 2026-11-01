@@ -67,9 +67,7 @@ storage, sign-up, bot protection, the deployment switches), keeps the
 rest off, and generates the secrets; without it, copy `apps/api/env.development.example` to
 `apps/api/.env.development` by hand ([configuration](docs/configuration.md),
 "First setup"). The first start creates the administrator (`ADMIN_EMAIL`; the password is
-logged once unless `ADMIN_PASSWORD` is set, which `pnpm setup` does). Or open
-the repository in its devcontainer (`.devcontainer/`): the same services,
-nothing to install; `pnpm dev` runs the API and the web app there. More in
+logged once unless `ADMIN_PASSWORD` is set, which `pnpm setup` does). More in
 [development](docs/development.md).
 
 ## Start a new project
