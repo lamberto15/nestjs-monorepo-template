@@ -222,6 +222,73 @@ x-app: &app
     # names a file on the host, mounted as a Docker secret; the app then reads
     # /run/secrets/x. Unset, the app gets no X_FILE and X stays the source.
     DATABASE_URL_FILE: ${DATABASE_URL_FILE:+/run/secrets/database_url}
+    # Grace periods and retention (docs/retention.md, docs/auth.md).
+    ACCOUNT_DELETION_GRACE_DAYS: ${ACCOUNT_DELETION_GRACE_DAYS:-14}
+    TENANT_DELETION_GRACE_DAYS: ${TENANT_DELETION_GRACE_DAYS:-30}
+    DEVICES_RETENTION_DAYS: ${DEVICES_RETENTION_DAYS:-270}
+    MAIL_EVENTS_RETENTION_DAYS: ${MAIL_EVENTS_RETENTION_DAYS:-90}
+    NOTIFICATIONS_MAX_AGE_DAYS: ${NOTIFICATIONS_MAX_AGE_DAYS:-365}
+    NOTIFICATIONS_RETENTION_DAYS: ${NOTIFICATIONS_RETENTION_DAYS:-90}
+    OUTBOX_DEAD_LETTER_RETENTION_DAYS: ${OUTBOX_DEAD_LETTER_RETENTION_DAYS:-14}
+    OUTBOX_INBOX_RETENTION_DAYS: ${OUTBOX_INBOX_RETENTION_DAYS:-30}
+    REVISIONS_RETENTION_DAYS: ${REVISIONS_RETENTION_DAYS:-365}
+    USAGE_RETENTION_DAYS: ${USAGE_RETENTION_DAYS:-400}
+    WEBHOOKS_DELIVERY_RETENTION_DAYS: ${WEBHOOKS_DELIVERY_RETENTION_DAYS:-30}
+    # Limits on what people send and run.
+    ATTACHMENT_ALLOWED_TYPES: ${ATTACHMENT_ALLOWED_TYPES:-}
+    ATTACHMENT_MAX_MB: ${ATTACHMENT_MAX_MB:-25}
+    ATTACHMENT_TEXT_MAX_MB: ${ATTACHMENT_TEXT_MAX_MB:-20}
+    ATTACHMENT_TEXT_SEARCH: ${ATTACHMENT_TEXT_SEARCH:-off}
+    ATTACHMENT_TEXT_TIMEOUT_MS: ${ATTACHMENT_TEXT_TIMEOUT_MS:-30000}
+    AVATAR_MAX_MB: ${AVATAR_MAX_MB:-2}
+    BULK_SYNC_LIMIT: ${BULK_SYNC_LIMIT:-100}
+    REPORT_LINK_TTL: ${REPORT_LINK_TTL:-24h}
+    ANALYTICS_MIN_GROUP_SIZE: ${ANALYTICS_MIN_GROUP_SIZE:-10}
+    EXCHANGE_RATES_FETCH: ${EXCHANGE_RATES_FETCH:-on}
+    EXCHANGE_RATES_ECB_URL: ${EXCHANGE_RATES_ECB_URL:-}
+    # Deliverability (docs/deliverability.md).
+    MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS: ${MAIL_SOFT_BOUNCE_SUPPRESSION_HOURS:-72}
+    MAIL_SOFT_BOUNCE_THRESHOLD: ${MAIL_SOFT_BOUNCE_THRESHOLD:-3}
+    MAIL_SOFT_BOUNCE_WINDOW_HOURS: ${MAIL_SOFT_BOUNCE_WINDOW_HOURS:-24}
+    MAIL_UNSUBSCRIBE_MAILTO: ${MAIL_UNSUBSCRIBE_MAILTO:-}
+    POSTMARK_WEBHOOK_SECRET: ${POSTMARK_WEBHOOK_SECRET:-}
+    RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
+    SENDGRID_WEBHOOK_PUBLIC_KEY: ${SENDGRID_WEBHOOK_PUBLIC_KEY:-}
+    SES_SNS_REQUIRE_SIGNATURE_V2: ${SES_SNS_REQUIRE_SIGNATURE_V2:-off}
+    SES_SNS_TOPIC_ARNS: ${SES_SNS_TOPIC_ARNS:-}
+    # Notifications, push and SMS (docs/notifications.md).
+    NOTIFICATIONS_DIGEST_HOUR: ${NOTIFICATIONS_DIGEST_HOUR:-8}
+    PUSH_PROVIDER: ${PUSH_PROVIDER:-}
+    PUSH_MAX_PAYLOAD_BYTES: ${PUSH_MAX_PAYLOAD_BYTES:-3500}
+    WEB_PUSH_SUBJECT: ${WEB_PUSH_SUBJECT:-}
+    WEB_PUSH_VAPID_PUBLIC_KEY: ${WEB_PUSH_VAPID_PUBLIC_KEY:-}
+    WEB_PUSH_VAPID_PRIVATE_KEY: ${WEB_PUSH_VAPID_PRIVATE_KEY:-}
+    APNS_API_URL: ${APNS_API_URL:-}
+    APNS_BUNDLE_ID: ${APNS_BUNDLE_ID:-}
+    APNS_KEY_ID: ${APNS_KEY_ID:-}
+    APNS_PRIVATE_KEY: ${APNS_PRIVATE_KEY:-}
+    APNS_TEAM_ID: ${APNS_TEAM_ID:-}
+    FCM_API_URL: ${FCM_API_URL:-}
+    FCM_CLIENT_EMAIL: ${FCM_CLIENT_EMAIL:-}
+    FCM_PRIVATE_KEY: ${FCM_PRIVATE_KEY:-}
+    FCM_PROJECT_ID: ${FCM_PROJECT_ID:-}
+    FCM_TOKEN_URL: ${FCM_TOKEN_URL:-}
+    SMS_PROVIDER: ${SMS_PROVIDER:-off}
+    SMS_ALLOWED_PREFIXES: ${SMS_ALLOWED_PREFIXES:-}
+    SMS_DAILY_LIMIT_PER_IP: ${SMS_DAILY_LIMIT_PER_IP:-20}
+    SMS_DAILY_LIMIT_PER_PREFIX: ${SMS_DAILY_LIMIT_PER_PREFIX:-100}
+    SMS_DAILY_LIMIT_PER_TENANT: ${SMS_DAILY_LIMIT_PER_TENANT:-200}
+    SMS_DAILY_LIMIT_PER_USER: ${SMS_DAILY_LIMIT_PER_USER:-10}
+    SMS_MAX_LENGTH: ${SMS_MAX_LENGTH:-320}
+    SMS_MONTHLY_BUDGET_MINOR: ${SMS_MONTHLY_BUDGET_MINOR:-0}
+    SMS_PRICES: ${SMS_PRICES:-}
+    SMS_PRICE_DEFAULT_MINOR: ${SMS_PRICE_DEFAULT_MINOR:-0}
+    TWILIO_ACCOUNT_SID: ${TWILIO_ACCOUNT_SID:-}
+    TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
+    TWILIO_FROM: ${TWILIO_FROM:-}
+    TWILIO_WEBHOOK_URL: ${TWILIO_WEBHOOK_URL:-}
+    # Debug builds' App Attest keys too (docs/auth.md, "App attestation").
+    APP_ATTEST_DEVELOPMENT: ${APP_ATTEST_DEVELOPMENT:-off}
     # Optional statistics credential for independent incident snapshots.
     DATABASE_MONITOR_URL: ${DATABASE_MONITOR_URL:-}
     DATABASE_MONITOR_URL_FILE: ${DATABASE_MONITOR_URL_FILE:+/run/secrets/database_monitor_url}
@@ -246,6 +313,14 @@ x-app: &app
     OBSERVE_APP_SECRET_FILE: ${OBSERVE_APP_SECRET_FILE:+/run/secrets/observe_app_secret}
     EXAMPLE_SENDER_WEBHOOK_SECRET_FILE: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:+/run/secrets/example_sender_webhook_secret}
     ANTHROPIC_API_KEY_FILE: ${ANTHROPIC_API_KEY_FILE:+/run/secrets/anthropic_api_key}
+    POSTMARK_WEBHOOK_SECRET_FILE: ${POSTMARK_WEBHOOK_SECRET_FILE:+/run/secrets/postmark_webhook_secret}
+    RESEND_WEBHOOK_SECRET_FILE: ${RESEND_WEBHOOK_SECRET_FILE:+/run/secrets/resend_webhook_secret}
+    TWILIO_AUTH_TOKEN_FILE: ${TWILIO_AUTH_TOKEN_FILE:+/run/secrets/twilio_auth_token}
+    WEB_PUSH_VAPID_PRIVATE_KEY_FILE: ${WEB_PUSH_VAPID_PRIVATE_KEY_FILE:+/run/secrets/web_push_vapid_private_key}
+    APNS_PRIVATE_KEY_FILE: ${APNS_PRIVATE_KEY_FILE:+/run/secrets/apns_private_key}
+    FCM_PRIVATE_KEY_FILE: ${FCM_PRIVATE_KEY_FILE:+/run/secrets/fcm_private_key}
+    SENTRY_DSN_FILE: ${SENTRY_DSN_FILE:+/run/secrets/sentry_dsn}
+    OTEL_EXPORTER_OTLP_HEADERS_FILE: ${OTEL_EXPORTER_OTLP_HEADERS_FILE:+/run/secrets/otel_exporter_otlp_headers}
   # Every secret is mounted; those without X_FILE in .env are the empty secret.empty.
   secrets:
     - database_url
@@ -271,6 +346,14 @@ x-app: &app
     - observe_app_secret
     - example_sender_webhook_secret
     - anthropic_api_key
+    - postmark_webhook_secret
+    - resend_webhook_secret
+    - twilio_auth_token
+    - web_push_vapid_private_key
+    - apns_private_key
+    - fcm_private_key
+    - sentry_dsn
+    - otel_exporter_otlp_headers
   logging: *logging
   # Hardened (docs/deployment.md, "Container hardening"): the image is
   # read-only, /tmp is the only place the process writes besides the files
@@ -426,6 +509,14 @@ services:
       - observe_app_secret
       - example_sender_webhook_secret
       - anthropic_api_key
+      - postmark_webhook_secret
+      - resend_webhook_secret
+      - twilio_auth_token
+      - web_push_vapid_private_key
+      - apns_private_key
+      - fcm_private_key
+      - sentry_dsn
+      - otel_exporter_otlp_headers
       - database_maintenance_url
     deploy:
       replicas: ${WORKER_REPLICAS:-1}
@@ -807,6 +898,22 @@ secrets:
     file: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:-./secret.empty}
   anthropic_api_key:
     file: ${ANTHROPIC_API_KEY_FILE:-./secret.empty}
+  postmark_webhook_secret:
+    file: ${POSTMARK_WEBHOOK_SECRET_FILE:-./secret.empty}
+  resend_webhook_secret:
+    file: ${RESEND_WEBHOOK_SECRET_FILE:-./secret.empty}
+  twilio_auth_token:
+    file: ${TWILIO_AUTH_TOKEN_FILE:-./secret.empty}
+  web_push_vapid_private_key:
+    file: ${WEB_PUSH_VAPID_PRIVATE_KEY_FILE:-./secret.empty}
+  apns_private_key:
+    file: ${APNS_PRIVATE_KEY_FILE:-./secret.empty}
+  fcm_private_key:
+    file: ${FCM_PRIVATE_KEY_FILE:-./secret.empty}
+  sentry_dsn:
+    file: ${SENTRY_DSN_FILE:-./secret.empty}
+  otel_exporter_otlp_headers:
+    file: ${OTEL_EXPORTER_OTLP_HEADERS_FILE:-./secret.empty}
   postgres_password:
     file: ${POSTGRES_PASSWORD_FILE:-./secret.empty}
   backup_s3_secret_access_key:
