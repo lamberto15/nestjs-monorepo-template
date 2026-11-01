@@ -482,13 +482,14 @@ administrator is the only watcher (a load test can't prove the addresses of
 accounts of its own), so it measures the fan-out per note, not per watcher.
 
 **Why sign-in runs at 2/s only:** a password check (scrypt, N = 2^17) takes
-about 0.4 s of a CPU and 128 MiB outside the heap, and libuv runs four at
-once per process. At 5/s, more than two replicas of one CPU can hash, the
-checks queue, four run at once, and the api container passes its 512 MiB
-(`API_MEMORY`) and is OOM-killed (found by the first local run: 84–97% of
-sign-ins failed while replicas restarted). That is a capacity limit to fix
-on its own (bound the hashes in flight per process, or size `API_MEMORY`
-for four); the baseline measures below it.
+about 0.4 s of a CPU and 128 MiB outside the heap. Each process now runs at
+most `PASSWORD_HASH_CONCURRENCY` of them (the api's default is 2); the next
+ones queue, and past `PASSWORD_HASH_MAX_QUEUE` or
+`PASSWORD_HASH_QUEUE_TIMEOUT_MS` they get 503 `server_busy`
+([deployment](deployment.md), "Resource limits"). Before that bound libuv ran
+four at once and, at 5/s, the api container passed its memory limit and was
+OOM-killed (found by the first local run: 84–97% of sign-ins failed while
+replicas restarted). The baseline keeps its rate below what two replicas hash.
 
 Locally (Docker; about five minutes plus the image's build):
 

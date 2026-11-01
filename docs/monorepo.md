@@ -66,7 +66,7 @@ features/x`. `nest g library` writes `apps/api/libs/` and its alias into
   a hundred variables (each feature may add more) that a shell sets over `apps/api/.env.development`: a `passThroughEnv`
   list would drift. In strict mode they'd vanish (`DATABASE_URL: expected
 string`).
-- CI keeps the cache between runs (`actions/cache`, `.github/workflows/ci.yml`).
+- CI keeps the cache between runs (`rharkor/caching-for-turbo`, `.github/workflows/ci.yml`).
 
 ## The web app
 
@@ -527,8 +527,8 @@ and the files land in `packages/ui/src/components` (imports
 
 ```bash
 cd apps/web
-pnpm dlx shadcn@4.22.0 add button          # shadcn/ui, style base-nova (Base UI)
-pnpm dlx shadcn@4.22.0 add @diceui/<name>  # Dice UI (https://diceui.com): look here first
+pnpm dlx shadcn@4.23.0 add button          # shadcn/ui, style base-nova (Base UI)
+pnpm dlx shadcn@4.23.0 add @diceui/<name>  # Dice UI (https://diceui.com): look here first
 ```
 
 Both packages have a `components.json` with the same style, icon library
