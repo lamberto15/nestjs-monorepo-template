@@ -397,7 +397,7 @@ services:
   # COMPOSE_PROFILES=logs,grafana). 127.0.0.1 only: reach it through an SSH
   # tunnel. GRAFANA_ADMIN_PASSWORD is required (it refuses to start without).
   grafana:
-    image: grafana/grafana:13.2.4
+    image: grafana/grafana:13.3.0
     restart: unless-stopped
     profiles: [grafana]
     entrypoint:
