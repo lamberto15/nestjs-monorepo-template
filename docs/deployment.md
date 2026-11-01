@@ -289,6 +289,14 @@ reads.
 | `BACKUP_ENCRYPTION_KEY_FILE` | the backup (the age recipients, public keys, one per line) | `BACKUP_ENCRYPTION_KEY` |
 | `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
 | `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |
+| `POSTMARK_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`) | `POSTMARK_WEBHOOK_SECRET` |
+| `RESEND_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`) | `RESEND_WEBHOOK_SECRET` |
+| `TWILIO_AUTH_TOKEN_FILE` | the app (api, worker; not `migrate`) | `TWILIO_AUTH_TOKEN` |
+| `WEB_PUSH_VAPID_PRIVATE_KEY_FILE` | the app (api, worker; not `migrate`) | `WEB_PUSH_VAPID_PRIVATE_KEY` |
+| `APNS_PRIVATE_KEY_FILE` | the app (api, worker; not `migrate`) | `APNS_PRIVATE_KEY` |
+| `FCM_PRIVATE_KEY_FILE` | the app (api, worker; not `migrate`) | `FCM_PRIVATE_KEY` |
+| `SENTRY_DSN_FILE` | the app (api, worker; not `migrate`) | `SENTRY_DSN` |
+| `OTEL_EXPORTER_OTLP_HEADERS_FILE` | the app (api, worker; not `migrate`) | `OTEL_EXPORTER_OTLP_HEADERS` |
 | `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `PLAY_INTEGRITY_DECRYPTION_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`)                                                                                                                  | the variable without `_FILE`                        |
 
 Not in this list, so they stay variables in Compose:
