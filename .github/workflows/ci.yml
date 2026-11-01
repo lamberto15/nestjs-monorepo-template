@@ -966,20 +966,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     # Tags, Sunday's scheduled run, manual runs and any change that validates
-    # everything (`full`): in six shards, so it lasts as long as a pull
-    # request's run; each shard repeats the cheap steps, then
-    # runs its sixth of the e2e suite and a sixth of the unit tests (shards
-    # 1-3 the API's third, 4-6 the web app's). The suites are the e2e and unit
+    # everything (`full`): in two shards, each with half of the e2e suite and
+    # half of the API's and the web app's unit tests. The suites are the e2e and unit
     # jobs' with a feature fewer; `check`'s last step looks for references left
     # behind on every pull request. Raise the list and the totals together.
     strategy:
       fail-fast: false
-      # Reserve runner capacity for other pull requests.
-      max-parallel: 2
       matrix:
         # Matrix expressions: the job-level `if` can't read the matrix.
-        shard: [1, 2, 3, 4, 5, 6]
-    name: template-without-notes (${{ matrix.shard }}/6)
+        shard: [1, 2]
+    name: template-without-notes (${{ matrix.shard }}/2)
     services:
       redis:
         image: ${{ needs.changes.outputs.redis }}
@@ -1017,21 +1013,17 @@ jobs:
       - name: 'Build on the regenerated client (once: shard 1)'
         if: matrix.shard == 1
         run: pnpm build
-      # The unit jobs' split (3 API shards, 3 web shards), over this job's six;
-      # the small packages' tests ride on shard 1.
+      # The small packages' tests ride on shard 1.
       - name: Unit and web tests (a share per shard)
         run: |
           shard=${{ matrix.shard }}
-          if [ "$shard" -le 3 ]; then
-            pnpm turbo run test --filter=@nestjs-monorepo-template/api -- --shard="$shard/3"
-          else
-            pnpm turbo run test --filter=@nestjs-monorepo-template/web -- --shard="$((shard - 3))/3"
-          fi
+          pnpm turbo run test --filter=@nestjs-monorepo-template/api -- --shard="$shard/2"
+          pnpm turbo run test --filter=@nestjs-monorepo-template/web -- --shard="$shard/2"
           if [ "$shard" -eq 1 ]; then
             pnpm turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
           fi
-      - name: Every e2e test (this shard's sixth)
-        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/6
+      - name: Every e2e test (this shard's half)
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/2
         env:
           REDIS_URL: redis://localhost:6379
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
