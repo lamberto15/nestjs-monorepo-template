@@ -48,7 +48,7 @@
   },
   "devDependencies": {
     "@lhci/cli": "0.15.1",
-    "@size-limit/file": "14.2.0",
+    "@size-limit/file": "14.3.0",
     "@tailwindcss/vite": "4.3.3",
     "@tanstack/react-query-devtools": "5.104.5",
     "@tanstack/react-router-devtools": "1.167.2",
