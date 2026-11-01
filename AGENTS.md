@@ -49,10 +49,13 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
 ## Owner's rules (always apply)
 
 - **Never edit `main`: every change goes through a worktree.** Each change
-  gets a branch in its own worktree (`.claude/worktrees/<name>`), a pull
+  gets a branch in a worktree (`.claude/worktrees/<name>`), a pull
   request to `origin` (GitHub) and green CI; then the worktree is removed and
   the PR squash-merged with its branch deleted. Never rebase or force-push:
   update a branch with `git merge origin/main`. See docs/development.md, "Git workflow".
+- **Group related work into one worktree and PR.** Related tasks and issues go
+  together; use a separate worktree and PR only for unrelated work, work needing
+  its own review or revert, or work that would block the rest.
 - **Open a draft PR early and use CI for validation.** Push the first
   reviewable commit and open its draft PR while work continues; push
   incremental commits so CI runs during implementation. Run focused local

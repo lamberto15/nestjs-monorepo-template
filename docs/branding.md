@@ -148,7 +148,7 @@ section of `/branding` (with `Access.manageDomains`).
    address in any spelling (`10.0.0.1`, `[::1]`, `0x7f.1`), a port, a scheme,
    a path, a user, a wildcard, a reserved top-level name (`.local`,
    `.localhost`, `.internal`, `.test`, `.example`, `.invalid`, `.onion`,
-   `.arpa`, `.home`, `.lan`, `.corp`), and the app's own domain or one under
+   `.arpa`, `.home`, `.lan`, `.corp`, `.localdomain`), and the app's own domain or one under
    it (APP_URL's and WEB_URL's hosts). Unique per tenant (409
    `domain_exists`), not across tenants: listing a hostname proves nothing,
    so it blocks nobody.

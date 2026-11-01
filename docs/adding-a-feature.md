@@ -71,7 +71,7 @@ export const INVOICE = defineRecord({
   currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
   `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, named `<x>Id`, a key
   within the tenant; its list filter is `ref: '<Subject>'` in the list metadata; a relationship: see "Relationships" below). `?` makes a field optional, `!unique` (string, int)
-  unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
+  unique per tenant (a duplicate is a 409 `<item>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
 - **Options:** `--unit` (records carry their creator's organizational unit: `unit: true`),
   `--no-soft-delete` (deleted for good, no recycle bin: `softDelete: false`),
@@ -115,6 +115,7 @@ export const INVOICE = defineRecord({
   | `custom`      | administrators' runtime fields ([custom fields](custom-fields.md)): `custom` in bodies and responses, `custom.<key>` in lists, exports and imports, snapshots and the audit; the `custom` column and its GIN index (run `pnpm db:generate`), the field-level `custom` permission |
   | `events`      | webhooks `<item>.created`, `.updated`, `.deleted` (and `.restored` with a recycle bin), declared as event types and sent in the write's transaction through the outbox                                                                                                           |
   | `numbered`    | a gapless `number` per tenant (`INV-2026-00042`), set on create: in responses, filterable and sortable (`?number=`, `?sort=number`), in the PDF and exports; read-only; administrators' naming series replace the declared format ([sequences](sequences.md), "Naming series")   |
+  | `share`       | time-limited read-only links, `/<x>/{id}/shares`, opened without sign-in (`POST /v1/shared/open`)                                                                                                                                                                                |
   | `automation`  | tenant [automation rules](automations.md) may act on its records when one is created or changed (set a field, add a tag, notify, a webhook); no routes of its own                                                                                                                |
   | `merge`       | likely duplicates by the declaration's `duplicates` rules (`POST /<x>/duplicates`, `GET /<x>/{id}/duplicates`) and a previewed merge (`POST /<x>/{id}/merge`, `/merge/preview`); needs `softDelete` ([duplicates and merging](merging.md))                                       |
 
@@ -388,7 +389,7 @@ the controller (`notes.*`); singular for what describes one record
        ...timestamps(), // created_at, updated_at (set on every update)
      },
      (t) => [
-       ...tenantTable('invoices', t), // row-level security policies, unique (tenant_id, id)
+       ...tenantTable('invoices', t), // row-level security policies (unique (tenant_id, id) with { referenced: true })
        index('invoices_owner_id_idx').on(t.ownerId),
      ],
    ).enableRLS();

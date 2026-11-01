@@ -169,4 +169,4 @@ Not in this version: **dependencies between records** (the issue's second
 part: a relationship stored per record, its cycle check and arrows between
 bars), drag and drop (moves and reschedules use buttons), several pages of
 one calendar range, the views in saved views (a saved view keeps the table's
-filters, sort and columns; the shown kind is the URL's `view`).
+filters, sort and columns; the shown kind is the URL's `layout`).

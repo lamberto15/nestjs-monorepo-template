@@ -152,7 +152,7 @@ writes `packages/api-client/CHANGELOG.md`. Merging it releases that version.
 Owner actions it needs:
 
 - **Allow GitHub Actions to create pull requests** (Settings, Actions,
-  General, "Allow GitHub Actions to create and approve pull requests"; off
+  General, "Allow GitHub Actions to create and approve pull requests"; on
   today), or a token in the **`API_CLIENT_RELEASE_TOKEN`** secret instead (a
   fine-grained token for this repository with Contents and Pull requests
   read and write, or a GitHub App's token). Without either, the job fails
@@ -172,8 +172,9 @@ owner's decision:
    organization `nestjs-monorepo-template`; otherwise rename it to a scope
    you own (in `package.json` and wherever it is imported). Projects built on
    the template rename it to theirs.
-2. **The package.** Remove `"private": true`, give it a license other than
-   `UNLICENSED`, and a `repository` (`url`, `directory: packages/api-client`)
+2. **The package.** Remove `"private": true`, check its license (`package.json`
+   says `PolyForm-Noncommercial-1.0.0` today) is the one you want to publish
+   under, and give it a `repository` (`url`, `directory: packages/api-client`)
    matching this repository, which npm's provenance checks. `access` is
    `public` (`.changeset/config.json`).
 3. **npm's trusted publishing** (no npm token in GitHub): on npmjs.com, the
@@ -192,16 +193,11 @@ client's notes are its changelog.
 
 ## Repository settings (owner)
 
-- **Squash commits take the pull request's title.** Today the squash takes
-  a single commit's subject, and the title only when there are several
-  (`COMMIT_OR_PR_TITLE`), so `commit-messages.yml` checks both. With
-  `PR_TITLE`, the title is the only subject `main` gets (Settings, General,
-  Pull Requests, "Allow squash merging", default message "Pull request
-  title", or `gh api -X PATCH repos/lamberto15/nestjs-monorepo-template -f
-  squash_merge_commit_title=PR_TITLE -f
-  squash_merge_commit_message=COMMIT_MESSAGES`). `main`'s subjects, which
-  the release notes read for breaking changes, are then always the reviewed
-  titles, and the single-commit check in `commit-messages.yml` can go.
+- **Squash commits take the pull request's title** (`PR_TITLE`, with the
+  description as the body, `PR_BODY`: Settings, General, Pull Requests, "Allow
+  squash merging"). `main`'s subjects, which the release notes read for breaking
+  changes, are always the reviewed titles, and the single-commit check in
+  `commit-messages.yml` can go.
 - **Pull requests from Actions:** see [the version pull request](#the-version-pull-request).
 - **Protect the release tags:** a tag ruleset on `refs/tags/v*` that blocks
   updates and deletions keeps a published release where it is.

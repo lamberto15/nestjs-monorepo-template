@@ -482,13 +482,14 @@ administrator is the only watcher (a load test can't prove the addresses of
 accounts of its own), so it measures the fan-out per note, not per watcher.
 
 **Why sign-in runs at 2/s only:** a password check (scrypt, N = 2^17) takes
-about 0.4 s of a CPU and 128 MiB outside the heap, and libuv runs four at
-once per process. At 5/s, more than two replicas of one CPU can hash, the
-checks queue, four run at once, and the api container passes its 512 MiB
-(`API_MEMORY`) and is OOM-killed (found by the first local run: 84–97% of
-sign-ins failed while replicas restarted). That is a capacity limit to fix
-on its own (bound the hashes in flight per process, or size `API_MEMORY`
-for four); the baseline measures below it.
+about 0.4 s of a CPU and 128 MiB outside the heap. Each process now runs at
+most `PASSWORD_HASH_CONCURRENCY` of them (the api's default is 2); the next
+ones queue, and past `PASSWORD_HASH_MAX_QUEUE` or
+`PASSWORD_HASH_QUEUE_TIMEOUT_MS` they get 503 `server_busy`
+([deployment](deployment.md), "Resource limits"). Before that bound libuv ran
+four at once and, at 5/s, the api container passed its memory limit and was
+OOM-killed (found by the first local run: 84–97% of sign-ins failed while
+replicas restarted). The baseline keeps its rate below what two replicas hash.
 
 Locally (Docker; about five minutes plus the image's build):
 
@@ -681,21 +682,22 @@ pages, ETags. Usage, the bell-icon recipe included:
 
 `main` is never edited directly, not even for a one-line docs fix. Every change:
 
-1. **A branch in its own worktree.** `git fetch origin`, then
+1. **A branch in a worktree.** `git fetch origin`, then
    `git worktree add --no-track -b <type>/<name> .claude/worktrees/<name> origin/main`
    (`.claude/worktrees/` is in `.git/info/exclude`; `--no-track`, or the branch
    tracks `main` and a plain `git push` fails). Push with `git push -u origin HEAD`.
-   Parallel work gets one worktree each, on disjoint files where possible.
+   Group related tasks and issues into one worktree and PR; use a separate one
+   only for unrelated work, work needing its own review or revert, or work that
+   would block the rest. Separate worktrees stay on disjoint files where possible.
 2. **Push reviewable commits early and validate in CI** (see AGENTS.md).
    Open a draft PR after the first implementation commit while work continues;
    push incremental commits so CI runs during implementation. Do not run the
    full build/test suite locally and then repeat it in CI. Use focused local
    checks only to investigate CI failures or when the owner asks. Commits follow
-   Conventional Commits. The squash commit takes the commit's subject when the
-   PR has one commit and the PR title otherwise (the repository's
-   `COMMIT_OR_PR_TITLE` setting; GitHub counts merge commits too), so both
-   must be conventional: the commit-msg hook checks each commit, CI the PR's
-   title, and the commit's subject while it's the only one (below, "Git hooks").
+   Conventional Commits. The squash commit takes the PR title (the repository's
+   `PR_TITLE` setting), so it must be conventional: the commit-msg hook checks
+   each commit, CI the PR's title, and the commit's subject while it's the only
+   one (below, "Git hooks").
 3. **A pull request** to `main` on `origin`. Big features get two independent
    reviews (security and code) before merging; verify fix commits too, not
    only the first diff.
@@ -765,13 +767,13 @@ They look at the staged files only, so a commit waits a second or two:
   check before every commit and CI run them.
 - **Skipping:** `git commit --no-verify` skips both hooks, `LEFTHOOK=0 git
   commit …` too; `LEFTHOOK_EXCLUDE=oxlint` skips one job.
-- **CI** (`.github/workflows/commit-messages.yml`) checks what the squash
-  merge can put on main, with the same rules except that merge commits,
-  `fixup!` and version numbers fail there: the pull request's title, again whenever
-  it's edited, and the subject of its commit while it has only one. A wrong
-  title: edit it. A wrong single commit's subject changes only with a
-  force-push: push a second commit instead (`git commit --allow-empty -m
-  "chore: …"`), and the squash takes the title.
+- **CI** (`.github/workflows/commit-messages.yml`) checks, with the same rules
+  except that merge commits, `fixup!` and version numbers fail there: the pull
+  request's title, which the squash puts on main, again whenever it's edited,
+  and the subject of its commit while it has only one. A wrong title: edit it.
+  A wrong single commit's subject changes only with a force-push: push a second
+  commit instead (`git commit --allow-empty -m "chore: …"`), and the check
+  stops applying.
 - **Worktrees share the hooks** (`.git/hooks`); `pnpm install` in any
   checkout (or `pnpm exec lefthook install`) writes them, pointing at that
   checkout's lefthook. Commits never rewrite them (`no_auto_install`). Where

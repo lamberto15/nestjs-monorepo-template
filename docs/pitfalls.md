@@ -85,8 +85,8 @@ set …`, `organizational_unit_closure`, `deleted_at is null`), which no type ch
   system path (even inside a heredoc), are refused: use the file tools.
   So are shell commands containing SQL's `DROP DATABASE` (or TABLE,
   SCHEMA); `dropdb` passes.
-- **Shell aliases:** `grep` is ripgrep (`/usr/bin/grep -E` for GNU flags);
-  `ls` is eza (`/bin/ls`).
+- **Shell aliases:** don't assume them: `grep` and `ls` may be aliased to
+  another tool in the local shell (`/usr/bin/grep -E`, `/bin/ls` for the system's).
 - **Docker Hub's anonymous pull limit** can block image checks: retry later.
 
 - **A path relative to the shell's directory** breaks in the monorepo: the

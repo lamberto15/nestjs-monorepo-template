@@ -436,8 +436,8 @@ repeating the declaration:
 - **Capabilities:** `capabilities` says which record panels and routes
   the subject has in this deployment, one boolean each: every capability
   of `record.ts` (`tags`, `comments`, `attachments`, `revisions`, `pdf`,
-  `bulk`, `watch`, `search`, `transfer`, `custom`, `events`, `numbered`),
-  from the declaration (`<item>.record.ts`), and `approvals` (an action of
+  `bulk`, `watch`, `search`, `transfer`, `custom`, `events`, `numbered`,
+  `share`, `automation`, `merge`), from the declaration (`<item>.record.ts`), and `approvals` (an action of
   the subject is declared approvable). `pdf` is false without Gotenberg
   (`GET /v1/features` `documents`), `events` with `WEBHOOKS=off`. Whether
   the caller may use one on a record is the record's `can` and the

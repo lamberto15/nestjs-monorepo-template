@@ -238,8 +238,10 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
   "magicLink": true,
   "documents": false,
   "presignedUploads": false,
+  "ai": false,
   "exchangeRates": true,
   "tenancy": "multi",
+  "mode": "normal",
   "locales": ["en", "de", "ar", "zh", "ms"]
 }
 ```
@@ -251,11 +253,13 @@ the way its module reads it (`FeaturesService`, `platform/features/`):
 | `passkeys`, `signUp`, `magicLink`          | `PASSKEYS`, `AUTH_SIGN_UP`, `AUTH_MAGIC_LINK`                              | as in `GET /v1/auth/methods` (which also lists the providers and bot protection, and needs no sign-in) |
 | `documents`                                | `GOTENBERG_URL` set                                                        | PDF routes answer 503 `documents_unavailable`                                                          |
 | `presignedUploads`                         | `STORAGE_DRIVER=s3`                                                        | the presign and complete routes answer 503 `presigned_uploads_unavailable` ([attachments](attachments.md#direct-uploads-s3)) |
+| `ai`                                       | `ANTHROPIC_API_KEY` set                                                    | `POST /v1/ai/runs` answers 503 `ai_unavailable` ([ai](ai.md))                                          |
 | `exchangeRates`                            | `EXCHANGE_RATES_FETCH`                                                     | no ECB rates are fetched (the money conversions have none)                                             |
 | `tenancy`                                  | `TENANCY`                                                                  | `single`: the first tenant is the only one                                                             |
+| `mode`                                     | `APP_MODE`, else the `platform.mode` setting                               | `read-only`: writes answer 503 `read_only`; `maintenance`: 503 `maintenance`                           |
 | `locales`                                  | `LOCALES`                                                                  | the languages the API answers in, the first is the default                                             |
 
-The values are fixed at startup (a change needs a restart). A new switch
+The values are fixed at startup (a change needs a restart), except `mode`. A new switch
 adds its key to `features.schemas.ts` and `FeaturesService`, reading it the
 way its module does.
 

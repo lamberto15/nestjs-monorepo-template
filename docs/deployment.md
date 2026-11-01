@@ -126,7 +126,7 @@ Filling `.env` (each step is commented in `env.example`):
     quote or a semicolon).
 - **Security contact** (`/.well-known/security.txt`, RFC 9116). Caddy answers that one
   path itself (its handle comes before the `@api` matcher); `caddy/entrypoint.sh` writes
-  the file to `/srv/security` at each start from `SECURITY_CONTACT` (one or more
+  the file to `/tmp/caddy-security` at each start from `SECURITY_CONTACT` (one or more
   `mailto:`/`https:` URIs, comma-separated; the RFC requires it, and unset means no file,
   a 404), `SECURITY_EXPIRES` (RFC 3339 UTC; unset, a year from the start, so pin it to
   keep one date), `SECURITY_POLICY` (the `SECURITY.md` URL; the default is this template's
@@ -289,7 +289,7 @@ reads.
 | `BACKUP_ENCRYPTION_KEY_FILE` | the backup (the age recipients, public keys, one per line) | `BACKUP_ENCRYPTION_KEY` |
 | `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
 | `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |
-| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker, migrate)                                                                                                                        | the variable without `_FILE`                        |
+| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `PLAY_INTEGRITY_DECRYPTION_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`)                                                                                                                  | the variable without `_FILE`                        |
 
 Not in this list, so they stay variables in Compose:
 
@@ -1284,7 +1284,7 @@ bounded like the rest of the stack (`DOCKER_LOG_*`). Every service runs
 hardened ([Container hardening](#container-hardening)): read-only (Prometheus
 excepted, and why is there), no capabilities, `no-new-privileges`.
 
-**The alerts** (46 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
+**The alerts** (54 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
 
 | Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
@@ -1295,6 +1295,7 @@ warning: look today):
 | `HighErrorRate`                                              | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s)                                                                                                                  | critical          |
 | `HighLatency`                                                | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out)                                                                                                       | warning           |
 | `DatabasePoolSaturated`                                      | queries wait continuously for a pool connection for 30 s; correlated incident evidence is logged                                                                                            | warning           |
+| `DatabaseFailures` | a database failure (`db_last_failure_timestamp_seconds`) in the last 5 min | warning |
 | `PasswordHashingSaturated`                                   | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits))                       | warning           |
 | `HeapNearLimit`                                              | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min                                                                                                                         | warning           |
 | `EventLoopLag`                                               | event loop p99 above 500 ms for 10 min                                                                                                                                              | warning           |
@@ -1486,7 +1487,7 @@ and `amtool check-config` on every change. Locally:
 
 ```bash
 docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
-  --entrypoint promtool prom/prometheus:v3.15.0 test rules /etc/prometheus/tests/alerts.test.yml
+  --entrypoint promtool prom/prometheus:v3.15.1 test rules /etc/prometheus/tests/alerts.test.yml
 ```
 
 **Managed PostgreSQL or Redis:** the exporters follow `DATABASE_MONITOR_URL`
