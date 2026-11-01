@@ -71,7 +71,7 @@ export const INVOICE = defineRecord({
   currency, `{ amount, currency }` in the API: [money](money.md)), `bool`,
   `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, named `<x>Id`, a key
   within the tenant; its list filter is `ref: '<Subject>'` in the list metadata; a relationship: see "Relationships" below). `?` makes a field optional, `!unique` (string, int)
-  unique per tenant (a duplicate is a 409 `<x>_taken`). In the declaration:
+  unique per tenant (a duplicate is a 409 `<item>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
 - **Options:** `--unit` (records carry their creator's organizational unit: `unit: true`),
   `--no-soft-delete` (deleted for good, no recycle bin: `softDelete: false`),
@@ -388,7 +388,7 @@ the controller (`notes.*`); singular for what describes one record
        ...timestamps(), // created_at, updated_at (set on every update)
      },
      (t) => [
-       ...tenantTable('invoices', t), // row-level security policies, unique (tenant_id, id)
+       ...tenantTable('invoices', t), // row-level security policies (unique (tenant_id, id) with { referenced: true })
        index('invoices_owner_id_idx').on(t.ownerId),
      ],
    ).enableRLS();
