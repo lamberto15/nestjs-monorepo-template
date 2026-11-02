@@ -10,7 +10,7 @@ has no adopters, breaking changes are accepted between minor versions
 ## Reporting a vulnerability
 
 Do not open a public issue. Report it privately through
-[GitHub Security Advisories](https://github.com/lamberto15/nestjs-monorepo-template/security/advisories/new)
+[GitHub Security Advisories](https://github.com/lamby-dev/nestjs-monorepo-template/security/advisories/new)
 and include what you found, how to reproduce it, and the affected commit or
 release.
 

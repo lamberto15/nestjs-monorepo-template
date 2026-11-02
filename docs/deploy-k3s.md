@@ -6,7 +6,7 @@ Traefik inside the cluster. The production host runs K3s and pulls images; it
 needs neither Docker nor a source checkout. Replace each `example.com` value
 with a domain you control, and keep cluster addresses and account identifiers
 in private configuration. For the separate single-node monitoring stack, see
-[the observability runbook](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md).
+[the observability runbook](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md).
 
 The checked-in manifests are reviewed on a branch and merged through CI. An
 administrator applies infrastructure resources from a workstation with an
@@ -43,12 +43,12 @@ request, not an expected backup size.
    `redis_password`. Generate independent random passwords outside Git, and
    keep a secure offline copy.
 3. Create `redis-script` from the reviewed
-   [`redis/redis.sh`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/redis/redis.sh).
+   [`redis/redis.sh`](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/redis/redis.sh).
    Apply [`deploy/k3s/data.yaml`](../deploy/k3s/data.yaml), then wait for both
    StatefulSets and verify the two SSD claims bind. Never delete their claims
    as part of an application rollback.
 4. Run the reviewed
-   [`create-app-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-app-secret.py)
+   [`create-app-secret.py`](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/deploy/k3s/create-app-secret.py)
    interactively on the cluster host. It reads PostgreSQL and Redis credentials from
    their existing Secrets, prompts for the Resend API key, generates separate
    runtime and maintenance passwords, four signing/encryption keys and the
@@ -72,8 +72,8 @@ request, not an expected backup size.
    does not require optional backup CronJobs. Before storing irreplaceable
    production data, arrange a backup destination and complete a restore drill.
    The reviewed
-   [`backups.yaml`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/backups.yaml)
-   and [`create-backup-secret.py`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/create-backup-secret.py)
+   [`backups.yaml`](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/deploy/k3s/backups.yaml)
+   and [`create-backup-secret.py`](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/deploy/k3s/create-backup-secret.py)
    describe the optional encrypted S3-compatible backup path.
 
 PostgreSQL is initialized with the owner `app` and database `app`, matching the

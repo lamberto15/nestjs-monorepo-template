@@ -73,7 +73,7 @@ logged once unless `ADMIN_PASSWORD` is set, which `pnpm setup` does). More in
 ## Start a new project
 
 ```bash
-git clone https://github.com/lamberto15/nestjs-monorepo-template my-app   # keeps the history: template updates merge
+git clone https://github.com/lamby-dev/nestjs-monorepo-template my-app   # keeps the history: template updates merge
 cd my-app && git remote rename origin template
 pnpm install
 pnpm feature:remove notes   # the example feature: the API's and the web app's (pages, tests, texts)
@@ -121,7 +121,7 @@ notes on their migrations and how to roll back). Start your project with
 each release tag: [upgrading](docs/upgrading.md).
 
 ```bash
-git remote add template https://github.com/lamberto15/nestjs-monorepo-template
+git remote add template https://github.com/lamby-dev/nestjs-monorepo-template
 git fetch template --tags && git merge v1.3.0
 ```
 

@@ -71,7 +71,7 @@ requests:
 Locally (the tags fetched; the lint needs Docker, `--no-lint` skips it):
 
 ```bash
-pnpm release:notes --tag v0.2.0 --repository lamberto15/nestjs-monorepo-template
+pnpm release:notes --tag v0.2.0 --repository lamby-dev/nestjs-monorepo-template
 node --test tools/release/notes.test.mjs     # its tests (CI's check job runs them)
 ```
 
