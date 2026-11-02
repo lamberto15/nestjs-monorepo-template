@@ -45,7 +45,6 @@ jobs:
       # The image CI builds, built again here without a cache: reading CI's
       # (type=gha) took 114-147 s at the median, an uncached build of the
       # same Dockerfile 95 s (issue #686). Docker's own
-
       # BuildKit, loaded for Compose as is.
       - name: Build the production image
         env:

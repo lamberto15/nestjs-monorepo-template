@@ -370,7 +370,6 @@ jobs:
             test "$(setting $service CLAMAV_HOST scan-clamav.json)" = clamav
           done
           test "$(jq -r '.services.clamav.image | startswith("clamav/clamav:")' scan-clamav.json)" = true
-
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
       # The Swarm stack (docs/deploy-swarm.md): compose.swarm.yaml rendered over

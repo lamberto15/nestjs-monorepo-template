@@ -148,14 +148,14 @@ it, `.env` is read as usual (`--env-file <path>` for another).
 
 What Swarm lacks, and what replaces it:
 
-| Compose                               | Swarm                                                                                                                                                                                                    |
+| Compose | Swarm |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build:`                              | Images are pulled: `APP_IMAGE`, `GOTENBERG_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
-| `depends_on`                          | Ignored. A task that starts before PostgreSQL or Redis fails its healthcheck or exits, and `restart_policy` retries it.                                                                                  |
-| one-shot `migrate`                    | A `replicated-job` service the script deploys and waits for before the app is touched.                                                                                                                   |
-| bind mounts (`Caddyfile`, `redis.sh`) | Swarm configs.                                                                                                                                                                                           |
-| `restart:`                            | `deploy.restart_policy` (any, 5 s).                                                                                                                                                                      |
-| `.env` secrets as files               | Swarm secrets, from the same files (`X_FILE` in `.env`).                                                                                                                                                 |
+| `build:` | Images are pulled: `APP_IMAGE`, `GOTENBERG_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
+| `depends_on` | Ignored. A task that starts before PostgreSQL or Redis fails its healthcheck or exits, and `restart_policy` retries it. |
+| one-shot `migrate` | A `replicated-job` service the script deploys and waits for before the app is touched. |
+| bind mounts (`Caddyfile`, `redis.sh`) | Swarm configs. |
+| `restart:` | `deploy.restart_policy` (any, 5 s). |
+| `.env` secrets as files | Swarm secrets, from the same files (`X_FILE` in `.env`). |
 
 ## Images
 
@@ -341,12 +341,12 @@ On a one-node swarm (2 api replicas, 1 worker), three clients at about 9
 requests a second to `GET /v1/account` without credentials (a real route:
 401 expected) through Caddy, during each deploy:
 
-| Deploy                               | Requests                      | Unexpected                                                                               |
+| Deploy | Requests | Unexpected |
 | ------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
-| api image update, run 1              | 1251                          | 0                                                                                        |
-| api image update, run 2              | 1251                          | 0                                                                                        |
+| api image update, run 1 | 1251 | 0 |
+| api image update, run 2 | 1251 | 0 |
 | a version that never becomes healthy | 1289 (probing `/health/live`) | 0: one new task tried and failed, the old two kept serving; `rollback_completed`, exit 1 |
-| Caddy update (new Caddyfile)         | 1212 (probing `/health/live`) | 13, about two seconds of refused connections                                             |
+| Caddy update (new Caddyfile) | 1212 (probing `/health/live`) | 13, about two seconds of refused connections |
 
 Probe a real route, not `/health` or `/health/live`: a draining replica
 answers 503 on both by design while it still serves real requests, so an

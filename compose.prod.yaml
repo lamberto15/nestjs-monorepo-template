@@ -30,8 +30,8 @@ x-app: &app
   # one (CI): APP_IMAGE=ghcr.io/<owner>/<repo>:<commit SHA> (docs/deployment.md).
   image: ${APP_IMAGE:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-app}
   restart: unless-stopped
-  environment:
-    &app-env # Staging too: behaviour follows NODE_ENV; APP_ENV names the deployment.
+  environment: &app-env
+    # Staging too: behaviour follows NODE_ENV; APP_ENV names the deployment.
     NODE_ENV: production
     APP_ENV: ${APP_ENV:-production}
     APP_URL: https://${APP_DOMAIN:?set APP_DOMAIN in .env}
@@ -177,7 +177,6 @@ x-app: &app
     # for api and worker. Here, in x-app, so every service built from it
     # reads .env alike, and api needs it as much as the worker (it stores
     # an upload `pending` and queues the scan, with the attempts below).
-
     MALWARE_SCANNER: ${MALWARE_SCANNER:-off}
     CLAMAV_HOST: ${CLAMAV_HOST:-}
     CLAMAV_PORT: ${CLAMAV_PORT:-3310}
@@ -593,8 +592,7 @@ services:
     secrets:
       - postgres_password
     # Explicit, so the pools' sum can be checked against it (docs/deployment.md).
-    command:
-      ['postgres', '-c', 'max_connections=${POSTGRES_MAX_CONNECTIONS:-100}']
+    command: ['postgres', '-c', 'max_connections=${POSTGRES_MAX_CONNECTIONS:-100}']
     # Hardened (docs/deployment.md, "Container hardening"): the data volume,
     # /tmp and the socket directory are the only writable paths. The image's
     # entrypoint starts as root, fixes the data directory's owner and drops to
