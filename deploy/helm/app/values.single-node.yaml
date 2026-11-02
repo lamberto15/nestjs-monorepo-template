@@ -3,16 +3,16 @@
 domain: example.com
 redisUrl: redis://redis:6379/0
 image:
-  repository: ghcr.io/lamby-dev/nestjs-monorepo-template
+  repository: ghcr.io/lamberto15/nestjs-monorepo-template
 web:
   image:
-    repository: ghcr.io/lamby-dev/nestjs-monorepo-template/caddy
+    repository: ghcr.io/lamberto15/nestjs-monorepo-template/caddy
   replicas: 1
   podDisruptionBudget:
     enabled: false
 gotenberg:
   image:
-    repository: ghcr.io/lamby-dev/nestjs-monorepo-template/gotenberg
+    repository: ghcr.io/lamberto15/nestjs-monorepo-template/gotenberg
 
 env:
   WEB_URL: https://example.com
