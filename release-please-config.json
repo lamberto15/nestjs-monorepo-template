@@ -1,0 +1,16 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "bootstrap-sha": "b3a6c11d76453294f7bf419be14a599df77704b3",
+  "release-type": "node",
+  "initial-version": "0.1.0",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "draft": true,
+  "force-tag-creation": true,
+  "packages": {
+    ".": {
+      "package-name": "nestjs-monorepo-template",
+      "changelog-path": "CHANGELOG.md"
+    }
+  }
+}

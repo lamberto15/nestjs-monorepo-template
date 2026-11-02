@@ -56,8 +56,16 @@ each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
 | each environment | `APP_URL`                           | variable | the public URL the health check calls                                    |
 | each environment | `DEPLOY_ENV_FILE`                   | secret   | the `.env` ([Configuration](#configuration-deploy-env-file))             |
 | each environment | `TS_TAG`                            | variable | the tailnet tag its deploys join as (`tag:github-staging-deploy`, `tag:github-prod-deploy`)         |
-| each environment | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | its own Tailscale trust credential: subject `repo:<owner>/<repo>:environment:<name>`, that tag only |
+| each environment | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | its own Tailscale trust credential, that tag only; its subject is the job's OIDC `sub` (below) |
 | repository       | `AUTO_DEPLOY`                       | variable | `true` turns on staging deploys from `main`                              |
+
+The trust credential's subject must be exactly the `sub` GitHub puts in the
+job's token. With immutable subjects (GitHub's default for new repositories:
+`gh api repos/<owner>/<repo>/actions/oidc/customization/sub` shows
+`use_immutable_subject` and the prefix) it carries the owner's and the
+repository's IDs, `repo:<owner>@<owner id>/<repo>@<repo id>:environment:<name>`,
+which survive a rename or a transfer; otherwise `repo:<owner>/<repo>:environment:<name>`.
+A mismatch fails "Join the deployment tailnet" with a 403 from Tailscale.
 
 Our environments deploy only through Actions, never from a laptop.
 

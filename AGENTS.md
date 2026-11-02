@@ -88,6 +88,11 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
   `pnpm feature:add` (the `/add-feature` skill in `.claude/skills/`), never
   from copying `notes`; then write only the business logic, where the
   generated service says so.
+- **Releases and deploys only through Actions.** Merging the Release Please
+  pull request is the only way to release: never push a `v*` tag by hand.
+  Staging deploys itself from `main`; production only by a Deploy run with a
+  published release tag. Never deploy by hand on a server
+  (docs/releases.md, docs/deploy-swarm.md).
 - **Newest versions, pinned** (never `:latest`); Dependabot proposes updates.
 - `.env*` files must not be written directly by agents: the owner copies the template
   (`pnpm setup` writes them, or `cp env.example .env` at the root and fills it, or `cp
@@ -130,7 +135,8 @@ Everything is in `docs/`; a name below is its file (`tags` is
   the operator CLI `pnpm ops`, log redaction, metrics, alerts,
   zero-downtime overview), `deploy-rolling`,
   `deploy-swarm` (our staging and production: CI deploys, host setup,
-  sizing), `ci-runtime`, `releases`, `upgrading`.
+  sizing), `ci-runtime`, `releases` (Release Please; production takes
+  releases only), `upgrading`.
 - **This docs site:** `documentation-tooling`, `documentation-maintenance`.
 
 ## Validation in CI

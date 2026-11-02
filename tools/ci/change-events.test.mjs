@@ -170,14 +170,14 @@ test('template-without-notes runs on the weekly schedule, not the nightly one', 
   assert.ok(expected('17 3 * * 0').includes('template-without-notes'));
 });
 
-test('scheduled, manual and version-tag events validate comprehensively; only explicit releases publish', () => {
+test('scheduled, manual and version-tag events validate comprehensively; only a bootstrap publishes', () => {
   for (const name of ['schedule', 'workflow_dispatch', 'push']) {
     const { result, calls } = eventOutput(name, {}, null, {
       ref: name === 'push' ? 'refs/tags/v1.2.3' : 'refs/heads/main',
     });
     assert.equal(calls.length, 0);
     assert.equal(result.full, true);
-    assert.equal(result.publish, name === 'push');
+    assert.equal(result.publish, false);
   }
   const { result } = eventOutput(
     'workflow_dispatch',

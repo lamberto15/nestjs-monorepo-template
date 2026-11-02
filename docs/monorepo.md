@@ -769,7 +769,7 @@ rather than a component alone.
 
 CI runs the bundle budget and the Storybook build in `check`
 (`.github/workflows/ci.yml`, on web changes); Lighthouse runs in
-`.github/workflows/web.yml` (nightly, manually and for version tags).
+`.github/workflows/web.yml` (nightly, manually and for each release).
 
 - **Storybook** (`packages/ui`, Vite + React, set up with `storybook init`):
   `pnpm --filter @nestjs-monorepo-template/ui storybook` serves it on

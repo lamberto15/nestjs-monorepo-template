@@ -2172,7 +2172,8 @@ runner budget, the evidence and the chosen defaults.
 
 The bundle budget and the Storybook build run in `check` for frontend changes,
 and the browser tests in `e2e-web`. The Web workflow holds only report-only
-Lighthouse, which runs nightly, manually and for version tags.
+Lighthouse, which runs nightly, manually and for each release (release.yml
+starts it on the tag).
 Migration lint retains its separate PR workflow and existing acceptance controls
 ([migrations](development.md#migrations)). Third-party actions remain pinned;
 Dependabot proposes updates. PostgreSQL and Redis are read from `compose.yaml`,
@@ -2192,7 +2193,7 @@ settings in production (the captcha stub, text logs) reads it.
 
 ## Publishing and rolling back images
 
-On affected pushes to `main` and every `v*` tag, CI publishes verified images
+On affected pushes to `main`, CI publishes verified images
 to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamby-dev/nestjs-monorepo-template`).
 Each affected image is built once, scanned and runtime-validated. A Docker image
 archive, checksum and image config ID transfer that exact build to runtime and
@@ -2201,8 +2202,8 @@ not run another build or scan. The pushed immutable digest is signed, with its
 provenance and SBOM. Publication requires **CI gate** success.
 
 The versioned `release-manifest-v1` artifact contains `release-manifest.json`:
-`version: 1`, repository, source SHA, run ID and the API, Caddy/Web and Gotenberg
-repositories/digests, plus each image's producer SHA/run. Unchanged images retain
+`version: 1`, repository, source SHA, run ID and the API, Caddy/Web, Gotenberg and
+backup repositories/digests, plus each image's producer SHA/run. Unchanged images retain
 their producer evidence. Rebuild decisions include all component changes since
 the trusted manifest, so failed or skipped intervening releases cannot lose work.
 Those cumulative component changes are revalidated against the same Turbo base.
@@ -2214,15 +2215,18 @@ availability, an exact main-workflow cosign identity, a signed CycloneDX SBOM an
 source-bound GitHub provenance. Invalid/missing/expired evidence blocks the release;
 mutable tags are never a fallback. The lookup is bounded to 1000 matching manifest artifacts.
 To bootstrap or recover expired evidence, explicitly dispatch CI on `main` with
-`bootstrap_release=true`: comprehensive validation and all three builds/publications,
+`bootstrap_release=true`: comprehensive validation and all four builds/publications,
 with deployment still disabled. Ordinary manual and nightly runs do not publish.
 Artifacts expire after 90 days; bootstrap again if no trusted artifact remains.
+A release whose run's artifact has expired can no longer be deployed by its
+tag: deploy a newer release instead.
 
 - **Tags:** the full commit SHA, always; `main` for a push to main; `1.2.3`
-  and `1.2` for a `v1.2.3` tag. Never `latest`: a deploy names the image
-  it runs. A `v1.2.3` tag also gets a GitHub release whose notes name both
-  images by version and digest, list the migrations since the previous
-  release, and say how to roll back to it ([releases](releases.md)).
+  once release `v1.2.3` is promoted (release.yml tags the same digests, it
+  never rebuilds). Never `latest`: a deploy names the image it runs. The
+  release's GitHub notes name the images by version and digest, list the
+  migrations since the previous release, and say how to roll back to it
+  ([releases](releases.md)).
 - **Caddy's image** (job `publish-caddy`) is published the same way, to
   `ghcr.io/<owner>/<repo>/caddy` with the same tags. It carries Caddy with the
   Cloudflare DNS plugin (pinned, `caddy/Dockerfile`) and the web app

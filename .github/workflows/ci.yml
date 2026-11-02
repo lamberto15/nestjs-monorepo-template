@@ -4,9 +4,10 @@
 # dependencies from the lockfile. The checks are the root's scripts: Turborepo
 # (turbo.json) runs each workspace package's task, with the GitHub-native
 # cache proxy sharing task artifacts between jobs and runs.
-# Then the security scans, and on main and v* tags the image is published to
-# GHCR (docs/deployment.md, "CI"); a v* tag then gets its GitHub release
-# (docs/releases.md).
+# Then the security scans, and on main the images are published to GHCR
+# (docs/deployment.md, "CI"). Releases never rebuild: release.yml promotes a
+# release tag's images after this workflow passed on its commit
+# (docs/releases.md), and deploy.yml deploys them (docs/deploy-swarm.md).
 #
 # Runners are the scarce resource (docs/ci-runtime.md): a job exists where
 # it needs a runner of its own (services, a browser, Docker, or minutes that
@@ -20,9 +21,8 @@ name: CI / CD
 on:
   push:
     branches: [main]
-    tags: ['v*']
     # Documentation-only merges do not need image publishing.
-    # Release tags and changes to deployment files remain fully validated.
+    # Changes to deployment files remain fully validated.
     paths-ignore:
       - 'docs/**'
       - 'README.md'
@@ -1882,57 +1882,3 @@ jobs:
           path: release-manifest.json
           if-no-files-found: error
           retention-days: 90
-
-  release:
-    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-    needs:
-      [ci-gate, publish, publish-gotenberg, publish-caddy, release-manifest]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: write
-    steps:
-      # Every commit and tag: the previous release and the changes since it.
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-manifest-v1
-      - name: Install Node.js (the notes have no dependencies)
-        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
-        with:
-          runtime: node@26
-          install: false
-      # The notes hold commit subjects and pull request titles: they go to
-      # files and the release, never to the log.
-      - name: The release and its notes
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          TAG: ${{ github.ref_name }}
-          IMAGE_VERSION: ${{ needs.publish.outputs.version }}
-          APP_DIGEST: ${{ needs.publish.outputs.digest }}
-          GOTENBERG_DIGEST: ${{ needs.publish-gotenberg.outputs.digest }}
-          CADDY_DIGEST: ${{ needs.publish-caddy.outputs.digest }}
-        run: |
-          set -euo pipefail
-          dir="$RUNNER_TEMP/release"
-          mkdir -p "$dir"
-          previous=$(node tools/release/notes.mjs --tag "$TAG" --print-previous)
-          echo "Release $TAG, after ${previous:-no earlier release}"
-          fields=(-f "tag_name=$TAG")
-          if [ -n "$previous" ]; then fields+=(-f "previous_tag_name=$previous"); fi
-          gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${fields[@]}" --jq .body > "$dir/changes.md"
-          node tools/release/notes.mjs --tag "$TAG" --previous "${previous:-none}" \
-            --image-version "$IMAGE_VERSION" --app-digest "$APP_DIGEST" --gotenberg-digest "$GOTENBERG_DIGEST" --caddy-digest "$CADDY_DIGEST" \
-            --changes "$dir/changes.md" --out "$dir/notes.md"
-          if gh release view "$TAG" --json tagName --jq .tagName > "$dir/existing" 2>&1; then
-            gh release edit "$TAG" --notes-file "$dir/notes.md"
-          else
-            flags=()
-            case "$TAG" in *-*) flags+=(--prerelease) ;; esac
-            gh release create "$TAG" --verify-tag --title "$TAG" --notes-file "$dir/notes.md" "${flags[@]}"
-          fi
-          gh release upload "$TAG" release-manifest.json --clobber
