@@ -254,7 +254,10 @@ test('Deploy verifies before any secret, targets Swarm by digest and never build
     /group: deploy-\$\{\{ needs.verify.outputs.environment \}\}\n      cancel-in-progress: false/,
   );
   assert.match(deploy, /ref: \$\{\{ needs.verify.outputs.source_sha \}\}/);
-  assert.match(deploy, /SWARM_OVERLAYS: compose.small.yaml/);
+  assert.match(
+    deploy,
+    /SWARM_OVERLAYS: \$\{\{ vars.SWARM_OVERLAYS \|\| 'compose.small.yaml' \}\}/,
+  );
   // The tailnet tag is the environment's, never one shared by both.
   assert.match(deploy, /tags: \$\{\{ env.TS_TAG \}\}/);
   assert.match(deploy, /TS_TAG: \$\{\{ vars.TS_TAG \}\}/);

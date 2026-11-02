@@ -11,6 +11,16 @@
 	on_demand_tls {
 		ask http://api:3000/v1/internal/domains/allowed
 	}
+	# The visitor's address, which the API sees as X-Forwarded-For (the
+	# @api handle below): by default the connection's own, any X-Forwarded-For
+	# a client sends being dropped. compose.tunnel.yaml trusts the tunnel
+	# (cloudflared, on the stack's private network) and takes the address from
+	# its CF-Connecting-IP (docs/deploy-swarm.md, "Public access through a
+	# Cloudflare Tunnel"). Read when Caddy starts; unset trusts nobody.
+	servers {
+		trusted_proxies static {$CADDY_TRUSTED_PROXIES}
+		client_ip_headers {$CADDY_CLIENT_IP_HEADERS:X-Forwarded-For}
+	}
 }
 
 # What every site serves: the API's paths and the web app. Imported by the
@@ -74,6 +84,9 @@
 			lb_try_interval 250ms
 			# A replica that stops answering (or shuts down) is skipped for a while.
 			fail_duration 10s
+			# One address, the visitor's (global options): the connection's own,
+			# or a trusted proxy's CF-Connecting-IP; never a chain a client wrote.
+			header_up X-Forwarded-For {client_ip}
 			# No active health checks: Caddy doesn't run them for dynamic upstreams
 			# (reverse_proxy docs, "Dynamic upstreams"); the passive fail_duration
 			# and lb_try_duration above do that work.

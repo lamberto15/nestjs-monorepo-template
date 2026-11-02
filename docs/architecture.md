@@ -31,7 +31,7 @@ gotenberg/             the PDF renderer's image (Gotenberg, thin on the official
 backup/                the backup image: pg_dump and the uploaded files on a schedule
 monitoring/            Prometheus rules and their tests, Alertmanager, the blackbox probe
 loadtest/              the k6 and realtime load tests (run.sh, scenarios)
-compose*.yaml          Docker Compose: shared, development, production, Swarm, monitoring, load test
+compose*.yaml          Docker Compose: shared, development, production, Swarm, sizing (small), Cloudflare Tunnel, monitoring, load test
 env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
 pnpm-workspace.yaml    the workspace: apps/*, packages/*
