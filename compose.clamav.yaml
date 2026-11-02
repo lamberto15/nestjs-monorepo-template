@@ -9,11 +9,6 @@
 # It turns the scanner on for api and worker (MALWARE_SCANNER=clamav,
 # CLAMAV_HOST=clamav). Uploads then wait `pending` until clean; pending
 # files can't be downloaded. docs/deployment.md, "ClamAV (malware scanning)".
-#
-# With compose.blue-green.yaml, also set MALWARE_SCANNER=clamav and
-# CLAMAV_HOST=clamav in .env: the colours (api-blue, api-green) extend
-# compose.prod.yaml's `api` and never see what this file sets on `api`, but
-# they read .env like every service (compose.prod.yaml, x-app).
 
 # Bounded logs, as in compose.yaml (an anchor can't cross files).
 x-logging: &logging

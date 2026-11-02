@@ -52,8 +52,7 @@ Filling `.env` (each step is commented in `env.example`):
   API's routes are the app's origin, so `__Host-sid` works and no CORS is needed. A new
   API path (an unversioned one, or a new version prefix such as `/v2/*`) needs a line in
   the `@api` matcher, with the bare path when the API serves it, and in the lists that
-  mirror it: `apps/web/pwa-paths.ts`, `ingress.apiPaths` in the Helm chart's
-  `values.yaml`, and the dev proxy (`apps/web/dev-proxy.ts`) if the web app calls it. A web
+  mirror it: `apps/web/pwa-paths.ts` and the dev proxy (`apps/web/dev-proxy.ts`) if the web app calls it. A web
   change redeploys Caddy (`docker compose up -d --build`); a change to the Caddyfile alone
   is read when Caddy starts (a bind mount: Compose sees no change), so
   `docker compose up -d --force-recreate caddy`.
@@ -75,8 +74,7 @@ Filling `.env` (each step is commented in `env.example`):
   font host** needs its origin in the matching directive of that one line (`script-src`,
   `frame-src`, `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no
   inline `<script>`, no `eval`. `caddy/caddyfile.test.mjs` pins the full header set
-  against a real Caddy binary, on the app shell, an asset and the maintenance page, and
-  that the Helm chart's web ConfigMap matches the Caddyfile line for line; that is the
+  against a real Caddy binary, on the app shell, an asset and the maintenance page; that is the
   one place a change to this line is checked (the e2e suite stopped sending it under
   `vite preview` when `apps/web/preview-headers.ts` was removed with the browser
   analytics feature it also served).
@@ -90,8 +88,7 @@ Filling `.env` (each step is commented in `env.example`):
   succeed only because `etag.ts` happens to trim long tags to their hash. Compressing the
   API, if wanted, is a separate decision (in Nest, or at the edge) for each deployment.
   The ops event stream (`GET /v1/ops/events`) is never buffered or encoded, so it still
-  flushes each event as it is written. A single-node K3s deployment behind a Cloudflare
-  Tunnel also gets compression at the edge, on top of this.
+  flushes each event as it is written.
 - **The origins of files** (`STORAGE_DRIVER=s3`). The browser reaches the bucket itself
   twice: it PUTs a direct upload straight to it
   ([attachments](attachments.md#direct-uploads-s3)), and the attachments panel's `<img>`
@@ -106,9 +103,7 @@ Filling `.env` (each step is commented in `env.example`):
   origin (`/files` goes to the API above), which `'self'` covers. So `connect-src` and
   `img-src` both name one list of origins, which `caddy/entrypoint.sh` makes at each
   start (`WEB_FILES_ORIGINS`, the one value the Caddyfile reads for them; after changing
-  the settings, recreate Caddy: `docker compose up -d caddy`). The Helm chart's web
-  Caddy makes the same list from `env` and `web.filesOrigin` (`app.webFilesOrigins`,
-  which fails the render on a value it cannot read). The list holds:
+  the settings, recreate Caddy: `docker compose up -d caddy`). The list holds:
   - **the bucket's origin**, derived from the app's own `S3_BUCKET`, `S3_ENDPOINT`,
     `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE` as the API's S3 disk signs its
     URLs (`https://<bucket>.s3.<region>.amazonaws.com`; R2's
@@ -159,8 +154,7 @@ Filling `.env` (each step is commented in `env.example`):
     then shows its own notice: the API answers 503 `maintenance`, which the app turns
     into a full-page notice ([monorepo](monorepo.md), "Maintenance and read-only
     mode"). Only first visits and other clients see Caddy's page.
-  - **Swarm** gets the flag through the same service environment. The Kubernetes
-    chart's `web` does not have it (its Ingress is where that is done).
+  - **Swarm** gets the flag through the same service environment.
   - **Test:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs` runs
     the real Caddyfile (the TLS block and Docker names edited out) under a real Caddy;
     CI's `caddy-image` job runs it with the image's own binary.
@@ -207,20 +201,18 @@ Filling `.env` (each step is commented in `env.example`):
   included: a few seconds' pause). Older logs are not kept: ship them
   somewhere if you need them for longer.
 
-### Zero-downtime deploys: three ways
+### Zero-downtime deploys: two ways
 
-Each keeps the old version serving until the new one is healthy, and every one
-needs the same three things: expand/contract migrations (old and new code run
+Each keeps the old version serving until the new one is healthy, and both
+need the same three things: expand/contract migrations (old and new code run
 against the same database), graceful shutdown (in place: a replica finishes
 its requests and exits), and pinned images (`APP_IMAGE` by commit SHA, so a
 rollback is one command).
 
 | Method               | Command                  | Rollback                                                             | Choose it when                                                                                                                           |
-| -------------------- | ------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| ----------------- | --------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
 | Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                      | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))   |
-| Blue-green (Compose) | `pnpm deploy:blue-green` | `pnpm deploy:blue-green rollback`: instant while the old colour runs | one host, an instant switch back matters, 2× the API's resources during a deploy are fine ([deploy-blue-green.md](deploy-blue-green.md)) |
-| Docker Swarm         | `pnpm deploy:swarm`      | automatic on a failed health check, or `pnpm deploy:swarm rollback`  | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md))                                         |
-| Kubernetes (Helm)    | `helm upgrade --install` | `helm rollback`; the migrate Job is a pre-upgrade hook               | a managed cluster ([deploy-kubernetes.md](deploy-kubernetes.md))                                                                         |
+| Docker Swarm      | `pnpm deploy:swarm`   | automatic on a failed health check, or `pnpm deploy:swarm rollback` | one or more nodes, updates and rollback by the orchestrator; how our staging and production deploy ([deploy-swarm.md](deploy-swarm.md)) |
 
 A plain `docker compose up -d --build` is not one of them: it recreates the
 replicas in place (below, what Caddy does about that).
@@ -276,7 +268,7 @@ without its `_FILE` is mounted from the empty `secret.empty`, which nothing
 reads.
 
 | `.env`                                                                                                                                                                                                                                                                                                                                                                                        | Read by                                                                                                                                               | Instead of                                          |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | `POSTGRES_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                      | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`)                                                             | `POSTGRES_PASSWORD`                                 |
 | `POSTGRES_MONITOR_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                              | `migrate` (creates the monitoring role with it) and the PostgreSQL exporter (`compose.monitoring.yaml`): one file                                     | `POSTGRES_MONITOR_PASSWORD`                         |
 | `DATABASE_OWNER_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                     | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service         | the URL Compose builds from `POSTGRES_PASSWORD`     |
@@ -423,18 +415,6 @@ the Caddyfile's last site, `https://`, every hostname `APP_DOMAIN` isn't:
 - **Off** (the default): the API answers 404 to every hostname; no
   certificate is ever issued for anything but `APP_DOMAIN`.
 
-The Helm chart has no on-demand edge: its Ingress serves the hostnames the
-operators list in `customDomains.hosts` (`customDomains.enabled: true` sets
-`CUSTOM_DOMAINS=on`), with one certificate, `customDomains.tlsSecretName`,
-from a cert-manager issuer that can solve those zones (HTTP-01; a
-`dnsZones`-scoped DNS-01 solver stays for the app's own domain). List a
-hostname once `GET /v1/branding/domains` says it is verified. A domain
-removed or suspended stops at once in the API (no tenant, no brand, no
-session pinned to it); take it out of `customDomains.hosts` as well, or the
-web app's shell stays on it, unbranded. On k3s behind the Cloudflare Tunnel
-(docs/deploy-k3s.md), a tenant's hostname reaches the tunnel only as a
-Cloudflare for SaaS custom hostname, which this repository doesn't set up.
-
 ### Gotenberg (PDF documents)
 
 The workers render [documents](documents.md) with
@@ -552,8 +532,8 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
 
   The 512 MiB covers an image's libvips buffers (~264 MiB at the defaults
   above), a workbook read whole and the sockets. The streamed imports keep
-  under 1 MB per job (`formats.memory.spec.ts`); the Kubernetes request is
-  1 GiB, the limit 1536 MiB (`heavyWorker.resources`).
+  under 1 MB per job (`formats.memory.spec.ts`); the heavy worker's
+  limit is 1536 MiB.
   sharp brings libvips prebuilt (the `@img/sharp-*` package for the platform
   and libc, an optional dependency with no install script): the glibc image
   (`apps/api/Dockerfile`) needs no extra package and no `allowBuilds` entry.
@@ -568,7 +548,7 @@ process then can't change the image, plant a binary, or gain privileges.
 What each one may write, and the capabilities it gets back:
 
 | Service | Writable (besides the image: none) | Capabilities added back |
-| --- | --- | --- |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
 | `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
 | `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
@@ -642,7 +622,7 @@ What each one may write, and the capabilities it gets back:
   lacks the keys (`read_only`, `cap_drop`, `no-new-privileges`, a `/tmp`
   tmpfs), whichever service it is. It renders `compose.yaml` +
   `compose.prod.yaml` alone, then with each overlay on top (`clamav`,
-  `monitoring` with every profile, `blue-green`), and checks that the overlay's
+  `monitoring` with every profile), and checks that the overlay's
   services are in the render. The exceptions are a list in that step, by
   service and key. The `image` job, after its Trivy scan, starts the stack on
   new volumes (for API or stack changes) and fails when a container exits,
@@ -680,7 +660,7 @@ Compose scales on one host. Beyond it:
 - **Redis:** managed, or Sentinel (`REDIS_SENTINELS=host:26379,…`,
   `REDIS_SENTINEL_NAME`); drop `redis` from the stack.
 - **Files:** S3 or R2 (`STORAGE_DRIVER=s3`, `S3_*`).
-- **Hosts:** an orchestrator (Swarm, Kubernetes, a managed platform) runs the
+- **Hosts:** an orchestrator (Swarm, a managed platform) runs the
   same image with the same three commands. socket.io across hosts needs
   `transports: ['websocket']` on clients, or sticky sessions.
 
@@ -984,17 +964,11 @@ request's result. Observed blockers/waits are evidence, not an automatically con
 
 **Enable and verify:** inspect the deployed runtime before changing it. For Compose, check
 `docker compose ps`, active profiles, `/metrics` authentication, and Prometheus targets; enable the
-existing monitoring overlay with `logs,grafana` when needed. For K3s, use
-[the observability runbook](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md) to inspect the monitoring releases,
-ServiceMonitors, app PrometheusRule, and Alloy/Loki. This repository's presence does not establish
+existing monitoring overlay with `logs,grafana` when needed. This repository's presence does not establish
 that any component is deployed. Keep credentials in the protected deployment secret store; agents
 must not edit live env files.
 
-Compose mounts `DATABASE_MONITOR_URL_FILE` for API/worker when configured. In Helm, provision the
-`database_monitor_url` key in the existing app Secret and add
-`DATABASE_MONITOR_URL_FILE: database_monitor_url` to each desired role's `secretFiles.api` /
-`secretFiles.worker` mapping; it is optional to avoid breaking installations without that key.
-Apply `deploy/k3s/monitoring/dashboards/` after the rollout. Compose provisions the same **Database
+Compose mounts `DATABASE_MONITOR_URL_FILE` for API/worker when configured. Compose provisions the **Database
 Incidents** dashboard through its existing Grafana provisioning mount. It shows pool usage/limit,
 acquisition and command p95, failures, incident triggers, and Loki evidence filterable by incident or
 request ID. Snapshots remain available when the application pool is exhausted.
@@ -1192,12 +1166,6 @@ docker compose up -d
   for lack of space and the file stays `pending`. An existing `clamav_db`
   volume is used as it is. `.github/workflows/clamav.yml` starts
   the container and scans the EICAR test file whenever the overlay changes.
-- **Blue-green:** the colours (`api-blue`, `api-green`) extend
-  `compose.prod.yaml`'s `api`, so they never get what the file sets on `api`.
-  Put `MALWARE_SCANNER=clamav` and `CLAMAV_HOST=clamav` in `.env` as well:
-  every service reads them from there (CI renders the combination and checks
-  both colours). Forgotten, the colours run with the scanner off: their
-  uploads are `clean` at once, unscanned, and nothing says so.
 - **Off:** leave the file out of `COMPOSE_FILE` (`MALWARE_SCANNER=off`, the
   default): no scan and no `pending` state, as without this feature. Turning
   it on later leaves existing attachments `clean` (unscanned); turning it
@@ -1296,7 +1264,7 @@ excepted, and why is there), no capabilities, `no-new-privileges`.
 warning: look today):
 
 | Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
 | `ApiDown`, `WorkerDown`                                      | no healthy api for 2 min; no worker for 5 min                                                                                                                                       | critical          |
 | `TargetDown`                                                 | one scrape target fails for 5 min (a replica, an exporter; a wrong `METRICS_TOKEN`)                                                                                                 | warning           |
 | `AppRestarting`                                              | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit)                                                                                              | warning           |
@@ -1550,9 +1518,10 @@ docker compose up -d
   provisioned (`monitoring/grafana/provisioning/datasources/loki.yml`).
   The **Capacity** dashboard (`dashboards/capacity.json`) shows Redis's
   memory against maxmemory (redis_exporter), API and worker restarts
-  (`process_start_time_seconds`) and host OOM kills; on K3s, the
-  Application Overview has the same with Kubernetes' metrics
-  (`deploy/k3s/monitoring/README.md`).
+  (`process_start_time_seconds`) and host OOM kills. The **Application**
+  dashboard (`dashboards/application.json`) shows API requests per second,
+  the 5xx share, p95 response time and requests in flight, the worker's queue
+  backlog, active and failed jobs, and the outbox delivery lag.
 - **Limits:** `LOKI_CPUS`/`LOKI_MEMORY` (0.5, 512 MB), `ALLOY_*` (0.25, 256
   MB), `GRAFANA_*` (0.5, 256 MB).
 
@@ -1726,7 +1695,7 @@ reachable only by whoever can run a container with the deployment's
 environment (the database URL, the keys). Nothing in the API calls it.
 
 | Command | What it does |
-| --- | --- |
+| ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `tenant:list` | the tenants: id, slug, members, active |
 | `user:list <tenant>` | a tenant's users (id or slug): roles, two-factor, active |
 | `admin:create <email> [--tenant <id\|slug>] [--name <name>]` | an administrator of a tenant (`--tenant` is optional when the deployment has one tenant). A new address gets an account (verified) and a one-time password; an existing account keeps its password and becomes the tenant's administrator |
@@ -1770,8 +1739,7 @@ docker compose run --rm api node dist/cli setting:delete auth.requireMfa --tenan
 ```
 
 On the Compose deployment (`.env` sets `COMPOSE_FILE`), `api` is
-`compose.prod.yaml`'s service; with blue-green, run it as `api-blue` (or
-`api-green`), which extends it. On Swarm, run the image on the stack's
+`compose.prod.yaml`'s service. On Swarm, run the image on the stack's
 network: `docker run --rm -it --network <stack>_default --env-file .env
 $APP_IMAGE node dist/cli …` ([Swarm](deploy-swarm.md)). The command needs
 what the app starts with (`DATABASE_URL`, `REDIS_URL`, `DATA_ENCRYPTION_KEYS`,
@@ -1801,7 +1769,7 @@ for an outage: `GET /v1/ops/diagnostics` (the operations page's
 (`@OperatorOnly()`, docs/tenancy.md) with `Ops.view`.
 
 | Check | `ok` / `configured` | `disabled` | `unconfigured` | `unavailable` |
-| --- | --- | --- | --- | --- |
+| ---------- | --------------------------------- | -------------- | --------------------------------------- | --------------------------------------- |
 | `database` | answered a ping | | | no answer within 5 s |
 | `redis` | answered PING | | | no answer |
 | `workers` | a worker is connected to a queue | | | none (start `APP_ROLE=worker` or `all`) |
@@ -2136,12 +2104,14 @@ yours takes. Time a restore of a real dump once and set
 The **CI / CD** workflow (`.github/workflows/ci.yml`) validates changes and,
 for eligible releases, publishes images and release notes. Its filename remains
 stable because image signatures and provenance identify that workflow path.
-CI never deploys. The separately reviewed
-manual **Deploy** workflow accepts a verified release run ID through the protected
-production environment; see [manual deployment](deploy-k3s.md#deploy-a-verified-release-manually).
+CI never deploys. The separate
+**Deploy** workflow (`.github/workflows/deploy.yml`) deploys a verified build to
+single-node Docker Swarm hosts: staging after every merge to `main` when
+`AUTO_DEPLOY` is on, production only by a manual run with a release tag
+([deploy-swarm.md](deploy-swarm.md), "Environments and CI deploys").
 
 Application validation stays centralized here. Workflows with different path
-triggers, permissions or schedules (Helm, monitoring, migrations, the typed
+triggers, permissions or schedules (monitoring, migrations, the typed
 client, docs, restore drills) remain separate. PR concurrency groups include the
 workflow and PR ref, cancelling superseded runs without cancelling other PRs.
 Publication and production deployment keep their serialization.
@@ -2156,7 +2126,7 @@ validation. A failed compare never silently skips tests. Nightly (03:17 UTC),
 manual full runs and `v*` tags are comprehensive too.
 
 | Change | Validation |
-| --- | --- |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | API | lint/build, API unit coverage, API E2E (a sixth again, instrumented), browser/accessibility tests, migrations, security, API image and hardened runtime |
 | Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks |
 | Typed client/shared roots | dependent packages; shared root dependencies run comprehensive validation |
@@ -2164,7 +2134,7 @@ manual full runs and `v*` tags are comprehensive too.
 | Compose service images | database/browser E2E and generator smoke on those images |
 | Stack/images | stack config (secrets, hardening, Swarm render) and image checks, with the hardened runtime |
 | CI orchestration | routing, gate, manifest and workflow syntax tests |
-| Docs, Helm/K3s | the corresponding companion workflow |
+| Docs                         | the corresponding companion workflow                                                                                                                    |
 
 The classifier has explicit routes for infrastructure, generators, migrations and
 image contexts. Workspace lint/build/coverage tasks use Turbo's `--affected` with
@@ -2173,7 +2143,7 @@ comparison includes inputs outside the workspace graph, explicit routing retains
 the necessary tasks. Knip and translation parity still inspect the whole workspace.
 
 | Job | Purpose |
-| --- | --- |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `changes` | classification, expected jobs and cumulative image rebuild plan |
 | `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, OpenAPI breaking-change report, bundle budget and Storybook, leftover-notes guard |
 | `unit-web` | web unit coverage, whole, thresholds enforced directly |
@@ -2238,9 +2208,6 @@ the trusted manifest, so failed or skipped intervening releases cannot lose work
 Those cumulative component changes are revalidated against the same Turbo base.
 Runtime-only infrastructure checks may build an API artifact without publishing
 an unchanged API image.
-A change to the chart alone (`deploy/helm/app/`) also makes a manifest on `main`:
-the previous images with the new source SHA, so Deploy ships the chart without a
-rebuild.
 
 Reuse requires a successful `main` CI run's manifest, source ancestry, registry
 availability, an exact main-workflow cosign identity, a signed CycloneDX SBOM and
@@ -2348,7 +2315,7 @@ Set `VERIFY_IDENTITY_REGEXP` to accept a different signer (a fork's workflow, sa
 non-zero and prints cosign's reason; do not deploy that image.
 
 **In the deploy scripts:** `VERIFY_IMAGES=1` makes `pnpm deploy:rolling`
-(before it pulls `APP_IMAGE`), `deploy:blue-green` (with `--image`) and
+(before it pulls `APP_IMAGE`) and
 `deploy:swarm deploy` run the script first and stop when it fails. Off by
 default, because it needs cosign on the deploy host; the plain
 `docker compose pull` path above is unchanged.

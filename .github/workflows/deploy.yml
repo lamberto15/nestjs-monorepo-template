@@ -1,66 +1,75 @@
-# Explicit deployment of an already tested, scanned and signed main release.
-# Image producers stay in ci.yml; this workflow never builds or publishes images.
+# Deploys an already tested, scanned and signed release to one of our two
+# Docker Swarm environments (docs/deploy-swarm.md, "Environments and CI
+# deploys"). Image producers stay in ci.yml: this workflow never builds.
+#
+#   staging      every CI / CD run on main that published a release manifest,
+#                while the repository variable AUTO_DEPLOY is 'true'; or by hand
+#                (tag empty: the newest such run)
+#   production   only by hand, with a release tag whose GitHub release is
+#                published and not a pre-release; the environment's required
+#                reviewer approves the run
+#
+# verify (no environment, no secrets) picks the CI run and checks its evidence
+# and every image (tools/ci/deploy-release.mjs); deploy joins the tailnet and
+# runs tools/deploy/swarm.mjs against the host's Docker over SSH, with the
+# environment's DEPLOY_ENV_FILE and the images pinned by digest. swarm.mjs
+# migrates, rolls out and rolls a failed update back by itself; the database is
+# never rolled back (migrations are expand/contract).
 name: Deploy
-run-name: Deploy release run ${{ inputs.release_run_id }}
+run-name: >-
+  Deploy ${{ github.event_name == 'workflow_run' && 'staging' || inputs.environment }}
+  ${{ inputs.tag || '' }}
 
 on:
+  workflow_run:
+    workflows: ['CI / CD']
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
-      release_run_id:
-        description: 'Successful main CI run containing release-manifest-v1'
+      environment:
+        description: 'Where to deploy'
+        type: choice
+        options: [staging, production]
+        default: staging
+      tag:
+        description: 'Release tag (v1.2.3). Required for production; empty on staging: the newest main build'
         type: string
-        required: true
+        required: false
+        default: ''
 
 permissions:
   contents: read
 
 jobs:
-  deploy:
-    if: github.ref == 'refs/heads/main'
+  verify:
+    # After CI only for a successful run of main's own push (or a bootstrap
+    # dispatch), and only while AUTO_DEPLOY is on; by hand only from main.
+    if: >-
+      github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' ||
+      (vars.AUTO_DEPLOY == 'true' && github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    environment:
-      name: production
-      url: ${{ vars.APP_URL }}
-    concurrency:
-      group: production-k3s
-      cancel-in-progress: false
+    timeout-minutes: 15
     permissions:
       contents: read
       actions: read
       packages: read
       attestations: read
-      id-token: write
-    env:
-      APP_DOMAIN: ${{ vars.APP_DOMAIN }}
-      APP_URL: ${{ vars.APP_URL }}
-      MAIL_FROM: ${{ vars.MAIL_FROM }}
-      # Web Push (docs/deploy-k3s.md): off while PUSH_PROVIDER is unset; the
-      # private key is the Secret's web_push_vapid_private_key.
-      PUSH_PROVIDER: ${{ vars.PUSH_PROVIDER }}
-      WEB_PUSH_VAPID_PUBLIC_KEY: ${{ vars.WEB_PUSH_VAPID_PUBLIC_KEY }}
-      WEB_PUSH_SUBJECT: ${{ vars.WEB_PUSH_SUBJECT }}
-      # Native apps for passkeys and app attestation (docs/auth.md), each
-      # comma-separated; unset: none.
-      PASSKEY_APPLE_APPS: ${{ vars.PASSKEY_APPLE_APPS }}
-      PASSKEY_ANDROID_APPS: ${{ vars.PASSKEY_ANDROID_APPS }}
-      NATIVE_REDIRECT_URIS: ${{ vars.NATIVE_REDIRECT_URIS }}
-      # Sign in with (docs/configuration.md): a provider is on when its client
-      # ID is set; its secret is the Secret's <provider>_client_secret.
-      # GitHub refuses variable names that start with GITHUB_, hence OIDC_.
-      OIDC_GOOGLE_CLIENT_ID: ${{ vars.OIDC_GOOGLE_CLIENT_ID }}
-      OIDC_MICROSOFT_CLIENT_ID: ${{ vars.OIDC_MICROSOFT_CLIENT_ID }}
-      OIDC_MICROSOFT_TENANT_ID: ${{ vars.OIDC_MICROSOFT_TENANT_ID }}
-      OIDC_GITHUB_CLIENT_ID: ${{ vars.OIDC_GITHUB_CLIENT_ID }}
+    outputs:
+      environment: ${{ steps.target.outputs.environment }}
+      skip: ${{ steps.release.outputs.skip }}
+      source_sha: ${{ steps.release.outputs.source_sha }}
+      api: ${{ steps.release.outputs.api }}
+      caddy: ${{ steps.release.outputs.caddy }}
+      gotenberg: ${{ steps.release.outputs.gotenberg }}
+      backup: ${{ steps.release.outputs.backup }}
     steps:
-      - name: Require production deployment to be enabled
+      - name: Target environment
+        id: target
         env:
-          DEPLOY_ENABLED: ${{ vars.K3S_DEPLOY_ENABLED }}
-        run: |
-          if [ "$DEPLOY_ENABLED" != true ]; then
-            echo '::error::Set K3S_DEPLOY_ENABLED=true after production prerequisites are checked.'
-            exit 1
-          fi
+          ENVIRONMENT: ${{ github.event_name == 'workflow_run' && 'staging' || inputs.environment }}
+        run: echo "environment=$ENVIRONMENT" >> "$GITHUB_OUTPUT"
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
@@ -76,167 +85,95 @@ jobs:
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_RUN_ID: ${{ inputs.release_run_id }}
+          DEPLOY_ENVIRONMENT: ${{ steps.target.outputs.environment }}
+          DEPLOY_TAG: ${{ inputs.tag }}
+          WORKFLOW_RUN_ID: ${{ github.event.workflow_run.id }}
         run: node tools/ci/deploy-release.mjs
-      - name: Use the chart from the verified release source
+
+  deploy:
+    needs: verify
+    if: needs.verify.outputs.skip == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment:
+      name: ${{ needs.verify.outputs.environment }}
+      url: ${{ vars.APP_URL }}
+    concurrency:
+      group: deploy-${{ needs.verify.outputs.environment }}
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: read
+      id-token: write
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
+      APP_URL: ${{ vars.APP_URL }}
+      TS_TAG: ${{ vars.TS_TAG }}
+    steps:
+      - name: Use the deployment files of the verified release source
         uses: actions/checkout@v7
         with:
-          ref: ${{ steps.release.outputs.source_sha }}
+          ref: ${{ needs.verify.outputs.source_sha }}
           persist-credentials: false
-      - name: Verify the CI image digests
+      - name: Install Node.js (the deploy script has no dependencies)
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          runtime: node@26
+          install: false
+      - name: Require the environment's settings
         env:
-          APP_DIGEST: ${{ steps.release.outputs.api }}
-          WEB_DIGEST: ${{ steps.release.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
         run: |
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
-            [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]] || exit 1
-          done
-      - name: Install Helm 4.3.1
-        run: |
-          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
-          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' |
-            (cd "$RUNNER_TEMP" && sha256sum -c -)
-          mkdir -p "$RUNNER_TEMP/helm-bin"
-          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
-          install -m 0755 "$RUNNER_TEMP/linux-amd64/helm" "$RUNNER_TEMP/helm-bin/helm"
-          echo "$RUNNER_TEMP/helm-bin" >> "$GITHUB_PATH"
-      - name: Validate the exact production render
-        env:
-          APP_DIGEST: ${{ steps.release.outputs.api }}
-          WEB_DIGEST: ${{ steps.release.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
-        run: |
-          test -n "$APP_DOMAIN" && test -n "$APP_URL" && test -n "$MAIL_FROM"
-          test "$APP_URL" = "https://$APP_DOMAIN"
-          helm version --short
-          helm lint deploy/helm/app --strict \
-            -f deploy/helm/app/values.single-node.yaml \
-            --set image.digest="$APP_DIGEST" \
-            --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
-            --set-string domain="$APP_DOMAIN" \
-            --set-string env.WEB_URL="$APP_URL" \
-            --set-string env.CORS_ORIGINS="$APP_URL" \
-            --set-string env.MAIL_FROM="$MAIL_FROM"
-          helm template app deploy/helm/app \
-            -n nestjs-monorepo \
-            -f deploy/helm/app/values.single-node.yaml \
-            --set image.digest="$APP_DIGEST" \
-            --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
-            --set-string domain="$APP_DOMAIN" \
-            --set-string env.WEB_URL="$APP_URL" \
-            --set-string env.CORS_ORIGINS="$APP_URL" \
-            --set-string env.MAIL_FROM="$MAIL_FROM" > "$RUNNER_TEMP/app.yaml"
-          for digest in "$APP_DIGEST" "$WEB_DIGEST" "$GOTENBERG_DIGEST"; do
-            grep -Fq "@$digest" "$RUNNER_TEMP/app.yaml"
-          done
-          for value in "$APP_DOMAIN" "$APP_URL" "$MAIL_FROM"; do
-            grep -Fq "$value" "$RUNNER_TEMP/app.yaml"
-          done
+          [[ "$DEPLOY_HOST" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || { echo '::error::Set the environment variable DEPLOY_HOST (the host'"'"'s tailnet name).'; exit 1; }
+          [[ "$TS_TAG" =~ ^tag:[a-z0-9-]+$ ]] || { echo '::error::Set the environment variable TS_TAG (the tailnet tag of this environment'"'"'s deploys).'; exit 1; }
+          [ -n "$DEPLOY_ENV_FILE" ] || { echo '::error::Set the environment secret DEPLOY_ENV_FILE (docs/deploy-swarm.md, "Configuration").'; exit 1; }
       - name: Join the deployment tailnet
         uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.TS_AUDIENCE }}
-          tags: tag:github-k3s-deploy
+          # Each environment's own tag and trust credential: a staging run
+          # can't reach the production host (docs/deploy-swarm.md).
+          tags: ${{ env.TS_TAG }}
           version: 1.104.2
-      - name: Use the namespace-scoped kubeconfig
-        env:
-          K3S_KUBECONFIG: ${{ secrets.K3S_KUBECONFIG }}
+      - name: Reach the host's Docker over SSH
         run: |
+          # Tailscale SSH: the tailnet authenticates the host and allows this
+          # environment's tag in as `deploy` (docs/deploy-swarm.md), so the
+          # runner, new every time, takes the host key it is shown.
+          install -d -m 700 ~/.ssh
+          printf 'Host %s\n  User deploy\n  StrictHostKeyChecking accept-new\n  ConnectTimeout 30\n' "$DEPLOY_HOST" > ~/.ssh/config
+          chmod 600 ~/.ssh/config
+          echo "DOCKER_HOST=ssh://deploy@$DEPLOY_HOST" >> "$GITHUB_ENV"
+      - name: Pull access for the Swarm
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Deploy the stack
+        env:
+          DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
+          SWARM_OVERLAYS: compose.small.yaml
+          APP_IMAGE: ${{ needs.verify.outputs.api }}
+          CADDY_IMAGE: ${{ needs.verify.outputs.caddy }}
+          GOTENBERG_IMAGE: ${{ needs.verify.outputs.gotenberg }}
+          BACKUP_IMAGE: ${{ needs.verify.outputs.backup }}
+        run: |
+          for image in "$APP_IMAGE" "$CADDY_IMAGE" "$GOTENBERG_IMAGE" "$BACKUP_IMAGE"; do
+            [[ "$image" =~ ^ghcr\.io/[a-z0-9./_-]+@sha256:[a-f0-9]{64}$ ]] || { echo "::error::not a pinned image: $image"; exit 1; }
+          done
           umask 077
-          printf '%s' "$K3S_KUBECONFIG" > "$RUNNER_TEMP/kubeconfig"
-          echo "KUBECONFIG=$RUNNER_TEMP/kubeconfig" >> "$GITHUB_ENV"
-      - name: Check namespace and prerequisite Secret
-        run: |
-          test "$(kubectl -n nestjs-monorepo auth can-i create deployments)" = yes
-          test "$(kubectl -n nestjs-monorepo auth can-i create clusterrolebindings)" = no
-          for verb in get list watch create update patch delete; do
-            if [ "$(kubectl -n nestjs-monorepo auth can-i "$verb" prometheusrules.monitoring.coreos.com)" != yes ]; then
-              echo "::error::github-deployer cannot $verb PrometheusRules; apply deploy/k3s/deployer-rbac.yaml as a cluster administrator"
-              exit 1
-            fi
-          done
-          kubectl -n nestjs-monorepo get secret app-secrets -o json |
-            jq -e '.data as $data | ["database_url", "database_owner_url", "database_maintenance_url", "jwt_secret", "mfa_encryption_keys", "data_encryption_keys", "blind_index_keys", "redis_password", "mail_api_key", "metrics_token"] | all(. as $key | $data[$key] != null)' > /dev/null
-          if [[ ",$PUSH_PROVIDER," == *",web-push,"* ]]; then
-            kubectl -n nestjs-monorepo get secret app-secrets -o json |
-              jq -e '.data.web_push_vapid_private_key != null' > /dev/null ||
-              { echo "::error::PUSH_PROVIDER has web-push: add web_push_vapid_private_key to app-secrets"; exit 1; }
-          fi
-          for provider in google microsoft github; do
-            id="OIDC_${provider^^}_CLIENT_ID"
-            if [ -n "${!id}" ]; then
-              kubectl -n nestjs-monorepo get secret app-secrets -o json |
-                jq -e --arg key "${provider}_client_secret" '.data[$key] != null' > /dev/null ||
-                { echo "::error::$id is set: add ${provider}_client_secret to app-secrets"; exit 1; }
-            fi
-          done
-          kubectl -n nestjs-monorepo rollout status statefulset/postgres --timeout=2m
-          kubectl -n nestjs-monorepo rollout status statefulset/redis --timeout=2m
-      - name: Upgrade to the CI-verified release
-        env:
-          APP_DIGEST: ${{ steps.release.outputs.api }}
-          WEB_DIGEST: ${{ steps.release.outputs.caddy }}
-          GOTENBERG_DIGEST: ${{ steps.release.outputs.gotenberg }}
-        run: |
-          # The release is rebuilt from these values (no --reuse-values), so
-          # push is passed on every deploy, or not at all.
-          push=()
-          if [ -n "$PUSH_PROVIDER" ]; then
-            push=(--set-string env.PUSH_PROVIDER="$PUSH_PROVIDER"
-              --set-string env.WEB_PUSH_VAPID_PUBLIC_KEY="$WEB_PUSH_VAPID_PUBLIC_KEY"
-              --set-string env.WEB_PUSH_SUBJECT="$WEB_PUSH_SUBJECT"
-              --set-string secretFiles.common.WEB_PUSH_VAPID_PRIVATE_KEY_FILE=web_push_vapid_private_key)
-          fi
-          # Helm splits --set values on commas, so a list escapes them.
-          apps=()
-          if [ -n "$PASSKEY_APPLE_APPS" ]; then
-            apps+=(--set-string env.PASSKEY_APPLE_APPS="${PASSKEY_APPLE_APPS//,/\\,}")
-          fi
-          if [ -n "$PASSKEY_ANDROID_APPS" ]; then
-            apps+=(--set-string env.PASSKEY_ANDROID_APPS="${PASSKEY_ANDROID_APPS//,/\\,}")
-          fi
-          if [ -n "$NATIVE_REDIRECT_URIS" ]; then
-            apps+=(--set-string env.NATIVE_REDIRECT_URIS="${NATIVE_REDIRECT_URIS//,/\\,}")
-          fi
-          sso=()
-          for provider in GOOGLE MICROSOFT GITHUB; do
-            id="OIDC_${provider}_CLIENT_ID"
-            if [ -n "${!id}" ]; then
-              sso+=(--set-string env."${provider}_CLIENT_ID"="${!id}"
-                --set-string secretFiles.common."${provider}_CLIENT_SECRET_FILE"="${provider,,}_client_secret")
-            fi
-          done
-          if [ -n "$OIDC_MICROSOFT_CLIENT_ID" ] && [ -n "$OIDC_MICROSOFT_TENANT_ID" ]; then
-            sso+=(--set-string env.MICROSOFT_TENANT_ID="$OIDC_MICROSOFT_TENANT_ID")
-          fi
-          # Optional, and made by a database administrator: mapping a key the
-          # Secret lacks would stop the pods mounting it.
-          monitor=()
-          if kubectl -n nestjs-monorepo get secret app-secrets -o json |
-            jq -e '.data.database_monitor_url != null' > /dev/null; then
-            monitor=(--set-string secretFiles.api.DATABASE_MONITOR_URL_FILE=database_monitor_url
-              --set-string secretFiles.worker.DATABASE_MONITOR_URL_FILE=database_monitor_url)
-          fi
-          helm upgrade --install app deploy/helm/app \
-            --namespace nestjs-monorepo \
-            --rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m \
-            --history-max 10 \
-            -f deploy/helm/app/values.single-node.yaml \
-            --set image.digest="$APP_DIGEST" \
-            --set web.image.digest="$WEB_DIGEST" \
-            --set gotenberg.image.digest="$GOTENBERG_DIGEST" \
-            --set-string domain="$APP_DOMAIN" \
-            --set-string env.WEB_URL="$APP_URL" \
-            --set-string env.CORS_ORIGINS="$APP_URL" \
-            --set-string env.MAIL_FROM="$MAIL_FROM" \
-            "${push[@]}" "${apps[@]}" "${sso[@]}" "${monitor[@]}"
-      - name: Verify public readiness
+          printf '%s\n' "$DEPLOY_ENV_FILE" > "$RUNNER_TEMP/deploy.env"
+          docker info --format 'Swarm on {{.Name}}: {{.Swarm.LocalNodeState}}'
+          node tools/deploy/swarm.mjs deploy --env-file "$RUNNER_TEMP/deploy.env"
+      - name: Verify readiness
+        if: env.APP_URL != ''
         run: |
           curl --fail --silent --show-error --retry 12 --retry-all-errors --retry-delay 5 --max-time 10 \
             "$APP_URL/health" -o "$RUNNER_TEMP/readiness.json"
           jq -e '.status == "ok"' "$RUNNER_TEMP/readiness.json" > /dev/null
-          echo 'Public readiness passed.' >> "$GITHUB_STEP_SUMMARY"
+          echo "Readiness passed: $APP_URL/health" >> "$GITHUB_STEP_SUMMARY"
+      - name: Remove the environment file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/deploy.env" ~/.ssh/config

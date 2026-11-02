@@ -7,7 +7,7 @@ This index organizes the **existing deep technical references** by task. The lin
 ## 1. Learn, run and extend
 
 | Goal | Guide |
-| --- | --- |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Run API, web app and local services | [Quickstart](quickstart.md), [development](../development.md) |
 | Understand services, packages and dependency boundaries | [System map](system-map.md), [architecture](../architecture.md), [monorepo](../monorepo.md) |
 | Configure first-run options and environment | [Configuration](../configuration.md), [settings and flags](../settings.md) |
@@ -20,7 +20,7 @@ This index organizes the **existing deep technical references** by task. The lin
 ## 2. Identity, data and access
 
 | Topic | Guide |
-| --- | --- |
+| ----------------------------------------------------------------- | ------------------------------------ |
 | Users, sessions, OAuth, passkeys, SSO, SCIM, MFA | [Authentication](../auth.md) |
 | Roles, grants, CASL, field access, organizational units and audit | [Permissions](../permissions.md) |
 | Tenant context and PostgreSQL row-level security | [Tenancy](../tenancy.md) |
@@ -33,7 +33,7 @@ This index organizes the **existing deep technical references** by task. The lin
 ## 3. Platform extension
 
 | Topic | Guide |
-| --- | --- |
+| ------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Background jobs, workflows, outbox and cron | [Background work](../background-work.md) |
 | Webhooks and realtime events | [Webhooks and realtime](../webhooks-and-realtime.md) |
 | Approval policies | [Approvals](../approvals.md) |
@@ -50,10 +50,10 @@ This index organizes the **existing deep technical references** by task. The lin
 ## 4. Deploy, protect and upgrade
 
 | Goal | Guide |
-| --- | --- |
+| -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Prepare a release and a deployment | [Operations checklist](release-and-operations-checklist.md), [deployment](../deployment.md) |
-| Docker Compose updates | [Rolling](../deploy-rolling.md), [blue-green](../deploy-blue-green.md) |
-| Other orchestrators | [Swarm](../deploy-swarm.md), [Kubernetes / Helm](../deploy-kubernetes.md) |
+| Docker Compose updates                       | [Rolling](../deploy-rolling.md)                                                                                                                       |
+| Our servers (staging, production)            | [Swarm](../deploy-swarm.md)                                                                                                                           |
 | Migrations, backups, monitoring, secrets, CI | [Deployment](../deployment.md) |
 | Cut versions and publish images | [Releases](../releases.md) |
 | Merge template changes into adopted projects | [Upgrading](../upgrading.md) |

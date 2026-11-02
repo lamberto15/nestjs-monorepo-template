@@ -9,7 +9,7 @@
 # Every part of the app is safe with several instances: sessions, locks,
 # rate limits, queues, workflows, the outbox and WebSocket fan-out are shared
 # through PostgreSQL and Redis. More than one host takes an orchestrator
-# (Swarm, Kubernetes, a managed platform) and managed PostgreSQL and Redis.
+# (Swarm, a managed platform) and managed PostgreSQL and Redis.
 
 # Bounded container logs: the same settings as compose.yaml's (postgres,
 # redis), which explains the driver.
@@ -175,9 +175,7 @@ x-app: &app
     # Malware scanning of uploads (docs/attachments.md, "Malware scanning"):
     # off unless .env says clamav; compose.clamav.yaml adds clamd and sets it
     # for api and worker. Here, in x-app, so every service built from it
-    # reads .env alike: the blue-green colours extend `api` as it is in this
-    # file, without any overlay's changes to it (docs/deployment.md, "ClamAV
-    # (malware scanning)"), and api needs it as much as the worker (it stores
+    # reads .env alike, and api needs it as much as the worker (it stores
     # an upload `pending` and queues the scan, with the attempts below).
     MALWARE_SCANNER: ${MALWARE_SCANNER:-off}
     CLAMAV_HOST: ${CLAMAV_HOST:-}

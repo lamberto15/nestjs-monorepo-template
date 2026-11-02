@@ -1,9 +1,7 @@
 // The Caddyfile's behaviour, run by a real Caddy:
 //   CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs
 // (CI's caddy-image job takes the binary out of the image it built; without a
-// binary those tests are skipped. The Helm workflow runs the file too, for the
-// tests that need no Caddy: the chart's copy of the web app's Caddyfile must
-// match this one.) The real Caddyfile is used with four edits
+// binary those tests are skipped.) The real Caddyfile is used with four edits
 // that make it runnable without TLS, DNS or Docker: the `tls` block goes, the
 // site address becomes a local http one, the `/srv` directories become temp
 // directories, and `api:3000` becomes a stub server (the tenants' custom
@@ -1045,50 +1043,12 @@ function directive(block, line) {
   return found[0];
 }
 
-describe("the Helm chart's web Caddy (deploy/helm/app/templates/web-configmap.yaml)", () => {
-  const configMap = readFileSync(
-    new URL('../deploy/helm/app/templates/web-configmap.yaml', import.meta.url),
-    'utf8',
-  );
-  // The ConfigMap's `Caddyfile: |` block, as Caddy reads it.
-  const chartCaddyfile = /^ {2}Caddyfile: \|\n((?: {4}.*\n|\n)+)/m
-    .exec(configMap)?.[1]
-    .replace(/^ {4}/gm, '');
-  // The web app's half of each: the Caddyfile's web `handle` (the one with
-  // the root), the chart's only site.
+describe("the web app's handle of the Caddyfile", () => {
+  // The web app's half: the Caddyfile's web `handle` (the one with the root).
   const web = directive(
     directive(directives(caddyfile), '(app)').block,
     'handle',
   ).block;
-  const chart = directive(directives(chartCaddyfile ?? ''), ':8080').block;
-
-  it("is the Caddyfile's web app: the root, the headers, the compression and the handles", () => {
-    assert.ok(chartCaddyfile, 'the ConfigMap has a Caddyfile');
-    for (const line of [
-      'root * /srv/web',
-      'header',
-      'encode zstd gzip',
-      'handle /version.json',
-      'handle /assets/*',
-      'handle',
-    ]) {
-      assert.deepEqual(directive(chart, line), directive(web, line), line);
-    }
-    // And nothing else, but what each has of its own: the maintenance page
-    // (Compose's MAINTENANCE_PAGE), the pod's health check.
-    const lines = (block) => block.map((node) => node.line);
-    assert.deepEqual(
-      lines(web).filter((line) => !lines(chart).includes(line)),
-      [
-        '@maintenance expression {env.MAINTENANCE_PAGE} == "on"',
-        'handle @maintenance',
-      ],
-    );
-    assert.deepEqual(
-      lines(chart).filter((line) => !lines(web).includes(line)),
-      ['handle /healthz'],
-    );
-  });
 
   it('sends the whole set of security headers', () => {
     const names = directive(web, 'header').block.map((node) =>

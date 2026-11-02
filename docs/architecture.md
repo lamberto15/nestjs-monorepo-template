@@ -31,12 +31,12 @@ gotenberg/             the PDF renderer's image (Gotenberg, thin on the official
 backup/                the backup image: pg_dump and the uploaded files on a schedule
 monitoring/            Prometheus rules and their tests, Alertmanager, the blackbox probe
 loadtest/              the k6 and realtime load tests (run.sh, scenarios)
-compose*.yaml          Docker Compose: shared, development, production, blue-green, Swarm, monitoring, load test
+compose*.yaml          Docker Compose: shared, development, production, Swarm, monitoring, load test
 env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
 pnpm-workspace.yaml    the workspace: apps/*, packages/*
 turbo.json             the tasks (build, lint, test, test:e2e, dev) and their cache
-tools/                 scripts: setup (first-run wizard), feature (generator), deploy (rolling, blue-green, Swarm), migration lint, release notes
+tools/                 scripts: setup (first-run wizard), feature (generator), deploy (rolling, Swarm), migration lint, release notes
 .changeset/            the typed client's pending changes (pnpm changeset)
 ```
 
@@ -70,7 +70,7 @@ src/
 ```
 
 | Group | Holds |
-| --- | --- |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `core/` | config (Zod), database (Drizzle on PostgreSQL 18), encryption (`EncryptionService`, encrypted columns and blind indexes: [encryption](encryption.md)), tenancy (the tenant scope, row-level security, the pool that sets it: [tenancy](tenancy.md)), Redis, HTTP (the server, below; security headers, CORS, CSRF, versioning, validation, rate limits, problem details, pagination, filters), logging and NestJS Observe, health (terminus), Prometheus metrics (`/metrics`), i18n, mail and its queue, BullMQ, locks and cron, the tree helper |
 | `iam/` | sessions, tokens, API clients and keys, accounts (passwords, two-factor, passkeys, OAuth, magic links, invitations, impersonation), enterprise SSO (SAML, OIDC) and SCIM provisioning (`sso/`), bot protection (`captcha/`), roles and permissions (CASL, field-level, expiring grants), organizational units, tenants (break-glass), legal holds (`holds/`), resource declarations, the audit log, the system principal (`SystemContext.run()`: work without a user) |
 | `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, tags, comments, attachments, list descriptions (`GET /v1/lists/{subject}`), saved views (`/v1/views`), the people directory and units lookup (`GET /v1/people`, `GET /v1/organizational-units`), notifications, record subscriptions, global search, sequences and naming series, scheduled reports, record revisions, settings and feature flags, API clients' usage and quotas, email deliverability, retention rules (`retention/`), the AI helper (`ai/`), push and SMS channels (`messaging/`), the encrypted columns' re-encryption job (`encryption/`), platform analytics (`analytics/`), domain events (`events/`), approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API, the switches report (`GET /v1/features`) |
@@ -154,7 +154,7 @@ as plain rows, rules in services, and features declared, not coded into the
 groups. Each layer has one job:
 
 | Layer | Does | Never |
-| --- | --- | --- |
+| -------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | Controller (`*.controller.ts`) | HTTP: route, Zod body/query, `@Can()`, `@Api*` docs, maps the result to the response | queries the database, opens transactions, holds business rules |
 | Service (`*.service.ts`) | the use case: checks, writes in one transaction with its audit entry and outbox events, reads | knows HTTP (requests, cookies, status codes beyond Nest's exceptions) |
 | Repository (`*.repository.ts`) | the queries of data that many services share (`UsersRepository`) | business rules |
@@ -184,7 +184,7 @@ One image, three commands (run in `/app` in the image, `apps/api` in the
 repository):
 
 | Command | Role | Does |
-| --- | --- | --- |
+| ------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------- |
 | `node dist/main` | `APP_ROLE=api` (or `all`) | serves HTTP and WebSockets |
 | `node dist/worker` | `APP_ROLE=worker` | queue jobs (mail, exports, imports), the outbox relay, webhook deliveries, workflow steps, cron jobs |
 | `node dist/migrate` | one-off | the app's migrations, then the outbox, workflows and webhooks schemas |
@@ -193,8 +193,8 @@ repository):
 small deployments. Every engine is safe with several instances: shared state
 lives in PostgreSQL and Redis, cron jobs take a lock, workers lease their work.
 A replica finishes its requests and exits on shutdown, so a deploy can replace
-replicas without downtime: rolling or blue-green with Compose, or Docker Swarm
-([deployment](deployment.md), "Zero-downtime deploys: three ways").
+replicas without downtime: rolling with Compose, or Docker Swarm
+([deployment](deployment.md), "Zero-downtime deploys: two ways").
 
 See also: [development](development.md), [deployment](deployment.md),
 [adding a feature](adding-a-feature.md), [webhooks and realtime](webhooks-and-realtime.md).

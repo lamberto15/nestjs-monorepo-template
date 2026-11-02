@@ -1,9 +1,136 @@
 # Docker Swarm
 
-The production stack on Docker Swarm: rolling updates of `api` and `worker`
+How our servers run: staging and production are single-node Docker Swarms,
+deployed by GitHub Actions. Swarm gives rolling updates of `api` and `worker`
 with no stopped capacity, an automatic rollback when a new version doesn't
 become healthy, and the same configuration as the Compose deployment
 ([deployment.md](deployment.md)). One node or several.
+
+This page covers the CI deploys, the one-time host setup, the configuration,
+sizing and rollback, then how the stack is built.
+
+## Environments and CI deploys
+
+|                    | staging                                                                                                   | production                                                                                                           |
+| ------------------ | --------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| GitHub environment | `staging`                                                                                                 | `production`                                                                                                         |
+| Host               | the staging host                                                                                          | the production host (2 vCPU / 4 GB cloud server)                                                                     |
+| Deploys            | every merge to `main` whose CI run published images, when the repository variable `AUTO_DEPLOY` is `true` | only by a manual **Deploy** run with a release tag                                                                   |
+| Gate               | none                                                                                                      | the tag's GitHub release must be published and not a pre-release; the environment has the owner as required reviewer |
+
+Both run the same committed sizing overlay ([Sizing](#sizing)) so staging
+behaves like production.
+
+**Images are built once.** CI / CD builds and signs the images on `main` and
+records them in the `release-manifest-v1` artifact. A deploy never rebuilds:
+`tools/ci/deploy-release.mjs` verifies the run's evidence, that the source
+commit is an ancestor of `main`, and the cosign signature and attestation of
+each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
+`GOTENBERG_IMAGE`, `BACKUP_IMAGE`).
+
+**The Deploy workflow** (`.github/workflows/deploy.yml`):
+
+- Triggers: `workflow_run` (CI / CD completed on `main` with success, and
+  `vars.AUTO_DEPLOY == 'true'`: deploys staging) and `workflow_dispatch` with
+  the inputs `environment` (`staging` or `production`) and `tag` (empty on
+  staging means the newest `main` build; required for production).
+- A first job, with no environment and no secret but the workflow's token,
+  picks the CI run and verifies it; production's reviewer is asked only for a
+  run that passed.
+- The deploy job joins the tailnet with `tailscale/github-action` (OIDC, the
+  environment's own tag `TS_TAG`, so a staging run can't reach the production
+  host), writes the environment secret `DEPLOY_ENV_FILE` to a
+  temporary file and runs `tools/deploy/swarm.mjs deploy` against the host
+  over SSH (`DOCKER_HOST=ssh://deploy@$DEPLOY_HOST`,
+  `SWARM_OVERLAYS=compose.small.yaml`).
+- `swarm.mjs` migrates, rolls out and rolls back a failed update by itself
+  ([Deploying](#deploying)). Then the job checks `$APP_URL/health`.
+- Concurrency group `deploy-<environment>`; a running deploy is never
+  cancelled.
+
+**Settings** (GitHub, Settings, Secrets and variables):
+
+| Where            | Name                                | Kind     | What                                                                     |
+| ---------------- | ----------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| each environment | `DEPLOY_HOST`                       | variable | the host's tailnet name                                                  |
+| each environment | `APP_URL`                           | variable | the public URL the health check calls                                    |
+| each environment | `DEPLOY_ENV_FILE`                   | secret   | the `.env` ([Configuration](#configuration-deploy-env-file))             |
+| each environment | `TS_TAG`                            | variable | the tailnet tag its deploys join as (`tag:github-staging-deploy`, `tag:github-prod-deploy`)         |
+| each environment | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | its own Tailscale trust credential: subject `repo:<owner>/<repo>:environment:<name>`, that tag only |
+| repository       | `AUTO_DEPLOY`                       | variable | `true` turns on staging deploys from `main`                              |
+
+Our environments deploy only through Actions, never from a laptop.
+
+## One-time host setup
+
+On each host (staging and production), once:
+
+1. Install Docker Engine (27 or newer) and Tailscale.
+2. `docker swarm init --advertise-addr <tailnet IPv4>`
+3. `docker node update --label-add stateful=true <node>`
+4. `useradd --create-home deploy && usermod -aG docker deploy`
+5. Tailscale: tag the host (`tag:staging-server`, `tag:production-server`),
+   turn on Tailscale SSH (`tailscale set --ssh`), and let only that
+   environment's deploy tag in, as `deploy`: a grant on `tcp:22` (and
+   `tcp:443` for the health check on a tailnet-only host) plus an `ssh` rule
+   with `"users": ["deploy"]`.
+6. Point the DNS name in `APP_URL` at the host. Caddy gets its certificate
+   by Cloudflare's DNS challenge, so a host reachable only on the tailnet
+   gets one too; for public traffic, open 80, 443 and 443/udp.
+
+Never run `docker swarm init` or `docker swarm leave` on a host where a plain
+Compose stack is running (see the warning under [One node](#one-node)).
+
+## Configuration (`DEPLOY_ENV_FILE`)
+
+The environment secret `DEPLOY_ENV_FILE` is the `.env` that
+`pnpm setup --target production` produces ([configuration.md](configuration.md)).
+Keep `NODE_ENV=production` on both environments; on staging set
+`APP_ENV=staging`. The image variables are not in the file: the workflow pins
+them by digest. To change a setting, edit the secret and run Deploy again.
+
+Give secrets as values (`JWT_SECRET=…`), not as `*_FILE` paths: the file is
+read on the GitHub runner, which has no files of the host, and Swarm stores
+each value as an encrypted secret. Leave `COMPOSE_FILE` and `COMPOSE_PROFILES`
+out (the workflow chooses the files; the heavy worker, ClamAV and monitoring
+don't fit the sizing).
+
+## Sizing
+
+Staging and production use the same overlay, `compose.small.yaml`, made for a
+2 vCPU / 4 GB host, so staging matches production. See the file for the
+numbers.
+
+| Service   | Replicas                    | CPU limit / reservation | Memory limit / reservation | Settings                                        |
+| --------- | --------------------------- | ----------------------- | -------------------------- | ----------------------------------------------- |
+| api       | 1 (2 while a deploy starts) | 1 / 0.5                 | 512 MB / 384 MB            | heap 256 MB, 1 password hash at a time, pool 10 |
+| worker    | 1 (stop-first update)       | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, pool 10                            |
+| postgres  | 1                           | 1 / 0.5                 | 640 MB / 512 MB            | `max_connections` 50, `shared_buffers` 160 MB   |
+| redis     | 1                           | 0.25 / 0.1              | 160 MB / 128 MB            | `maxmemory` 112 MB                              |
+| caddy     | 1                           | 0.25 / 0.1              | 128 MB / 64 MB             |                                                 |
+| gotenberg | 1                           | 0.5 / 0.1               | 512 MB / 256 MB            |                                                 |
+| backup    | 1                           | 0.25 / 0.05             | 160 MB / 64 MB             |                                                 |
+| migrate   | a job, before the rollout   | 0.5                     | 384 MB                     |                                                 |
+
+Memory limits are hard caps: about 2.6 GiB in steady state and 3.1 GiB while
+a deploy runs the new api next to the old one, within what a 4 GB host leaves
+after the OS, Docker and Tailscale. CPU limits add up to more than 2 on
+purpose (CPU is shared, not reserved); the reservations add up to 1.6 CPU.
+CI's `stack-config` job renders the overlay and fails if it outgrows the host.
+One api replica means a single process serves requests: scale out by moving
+to a bigger host (or more nodes) rather than squeezing a second replica in.
+
+## Rolling back
+
+Run Deploy with an older release tag (staging or production). That redeploys the older images by digest through the same checks and the
+same rolling update. Migrations are expand/contract, so the older code runs on
+the newer schema: a failed deploy rolls the services back, never the
+database ([deployment.md](deployment.md), "Migrations"). During a deploy,
+Swarm itself rolls a service back when its new tasks don't become healthy.
+
+## Deploying by hand
+
+For adopters without CI:
 
 ```bash
 pnpm deploy:swarm            # migrate, deploy, wait; exit 0 only when every service converged
@@ -27,7 +154,7 @@ it, `.env` is read as usual (`--env-file <path>` for another).
 What Swarm lacks, and what replaces it:
 
 | Compose | Swarm |
-| --- | --- |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `build:` | Images are pulled: `APP_IMAGE`, `GOTENBERG_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
 | `depends_on` | Ignored. A task that starts before PostgreSQL or Redis fails its healthcheck or exits, and `restart_policy` retries it. |
 | one-shot `migrate` | A `replicated-job` service the script deploys and waits for before the app is touched. |
@@ -37,17 +164,17 @@ What Swarm lacks, and what replaces it:
 
 ## Images
 
-CI publishes the app, Gotenberg and Caddy images to GHCR
+CI publishes the app, Gotenberg, Caddy and backup images to GHCR
 ([deployment.md](deployment.md), "CI"); `CADDY_IMAGE` is the published
 `ghcr.io/<owner>/<repo>/caddy:<full commit SHA>` (Caddy with the Cloudflare DNS
-module and the web app; nothing in it is one deployment's). The backup service
-is built from `backup/` by you, once per change of that directory, and pushed:
+module and the web app; nothing in it is one deployment's). Without CI, build
+the backup image from `backup/` yourself and push it:
 
 ```bash
 docker build -t ghcr.io/<owner>/<repo>/backup:1 backup && docker push ghcr.io/<owner>/<repo>/backup:1
 ```
 
-`.env` (or the shell): `APP_IMAGE=ghcr.io/<owner>/<repo>:<full commit SHA>`,
+For a hand deploy, `.env` (or the shell): `APP_IMAGE=ghcr.io/<owner>/<repo>:<full commit SHA>`,
 `GOTENBERG_IMAGE`, `CADDY_IMAGE` (the same commit as `APP_IMAGE`: it holds the web
 build that fits that API), `BACKUP_IMAGE`. Never `latest`: a deploy
 names the version it runs, and a rollback goes back to the one before it.
@@ -184,6 +311,7 @@ them**. New volumes inherit the image's ownership. The rendered service retains
 
    Substitute the actual stack name and new image reference. Do not use new or
    empty volumes: this command must operate on the existing certificate store.
+
 4. Set the new `CADDY_IMAGE` and deploy with `pnpm deploy:swarm`; check its task,
    HTTPS, certificate reuse and configured `security.txt`.
 
@@ -219,7 +347,7 @@ requests a second to `GET /v1/account` without credentials (a real route:
 401 expected) through Caddy, during each deploy:
 
 | Deploy | Requests | Unexpected |
-| --- | --- | --- |
+| ------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
 | api image update, run 1 | 1251 | 0 |
 | api image update, run 2 | 1251 | 0 |
 | a version that never becomes healthy | 1289 (probing `/health/live`) | 0: one new task tried and failed, the old two kept serving; `rollback_completed`, exit 1 |

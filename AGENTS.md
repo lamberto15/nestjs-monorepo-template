@@ -128,9 +128,9 @@ Everything is in `docs/`; a name below is its file (`tags` is
   (quotas), `build-version`.
 - **Deploy and operate:** `deployment` (Compose, CI and its scans, images,
   the operator CLI `pnpm ops`, log redaction, metrics, alerts,
-  zero-downtime overview), `deploy-rolling`, `deploy-blue-green`,
-  `deploy-swarm`, `deploy-k3s`, `deploy-kubernetes`, `ci-runtime`,
-  `releases`, `upgrading`.
+  zero-downtime overview), `deploy-rolling`,
+  `deploy-swarm` (our staging and production: CI deploys, host setup,
+  sizing), `ci-runtime`, `releases`, `upgrading`.
 - **This docs site:** `documentation-tooling`, `documentation-maintenance`.
 
 ## Validation in CI

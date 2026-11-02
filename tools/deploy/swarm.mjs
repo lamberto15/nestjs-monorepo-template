@@ -8,6 +8,9 @@
 //   pnpm deploy:swarm status     the services and the state of their last update
 //   pnpm deploy:swarm rollback   `docker service rollback` of api and worker
 //
+// SWARM_OVERLAYS: more Compose files after those three, comma-separated
+// (compose.small.yaml sizes the stack for a 2 vCPU / 4 GB host).
+//
 // Options: --stack <name> (SWARM_STACK, default "app"), --env-file <path>
 // (Compose's, instead of ./.env), --timeout <seconds> (default 600),
 // --service <name> (rollback; repeatable), --prune (remove services the stack
@@ -164,7 +167,8 @@ async function renderStack(ctx, { app }) {
   const args = ['compose', '--project-directory', ctx.root, '-p', ctx.stack];
   if (ctx.options.envFile)
     args.push('--env-file', resolve(ctx.options.envFile));
-  for (const file of COMPOSE_FILES) args.push('-f', join(ctx.root, file));
+  for (const file of [...COMPOSE_FILES, ...overlays(ctx)])
+    args.push('-f', join(ctx.root, file));
   if (app) args.push('--profile', 'app');
   args.push('config', '--format', 'json');
   // An .env's COMPOSE_FILE/COMPOSE_PROFILES would add to ours.
@@ -178,6 +182,25 @@ async function renderStack(ctx, { app }) {
     readFile: ctx.readFile,
     placeholder: join(ctx.root, 'swarm.placeholder'),
   });
+}
+
+/** SWARM_OVERLAYS: Compose files of the repository, added after ours. */
+export function overlays(ctx) {
+  const files = (ctx.env.SWARM_OVERLAYS ?? '')
+    .split(',')
+    .map((file) => file.trim())
+    .filter(Boolean);
+  for (const file of files) {
+    if (!/^compose\.[a-z0-9-]+\.yaml$/.test(file)) {
+      throw new UsageError(
+        `SWARM_OVERLAYS: ${file} is not a compose.<name>.yaml of the repository`,
+      );
+    }
+    if (!ctx.exists(join(ctx.root, file))) {
+      throw new UsageError(`SWARM_OVERLAYS: ${file} does not exist`);
+    }
+  }
+  return files;
 }
 
 async function validate(ctx, stackFile) {
