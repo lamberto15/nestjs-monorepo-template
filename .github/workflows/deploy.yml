@@ -154,7 +154,9 @@ jobs:
       - name: Deploy the stack
         env:
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
-          SWARM_OVERLAYS: compose.small.yaml
+          # The environment's overlays: the sizing, and production's tunnel
+          # (SWARM_OVERLAYS=compose.small.yaml,compose.tunnel.yaml).
+          SWARM_OVERLAYS: ${{ vars.SWARM_OVERLAYS || 'compose.small.yaml' }}
           APP_IMAGE: ${{ needs.verify.outputs.api }}
           CADDY_IMAGE: ${{ needs.verify.outputs.caddy }}
           GOTENBERG_IMAGE: ${{ needs.verify.outputs.gotenberg }}

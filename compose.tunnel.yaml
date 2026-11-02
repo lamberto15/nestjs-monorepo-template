@@ -1,0 +1,49 @@
+# Public access through a Cloudflare Tunnel (docs/deploy-swarm.md, "Public
+# access through a Cloudflare Tunnel"): cloudflared connects out to Cloudflare,
+# so the host opens no port to the internet and its address stays private.
+# Cloudflare sends APP_DOMAIN's requests down the tunnel to Caddy, configured in
+# the tunnel's public hostname (Zero Trust): service https://caddy:443, origin
+# server name APP_DOMAIN (Caddy's own certificate, still from the DNS challenge).
+#
+#   SWARM_OVERLAYS=compose.small.yaml,compose.tunnel.yaml   (production's Deploy)
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.tunnel.yaml   (plain Compose)
+#
+# CLOUDFLARE_TUNNEL_TOKEN: the tunnel's token, in .env (DEPLOY_ENV_FILE).
+#
+# Behind the tunnel every request reaches Caddy from cloudflared: Caddy trusts
+# the stack's private network and takes the visitor's address from
+# CF-Connecting-IP, and passes it on to the API as X-Forwarded-For (caddy/Caddyfile,
+# global options). Without the tunnel Caddy trusts nobody.
+services:
+  cloudflared:
+    image: cloudflare/cloudflared:2026.10.7
+    # A remotely managed tunnel: its routes live in Cloudflare, the token names it.
+    command: [tunnel, --no-autoupdate, --metrics, '127.0.0.1:2000', run]
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:?set CLOUDFLARE_TUNNEL_TOKEN in .env (compose.tunnel.yaml)}
+    restart: unless-stopped
+    # Hardened (docs/deployment.md, "Container hardening"): the image runs as
+    # nonroot (65532) and writes nothing but /tmp.
+    read_only: true
+    tmpfs:
+      - /tmp:size=8m
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    logging:
+      driver: ${DOCKER_LOG_DRIVER:-local}
+      options:
+        max-size: ${DOCKER_LOG_MAX_SIZE:-20m}
+        max-file: '${DOCKER_LOG_MAX_FILE:-5}'
+        compress: 'true'
+    deploy:
+      replicas: 1
+      resources:
+        limits: { cpus: '0.25', memory: 64M }
+        reservations: { cpus: '0.05', memory: 32M }
+
+  caddy:
+    environment:
+      # cloudflared, on the stack's network, is the only one that reaches Caddy
+      # (the host's firewall opens nothing): trust it, and its CF-Connecting-IP.
+      CADDY_TRUSTED_PROXIES: private_ranges
+      CADDY_CLIENT_IP_HEADERS: CF-Connecting-IP

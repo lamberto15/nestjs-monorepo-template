@@ -157,6 +157,12 @@ async function startCaddy(env, { viaEntrypoint = false } = {}) {
       response.end();
       return;
     }
+    // Which visitor address the API was sent.
+    if (request.url === '/v1/ip') {
+      response.setHeader('content-type', 'text/plain');
+      response.end(`xff ${request.headers['x-forwarded-for']}`);
+      return;
+    }
     // Which Host the API was sent.
     if (request.url === '/v1/host') {
       response.setHeader('content-type', 'text/plain');
@@ -393,6 +399,50 @@ function onHost(caddy, host, path) {
     sent.end();
   });
 }
+
+// The visitor's address the API sees (X-Forwarded-For): caddy/Caddyfile's
+// global options, which compose.tunnel.yaml sets for a Cloudflare Tunnel.
+const spoofed = {
+  'cf-connecting-ip': '203.0.113.7',
+  'x-forwarded-for': '198.51.100.9',
+};
+
+describe("the visitor's address, without a tunnel", { skip }, () => {
+  let caddy;
+  before(async () => (caddy = await startCaddy({})));
+  after(() => caddy.stop());
+
+  it("is the connection's own, whatever a client claims", async () => {
+    const response = await get(caddy, '/v1/ip', { headers: spoofed });
+    assert.equal(response.body, 'xff 127.0.0.1');
+  });
+});
+
+describe("the visitor's address behind a Cloudflare Tunnel", { skip }, () => {
+  let caddy;
+  // The tunnel's settings (compose.tunnel.yaml): the test's client, on
+  // loopback, stands for cloudflared on the stack's private network.
+  before(
+    async () =>
+      (caddy = await startCaddy({
+        CADDY_TRUSTED_PROXIES: 'private_ranges',
+        CADDY_CLIENT_IP_HEADERS: 'CF-Connecting-IP',
+      })),
+  );
+  after(() => caddy.stop());
+
+  it("is the tunnel's CF-Connecting-IP, never the X-Forwarded-For chain", async () => {
+    const response = await get(caddy, '/v1/ip', { headers: spoofed });
+    assert.equal(response.body, 'xff 203.0.113.7');
+  });
+
+  it("is the connection's own when the header is missing", async () => {
+    const response = await get(caddy, '/v1/ip', {
+      headers: { 'x-forwarded-for': '198.51.100.9' },
+    });
+    assert.equal(response.body, 'xff 127.0.0.1');
+  });
+});
 
 describe("the tenants' custom domains", { skip }, () => {
   let caddy;

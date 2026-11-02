@@ -224,7 +224,7 @@ jobs:
         # (development and the load test, which patch the stack).
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci CLOUDFLARE_TUNNEL_TOKEN=ci
           # The documented exceptions: a service and the keys it may lack
           # (read_only, cap_drop, no-new-privileges, tmpfs). Each is explained
           # where the service is (a comment in its Compose file) and in
@@ -264,6 +264,7 @@ jobs:
           check clamav clamav
           # grafana has a profile: found only with every profile on.
           check monitoring grafana
+          check tunnel cloudflared
       # The containers get the variables compose.prod.yaml lists (no env_file):
       # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
       - name: APP_MODE reaches the api and the worker
@@ -394,9 +395,10 @@ jobs:
           CLOUDFLARE_API_TOKEN: ci
         run: node tools/deploy/swarm.mjs check --stack ci
       # Our staging and production hosts (2 vCPU, 4 GB) run the stack with
-      # compose.small.yaml: its memory limits must fit what the host leaves
-      # after the OS (steady, and with the second api of a start-first update),
-      # its reservations the host's CPUs and memory.
+      # compose.small.yaml (production adds compose.tunnel.yaml's cloudflared):
+      # its memory limits must fit what the host leaves after the OS (steady,
+      # and with the second api of a start-first update), its reservations the
+      # host's CPUs and memory.
       - name: compose.small.yaml fits a 2 vCPU / 4 GB host
         env:
           APP_DOMAIN: app.example.test
@@ -409,7 +411,8 @@ jobs:
           POSTGRES_APP_PASSWORD: ci
           POSTGRES_MAINTENANCE_PASSWORD: ci
           CLOUDFLARE_API_TOKEN: ci
-          SWARM_OVERLAYS: compose.small.yaml
+          CLOUDFLARE_TUNNEL_TOKEN: ci
+          SWARM_OVERLAYS: compose.small.yaml,compose.tunnel.yaml
         run: |
           node tools/deploy/swarm.mjs check --stack ci
           node tools/deploy/swarm.mjs render --stack ci > small.json

@@ -56,6 +56,7 @@ each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
 | each environment | `APP_URL`                           | variable | the public URL the health check calls                                    |
 | each environment | `DEPLOY_ENV_FILE`                   | secret   | the `.env` ([Configuration](#configuration-deploy-env-file))             |
 | each environment | `TS_TAG`                            | variable | the tailnet tag its deploys join as (`tag:github-staging-deploy`, `tag:github-prod-deploy`)         |
+| each environment | `SWARM_OVERLAYS` | variable | the Compose files on top of the stack: `compose.small.yaml` (the default), production adds `compose.tunnel.yaml` ([Public access](#public-access-through-a-cloudflare-tunnel)) |
 | each environment | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | its own Tailscale trust credential, that tag only; its subject is the job's OIDC `sub` (below) |
 | repository       | `AUTO_DEPLOY`                       | variable | `true` turns on staging deploys from `main`                              |
 
@@ -119,6 +120,7 @@ numbers.
 | gotenberg | 1                           | 0.5 / 0.1               | 512 MB / 256 MB            |                                                 |
 | backup    | 1                           | 0.25 / 0.05             | 160 MB / 64 MB             |                                                 |
 | migrate   | a job, before the rollout   | 0.5                     | 384 MB                     |                                                 |
+| cloudflared | 1 (production only)     | 0.25 / 0.05             | 64 MB / 32 MB              | `compose.tunnel.yaml`                           |
 
 Memory limits are hard caps: about 2.6 GiB in steady state and 3.1 GiB while
 a deploy runs the new api next to the old one, within what a 4 GB host leaves
@@ -127,6 +129,39 @@ purpose (CPU is shared, not reserved); the reservations add up to 1.6 CPU.
 CI's `stack-config` job renders the overlay and fails if it outgrows the host.
 One api replica means a single process serves requests: scale out by moving
 to a bigger host (or more nodes) rather than squeezing a second replica in.
+
+## Public access through a Cloudflare Tunnel
+
+Production is public without opening a port: `compose.tunnel.yaml` adds
+`cloudflared`, which connects out to Cloudflare, so the host's firewall stays
+closed (only Tailscale) and its address stays private. Cloudflare's edge
+terminates the visitor's TLS and sends the request down the tunnel to Caddy,
+which still holds its own certificate (the DNS challenge). Staging doesn't use
+it: it stays on the tailnet.
+
+Once, in Cloudflare Zero Trust (Networks, Tunnels):
+
+1. Create a tunnel (Cloudflared) and copy its token into the environment's
+   `DEPLOY_ENV_FILE` as `CLOUDFLARE_TUNNEL_TOKEN=…`. Skip the install
+   commands Cloudflare shows: the stack runs `cloudflared`.
+2. Add a public hostname: `APP_DOMAIN`, service **HTTPS** `caddy:443`, and
+   under TLS, origin server name `APP_DOMAIN` (Caddy answers that name only).
+   Cloudflare creates the DNS record (a proxied CNAME to the tunnel); delete
+   any A record of that name first.
+3. Set the environment variable `SWARM_OVERLAYS` to
+   `compose.small.yaml,compose.tunnel.yaml` and deploy.
+
+Behind the tunnel every request reaches Caddy from `cloudflared`. The overlay
+makes Caddy trust the stack's private network and take the visitor's address
+from `CF-Connecting-IP` (`CADDY_TRUSTED_PROXIES`, `CADDY_CLIENT_IP_HEADERS`),
+and Caddy hands the API that one address as `X-Forwarded-For`; without the
+overlay Caddy trusts nobody and sends the connection's own address. So rate
+limits, audit entries and API clients' IP allowlists see the visitor, not the
+tunnel.
+
+Limits: tenants' custom domains (`CUSTOM_DOMAINS`) can't get certificates
+(their HTTP-01 and TLS-ALPN-01 challenges never reach Caddy), and Cloudflare's
+free plan refuses request bodies over 100 MB.
 
 ## Rolling back
 
