@@ -37,8 +37,9 @@ each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
 - A first job, with no environment and no secret but the workflow's token,
   picks the CI run and verifies it; production's reviewer is asked only for a
   run that passed.
-- The deploy job joins the tailnet with `tailscale/github-action` (OIDC, tag
-  `tag:github-deploy`), writes the environment secret `DEPLOY_ENV_FILE` to a
+- The deploy job joins the tailnet with `tailscale/github-action` (OIDC, the
+  environment's own tag `TS_TAG`, so a staging run can't reach the production
+  host), writes the environment secret `DEPLOY_ENV_FILE` to a
   temporary file and runs `tools/deploy/swarm.mjs deploy` against the host
   over SSH (`DOCKER_HOST=ssh://deploy@$DEPLOY_HOST`,
   `SWARM_OVERLAYS=compose.small.yaml`).
@@ -50,11 +51,12 @@ each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
 **Settings** (GitHub, Settings, Secrets and variables):
 
 | Where            | Name                                | Kind     | What                                                                     |
-| ---------------- | ----------------------------------- | -------- | ------------------------------------------------------------------------ |
+| ---------------- | ----------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
 | each environment | `DEPLOY_HOST`                       | variable | the host's tailnet name                                                  |
 | each environment | `APP_URL`                           | variable | the public URL the health check calls                                    |
 | each environment | `DEPLOY_ENV_FILE`                   | secret   | the `.env` ([Configuration](#configuration-deploy-env-file))             |
-| repository       | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | Tailscale OIDC; the trust subject is `repo:<owner>/<repo>:environment:*` |
+| each environment | `TS_TAG`                            | variable | the tailnet tag its deploys join as (`tag:github-staging-deploy`, `tag:github-prod-deploy`)         |
+| each environment | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | its own Tailscale trust credential: subject `repo:<owner>/<repo>:environment:<name>`, that tag only |
 | repository       | `AUTO_DEPLOY`                       | variable | `true` turns on staging deploys from `main`                              |
 
 Our environments deploy only through Actions, never from a laptop.
@@ -67,8 +69,11 @@ On each host (staging and production), once:
 2. `docker swarm init --advertise-addr <tailnet IPv4>`
 3. `docker node update --label-add stateful=true <node>`
 4. `useradd --create-home deploy && usermod -aG docker deploy`
-5. Tailscale ACL: allow SSH from `tag:github-deploy` to the user `deploy` on
-   the host.
+5. Tailscale: tag the host (`tag:staging-server`, `tag:production-server`),
+   turn on Tailscale SSH (`tailscale set --ssh`), and let only that
+   environment's deploy tag in, as `deploy`: a grant on `tcp:22` (and
+   `tcp:443` for the health check on a tailnet-only host) plus an `ssh` rule
+   with `"users": ["deploy"]`.
 6. Point the DNS name in `APP_URL` at the host. Caddy gets its certificate
    by Cloudflare's DNS challenge, so a host reachable only on the tailnet
    gets one too; for public traffic, open 80, 443 and 443/udp.

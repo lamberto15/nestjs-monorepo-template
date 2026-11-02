@@ -108,6 +108,7 @@ jobs:
     env:
       DEPLOY_HOST: ${{ vars.DEPLOY_HOST }}
       APP_URL: ${{ vars.APP_URL }}
+      TS_TAG: ${{ vars.TS_TAG }}
     steps:
       - name: Use the deployment files of the verified release source
         uses: actions/checkout@v7
@@ -124,18 +125,21 @@ jobs:
           DEPLOY_ENV_FILE: ${{ secrets.DEPLOY_ENV_FILE }}
         run: |
           [[ "$DEPLOY_HOST" =~ ^[a-z0-9][a-z0-9.-]*$ ]] || { echo '::error::Set the environment variable DEPLOY_HOST (the host'"'"'s tailnet name).'; exit 1; }
+          [[ "$TS_TAG" =~ ^tag:[a-z0-9-]+$ ]] || { echo '::error::Set the environment variable TS_TAG (the tailnet tag of this environment'"'"'s deploys).'; exit 1; }
           [ -n "$DEPLOY_ENV_FILE" ] || { echo '::error::Set the environment secret DEPLOY_ENV_FILE (docs/deploy-swarm.md, "Configuration").'; exit 1; }
       - name: Join the deployment tailnet
         uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
         with:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           audience: ${{ secrets.TS_AUDIENCE }}
-          tags: tag:github-deploy
+          # Each environment's own tag and trust credential: a staging run
+          # can't reach the production host (docs/deploy-swarm.md).
+          tags: ${{ env.TS_TAG }}
           version: 1.104.2
       - name: Reach the host's Docker over SSH
         run: |
-          # Tailscale SSH: the tailnet authenticates the host and allows
-          # tag:github-deploy in as `deploy` (docs/deploy-swarm.md), so the
+          # Tailscale SSH: the tailnet authenticates the host and allows this
+          # environment's tag in as `deploy` (docs/deploy-swarm.md), so the
           # runner, new every time, takes the host key it is shown.
           install -d -m 700 ~/.ssh
           printf 'Host %s\n  User deploy\n  StrictHostKeyChecking accept-new\n  ConnectTimeout 30\n' "$DEPLOY_HOST" > ~/.ssh/config
