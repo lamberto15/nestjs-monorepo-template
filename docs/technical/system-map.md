@@ -33,12 +33,12 @@ The API and worker share `AppModule`. The worker entry point explicitly sets `AP
 
 ## Four code layers
 
-| Layer      | Role                                                       | May depend on             |
+| Layer | Role | May depend on |
 | ---------- | ---------------------------------------------------------- | ------------------------- |
-| `core`     | HTTP, configuration, database, tenancy, logging, queues    | Core/framework primitives |
-| `iam`      | Identity, authentication, authorization, audit, membership | Core                      |
-| `platform` | Reusable records, integrations, workflows and services     | Core, IAM                 |
-| `features` | Business-domain modules declared by an application         | Core, IAM, platform       |
+| `core` | HTTP, configuration, database, tenancy, logging, queues | Core/framework primitives |
+| `iam` | Identity, authentication, authorization, audit, membership | Core |
+| `platform` | Reusable records, integrations, workflows and services | Core, IAM |
+| `features` | Business-domain modules declared by an application | Core, IAM, platform |
 
 The intended dependency direction is **core ← iam ← platform ← features**. Shared layers must not import business features. The template's registration points let features declare their permissions, events, queues, custom fields and other extensions without reversing that boundary. See [architecture](../architecture.md) and [feature guide](../adding-a-feature.md).
 

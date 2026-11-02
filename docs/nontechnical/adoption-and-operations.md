@@ -15,14 +15,14 @@ This template reduces repeatable platform coding; it does **not** eliminate engi
 
 ## Costs to estimate
 
-| Cost area              | Examples                                                      | Why it matters                                                 |
+| Cost area | Examples | Why it matters |
 | ---------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
-| Engineering            | Custom features, integrations, reviews, tests                 | The template is only a foundation                              |
-| Runtime infrastructure | API, worker, PostgreSQL, Redis, object storage, reverse proxy | Some components are required even for simple deployments       |
-| Third-party services   | Email, SSO provider, bot protection, AI, SMS, push            | Availability and pricing vary by provider                      |
-| Operations             | Metrics, alerts, backups, recovery, capacity, secrets         | A service needs ownership after first deployment               |
-| Governance             | Access reviews, data retention, privacy/compliance assessment | Depends on data, geography and business use                    |
-| License                | Separate commercial permission if needed                      | The repository is not licensed for unrestricted commercial use |
+| Engineering | Custom features, integrations, reviews, tests | The template is only a foundation |
+| Runtime infrastructure | API, worker, PostgreSQL, Redis, object storage, reverse proxy | Some components are required even for simple deployments |
+| Third-party services | Email, SSO provider, bot protection, AI, SMS, push | Availability and pricing vary by provider |
+| Operations | Metrics, alerts, backups, recovery, capacity, secrets | A service needs ownership after first deployment |
+| Governance | Access reviews, data retention, privacy/compliance assessment | Depends on data, geography and business use |
+| License | Separate commercial permission if needed | The repository is not licensed for unrestricted commercial use |
 
 No fixed monthly cost is specified: it depends on traffic, uptime requirements, vendor choice and staffing.
 

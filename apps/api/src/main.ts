@@ -56,7 +56,6 @@ async function bootstrap() {
  * unref'd: it never keeps a process alive that would otherwise exit. The
  * deadlines stay under the stop grace periods (compose.prod.yaml: api 30 s,
  * worker 60 s), and above what a healthy
-
  * shutdown takes: 5 s of /health 503, then up to 10 s for workflow steps,
  * and for a worker, the queue jobs it is running.
  *

@@ -241,7 +241,6 @@ test('release planning revalidates cumulative failures, separates runtime builds
     assert.equal(sizingPlan.publish, true);
     assert.equal(sizingPlan.previous.sourceSha, oldSha);
     assert.ok(!sizing.api_image && !sizing.caddy && !sizing.gotenberg);
-
     const infra = classify({ files: ['compose.prod.yaml'] });
     assert.ok(infra.image);
     assert.equal(infra.api_image, false);

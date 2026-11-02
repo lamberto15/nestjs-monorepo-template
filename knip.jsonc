@@ -21,7 +21,6 @@
       // (lefthook.yml / pnpm-workspace.yaml), not imported by application code.
       "ignoreDependencies": ["k6", "web-push", "lefthook"],
     },
-
     "apps/api": {
       // Started as `node dist/<name>` (package.json: migrate, db:seed:demo,
       // openapi:dump, ops; the Docker image: worker) or by drizzle-kit.

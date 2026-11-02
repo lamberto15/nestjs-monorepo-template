@@ -41,7 +41,6 @@ export function classify({ files, full = false, complete = true }) {
       continue;
     }
     if (inert.test(file)) continue;
-
     if (roots.test(file)) {
       // Root dependency changes validate all applications. Merge only true
       // contributions so another path can still require an infrastructure job.

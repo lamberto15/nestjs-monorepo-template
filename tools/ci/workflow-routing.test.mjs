@@ -218,7 +218,6 @@ test('the stable gate needs every validation job and CI has no production rollou
   // Deploying is deploy.yml's, after CI: no CI job deploys.
   assert.ok(!all.some((j) => j.id.startsWith('deploy')));
   assert.ok(!/^\s+environment:/m.test(text));
-
   for (const id of [
     'publish',
     'publish-caddy',
