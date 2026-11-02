@@ -7,7 +7,7 @@ This audit inspected the repository tree plus representative application source,
 ## Claim-to-code verification
 
 | Documentation claim | Implementation evidence | Finding |
-| --- | --- | --- |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | Monorepo boundaries | [workspace](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/pnpm-workspace.yaml), [API manifest](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/apps/api/package.json), [web manifest](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/apps/web/package.json) | Confirmed NestJS API, React/Vite SPA, typed API client and shared UI packages; no UI smoke test |
 | API and worker roles | [main.ts](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/apps/api/src/main.ts), [worker.ts](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/apps/api/src/worker.ts), [production Compose](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/compose.prod.yaml) | Confirmed worker-only entry point and separate deploy roles; not benchmarked |
 | Dependency layers | [app.module.ts](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/apps/api/src/app.module.ts), [feature.ts](https://github.com/lamby-dev/nestjs-monorepo-template/blob/17bbde09d90540cbdd2bb91e47e1ec9a5bd60ae6/apps/api/src/features/feature.ts) | Confirmed composition and declared extension points; not a global import-graph audit |
@@ -24,7 +24,7 @@ This audit inspected the repository tree plus representative application source,
 ## Corrections arising from the audit
 
 1. The earlier README suggested the first-run wizard leaves optional modules off. The wizard sets fresh defaults of `true` for WEBHOOKS, REPORTS, USAGE and REALTIME, matching `platform.env.ts`'s `on` defaults. The intro and evaluation FAQ have been corrected. These flags are separate from integrations that require configuration (such as AI and SMS).
-2. IDEMPOTENCY is a deployment *mode* (`required` or `optional`, default `required`), not an on/off switch. Documentation must retain that distinction.
+2. IDEMPOTENCY is a deployment _mode_ (`required` or `optional`, default `required`), not an on/off switch. Documentation must retain that distinction.
 3. `notes` is a handcrafted demonstration feature; `pnpm feature:add` produces new feature scaffolding, so it is not correct to promise that copying `notes` gives generator output.
 4. PR load-test numbers should not be described as an unconditional merge-blocking benchmark. The load-test workflow explicitly has a report-only PR path.
 
@@ -34,7 +34,7 @@ This audit inspected the repository tree plus representative application source,
 - A generated feature round trip (add/sync/remove), complete migration and typed client regeneration.
 - Every route, guard, tenant isolation path, web UI workflow, worker retry and permission edge case.
 - Full PR checks, image builds and security scans on the final documentation commit.
-- Live Compose, Swarm and Helm deployment, rollback under incompatible schemas, backup restore and a zero-downtime load test.
+- Live Compose and Swarm deployment, rollback under incompatible schemas, backup restore and a zero-downtime load test.
 - Real providers for SSO, mail, object storage, SMS, push and AI.
 
 These are **audit coverage gaps**, not claims that the features are broken. A static source review cannot establish production availability or security; follow the [release checklist](release-and-operations-checklist.md) and the [existing deep technical references](index.md).

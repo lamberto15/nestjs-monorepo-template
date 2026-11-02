@@ -79,7 +79,6 @@ jobs:
       api_image: ${{ steps.paths.outputs.api_image }}
       full: ${{ steps.paths.outputs.full }}
       nightly: ${{ steps.paths.outputs.nightly }}
-      chart: ${{ steps.paths.outputs.chart }}
       base: ${{ steps.paths.outputs.base }}
       head: ${{ steps.paths.outputs.head }}
       affected: ${{ steps.paths.outputs.affected }}
@@ -147,12 +146,6 @@ jobs:
           tar -xzf "$RUNNER_TEMP/actionlint.tar.gz" -C "$RUNNER_TEMP" actionlint
           # actionlint 1.7.12 predates GitHub's documented service `command` key.
           "$RUNNER_TEMP/actionlint" -shellcheck= -ignore 'unexpected key "command" for "services" section'
-      - name: Validate mixed release digests with Helm
-        run: |
-          curl --proto '=https' --proto-redir '=https' -fsSL https://get.helm.sh/helm-v4.3.1-linux-amd64.tar.gz -o "$RUNNER_TEMP/helm.tar.gz"
-          echo '0403a88ae20913d11b10a2467b50087721fea7581736da6b9d3992f5357fe54b  helm.tar.gz' | (cd "$RUNNER_TEMP" && sha256sum -c -)
-          tar -xzf "$RUNNER_TEMP/helm.tar.gz" -C "$RUNNER_TEMP" linux-amd64/helm
-          PATH="$RUNNER_TEMP/linux-amd64:$PATH" REQUIRE_HELM=true node --test tools/ci/release-helm.test.mjs
 
   # The production stack's configuration, rendered (no image is built): its
   # secrets (docs/deployment.md, "Secrets in files") with the values in .env
@@ -271,7 +264,6 @@ jobs:
           check clamav clamav
           # grafana has a profile: found only with every profile on.
           check monitoring grafana
-          check blue-green api-blue
       # The containers get the variables compose.prod.yaml lists (no env_file):
       # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
       - name: APP_MODE reaches the api and the worker
@@ -363,9 +355,7 @@ jobs:
           test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
       # Malware scanning (docs/deployment.md, "ClamAV (malware scanning)"):
-      # compose.clamav.yaml turns it on for api and worker; the blue-green
-      # colours extend compose.prod.yaml's api and never see an overlay's
-      # change to it, so they read .env (x-app) like every service.
+      # compose.clamav.yaml turns it on for api and worker.
       - name: Malware scanning reaches every app service
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
@@ -380,12 +370,6 @@ jobs:
             test "$(setting $service CLAMAV_HOST scan-clamav.json)" = clamav
           done
           test "$(jq -r '.services.clamav.image | startswith("clamav/clamav:")' scan-clamav.json)" = true
-          # Blue-green: the colours, with the two settings in .env as the docs say.
-          MALWARE_SCANNER=clamav CLAMAV_HOST=clamav COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.blue-green.yaml:compose.clamav.yaml docker compose config --format json > scan-blue-green.json
-          for service in api-blue api-green worker; do
-            test "$(setting $service MALWARE_SCANNER scan-blue-green.json)" = clamav
-            test "$(setting $service CLAMAV_HOST scan-blue-green.json)" = clamav
-          done
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
       # The Swarm stack (docs/deploy-swarm.md): compose.swarm.yaml rendered over
@@ -409,6 +393,36 @@ jobs:
           POSTGRES_MAINTENANCE_PASSWORD: ci
           CLOUDFLARE_API_TOKEN: ci
         run: node tools/deploy/swarm.mjs check --stack ci
+      # Our staging and production hosts (2 vCPU, 4 GB) run the stack with
+      # compose.small.yaml: its memory limits must fit what the host leaves
+      # after the OS (steady, and with the second api of a start-first update),
+      # its reservations the host's CPUs and memory.
+      - name: compose.small.yaml fits a 2 vCPU / 4 GB host
+        env:
+          APP_DOMAIN: app.example.test
+          ACME_EMAIL: ops@example.test
+          APP_IMAGE: ghcr.io/example/app:0000000000000000000000000000000000000000
+          GOTENBERG_IMAGE: ghcr.io/example/app/gotenberg:0000000000000000000000000000000000000000
+          CADDY_IMAGE: ghcr.io/example/app/caddy:1
+          BACKUP_IMAGE: ghcr.io/example/app/backup:1
+          POSTGRES_PASSWORD: ci
+          POSTGRES_APP_PASSWORD: ci
+          POSTGRES_MAINTENANCE_PASSWORD: ci
+          CLOUDFLARE_API_TOKEN: ci
+          SWARM_OVERLAYS: compose.small.yaml
+        run: |
+          node tools/deploy/swarm.mjs check --stack ci
+          node tools/deploy/swarm.mjs render --stack ci > small.json
+          jq -e '
+            def gib: . / 1073741824;
+            [.services[] | select(.deploy.mode != "replicated-job")] as $app
+            | ([$app[] | (.deploy.replicas // 1) * (.deploy.resources.limits.memory | tonumber)] | add | gib) as $steady
+            | (.services.api.deploy.resources.limits.memory | tonumber | gib) as $surge
+            | ([$app[] | .deploy.resources.reservations.cpus | tonumber] | add) as $cpu
+            | ([$app[] | .deploy.resources.reservations.memory | tonumber] | add | gib) as $reserved
+            | "steady \($steady) GiB, deploying \($steady + $surge) GiB, reserved \($cpu) CPU / \($reserved) GiB" | debug
+            | $steady <= 2.75 and $steady + $surge <= 3.25 and $cpu <= 2 and $reserved <= 3.25
+          ' small.json
 
   # A Knip-only pull request needs lint/Knip validation, but does not
   # need PostgreSQL, application builds or a generator-smoke runner.
@@ -1264,6 +1278,24 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
+      - name: Export the verified image
+        if: needs.changes.outputs.publish == 'true'
+        run: |
+          docker save backup:ci -o "${{ runner.temp }}/backup.tar"
+          (cd "${{ runner.temp }}" && sha256sum backup.tar > backup.tar.sha256)
+          docker image inspect --format '{{.Id}}' backup:ci > "${{ runner.temp }}/backup.id"
+      - name: Transfer the verified image
+        if: needs.changes.outputs.publish == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: image-backup
+          path: |
+            ${{ runner.temp }}/backup.tar
+            ${{ runner.temp }}/backup.tar.sha256
+            ${{ runner.temp }}/backup.id
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 2
 
   # Caddy's image (caddy/Dockerfile, built from the repository root as
   # compose.prod.yaml does; caddy/Dockerfile.dockerignore picks what goes
@@ -1720,11 +1752,88 @@ jobs:
           image: ghcr.io/${{ github.repository }}/caddy
           digest: ${{ steps.push.outputs.digest }}
 
+  # The backup image (backup/), which Docker Swarm needs from a registry
+  # (docs/deploy-swarm.md): published like the others.
+  publish-backup:
+    name: Publish backup
+    if: >-
+      !cancelled() && needs.ci-gate.result == 'success' &&
+      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.backup == 'true'
+    needs: [changes, ci-gate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      digest: ${{ steps.push.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: image-backup
+          path: ${{ runner.temp }}/image
+      - name: Load the verified image
+        run: |
+          (cd "${{ runner.temp }}/image" && sha256sum -c backup.tar.sha256)
+          docker load -i "${{ runner.temp }}/image/backup.tar"
+          test "$(docker image inspect --format '{{.Id}}' backup:ci)" = "$(cat "${{ runner.temp }}/image/backup.id")"
+      - name: Tags for the verified image
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ghcr.io/${{ github.repository }}/backup
+          flavor: latest=false
+          tags: |
+            type=sha,format=long,prefix=
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Push without rebuilding
+        id: push
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          REPOSITORY: ghcr.io/${{ github.repository }}/backup
+        run: |
+          set -euo pipefail
+          while IFS= read -r tag; do
+            docker tag backup:ci "$tag"
+            docker push "$tag"
+          done <<< "$TAGS"
+          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
+          ref="${REPOSITORY,,}:$GITHUB_SHA"
+          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
+          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
+      - name: Sign the image, attest its provenance and SBOM
+        uses: ./.github/actions/sign-image
+        with:
+          image: ghcr.io/${{ github.repository }}/backup
+          digest: ${{ steps.push.outputs.digest }}
+
   release-manifest:
     name: Verify release manifest
     if: >-
       !cancelled() && needs.ci-gate.result == 'success' && needs.changes.outputs.publish == 'true'
-    needs: [changes, ci-gate, publish, publish-caddy, publish-gotenberg]
+    needs:
+      [
+        changes,
+        ci-gate,
+        publish,
+        publish-caddy,
+        publish-gotenberg,
+        publish-backup,
+      ]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
@@ -1736,6 +1845,7 @@ jobs:
       api: ${{ steps.manifest.outputs.api }}
       caddy: ${{ steps.manifest.outputs.caddy }}
       gotenberg: ${{ steps.manifest.outputs.gotenberg }}
+      backup: ${{ steps.manifest.outputs.backup }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -1763,7 +1873,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLISHED: >-
-            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}","gotenberg":"${{ needs.publish-gotenberg.outputs.digest }}"}
+            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}","gotenberg":"${{ needs.publish-gotenberg.outputs.digest }}","backup":"${{ needs.publish-backup.outputs.digest }}"}
         run: node tools/ci/release-manifest.mjs
       - name: Preserve successful release evidence
         uses: actions/upload-artifact@v7

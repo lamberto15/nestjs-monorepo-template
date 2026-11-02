@@ -146,7 +146,7 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 ## Commands
 
 | Command | Does |
-| --- | --- |
+| ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
 | `pnpm env:check` | an env file against its template, by name: the variables it lacks, the ones the template does not name, the REQUIRED ones that are empty (exit 1); `--strict`, `--target`, `--file`, `--templates` ([configuration](configuration.md), "First setup"; its tests: `node --test tools/setup/*.test.mjs`) |
 | `pnpm dev` | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first) |
@@ -169,7 +169,7 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 | `pnpm feature:add <plural> --fields "…" [--with …]` | a new feature from its declaration ([adding a feature](adding-a-feature.md)) |
 | `pnpm feature:sync [<plural>]` | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it |
 | `pnpm feature:remove <plural>` | a feature, its tests and texts, e.g. the example `notes` |
-| `pnpm deploy:rolling` / `deploy:blue-green` / `deploy:swarm` | zero-downtime deploys ([deployment](deployment.md), "Zero-downtime deploys: three ways") |
+| `pnpm deploy:rolling` / `deploy:swarm`                  | zero-downtime deploys ([deployment](deployment.md), "Zero-downtime deploys: two ways")                                                                                                                                                                                                                                                                        |
 | `pnpm db:mark-dev` | mark the development services' database as a development one, once, for a volume made before the marker |
 | `pnpm services:up` / `services:down` | the development services |
 | `pnpm client:generate` | the typed client's `openapi.json` and `schema.ts` (after any route change) |
@@ -291,7 +291,7 @@ list, a note, the settings and account pages, in the dark theme, in Arabic
 (right to left) and on a phone, and of an open dialog, popover and menu. It is
 not part of `pnpm test:e2e` (the API's).
 
-- **What it runs against:** the *built* API (`node dist/main`) and the *built*
+- **What it runs against:** the _built_ API (`node dist/main`) and the _built_
   web app, served by `vite preview`, which proxies `/v1` to the API as Caddy
   does in production (`preview.proxy` in `apps/web/vite.config.ts`). One
   origin, so the `__Host-sid` cookie works; no CORS, no Vite dev server.
@@ -378,7 +378,7 @@ and **PgBouncer** (`LOADTEST_PGBOUNCER=on` adds `compose.pgbouncer.yaml`,
 command on it.
 
 | Scenario | Request | Load (one minute each, one after the other) |
-| --- | --- | --- |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
 | `signIn` | `POST /v1/auth/sign-in`, 20 seeded users | 2/s (below) |
 | `list` | `GET /v1/notes` with filters and a sort (status, `title.contains`, `createdAt.gte`…), the load-test client's key | 50/s |
 | `create` | `POST /v1/notes` with an `Idempotency-Key`, the same key | 20/s |
@@ -719,7 +719,7 @@ Several sessions (people or coding agents) work at once, often from the same Git
 account, so the labels say what each issue and PR is about and who has it.
 
 | Label | Meaning |
-| --- | --- |
+| --------------------- | ------------------------------------------------------------------- |
 | `backend` | `apps/api`, the typed client's generation, migrations, backend docs |
 | `frontend` | `apps/web`, `packages/ui` |
 | `ci` | workflows, images, Compose and deploys |
@@ -759,7 +759,7 @@ Picking up an issue:
 They look at the staged files only, so a commit waits a second or two:
 
 | Hook | Runs |
-| --- | --- |
+| ------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `pre-commit` | Prettier on the staged TypeScript (`pnpm format`'s globs, never `docs/` or other Markdown), restaging what it fixes; then type-aware oxlint on the apps' staged files (`apps/*/{src,test}`), after building the workspace packages (Turbo's cache: near-instant), whose types it needs |
 | `commit-msg` | commitlint (`commitlint.config.js`): `type(scope)!: subject`, types `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `style`, `revert`; any scope, several with commas. Merge commits (`git merge origin/main`) and git's `Revert "…"` pass |
 

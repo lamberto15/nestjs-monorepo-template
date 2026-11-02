@@ -186,7 +186,7 @@ test('real workflow conditions and dependencies agree with the gate for affected
     'knip.jsonc',
     '.trivyignore.yaml',
     'docs/deployment.md',
-    'deploy/helm/app/values.yaml',
+    'compose.small.yaml',
     '.github/workflows/ci.yml',
     'unknown',
   ]) {
@@ -215,11 +215,14 @@ test('the stable gate needs every validation job and CI has no production rollou
     gate.needs,
     all.slice(0, all.indexOf(gate)).map((j) => j.id),
   );
-  assert.ok(!all.some((j) => j.id === 'deploy-k3s'));
+  // Deploying is deploy.yml's, after CI: no CI job deploys.
+  assert.ok(!all.some((j) => j.id.startsWith('deploy')));
+  assert.ok(!/^\s+environment:/m.test(text));
   for (const id of [
     'publish',
     'publish-caddy',
     'publish-gotenberg',
+    'publish-backup',
     'release-manifest',
     'release',
   ])

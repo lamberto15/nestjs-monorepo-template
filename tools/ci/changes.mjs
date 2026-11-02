@@ -23,12 +23,11 @@ export const keys = [
   'image',
   'api_image',
   'full',
-  'chart',
 ];
 const roots =
   /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig[^/]*\.json|\.oxlintrc\.json|\.npmrc|\.nvmrc)$/;
 const inert =
-  /^(docs\/|\.claude\/|\.changeset\/[^/]*\.md$|deploy\/(helm|k3s)\/|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
+  /^(docs\/|\.claude\/|\.changeset\/[^/]*\.md$|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
 
 export function classify({ files, full = false, complete = true }) {
   const flags = Object.fromEntries(keys.map((key) => [key, false]));
@@ -41,9 +40,6 @@ export function classify({ files, full = false, complete = true }) {
       flags.ci = true;
       continue;
     }
-    // The deployed chart: nothing to build or test here (helm.yml checks it),
-    // but main releases it, with the previous images (#885).
-    flags.chart ||= file.startsWith('deploy/helm/app/');
     if (inert.test(file)) continue;
     if (roots.test(file)) {
       // Root dependency changes validate all applications. Merge only true

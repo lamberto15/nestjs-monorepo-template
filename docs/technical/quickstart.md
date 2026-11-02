@@ -79,7 +79,7 @@ Read the [source audit](implementation-audit.md) for a code-grounded snapshot of
 ## Common problems
 
 | Symptom | First check |
-| --- | --- |
+| ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
 | Cannot connect to PostgreSQL or Redis | `pnpm services:up`, Docker status, and [development's environment-file separation](../development.md) |
 | Swagger loads but no authenticated requests work | Administrator onboarding, credentials, session/tenant selection, [auth](../auth.md) |
 | Generated API client does not match routes | `pnpm client:generate` and [API conventions](../api-conventions.md) |

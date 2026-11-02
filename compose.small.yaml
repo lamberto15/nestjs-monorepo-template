@@ -1,0 +1,92 @@
+# Sizing for a small host: 2 vCPU, 4 GB of memory (docs/deploy-swarm.md, "Sizing").
+# Both of our environments use it, so staging behaves like production:
+#
+#   SWARM_OVERLAYS=compose.small.yaml pnpm deploy:swarm    (or the Deploy workflow)
+#   COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.small.yaml   (plain Compose)
+#
+# Memory limits are hard caps and must fit the host: about 2.6 GiB in steady
+# state and 3.1 GiB while a deploy starts the new api next to the old one
+# (start-first), out of the ~3.3 GiB a 4 GB host leaves after the OS, Docker
+# and Tailscale. CPU limits may add up to more than 2 (CPU is shared, not
+# reserved); the reservations add up to 1.6 CPU. Each Node.js memory limit
+# follows docs/deployment.md: heap + 128 MiB + hash concurrency × 128 MiB.
+# Database connections: api pool 10 + worker pool 10 + backup and migrations,
+# within max_connections 50. The heavy worker, ClamAV and the monitoring stack
+# don't fit next to this and stay off.
+services:
+  migrate:
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 384M }
+
+  api:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=256
+      PASSWORD_HASH_CONCURRENCY: 1
+      DATABASE_POOL_MAX: 10
+    deploy:
+      replicas: 1
+      resources:
+        limits: { cpus: '1', memory: 512M } # 256 + 128 + 1 × 128
+        reservations: { cpus: '0.5', memory: 384M }
+
+  worker:
+    environment:
+      NODE_OPTIONS: --max-old-space-size=256
+      PASSWORD_HASH_CONCURRENCY: 1
+      DATABASE_POOL_MAX: 10
+    deploy:
+      replicas: 1
+      resources:
+        limits: { cpus: '1', memory: 512M } # 256 + 128 + 1 × 128
+        reservations: { cpus: '0.25', memory: 384M }
+      # No room for a second worker during a deploy: jobs wait in Redis for
+      # the few seconds the new one takes to start.
+      update_config:
+        order: stop-first
+      rollback_config:
+        order: stop-first
+
+  postgres:
+    command:
+      - postgres
+      - -c
+      - max_connections=50
+      - -c
+      - shared_buffers=160MB
+      - -c
+      - effective_cache_size=384MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - maintenance_work_mem=64MB
+    deploy:
+      resources:
+        limits: { cpus: '1', memory: 640M }
+        reservations: { cpus: '0.5', memory: 512M }
+
+  redis:
+    environment:
+      REDIS_MAXMEMORY: 112mb
+    deploy:
+      resources:
+        limits: { cpus: '0.25', memory: 160M }
+        reservations: { cpus: '0.1', memory: 128M }
+
+  caddy:
+    deploy:
+      resources:
+        limits: { cpus: '0.25', memory: 128M }
+        reservations: { cpus: '0.1', memory: 64M }
+
+  gotenberg:
+    deploy:
+      resources:
+        limits: { cpus: '0.5', memory: 512M }
+        reservations: { cpus: '0.1', memory: 256M }
+
+  backup:
+    deploy:
+      resources:
+        limits: { cpus: '0.25', memory: 160M }
+        reservations: { cpus: '0.05', memory: 64M }

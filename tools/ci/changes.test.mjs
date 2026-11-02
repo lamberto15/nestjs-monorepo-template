@@ -55,15 +55,9 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
   for (const file of [
     'README.md',
     'docs/deployment.md',
-    'deploy/k3s/data.yaml',
     'packages/api-client/CHANGELOG.md',
   ])
     assert.deepEqual(selected(route(file)), []);
-  // The chart is released, not built or tested here.
-  assert.deepEqual(selected(route('deploy/helm/app/values.yaml')), ['chart']);
-  assert.deepEqual(expectedJobs(route('deploy/helm/app/values.yaml')), [
-    'changes',
-  ]);
 });
 
 test('shared actions validate everything and documents beside code add nothing', () => {
@@ -161,11 +155,17 @@ test('gate rejects missing results, failures, cancellations and unexpected skips
 });
 
 test('publication gate rejects a failed or skipped required image', () => {
-  const flags = { api_image: 'true', caddy: 'false', gotenberg: 'false' };
+  const flags = {
+    api_image: 'true',
+    caddy: 'false',
+    gotenberg: 'false',
+    backup: 'false',
+  };
   const needs = {
     publish: { result: 'success' },
     'publish-caddy': { result: 'skipped' },
     'publish-gotenberg': { result: 'skipped' },
+    'publish-backup': { result: 'skipped' },
   };
   publicationGate(flags, needs);
   assert.throws(

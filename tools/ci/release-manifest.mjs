@@ -13,7 +13,12 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export const components = { api: '', caddy: '/caddy', gotenberg: '/gotenberg' };
+export const components = {
+  api: '',
+  caddy: '/caddy',
+  gotenberg: '/gotenberg',
+  backup: '/backup',
+};
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;
 const execute = (command, args) =>
@@ -241,7 +246,7 @@ export function releasePlan(
     bootstrap ||
     (env.GITHUB_EVENT_NAME === 'push' &&
       env.GITHUB_REF === 'refs/heads/main' &&
-      (outputs.code || outputs.chart));
+      outputs.code);
   const plan = { publish, bootstrap, previous: null };
   if (publish && !tag && !bootstrap) {
     try {
@@ -264,6 +269,7 @@ export function releasePlan(
       outputs.api_image =
       outputs.caddy =
       outputs.gotenberg =
+      outputs.backup =
         true;
   const directory = join(env.RUNNER_TEMP ?? tmpdir(), 'ci-release-plan');
   mkdirSync(directory, { recursive: true });

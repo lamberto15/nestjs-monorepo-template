@@ -257,9 +257,8 @@ up` stops with "cannot create secret … in read-only service …: `file` is
   string prefix) and in the tests, which asked for `/files/a`. List the forms
   the API really serves (the bare `/files`), keep `/path/*` for what follows
   it, and test the URL the API really issues (`caddy/caddyfile.test.mjs`, the
-  documents e2e). It showed on the stacks that run `caddy/Caddyfile` (Compose,
-  blue-green, Swarm) with `STORAGE_DRIVER=local`; the Helm Ingress matches
-  `/files` by prefix, and S3 links point at the bucket. The fix needs Caddy
+  documents e2e). It showed on the stacks that run `caddy/Caddyfile` (Compose and
+  Swarm) with `STORAGE_DRIVER=local`; S3 links point at the bucket. The fix needs Caddy
   restarted: the Caddyfile is a bind mount, read at start.
 
 - **A Dependabot bump of Gotenberg is half a bump.** It raises the `FROM`
