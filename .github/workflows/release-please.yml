@@ -1,0 +1,63 @@
+# Versions from the Conventional Commit titles of the pull requests merged to
+# main (docs/releases.md): fix → patch, feat → minor, a breaking change →
+# minor while below 1.0. On every push to main, Release Please keeps one open
+# "chore(main): release x.y.z" pull request with the next version and its
+# CHANGELOG.md entry. Merging it is the decision to release:
+#
+#   release PR merged → tag vX.Y.Z on its commit + a DRAFT GitHub release
+#     → CI / CD runs on that commit (it changes package.json): builds, signs
+#     → release.yml promotes the tag: same images, version tags, notes,
+#       release published → production can take it (deploy.yml)
+#
+# Only the built-in token: no personal token, no GitHub App. What that token
+# creates (the release pull request, the tag) starts no workflow by itself:
+#   - the release pull request's CI: select "Approve workflows to run" on it,
+#     or close and reopen it as a person (docs/releases.md);
+#   - release.yml starts when CI / CD finishes on main, and below, when it
+#     already had.
+#
+# Config: release-please-config.json; .release-please-manifest.json holds the
+# last released version. Numbering restarted with this workflow: the first
+# release is 0.1.0 (initial-version), its changelog from bootstrap-sha on.
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-please
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write # the release branch, the tag, the draft release
+      pull-requests: write # the release pull request
+      issues: write # its "autorelease" labels
+      actions: write # start release.yml
+    steps:
+      - id: release
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # Usually CI / CD is still running on the release commit, and its end
+      # starts release.yml. Should it have finished first, start it now.
+      - name: Promote now if CI already passed
+        if: steps.release.outputs.release_created == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.release.outputs.tag_name }}
+        run: |
+          passed=$(gh api "repos/$GH_REPO/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&status=success" --jq .total_count)
+          if [ "$passed" -gt 0 ]; then
+            gh workflow run release.yml --ref main -f tag="$TAG"
+          fi

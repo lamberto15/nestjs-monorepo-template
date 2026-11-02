@@ -1,5 +1,5 @@
 # The web app's Lighthouse CI run (a report, never a failure), nightly,
-# manually and for version tags. The bundle budget, Storybook and the browser
+# manually and for each release (release.yml starts it on the tag). The bundle budget, Storybook and the browser
 # tests run in ci.yml (check, e2e-web) on every web change.
 #
 # Third-party actions are pinned by commit SHA (the comment names the
@@ -7,8 +7,6 @@
 name: Web
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
   schedule:
     - cron: '47 3 * * *'

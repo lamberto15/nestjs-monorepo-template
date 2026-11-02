@@ -238,18 +238,15 @@ export function releasePlan(
     env.GITHUB_EVENT_NAME === 'workflow_dispatch' &&
     event.inputs?.bootstrap_release === 'true' &&
     env.GITHUB_REF === 'refs/heads/main';
-  const tag =
-    env.GITHUB_EVENT_NAME === 'push' &&
-    env.GITHUB_REF.startsWith('refs/tags/v');
+  // A version tag is never built: release.yml promotes main's images.
   const publish =
-    tag ||
     bootstrap ||
     (env.GITHUB_EVENT_NAME === 'push' &&
       env.GITHUB_REF === 'refs/heads/main' &&
       outputs.code);
 
   const plan = { publish, bootstrap, previous: null };
-  if (publish && !tag && !bootstrap) {
+  if (publish && !bootstrap) {
     try {
       plan.previous = load(env.GITHUB_REPOSITORY, env.GITHUB_SHA);
       const files = gitFiles(plan.previous.sourceSha, env.GITHUB_SHA);
@@ -265,7 +262,7 @@ export function releasePlan(
     }
   }
 
-  if (tag || bootstrap)
+  if (bootstrap)
     outputs.image =
       outputs.api_image =
       outputs.caddy =

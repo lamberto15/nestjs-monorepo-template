@@ -1,0 +1,138 @@
+# Promotes a release tag: never a build (docs/releases.md, "How a release is
+# made"). Release Please tags the merged release pull request's commit and
+# drafts its GitHub release; once CI / CD has passed on that commit, this
+# workflow checks the images CI built and signed there (as a deploy does),
+# tags them with the version (the same digests), writes the notes, attaches
+# release-manifest.json and publishes the release. Only then can production
+# take the tag (deploy.yml).
+#
+# A tag made with the built-in token starts no workflow, hence workflow_run
+# rather than a tag push. By hand (Actions, Release, Run workflow): retry a
+# promotion, or promote a tag pushed by hand.
+name: Release
+run-name: Release ${{ inputs.tag || github.event.workflow_run.head_sha }}
+
+on:
+  workflow_run:
+    workflows: ['CI / CD']
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag to promote (v1.2.3)'
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    if: >-
+      github.ref == 'refs/heads/main' && (github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+      github.event.workflow_run.event == 'push' &&
+      github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write # publish the release
+      actions: write # read CI's runs and artifacts, start web.yml
+      packages: write # the version tags on the images
+      attestations: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Log in to GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Install Node.js (the scripts have no dependencies)
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          runtime: node@26
+          install: false
+      - name: The tag, its CI run and verified images
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PROMOTE_TAG: ${{ inputs.tag }}
+          HEAD_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: node tools/ci/release-promote.mjs
+      - name: Tag the images with the version (the same digests)
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          VERSION: ${{ steps.plan.outputs.version }}
+          IMAGES: >-
+            ${{ steps.plan.outputs.api }} ${{ steps.plan.outputs.caddy }}
+            ${{ steps.plan.outputs.gotenberg }} ${{ steps.plan.outputs.backup }}
+        run: |
+          set -euo pipefail
+          for ref in $IMAGES; do
+            [[ "$ref" =~ ^(ghcr\.io/[a-z0-9./_-]+)@(sha256:[a-f0-9]{64})$ ]] || { echo "::error::not a pinned image: $ref"; exit 1; }
+            repository=${BASH_REMATCH[1]} digest=${BASH_REMATCH[2]}
+            docker pull --quiet "$ref"
+            docker tag "$ref" "$repository:$VERSION"
+            docker push --quiet "$repository:$VERSION"
+            pushed=$(docker buildx imagetools inspect "$repository:$VERSION" --format '{{json .Manifest}}' | jq -r .digest)
+            [ "$pushed" = "$digest" ] || { echo "::error::$repository:$VERSION is $pushed, not $digest"; exit 1; }
+            echo "$repository:$VERSION = $digest"
+          done
+      # The notes hold commit subjects and pull request titles: they go to
+      # files and the release, never to the log.
+      - name: Notes, manifest, publish
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.plan.outputs.tag }}
+          STATE: ${{ steps.plan.outputs.state }}
+          PRERELEASE: ${{ steps.plan.outputs.prerelease }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          APP_DIGEST: ${{ steps.plan.outputs.api_digest }}
+          GOTENBERG_DIGEST: ${{ steps.plan.outputs.gotenberg_digest }}
+          CADDY_DIGEST: ${{ steps.plan.outputs.caddy_digest }}
+        run: |
+          set -euo pipefail
+          dir="$RUNNER_TEMP/release"
+          mkdir -p "$dir"
+          previous=$(node tools/release/notes.mjs --tag "$TAG" --print-previous)
+          echo "Release $TAG, after ${previous:-no earlier release}"
+          if [ "$STATE" = none ]; then
+            # A tag pushed by hand: GitHub's list of the changes.
+            fields=(-f "tag_name=$TAG")
+            if [ -n "$previous" ]; then fields+=(-f "previous_tag_name=$previous"); fi
+            gh api "repos/$GITHUB_REPOSITORY/releases/generate-notes" "${fields[@]}" --jq .body > "$dir/changes.md"
+            gh release create "$TAG" --verify-tag --draft --title "$TAG" --notes ''
+          else
+            # Release Please's changelog entry, written into its draft.
+            gh release view "$TAG" --json body --jq .body > "$dir/changes.md"
+          fi
+          node tools/release/notes.mjs --tag "$TAG" --previous "${previous:-none}" \
+            --image-version "$VERSION" --app-digest "$APP_DIGEST" --gotenberg-digest "$GOTENBERG_DIGEST" --caddy-digest "$CADDY_DIGEST" \
+            --changes "$dir/changes.md" --out "$dir/notes.md"
+          # The manifest first: a published release always has it (deploy.yml).
+          gh release upload "$TAG" release-manifest.json --clobber
+          if [ "$PRERELEASE" = true ]; then pre=--prerelease; else pre=--prerelease=false; fi
+          gh release edit "$TAG" --title "$TAG" --notes-file "$dir/notes.md" "$pre" --draft=false
+          echo "Published $TAG" >> "$GITHUB_STEP_SUMMARY"
+      # A tag made with the built-in token starts no workflow: Lighthouse on
+      # the release, by hand.
+      - name: Lighthouse report for the release
+        if: steps.plan.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ steps.plan.outputs.tag }}
+        run: gh workflow run web.yml --ref "$TAG"

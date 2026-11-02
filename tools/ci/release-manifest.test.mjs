@@ -285,6 +285,7 @@ test('release planning revalidates cumulative failures, separates runtime builds
         ).publish,
         false,
       );
+    // A version tag is promoted by release.yml, never built again.
     const tag = releasePlan(
       { ...built },
       { ...env, GITHUB_REF: 'refs/tags/v1.2.3' },
@@ -292,7 +293,7 @@ test('release planning revalidates cumulative failures, separates runtime builds
       classify,
       () => [],
     );
-    assert.equal(tag.publish, true);
+    assert.equal(tag.publish, false);
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }

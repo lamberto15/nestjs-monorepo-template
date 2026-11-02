@@ -225,7 +225,6 @@ test('the stable gate needs every validation job and CI has no production rollou
     'publish-gotenberg',
     'publish-backup',
     'release-manifest',
-    'release',
   ])
     assert.ok(all.find((j) => j.id === id).needs.includes('ci-gate'), id);
 });
