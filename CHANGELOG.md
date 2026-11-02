@@ -1,7 +1,7 @@
 # Changelog
 
 The template's changes are listed in its
-[GitHub releases](https://github.com/lamberto15/nestjs-monorepo-template/releases).
+[GitHub releases](https://github.com/lamby-dev/nestjs-monorepo-template/releases).
 Each release's notes are generated from git and name the migrations, the image
 digests and the configuration changes; see [docs/releases.md](docs/releases.md).
 

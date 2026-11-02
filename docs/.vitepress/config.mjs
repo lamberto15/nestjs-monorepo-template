@@ -137,12 +137,12 @@ export default {
     socialLinks: [
       {
         icon: 'github',
-        link: 'https://github.com/lamberto15/nestjs-monorepo-template',
+        link: 'https://github.com/lamby-dev/nestjs-monorepo-template',
       },
     ],
     editLink: {
       pattern:
-        'https://github.com/lamberto15/nestjs-monorepo-template/edit/main/docs/:path',
+        'https://github.com/lamby-dev/nestjs-monorepo-template/edit/main/docs/:path',
       text: 'Suggest an edit on GitHub',
     },
     footer: {

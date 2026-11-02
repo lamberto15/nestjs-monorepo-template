@@ -12,7 +12,7 @@ Clone the template, keeping its history, and make your own repository the
 `origin`:
 
 ```bash
-git clone https://github.com/lamberto15/nestjs-monorepo-template my-app
+git clone https://github.com/lamby-dev/nestjs-monorepo-template my-app
 cd my-app
 git remote rename origin template        # the template stays a remote
 git remote add origin git@github.com:<you>/my-app.git
@@ -29,7 +29,7 @@ the first merge would conflict in every file. Record once which release you
 started from, without changing any file:
 
 ```bash
-git remote add template https://github.com/lamberto15/nestjs-monorepo-template
+git remote add template https://github.com/lamby-dev/nestjs-monorepo-template
 git fetch template --tags
 git merge --allow-unrelated-histories -s ours v1.2.0 -m "chore: record template v1.2.0 as merged"
 ```
@@ -42,7 +42,7 @@ started between two releases, record the commit you copied instead of a tag.
 
 ## Taking a release
 
-Read the release's notes first ([the Releases page](https://github.com/lamberto15/nestjs-monorepo-template/releases)):
+Read the release's notes first ([the Releases page](https://github.com/lamby-dev/nestjs-monorepo-template/releases)):
 its breaking changes, its migrations (and whether the release before it runs
 on them), new variables, the typed client's version. Then, in your project,
 the usual way (a branch, a pull request, CI; [development](development.md),
