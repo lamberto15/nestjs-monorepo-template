@@ -15,20 +15,20 @@ This template reduces repeatable platform coding; it does **not** eliminate engi
 
 ## Costs to estimate
 
-| Cost area | Examples | Why it matters |
-| --- | --- | --- |
-| Engineering | Custom features, integrations, reviews, tests | The template is only a foundation |
-| Runtime infrastructure | API, worker, PostgreSQL, Redis, object storage, reverse proxy | Some components are required even for simple deployments |
-| Third-party services | Email, SSO provider, bot protection, AI, SMS, push | Availability and pricing vary by provider |
-| Operations | Metrics, alerts, backups, recovery, capacity, secrets | A service needs ownership after first deployment |
-| Governance | Access reviews, data retention, privacy/compliance assessment | Depends on data, geography and business use |
-| License | Separate commercial permission if needed | The repository is not licensed for unrestricted commercial use |
+| Cost area              | Examples                                                      | Why it matters                                                 |
+| ---------------------- | ------------------------------------------------------------- | -------------------------------------------------------------- |
+| Engineering            | Custom features, integrations, reviews, tests                 | The template is only a foundation                              |
+| Runtime infrastructure | API, worker, PostgreSQL, Redis, object storage, reverse proxy | Some components are required even for simple deployments       |
+| Third-party services   | Email, SSO provider, bot protection, AI, SMS, push            | Availability and pricing vary by provider                      |
+| Operations             | Metrics, alerts, backups, recovery, capacity, secrets         | A service needs ownership after first deployment               |
+| Governance             | Access reviews, data retention, privacy/compliance assessment | Depends on data, geography and business use                    |
+| License                | Separate commercial permission if needed                      | The repository is not licensed for unrestricted commercial use |
 
 No fixed monthly cost is specified: it depends on traffic, uptime requirements, vendor choice and staffing.
 
 ## Hosting shape
 
-Development uses local Docker services. Production deployment is documented with Docker Compose (including rolling and blue-green patterns), Docker Swarm and a Kubernetes Helm chart. Those are deployment options, **not** evidence that every option is equally appropriate for your environment. Read [deployment](../deployment.md) and [Kubernetes limitations](../deploy-kubernetes.md) before selecting one.
+Development uses local Docker services. Production deployment is documented with Docker Compose (including a rolling pattern) and Docker Swarm. Those are deployment options, **not** evidence that every option is equally appropriate for your environment. Read [deployment](../deployment.md) and [Swarm](../deploy-swarm.md) before selecting one.
 
 ## Risk and release policy
 

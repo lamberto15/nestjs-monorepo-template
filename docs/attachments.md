@@ -228,8 +228,8 @@ method: 'PUT', headers, expiresAt }`.
   file through the API instead, so uploads keep working, only not directly.
 - **The web app's Content-Security-Policy must name the bucket** too: the
   browser blocks a request to another origin that `connect-src` does not list,
-  before any CORS preflight. The Compose stack's Caddy and the Helm chart's
-  web app derive the bucket's origin from the S3 settings and name it in
+  before any CORS preflight. The Compose stack's Caddy and the web app
+  derive the bucket's origin from the S3 settings and name it in
   `connect-src` and `img-src` themselves when `STORAGE_DRIVER=s3` (one list,
   which also lets the [thumbnails](#image-renditions) load; `FILES_ORIGIN`
   adds a custom domain or CDN in front of the bucket: [deployment.md](deployment.md),

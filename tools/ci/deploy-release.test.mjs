@@ -3,7 +3,11 @@ import { writeFileSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { createManifest } from './release-manifest.mjs';
-import { deploymentManifest, releaseRunId } from './deploy-release.mjs';
+import {
+  deploymentManifest,
+  deploymentRun,
+  releaseRunId,
+} from './deploy-release.mjs';
 const repository = 'owner/repo',
   source = 'a'.repeat(40),
   head = 'b'.repeat(40),
@@ -25,6 +29,7 @@ const manifest = createManifest({
     api: 'sha256:' + '1'.repeat(64),
     caddy: 'sha256:' + '2'.repeat(64),
     gotenberg: 'sha256:' + '3'.repeat(64),
+    backup: 'sha256:' + '4'.repeat(64),
   },
 });
 function fixture({ metadata = record, document = manifest, fail } = {}) {
@@ -69,18 +74,18 @@ test('deploy resolves the exact successful run and verifies every immutable imag
         args.includes('release-manifest-v1'),
     ),
   );
-  assert.equal(calls.filter(([command]) => command === 'docker').length, 3);
+  assert.equal(calls.filter(([command]) => command === 'docker').length, 4);
   assert.equal(
     calls.filter(
       ([command, args]) => command === 'cosign' && args[0] === 'verify',
     ).length,
-    3,
+    4,
   );
   assert.equal(
     calls.filter(
       ([command, args]) => command === 'gh' && args.includes('--source-digest'),
     ).length,
-    3,
+    4,
   );
 });
 test('untrusted source runs are rejected before downloading an artifact', () => {
@@ -109,28 +114,152 @@ test('missing artifacts, mismatched source, ancestry and signature failures bloc
   for (const { run } of cases)
     assert.throws(() => deploymentManifest(repository, id, head, run));
 });
-test('Deploy is manual, protected, serialized and uses release chart code without rebuilding', () => {
+// A fake gh for deploymentRun: releases by tag, run artifacts, CI runs.
+function github({ releases = {}, artifacts = {}, runs = [] } = {}) {
+  const calls = [];
+  const run = (command, args) => {
+    calls.push([command, ...args].join(' '));
+    const [verb, path] = args;
+    if (verb === 'api' && path.includes('/releases/tags/')) {
+      const tag = path.split('/').at(-1);
+      if (!releases[tag]) throw new Error('HTTP 404');
+      return JSON.stringify({ tag_name: tag, ...releases[tag] });
+    }
+    if (verb === 'api' && path.includes('/artifacts')) {
+      const runId = path.split('/runs/')[1].split('/')[0];
+      return JSON.stringify({ artifacts: artifacts[runId] ?? [] });
+    }
+    if (verb === 'api' && path.includes('/workflows/ci.yml/runs'))
+      return JSON.stringify({ workflow_runs: runs });
+    if (verb === 'release' && path === 'download') {
+      writeFileSync(
+        join(args.at(-1), 'release-manifest.json'),
+        JSON.stringify({ runId: releases[args[2]].runId }),
+      );
+      return '';
+    }
+    throw new Error(`unexpected ${command} ${args.join(' ')}`);
+  };
+  return { run, calls };
+}
+const kept = [{ name: 'release-manifest-v1', expired: false }];
+const asset = [{ name: 'release-manifest.json' }];
+const published = { draft: false, prerelease: false, assets: asset, runId: 77 };
+
+test('production deploys only a published, non-pre-release tag, and only by hand', () => {
+  const base = { repository, environment: 'production' };
+  const { run } = github({
+    releases: {
+      'v1.2.0': published,
+      'v1.3.0-rc.1': { ...published, prerelease: true },
+      'v1.3.0': { ...published, draft: true },
+      'v1.4.0': { ...published, assets: [] },
+    },
+  });
+  assert.equal(
+    deploymentRun({ ...base, event: 'workflow_dispatch', tag: 'v1.2.0' }, run),
+    '77',
+  );
+  for (const [input, message] of [
+    [{ event: 'workflow_run', workflowRunId: '5' }, /only by a manual/],
+    [{ event: 'workflow_dispatch' }, /needs a release tag/],
+    [{ event: 'workflow_dispatch', tag: 'v1.3.0-rc.1' }, /pre-release/],
+    [{ event: 'workflow_dispatch', tag: 'v1.3.0' }, /draft/],
+    [{ event: 'workflow_dispatch', tag: 'v1.4.0' }, /no release-manifest/],
+    [{ event: 'workflow_dispatch', tag: 'v9.9.9' }, /404/],
+    [{ event: 'workflow_dispatch', tag: 'main' }, /Not a release tag/],
+    [
+      { event: 'workflow_dispatch', tag: 'v1.2.0 --repo x/y' },
+      /Not a release tag/,
+    ],
+  ])
+    assert.throws(() => deploymentRun({ ...base, ...input }, run), message);
+  assert.throws(
+    () =>
+      deploymentRun(
+        { repository, environment: 'qa', event: 'workflow_dispatch' },
+        run,
+      ),
+    /Unknown environment/,
+  );
+});
+
+test('staging takes the CI run that published, a pre-release tag, or the newest main build', () => {
+  const base = { repository, environment: 'staging' };
+  const { run } = github({
+    releases: { 'v1.3.0-rc.1': { ...published, prerelease: true, runId: 88 } },
+    artifacts: { 41: kept, 40: [{ ...kept[0], expired: true }], 39: kept },
+    runs: [
+      { id: 42, event: 'schedule' },
+      { id: 41, event: 'push' },
+      { id: 39, event: 'push' },
+    ],
+  });
+  assert.equal(
+    deploymentRun({ ...base, event: 'workflow_run', workflowRunId: '41' }, run),
+    '41',
+  );
+  // A main run that published nothing (no manifest): nothing to deploy.
+  assert.equal(
+    deploymentRun({ ...base, event: 'workflow_run', workflowRunId: '40' }, run),
+    null,
+  );
+  assert.equal(
+    deploymentRun(
+      { ...base, event: 'workflow_dispatch', tag: 'v1.3.0-rc.1' },
+      run,
+    ),
+    '88',
+  );
+  // Empty tag: the newest successful main push or dispatch with a manifest.
+  assert.equal(
+    deploymentRun({ ...base, event: 'workflow_dispatch' }, run),
+    '41',
+  );
+  assert.throws(() =>
+    deploymentRun(
+      { ...base, event: 'workflow_run', workflowRunId: '--repo=x/y' },
+      run,
+    ),
+  );
+});
+
+test('Deploy verifies before any secret, targets Swarm by digest and never builds', () => {
   const text = readFileSync(
     new URL('../../.github/workflows/deploy.yml', import.meta.url),
     'utf8',
   );
-  assert.match(text, /on:\n  workflow_dispatch:/);
-  assert.match(text, /github.ref == 'refs\/heads\/main'/);
-  assert.match(text, /environment:\n      name: production/);
-  assert.ok(
-    text.indexOf('Require production deployment to be enabled') <
-      text.indexOf('actions/checkout@'),
-  );
-  assert.match(text, /DEPLOY_ENABLED: \$\{\{ vars.K3S_DEPLOY_ENABLED \}\}/);
-  assert.match(text, /group: production-k3s\n      cancel-in-progress: false/);
-  assert.match(text, /ref: \$\{\{ steps.release.outputs.source_sha \}\}/);
-  assert.ok(
-    text.indexOf('node tools/ci/deploy-release.mjs') <
-      text.indexOf('Join the deployment tailnet'),
-  );
-  assert.ok(!text.includes('docker/build-push-action'));
+  assert.match(text, /workflow_run:\n    workflows: \['CI \/ CD'\]/);
+  assert.match(text, /branches: \[main\]/);
+  assert.match(text, /options: \[staging, production\]/);
+  // Automatic deploys need AUTO_DEPLOY and always go to staging.
+  assert.match(text, /vars.AUTO_DEPLOY == 'true'/);
   assert.match(
     text,
-    /--rollback-on-failure --wait=legacy --wait-for-jobs --timeout 12m/,
+    /github.event_name == 'workflow_run' && 'staging' \|\| inputs.environment/,
   );
+  // The verify job holds no environment and no secret but the token.
+  const verify = text.slice(
+    text.indexOf('  verify:'),
+    text.indexOf('  deploy:'),
+  );
+  assert.ok(!verify.includes('environment:\n'));
+  assert.ok(!/secrets\.(?!GITHUB_TOKEN)/.test(verify));
+  assert.match(verify, /node tools\/ci\/deploy-release.mjs/);
+  const deploy = text.slice(text.indexOf('  deploy:'));
+  assert.match(deploy, /needs: verify/);
+  assert.match(deploy, /name: \$\{\{ needs.verify.outputs.environment \}\}/);
+  assert.match(
+    deploy,
+    /group: deploy-\$\{\{ needs.verify.outputs.environment \}\}\n      cancel-in-progress: false/,
+  );
+  assert.match(deploy, /ref: \$\{\{ needs.verify.outputs.source_sha \}\}/);
+  assert.match(deploy, /SWARM_OVERLAYS: compose.small.yaml/);
+  assert.match(deploy, /node tools\/deploy\/swarm.mjs deploy --env-file/);
+  assert.ok(
+    deploy.indexOf('Join the deployment tailnet') <
+      deploy.indexOf('Deploy the stack'),
+  );
+  assert.ok(!text.includes('docker/build-push-action'));
+  assert.ok(!/helm|kubectl/i.test(text));
 });

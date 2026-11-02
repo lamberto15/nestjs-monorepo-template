@@ -28,7 +28,7 @@
 1. Read [release notes](../releases.md), check pinned image digests/tags and any breaking change or migration.
 2. Confirm that CI passed for the exact code being deployed.
 3. Back up and verify the recovery point; confirm adequate capacity and healthy dependencies.
-4. Use the chosen [rolling](../deploy-rolling.md), [blue-green](../deploy-blue-green.md), [Swarm](../deploy-swarm.md) or [Helm](../deploy-kubernetes.md) procedure; do not substitute one method's rollback assumptions for another.
+4. Use the chosen [rolling](../deploy-rolling.md) or [Swarm](../deploy-swarm.md) procedure; do not substitute one method's rollback assumptions for another.
 5. Verify migration success, application health, worker processing, tenant-scoped smoke tests, authentication and critical flows.
 6. Observe metrics/errors/queue lag and log redaction. Roll back **only after assessing schema compatibility**: reverting the image does not roll back the database schema.
 7. Record deployed versions, incidents, changes and follow-up actions.

@@ -43,8 +43,9 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The image CI builds, built again here without a cache: reading CI's
-      # (type=gha) took 114-147 s at the median, Helm's uncached build of the
-      # same Dockerfile 95 s with its `kind load` (issue #686). Docker's own
+      # (type=gha) took 114-147 s at the median, an uncached build of the
+      # same Dockerfile 95 s (issue #686). Docker's own
+
       # BuildKit, loaded for Compose as is.
       - name: Build the production image
         env:

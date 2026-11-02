@@ -409,6 +409,27 @@ test('check validates the stack file with docker stack config', async () => {
   assert.ok(lines[0].startsWith('stack file valid'));
 });
 
+test('SWARM_OVERLAYS adds repository Compose files after the three, and refuses others', async () => {
+  const docker = fakeDocker();
+  const { deps } = baseDeps(docker);
+  deps.env = { SWARM_OVERLAYS: 'compose.small.yaml, ' };
+  deps.exists = (path) => path === '/repo/compose.small.yaml';
+  assert.equal(await main(['check', '--stack', 'swtest'], deps), 0);
+  const config = docker.calls.find((call) => call.line.includes(' config '));
+  assert.match(
+    config.line,
+    /-f \/repo\/compose\.swarm\.yaml -f \/repo\/compose\.small\.yaml /,
+  );
+  for (const bad of [
+    '../x.yaml',
+    '/etc/compose.small.yaml',
+    'compose.big.yaml',
+  ]) {
+    deps.env = { SWARM_OVERLAYS: bad };
+    assert.equal(await main(['check', '--stack', 'swtest'], deps), 2);
+  }
+});
+
 test('usage errors exit 2', async () => {
   const { deps } = baseDeps(fakeDocker());
   assert.equal(await main(['nonsense'], deps), 2);

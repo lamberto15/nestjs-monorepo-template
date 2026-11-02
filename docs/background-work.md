@@ -76,11 +76,6 @@ at its memory limit stops mail, the outbox relay and everything else with it
 - The heavy worker turns the rest off: `OUTBOX_RELAY=off`,
   `WEBHOOKS_WORKER=off`, `WORKFLOWS_WORKER=off` (workflow steps) and
   `SCHEDULER=off` (cron).
-- **Helm:** `heavyWorker.enabled=true` adds the `worker-heavy` Deployment
-  for `heavyWorker.queues` and removes them from `worker`
-  (`WORKER_QUEUES_EXCLUDE`); on in `values.single-node.yaml` (K3s). Its
-  budget: a 1024 MiB heap within a 1536 MiB limit (1 GiB requested), one job
-  per queue: [deployment](deployment.md#resource-limits).
 - **Compose:** `COMPOSE_PROFILES=heavy-worker` and `HEAVY_QUEUES` (the list):
   `worker` leaves them out, `worker-heavy` (`HEAVY_WORKER_MEMORY`, 1536M;
   `HEAVY_WORKER_HEAP_MB`, 1024) runs them. With the profile but no

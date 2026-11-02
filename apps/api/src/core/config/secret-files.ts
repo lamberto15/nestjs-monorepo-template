@@ -6,7 +6,8 @@ import { appPath } from '../../app-dir.js';
 /**
  * Secrets from files: every variable declared with `secret()` (env.helpers.ts)
  * can be given as `X_FILE`, the path of a file holding its value (a Docker
- * secret at /run/secrets/…, a mounted Kubernetes secret, a file a vault
+ * secret at /run/secrets/…, a file a vault
+
  * agent writes). The file comes first, the variable is the fallback; both
  * set is an error, so a stale value never wins silently.
  *

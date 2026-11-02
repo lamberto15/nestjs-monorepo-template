@@ -47,8 +47,8 @@
 	# No `encode` here: the API's responses pass as the API sends them. Caddy's
 	# encode turns a strong ETag into "<tag>-gzip" and takes the suffix off the
 	# If-None-Match a read sends back, but not off the If-Match of a write
-	# (docs/api-conventions.md, "Concurrency and caching"); and in the Helm
-	# chart the Ingress sends these paths past Caddy. Compressing the API is
+	# (docs/api-conventions.md, "Concurrency and caching"). Compressing the API is
+
 	# the API's own decision, for every deployment at once. The ops log's
 	# text/event-stream (GET /v1/ops/events) is flushed as it comes: Caddy does
 	# that for the type by itself (reverse_proxy docs, flush_interval), so no

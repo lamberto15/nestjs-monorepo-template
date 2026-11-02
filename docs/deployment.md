@@ -52,8 +52,7 @@ Filling `.env` (each step is commented in `env.example`):
   API's routes are the app's origin, so `__Host-sid` works and no CORS is needed. A new
   API path (an unversioned one, or a new version prefix such as `/v2/*`) needs a line in
   the `@api` matcher, with the bare path when the API serves it, and in the lists that
-  mirror it: `apps/web/pwa-paths.ts`, `ingress.apiPaths` in the Helm chart's
-  `values.yaml`, and the dev proxy (`apps/web/dev-proxy.ts`) if the web app calls it. A web
+  mirror it: `apps/web/pwa-paths.ts` and the dev proxy (`apps/web/dev-proxy.ts`) if the web app calls it. A web
   change redeploys Caddy (`docker compose up -d --build`); a change to the Caddyfile alone
   is read when Caddy starts (a bind mount: Compose sees no change), so
   `docker compose up -d --force-recreate caddy`.
@@ -68,15 +67,14 @@ Filling `.env` (each step is commented in `env.example`):
   `jitless`; `frame-ancestors 'none'`), `X-Frame-Options: DENY`, `X-Content-Type-Options`,
   `Referrer-Policy: strict-origin-when-cross-origin` and a `Permissions-Policy` that turns
   off everything but WebAuthn, `Strict-Transport-Security` (`max-age=63072000;
-  includeSubDomains`, matching the API's own: this deployment serves every subdomain
+includeSubDomains`, matching the API's own: this deployment serves every subdomain
   under `APP_DOMAIN` over HTTPS only; no `preload`, which submits the domain to browsers'
   built-in list, a step this template doesn't take for the owner)
   and `Cross-Origin-Opener-Policy: same-origin`. **A new third-party script, frame, API or
   font host** needs its origin in the matching directive of that one line (`script-src`,
   `frame-src`, `connect-src`, `font-src`, `img-src`), taken from the provider's CSP page; no
   inline `<script>`, no `eval`. `caddy/caddyfile.test.mjs` pins the full header set
-  against a real Caddy binary, on the app shell, an asset and the maintenance page, and
-  that the Helm chart's web ConfigMap matches the Caddyfile line for line; that is the
+  against a real Caddy binary, on the app shell, an asset and the maintenance page; that is the
   one place a change to this line is checked (the e2e suite stopped sending it under
   `vite preview` when `apps/web/preview-headers.ts` was removed with the browser
   analytics feature it also served).
@@ -90,8 +88,7 @@ Filling `.env` (each step is commented in `env.example`):
   succeed only because `etag.ts` happens to trim long tags to their hash. Compressing the
   API, if wanted, is a separate decision (in Nest, or at the edge) for each deployment.
   The ops event stream (`GET /v1/ops/events`) is never buffered or encoded, so it still
-  flushes each event as it is written. A single-node K3s deployment behind a Cloudflare
-  Tunnel also gets compression at the edge, on top of this.
+  flushes each event as it is written.
 - **The origins of files** (`STORAGE_DRIVER=s3`). The browser reaches the bucket itself
   twice: it PUTs a direct upload straight to it
   ([attachments](attachments.md#direct-uploads-s3)), and the attachments panel's `<img>`
@@ -106,9 +103,7 @@ Filling `.env` (each step is commented in `env.example`):
   origin (`/files` goes to the API above), which `'self'` covers. So `connect-src` and
   `img-src` both name one list of origins, which `caddy/entrypoint.sh` makes at each
   start (`WEB_FILES_ORIGINS`, the one value the Caddyfile reads for them; after changing
-  the settings, recreate Caddy: `docker compose up -d caddy`). The Helm chart's web
-  Caddy makes the same list from `env` and `web.filesOrigin` (`app.webFilesOrigins`,
-  which fails the render on a value it cannot read). The list holds:
+  the settings, recreate Caddy: `docker compose up -d caddy`). The list holds:
   - **the bucket's origin**, derived from the app's own `S3_BUCKET`, `S3_ENDPOINT`,
     `S3_REGION` (or `AWS_REGION`) and `S3_FORCE_PATH_STYLE` as the API's S3 disk signs its
     URLs (`https://<bucket>.s3.<region>.amazonaws.com`; R2's
@@ -159,8 +154,7 @@ Filling `.env` (each step is commented in `env.example`):
     then shows its own notice: the API answers 503 `maintenance`, which the app turns
     into a full-page notice ([monorepo](monorepo.md), "Maintenance and read-only
     mode"). Only first visits and other clients see Caddy's page.
-  - **Swarm** gets the flag through the same service environment. The Kubernetes
-    chart's `web` does not have it (its Ingress is where that is done).
+  - **Swarm** gets the flag through the same service environment.
   - **Test:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs` runs
     the real Caddyfile (the TLS block and Docker names edited out) under a real Caddy;
     CI's `caddy-image` job runs it with the image's own binary.
@@ -207,20 +201,18 @@ Filling `.env` (each step is commented in `env.example`):
   included: a few seconds' pause). Older logs are not kept: ship them
   somewhere if you need them for longer.
 
-### Zero-downtime deploys: three ways
+### Zero-downtime deploys: two ways
 
-Each keeps the old version serving until the new one is healthy, and every one
-needs the same three things: expand/contract migrations (old and new code run
+Each keeps the old version serving until the new one is healthy, and both
+need the same three things: expand/contract migrations (old and new code run
 against the same database), graceful shutdown (in place: a replica finishes
 its requests and exits), and pinned images (`APP_IMAGE` by commit SHA, so a
 rollback is one command).
 
-| Method               | Command                  | Rollback                                                             | Choose it when                                                                                                                           |
-| -------------------- | ------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                      | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))   |
-| Blue-green (Compose) | `pnpm deploy:blue-green` | `pnpm deploy:blue-green rollback`: instant while the old colour runs | one host, an instant switch back matters, 2× the API's resources during a deploy are fine ([deploy-blue-green.md](deploy-blue-green.md)) |
-| Docker Swarm         | `pnpm deploy:swarm`      | automatic on a failed health check, or `pnpm deploy:swarm rollback`  | one or more nodes, updates and rollback by the orchestrator ([deploy-swarm.md](deploy-swarm.md))                                         |
-| Kubernetes (Helm)    | `helm upgrade --install` | `helm rollback`; the migrate Job is a pre-upgrade hook               | a managed cluster ([deploy-kubernetes.md](deploy-kubernetes.md))                                                                         |
+| Method            | Command               | Rollback                                                            | Choose it when                                                                                                                          |
+| ----------------- | --------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Rolling (Compose) | `pnpm deploy:rolling` | deploy the previous `APP_IMAGE`                                     | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))  |
+| Docker Swarm      | `pnpm deploy:swarm`   | automatic on a failed health check, or `pnpm deploy:swarm rollback` | one or more nodes, updates and rollback by the orchestrator; how our staging and production deploy ([deploy-swarm.md](deploy-swarm.md)) |
 
 A plain `docker compose up -d --build` is not one of them: it recreates the
 replicas in place (below, what Caddy does about that).
@@ -275,29 +267,29 @@ optional: an `.env` holding the values themselves keeps working. A secret
 without its `_FILE` is mounted from the empty `secret.empty`, which nothing
 reads.
 
-| `.env`                                                                                                                                                                                                                                                                                                                                                                                        | Read by                                                                                                                                               | Instead of                                          |
-| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- |
-| `POSTGRES_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                      | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`)                                                             | `POSTGRES_PASSWORD`                                 |
-| `POSTGRES_MONITOR_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                              | `migrate` (creates the monitoring role with it) and the PostgreSQL exporter (`compose.monitoring.yaml`): one file                                     | `POSTGRES_MONITOR_PASSWORD`                         |
-| `DATABASE_OWNER_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                     | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service         | the URL Compose builds from `POSTGRES_PASSWORD`     |
-| `DATABASE_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                           | the app (api, worker) and `migrate` (the app role's URL: `postgres://app_runtime:<password>@postgres:5432/app`, with `POSTGRES_APP_PASSWORD`'s value) | the URL Compose builds from `POSTGRES_APP_PASSWORD` |
-| `REDIS_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                         | Redis, its healthcheck and the Redis exporter (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file                                            | `REDIS_PASSWORD`                                    |
-| `DATABASE_MAINTENANCE_URL_FILE` | `migrate` (creates the role) and `worker` (the maintenance role's URL: `postgres://app_maintenance:<password>@postgres:5432/app`) | the URL Compose builds from `POSTGRES_MAINTENANCE_PASSWORD` |
-| `POSTGRES_REPORTING_PASSWORD_FILE` | `migrate` only (creates the reporting role with it) | `POSTGRES_REPORTING_PASSWORD` |
-| `CLOUDFLARE_API_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                   | Caddy (`caddy/entrypoint.sh`)                                                                                                                         | `CLOUDFLARE_API_TOKEN`                              |
-| `BACKUP_S3_SECRET_ACCESS_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                            | the backup                                                                                                                                            | `BACKUP_S3_SECRET_ACCESS_KEY`                       |
-| `BACKUP_ENCRYPTION_KEY_FILE` | the backup (the age recipients, public keys, one per line) | `BACKUP_ENCRYPTION_KEY` |
-| `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
-| `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |
-| `POSTMARK_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`) | `POSTMARK_WEBHOOK_SECRET` |
-| `RESEND_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`) | `RESEND_WEBHOOK_SECRET` |
-| `TWILIO_AUTH_TOKEN_FILE` | the app (api, worker; not `migrate`) | `TWILIO_AUTH_TOKEN` |
-| `WEB_PUSH_VAPID_PRIVATE_KEY_FILE` | the app (api, worker; not `migrate`) | `WEB_PUSH_VAPID_PRIVATE_KEY` |
-| `APNS_PRIVATE_KEY_FILE` | the app (api, worker; not `migrate`) | `APNS_PRIVATE_KEY` |
-| `FCM_PRIVATE_KEY_FILE` | the app (api, worker; not `migrate`) | `FCM_PRIVATE_KEY` |
-| `SENTRY_DSN_FILE` | the app (api, worker; not `migrate`) | `SENTRY_DSN` |
-| `OTEL_EXPORTER_OTLP_HEADERS_FILE` | the app (api, worker; not `migrate`) | `OTEL_EXPORTER_OTLP_HEADERS` |
-| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `PLAY_INTEGRITY_DECRYPTION_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`)                                                                                                                  | the variable without `_FILE`                        |
+| `.env`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Read by                                                                                                                                               | Instead of                                                  |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `POSTGRES_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`)                                                             | `POSTGRES_PASSWORD`                                         |
+| `POSTGRES_MONITOR_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       | `migrate` (creates the monitoring role with it) and the PostgreSQL exporter (`compose.monitoring.yaml`): one file                                     | `POSTGRES_MONITOR_PASSWORD`                                 |
+| `DATABASE_OWNER_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service         | the URL Compose builds from `POSTGRES_PASSWORD`             |
+| `DATABASE_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    | the app (api, worker) and `migrate` (the app role's URL: `postgres://app_runtime:<password>@postgres:5432/app`, with `POSTGRES_APP_PASSWORD`'s value) | the URL Compose builds from `POSTGRES_APP_PASSWORD`         |
+| `REDIS_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  | Redis, its healthcheck and the Redis exporter (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file                                            | `REDIS_PASSWORD`                                            |
+| `DATABASE_MAINTENANCE_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | `migrate` (creates the role) and `worker` (the maintenance role's URL: `postgres://app_maintenance:<password>@postgres:5432/app`)                     | the URL Compose builds from `POSTGRES_MAINTENANCE_PASSWORD` |
+| `POSTGRES_REPORTING_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | `migrate` only (creates the reporting role with it)                                                                                                   | `POSTGRES_REPORTING_PASSWORD`                               |
+| `CLOUDFLARE_API_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Caddy (`caddy/entrypoint.sh`)                                                                                                                         | `CLOUDFLARE_API_TOKEN`                                      |
+| `BACKUP_S3_SECRET_ACCESS_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | the backup                                                                                                                                            | `BACKUP_S3_SECRET_ACCESS_KEY`                               |
+| `BACKUP_ENCRYPTION_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | the backup (the age recipients, public keys, one per line)                                                                                            | `BACKUP_ENCRYPTION_KEY`                                     |
+| `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                                  |
+| `ANTHROPIC_API_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | the app (api, worker; not `migrate`)                                                                                                                  | `ANTHROPIC_API_KEY`                                         |
+| `POSTMARK_WEBHOOK_SECRET_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | the app (api, worker; not `migrate`)                                                                                                                  | `POSTMARK_WEBHOOK_SECRET`                                   |
+| `RESEND_WEBHOOK_SECRET_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           | the app (api, worker; not `migrate`)                                                                                                                  | `RESEND_WEBHOOK_SECRET`                                     |
+| `TWILIO_AUTH_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               | the app (api, worker; not `migrate`)                                                                                                                  | `TWILIO_AUTH_TOKEN`                                         |
+| `WEB_PUSH_VAPID_PRIVATE_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | the app (api, worker; not `migrate`)                                                                                                                  | `WEB_PUSH_VAPID_PRIVATE_KEY`                                |
+| `APNS_PRIVATE_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | the app (api, worker; not `migrate`)                                                                                                                  | `APNS_PRIVATE_KEY`                                          |
+| `FCM_PRIVATE_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | the app (api, worker; not `migrate`)                                                                                                                  | `FCM_PRIVATE_KEY`                                           |
+| `SENTRY_DSN_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | the app (api, worker; not `migrate`)                                                                                                                  | `SENTRY_DSN`                                                |
+| `OTEL_EXPORTER_OTLP_HEADERS_FILE`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      | the app (api, worker; not `migrate`)                                                                                                                  | `OTEL_EXPORTER_OTLP_HEADERS`                                |
+| `JWT_SECRET_FILE`, `MFA_ENCRYPTION_KEYS_FILE`, `STORAGE_SIGNING_KEYS_FILE`, `IDEMPOTENCY_KEYS_FILE`, `CURSOR_KEYS_FILE`, `WEBHOOKS_ENCRYPTION_KEYS_FILE`, `DATA_ENCRYPTION_KEYS_FILE`, `BLIND_INDEX_KEYS_FILE`, `ADMIN_PASSWORD_FILE`, `MAIL_API_KEY_FILE`, `AWS_SECRET_ACCESS_KEY_FILE`, `GOOGLE_CLIENT_SECRET_FILE`, `MICROSOFT_CLIENT_SECRET_FILE`, `GITHUB_CLIENT_SECRET_FILE`, `TURNSTILE_SECRET_KEY_FILE`, `PLAY_INTEGRITY_DECRYPTION_KEY_FILE`, `OBSERVE_APP_SECRET_FILE`, `EXAMPLE_SENDER_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`)                                                                                                                  | the variable without `_FILE`                                |
 
 Not in this list, so they stay variables in Compose:
 
@@ -399,7 +391,7 @@ the Caddyfile's last site, `https://`, every hostname `APP_DOMAIN` isn't:
 
 - **Certificates on demand.** The first TLS handshake for a hostname asks
   the API (the global `on_demand_tls`, `ask
-  http://api:3000/v1/internal/domains/allowed?domain=<hostname>`): 200 for a
+http://api:3000/v1/internal/domains/allowed?domain=<hostname>`): 200 for a
   verified domain of an active tenant, else 404 and the handshake fails, so
   nobody can make Caddy request certificates for names of their choosing.
   The certificate comes by HTTP-01 or TLS-ALPN-01 (the tenant's zone is not
@@ -422,18 +414,6 @@ the Caddyfile's last site, `https://`, every hostname `APP_DOMAIN` isn't:
   and its pages already say.
 - **Off** (the default): the API answers 404 to every hostname; no
   certificate is ever issued for anything but `APP_DOMAIN`.
-
-The Helm chart has no on-demand edge: its Ingress serves the hostnames the
-operators list in `customDomains.hosts` (`customDomains.enabled: true` sets
-`CUSTOM_DOMAINS=on`), with one certificate, `customDomains.tlsSecretName`,
-from a cert-manager issuer that can solve those zones (HTTP-01; a
-`dnsZones`-scoped DNS-01 solver stays for the app's own domain). List a
-hostname once `GET /v1/branding/domains` says it is verified. A domain
-removed or suspended stops at once in the API (no tenant, no brand, no
-session pinned to it); take it out of `customDomains.hosts` as well, or the
-web app's shell stays on it, unbranded. On k3s behind the Cloudflare Tunnel
-(docs/deploy-k3s.md), a tenant's hostname reaches the tunnel only as a
-Cloudflare for SaaS custom hostname, which this repository doesn't set up.
 
 ### Gotenberg (PDF documents)
 
@@ -552,8 +532,8 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
 
   The 512 MiB covers an image's libvips buffers (~264 MiB at the defaults
   above), a workbook read whole and the sockets. The streamed imports keep
-  under 1 MB per job (`formats.memory.spec.ts`); the Kubernetes request is
-  1 GiB, the limit 1536 MiB (`heavyWorker.resources`).
+  under 1 MB per job (`formats.memory.spec.ts`); the heavy worker's
+  limit is 1536 MiB.
   sharp brings libvips prebuilt (the `@img/sharp-*` package for the platform
   and libc, an optional dependency with no install script): the glibc image
   (`apps/api/Dockerfile`) needs no extra package and no `allowBuilds` entry.
@@ -567,23 +547,23 @@ runs with `read_only: true`, `cap_drop: [ALL]` and `no-new-privileges`, and a
 process then can't change the image, plant a binary, or gain privileges.
 What each one may write, and the capabilities it gets back:
 
-| Service | Writable (besides the image: none) | Capabilities added back |
-| --- | --- | --- |
-| `api`, `worker`, `migrate` | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume | none |
-| `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
-| `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
-| `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m, including generated `security.txt`) | none: UID/GID `10001:10001`; low ports allowed only in its network namespace |
-| `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
-| `gotenberg` | `/tmp` and its home, in memory (see above) | none |
-| `clamav` ([ClamAV](#clamav-malware-scanning)) | the `clamav_db` volume; `/tmp` (512m, `CLAMAV_TMP_SIZE`) and `/var/log/clamav` (8m) in memory | none: it runs as `clamav`, started by `clamav/entrypoint.sh` instead of the image's `/init` (see below) |
-| `prometheus` | the `prometheus_data` volume, `/tmp` (16m) in memory; **the root filesystem is writable: the one exception** (see below) | none |
-| `alertmanager` | the `alertmanager_data` volume, `/tmp` (16m) in memory: `render-config.sh` writes the configuration, with the SMTP password, there | none |
-| `postgres-exporter`, `redis-exporter`, `node-exporter` | `/tmp` (16m), unused | none |
-| `blackbox-exporter` | `/tmp` (16m): `render-config.sh` writes the module there | none: its HTTP probe needs no `NET_RAW` |
-| `backup-metrics` | `/www` (the metrics file) and `/tmp` (1m) in memory; `backups` is read only | none |
-| `loki` | the `loki_data` volume, `/tmp` (64m) in memory, unused | none |
-| `alloy` | the `alloy_data` volume (the read positions), `/tmp` (16m) in memory, unused | `DAC_OVERRIDE`: the process is root (it reads the Docker socket) and the volume's directory belongs to the image's `alloy` user, mode 770; root without it is neither owner nor in the group |
-| `grafana` | the `grafana_data` volume (the database, the plugins it downloads), `/tmp` (64m) in memory | none (`GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false`, below) |
+| Service                                                | Writable (besides the image: none)                                                                                                 | Capabilities added back                                                                                                                                                                                      |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `api`, `worker`, `migrate`                             | `/tmp` (64m tmpfs); `api` and `worker` also the `app_storage` volume                                                               | none                                                                                                                                                                                                         |
+| `postgres`                                             | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory                                              | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres`                                                               |
+| `redis`                                                | the `redis_data` volume, `/tmp` (16m)                                                                                              | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
+| `caddy`                                                | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m, including generated `security.txt`)                                      | none: UID/GID `10001:10001`; low ports allowed only in its network namespace                                                                                                                                 |
+| `backup`                                               | the `backups` volume, `/tmp` (16m); `app_storage` stays read only                                                                  | none (a files restore adds three: [Restoring](#restoring), step 4)                                                                                                                                           |
+| `gotenberg`                                            | `/tmp` and its home, in memory (see above)                                                                                         | none                                                                                                                                                                                                         |
+| `clamav` ([ClamAV](#clamav-malware-scanning))          | the `clamav_db` volume; `/tmp` (512m, `CLAMAV_TMP_SIZE`) and `/var/log/clamav` (8m) in memory                                      | none: it runs as `clamav`, started by `clamav/entrypoint.sh` instead of the image's `/init` (see below)                                                                                                      |
+| `prometheus`                                           | the `prometheus_data` volume, `/tmp` (16m) in memory; **the root filesystem is writable: the one exception** (see below)           | none                                                                                                                                                                                                         |
+| `alertmanager`                                         | the `alertmanager_data` volume, `/tmp` (16m) in memory: `render-config.sh` writes the configuration, with the SMTP password, there | none                                                                                                                                                                                                         |
+| `postgres-exporter`, `redis-exporter`, `node-exporter` | `/tmp` (16m), unused                                                                                                               | none                                                                                                                                                                                                         |
+| `blackbox-exporter`                                    | `/tmp` (16m): `render-config.sh` writes the module there                                                                           | none: its HTTP probe needs no `NET_RAW`                                                                                                                                                                      |
+| `backup-metrics`                                       | `/www` (the metrics file) and `/tmp` (1m) in memory; `backups` is read only                                                        | none                                                                                                                                                                                                         |
+| `loki`                                                 | the `loki_data` volume, `/tmp` (64m) in memory, unused                                                                             | none                                                                                                                                                                                                         |
+| `alloy`                                                | the `alloy_data` volume (the read positions), `/tmp` (16m) in memory, unused                                                       | `DAC_OVERRIDE`: the process is root (it reads the Docker socket) and the volume's directory belongs to the image's `alloy` user, mode 770; root without it is neither owner nor in the group                 |
+| `grafana`                                              | the `grafana_data` volume (the database, the plugins it downloads), `/tmp` (64m) in memory                                         | none (`GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false`, below)                                                                                                                                                      |
 
 - **The tmpfs counts against the container's memory limit** once used, so
   `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
@@ -600,7 +580,7 @@ What each one may write, and the capabilities it gets back:
   `METRICS_TOKEN` variable, and Compose creates such a secret (one that is
   not a file) by copying it into the container, which it refuses for a
   read-only service (`cannot create secret "metrics_token" in read-only
-  service`). Everything else applies: it runs as `nobody`, writes
+service`). Everything else applies: it runs as `nobody`, writes
   `/prometheus` only, has no capability and no way to gain one. A token in a
   file (`secrets: file:`, as every other secret of the stack) would lift the
   exception. CI's list of exceptions is in the "Every service is hardened"
@@ -624,7 +604,7 @@ What each one may write, and the capabilities it gets back:
   the ones its image bundles (OpenTSDB, Elasticsearch, Cloud Monitoring)
   with newer builds: it stops each, then fails to delete its directory from
   the read-only image (`Failed to install plugin ... read-only file
-  system`). `GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false` skips plugins that are
+system`). `GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false` skips plugins that are
   already there, so the image's version of a bundled plugin stays (the image
   is the unit of update), and the ones in the volume stay at the version
   first downloaded: remove `/var/lib/grafana/plugins` from the volume to get
@@ -642,7 +622,7 @@ What each one may write, and the capabilities it gets back:
   lacks the keys (`read_only`, `cap_drop`, `no-new-privileges`, a `/tmp`
   tmpfs), whichever service it is. It renders `compose.yaml` +
   `compose.prod.yaml` alone, then with each overlay on top (`clamav`,
-  `monitoring` with every profile, `blue-green`), and checks that the overlay's
+  `monitoring` with every profile), and checks that the overlay's
   services are in the render. The exceptions are a list in that step, by
   service and key. The `image` job, after its Trivy scan, starts the stack on
   new volumes (for API or stack changes) and fails when a container exits,
@@ -680,7 +660,7 @@ Compose scales on one host. Beyond it:
 - **Redis:** managed, or Sentinel (`REDIS_SENTINELS=host:26379,…`,
   `REDIS_SENTINEL_NAME`); drop `redis` from the stack.
 - **Files:** S3 or R2 (`STORAGE_DRIVER=s3`, `S3_*`).
-- **Hosts:** an orchestrator (Swarm, Kubernetes, a managed platform) runs the
+- **Hosts:** an orchestrator (Swarm, a managed platform) runs the
   same image with the same three commands. socket.io across hosts needs
   `transports: ['websocket']` on clients, or sticky sessions.
 
@@ -984,17 +964,11 @@ request's result. Observed blockers/waits are evidence, not an automatically con
 
 **Enable and verify:** inspect the deployed runtime before changing it. For Compose, check
 `docker compose ps`, active profiles, `/metrics` authentication, and Prometheus targets; enable the
-existing monitoring overlay with `logs,grafana` when needed. For K3s, use
-[the observability runbook](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/deploy/k3s/monitoring/README.md) to inspect the monitoring releases,
-ServiceMonitors, app PrometheusRule, and Alloy/Loki. This repository's presence does not establish
+existing monitoring overlay with `logs,grafana` when needed. This repository's presence does not establish
 that any component is deployed. Keep credentials in the protected deployment secret store; agents
 must not edit live env files.
 
-Compose mounts `DATABASE_MONITOR_URL_FILE` for API/worker when configured. In Helm, provision the
-`database_monitor_url` key in the existing app Secret and add
-`DATABASE_MONITOR_URL_FILE: database_monitor_url` to each desired role's `secretFiles.api` /
-`secretFiles.worker` mapping; it is optional to avoid breaking installations without that key.
-Apply `deploy/k3s/monitoring/dashboards/` after the rollout. Compose provisions the same **Database
+Compose mounts `DATABASE_MONITOR_URL_FILE` for API/worker when configured. Compose provisions the **Database
 Incidents** dashboard through its existing Grafana provisioning mount. It shows pool usage/limit,
 acquisition and command p95, failures, incident triggers, and Loki evidence filterable by incident or
 request ID. Snapshots remain available when the application pool is exhausted.
@@ -1064,7 +1038,7 @@ PGBOUNCER_MAINTENANCE_POOL_SIZE + migrate/backup/exporter < POSTGRES_MAX_CONNECT
 
 | Session feature                                                                         | In this app                                                                                                         | Through PgBouncer                                                                                                                                                                                                                   |
 | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tenant setting (`app.tenant_id`, [tenancy.md](tenancy.md))                             | `set_config(…, true)`: local to the transaction, sent with `begin` (`core/tenancy/tenant-pool.ts`)                  | Works, and it is the reason it can: nothing survives `COMMIT`, so a server connection never carries a tenant to the next client. A plain `SET` or `set_config(…, false)` would leak between clients: never add one                  |
+| Tenant setting (`app.tenant_id`, [tenancy.md](tenancy.md))                              | `set_config(…, true)`: local to the transaction, sent with `begin` (`core/tenancy/tenant-pool.ts`)                  | Works, and it is the reason it can: nothing survives `COMMIT`, so a server connection never carries a tenant to the next client. A plain `SET` or `set_config(…, false)` would leak between clients: never add one                  |
 | Advisory locks (views, approvals, revisions, sequences, tags, the seeders, migrations…) | all `pg_advisory_xact_lock`: released at `COMMIT`                                                                   | Works. A session-level `pg_advisory_lock` would not (it stays on a server connection another client reuses): use the `xact` form                                                                                                    |
 | `LocksModule` (`@nestjs/locks`)                                                         | rows in a `locks` table with an owner and an expiry (`core/locks/drizzle-lock.store.ts`), not advisory locks        | Works                                                                                                                                                                                                                               |
 | Prepared statements                                                                     | node-postgres sends parameterized queries unnamed; the app prepares nothing by name                                 | Works. PgBouncer 1.21+ also rewrites named protocol-level statements (`max_prepared_statements`, 200); SQL-level `PREPARE` is not supported                                                                                         |
@@ -1192,12 +1166,6 @@ docker compose up -d
   for lack of space and the file stays `pending`. An existing `clamav_db`
   volume is used as it is. `.github/workflows/clamav.yml` starts
   the container and scans the EICAR test file whenever the overlay changes.
-- **Blue-green:** the colours (`api-blue`, `api-green`) extend
-  `compose.prod.yaml`'s `api`, so they never get what the file sets on `api`.
-  Put `MALWARE_SCANNER=clamav` and `CLAMAV_HOST=clamav` in `.env` as well:
-  every service reads them from there (CI renders the combination and checks
-  both colours). Forgotten, the colours run with the scanner off: their
-  uploads are `clean` at once, unscanned, and nothing says so.
 - **Off:** leave the file out of `COMPOSE_FILE` (`MALWARE_SCANNER=off`, the
   default): no scan and no `pending` state, as without this feature. Turning
   it on later leaves existing attachments `clean` (unscanned); turning it
@@ -1295,48 +1263,48 @@ excepted, and why is there), no capabilities, `no-new-privileges`.
 **The alerts** (54 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
 warning: look today):
 
-| Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
-| ------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `ApiDown`, `WorkerDown`                                      | no healthy api for 2 min; no worker for 5 min                                                                                                                                       | critical          |
-| `TargetDown`                                                 | one scrape target fails for 5 min (a replica, an exporter; a wrong `METRICS_TOKEN`)                                                                                                 | warning           |
-| `AppRestarting`                                              | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit)                                                                                              | warning           |
-| `HighErrorRate`                                              | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s)                                                                                                                  | critical          |
-| `HighLatency`                                                | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out)                                                                                                       | warning           |
-| `DatabasePoolSaturated`                                      | queries wait continuously for a pool connection for 30 s; correlated incident evidence is logged                                                                                            | warning           |
-| `DatabaseFailures` | a database failure (`db_last_failure_timestamp_seconds`) in the last 5 min | warning |
-| `PasswordHashingSaturated`                                   | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits))                       | warning           |
-| `HeapNearLimit`                                              | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min                                                                                                                         | warning           |
-| `EventLoopLag`                                               | event loop p99 above 500 ms for 10 min                                                                                                                                              | warning           |
-| `QueueStalled`                                               | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused)                                                                                                   | critical          |
-| `QueueBacklogGrowing`                                        | over 100 jobs wait and more than 30 min ago, for 30 min                                                                                                                             | warning           |
-| `JobsFailing`                                                | jobs failed after all their attempts in the last 15 min                                                                                                                             | warning           |
-| `MailBacklogHigh` | over 1,000 mails waiting or delayed for 10 min: a notification storm ([notifications.md](notifications.md#stopping-a-mail-storm)) | critical |
-| `QueueJobsWaitingLong` | a queue's oldest waiting job has waited over 30 min, for 10 min | warning |
-| `NotificationOutboxBacklog` | over 5,000 `notifications.deliver` outbox messages pending for 15 min ([notifications.md](notifications.md#stopping-a-mail-storm)) | warning |
-| `OutboxStuck`                                                | a due outbox message has waited over 5 min, for 5 min                                                                                                                               | critical          |
-| `OutboxDeadLetters`                                          | outbox dead letters wait for someone (requeue or purge in `/v1/ops`; purged nightly after `OUTBOX_DEAD_LETTER_RETENTION_DAYS`)                                                                                                                | warning           |
-| `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing`       | a due delivery waits over 10 min; deliveries failed for good in the last hour                                                                                                       | warning           |
-| `TenantStorageNearLimit` | a tenant stores over 90% of its storage limit for 15 min (`tenant_storage_bytes` / `tenant_storage_limit_bytes`; [Quotas](tenancy.md#quotas)) | warning |
-| `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                    | warning           |
-| `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                | warning           |
-| `TelemetryRejected` | OTLP or Observe uploads were refused (401, 403, 429) for 5 min: a dead pipeline ([Telemetry](#telemetry)) | warning |
-| `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                   | warning           |
+| Alert                                                        | Fires when                                                                                                                                                                                         | Severity          |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
+| `ApiDown`, `WorkerDown`                                      | no healthy api for 2 min; no worker for 5 min                                                                                                                                                      | critical          |
+| `TargetDown`                                                 | one scrape target fails for 5 min (a replica, an exporter; a wrong `METRICS_TOKEN`)                                                                                                                | warning           |
+| `AppRestarting`                                              | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit)                                                                                                             | warning           |
+| `HighErrorRate`                                              | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s)                                                                                                                                 | critical          |
+| `HighLatency`                                                | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out)                                                                                                                      | warning           |
+| `DatabasePoolSaturated`                                      | queries wait continuously for a pool connection for 30 s; correlated incident evidence is logged                                                                                                   | warning           |
+| `DatabaseFailures`                                           | a database failure (`db_last_failure_timestamp_seconds`) in the last 5 min                                                                                                                         | warning           |
+| `PasswordHashingSaturated`                                   | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits))                                      | warning           |
+| `HeapNearLimit`                                              | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min                                                                                                                                        | warning           |
+| `EventLoopLag`                                               | event loop p99 above 500 ms for 10 min                                                                                                                                                             | warning           |
+| `QueueStalled`                                               | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused)                                                                                                                  | critical          |
+| `QueueBacklogGrowing`                                        | over 100 jobs wait and more than 30 min ago, for 30 min                                                                                                                                            | warning           |
+| `JobsFailing`                                                | jobs failed after all their attempts in the last 15 min                                                                                                                                            | warning           |
+| `MailBacklogHigh`                                            | over 1,000 mails waiting or delayed for 10 min: a notification storm ([notifications.md](notifications.md#stopping-a-mail-storm))                                                                  | critical          |
+| `QueueJobsWaitingLong`                                       | a queue's oldest waiting job has waited over 30 min, for 10 min                                                                                                                                    | warning           |
+| `NotificationOutboxBacklog`                                  | over 5,000 `notifications.deliver` outbox messages pending for 15 min ([notifications.md](notifications.md#stopping-a-mail-storm))                                                                 | warning           |
+| `OutboxStuck`                                                | a due outbox message has waited over 5 min, for 5 min                                                                                                                                              | critical          |
+| `OutboxDeadLetters`                                          | outbox dead letters wait for someone (requeue or purge in `/v1/ops`; purged nightly after `OUTBOX_DEAD_LETTER_RETENTION_DAYS`)                                                                     | warning           |
+| `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing`       | a due delivery waits over 10 min; deliveries failed for good in the last hour                                                                                                                      | warning           |
+| `TenantStorageNearLimit`                                     | a tenant stores over 90% of its storage limit for 15 min (`tenant_storage_bytes` / `tenant_storage_limit_bytes`; [Quotas](tenancy.md#quotas))                                                      | warning           |
+| `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                                   | warning           |
+| `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                               | warning           |
+| `TelemetryRejected`                                          | OTLP or Observe uploads were refused (401, 403, 429) for 5 min: a dead pipeline ([Telemetry](#telemetry))                                                                                          | warning           |
+| `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                                  | warning           |
 | `SmsBlocked`, `SmsBudgetNearCap`                             | SMS refused today by a toll-fraud cap, the allowlist or the spend cap (any, by reason, for 5 min); a tenant used 80% of its monthly SMS budget ([notifications.md](notifications.md#push-and-sms)) | warning           |
-| `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp`      | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too)                                                                                    | critical          |
-| `MailBounceRateHigh`, `MailComplaints`                       | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md))                       | warning           |
-| `MailBudgetNearCap` | 80% of the deployment's daily mail budget (`mail.dailyLimit`) queued today, for 5 min ([notifications.md](notifications.md#stopping-a-mail-storm)) | warning |
-| `CaptchaProviderUnavailable`                                 | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection") | warning           |
-| `PostgresDown`, `RedisDown`                                  | the exporter can't reach it for 1 min                                                                                                                                               | critical          |
-| `PostgresConnectionsHigh`                                    | connections above 80% of `max_connections` for 5 min                                                                                                                                | warning           |
-| `RedisMemoryHigh`, `RedisPersistenceFailing`                 | above 85% of `maxmemory` (noeviction: writes fail at 100%); the AOF or a snapshot fails                                                                                             | critical          |
-| `HttpsProbeFailing`                                          | Caddy hasn't answered the HTTPS probe with 200 for 3 min (Caddy down, a bad certificate, no healthy api behind it)                                                                  | critical          |
-| `CertificateExpiring`                                        | the certificate expires within 14 days (warning) or 7 days (critical): Caddy's renewals fail                                                                                        | warning, critical |
-| `BackupFailed`, `BackupTooOld`, `BackupNeverSucceeded`       | the last backup run failed; none succeeded for `BACKUP_MAX_AGE_HOURS` + 1 h; none at all for a day                                                                                  | warning           |
-| `PrometheusRuleFailures`, `AlertmanagerNotificationsFailing` | the monitoring itself is broken (a rule, the SMTP settings, the Watchdog's URL)                                                                                                     | warning           |
-| `HostDiskSpaceLow`, `HostDiskSpaceCritical`                  | a file system has under 10% (warning, 10 min) or 5% (critical, 5 min) free                                                                                                          | warning, critical |
-| `HostDiskFillingUp`                                          | a disk over a third full is on course to fill within 24 h at the last six hours' pace (1 h)                                                                                         | warning           |
-| `HostMemoryLow`, `HostOomKilled`, `HostCpuHigh`              | under 10% of memory available (10 min); the kernel killed a process for memory; CPUs over 90% busy (15 min)                                                                         | warning           |
-| `Watchdog`                                                   | always: the dead man's switch (below), sent to its ping URL only                                                                                                                    | none              |
+| `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp`      | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too)                                                                                                   | critical          |
+| `MailBounceRateHigh`, `MailComplaints`                       | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md))                                      | warning           |
+| `MailBudgetNearCap`                                          | 80% of the deployment's daily mail budget (`mail.dailyLimit`) queued today, for 5 min ([notifications.md](notifications.md#stopping-a-mail-storm))                                                 | warning           |
+| `CaptchaProviderUnavailable`                                 | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection")                | warning           |
+| `PostgresDown`, `RedisDown`                                  | the exporter can't reach it for 1 min                                                                                                                                                              | critical          |
+| `PostgresConnectionsHigh`                                    | connections above 80% of `max_connections` for 5 min                                                                                                                                               | warning           |
+| `RedisMemoryHigh`, `RedisPersistenceFailing`                 | above 85% of `maxmemory` (noeviction: writes fail at 100%); the AOF or a snapshot fails                                                                                                            | critical          |
+| `HttpsProbeFailing`                                          | Caddy hasn't answered the HTTPS probe with 200 for 3 min (Caddy down, a bad certificate, no healthy api behind it)                                                                                 | critical          |
+| `CertificateExpiring`                                        | the certificate expires within 14 days (warning) or 7 days (critical): Caddy's renewals fail                                                                                                       | warning, critical |
+| `BackupFailed`, `BackupTooOld`, `BackupNeverSucceeded`       | the last backup run failed; none succeeded for `BACKUP_MAX_AGE_HOURS` + 1 h; none at all for a day                                                                                                 | warning           |
+| `PrometheusRuleFailures`, `AlertmanagerNotificationsFailing` | the monitoring itself is broken (a rule, the SMTP settings, the Watchdog's URL)                                                                                                                    | warning           |
+| `HostDiskSpaceLow`, `HostDiskSpaceCritical`                  | a file system has under 10% (warning, 10 min) or 5% (critical, 5 min) free                                                                                                                         | warning, critical |
+| `HostDiskFillingUp`                                          | a disk over a third full is on course to fill within 24 h at the last six hours' pace (1 h)                                                                                                        | warning           |
+| `HostMemoryLow`, `HostOomKilled`, `HostCpuHigh`              | under 10% of memory available (10 min); the kernel killed a process for memory; CPUs over 90% busy (15 min)                                                                                        | warning           |
+| `Watchdog`                                                   | always: the dead man's switch (below), sent to its ping URL only                                                                                                                                   | none              |
 
 The rules read `monitoring/prometheus/recording.yml` (rates, p95, queue
 numbers across replicas). Prometheus can't see Docker's healthchecks, so
@@ -1550,9 +1518,10 @@ docker compose up -d
   provisioned (`monitoring/grafana/provisioning/datasources/loki.yml`).
   The **Capacity** dashboard (`dashboards/capacity.json`) shows Redis's
   memory against maxmemory (redis_exporter), API and worker restarts
-  (`process_start_time_seconds`) and host OOM kills; on K3s, the
-  Application Overview has the same with Kubernetes' metrics
-  (`deploy/k3s/monitoring/README.md`).
+  (`process_start_time_seconds`) and host OOM kills. The **Application**
+  dashboard (`dashboards/application.json`) shows API requests per second,
+  the 5xx share, p95 response time and requests in flight, the worker's queue
+  backlog, active and failed jobs, and the outbox delivery lag.
 - **Limits:** `LOKI_CPUS`/`LOKI_MEMORY` (0.5, 512 MB), `ALLOY_*` (0.25, 256
   MB), `GRAFANA_*` (0.5, 256 MB).
 
@@ -1725,21 +1694,21 @@ opens no port, runs no workers (`APP_ROLE=api`, as the demo seed) and is
 reachable only by whoever can run a container with the deployment's
 environment (the database URL, the keys). Nothing in the API calls it.
 
-| Command | What it does |
-| --- | --- |
-| `tenant:list` | the tenants: id, slug, members, active |
-| `user:list <tenant>` | a tenant's users (id or slug): roles, two-factor, active |
-| `admin:create <email> [--tenant <id\|slug>] [--name <name>]` | an administrator of a tenant (`--tenant` is optional when the deployment has one tenant). A new address gets an account (verified) and a one-time password; an existing account keeps its password and becomes the tenant's administrator |
-| `user:reset-password <email>` | a new one-time password; every session and token client of the account is signed out, and their realtime connections on the API end (through Redis) |
-| `user:remove-mfa <email>` | removes the authenticator and the recovery codes, clears the failed-code counter, revokes the account's tokens |
-| `user:unlock <email>` | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes |
-| `notifications:settle <email> [--before <date>]` | drops a user's undelivered `notifications.deliver` outbox messages (all, or created before the date) and marks their notifications delivered and read; `mandatory` types are left alone. Shows the counts first; works tenant by tenant in chunks of 5,000, so a backlog of hundreds of thousands never meets the statement timeout (docs/notifications.md, "Stopping a mail storm") |
-| `backlog:count (--tenant <id\|slug> \| --global) [--topic <t>] [--type <t>] [--template <mail>] [--before <date>]` | the dry run: the outbox backlog (pending by topic and notification type, dead letters, being delivered) and the `mail` queue (jobs by state and mail class) of one tenant, or of every tenant with `--global` (exactly one). Changes nothing |
-| `backlog:discard <outbox\|mail> (--tenant … \| --global) [filters]` | deletes that backlog in batches of 1,000: pending outbox messages not being delivered and dead letters (a discarded notification stays listed, marked delivered, with no push, mail or webhook), or the mail queue's waiting, delayed and failed jobs. Never a `mandatory` notification type, essential mail or running work. Audited as `ops.backlog-discarded` (docs/notifications.md, "Stopping a mail storm") |
-| `backlog:retry <outbox\|mail> (--tenant … \| --global) [filters]` | requeues the dead letters in scope, or retries the failed mail jobs; the mail mode and budgets still apply. Audited as `ops.backlog-retried` |
-| `queue:pause <name>`, `queue:resume <name>` | pauses or resumes one queue for every worker (BullMQ, kept in Redis; nothing is lost). Leaving maintenance mode resumes every queue. Audited as `queue.paused` / `queue.resumed` |
-| `setting:delete <key> (--tenant <id\|slug> \| --platform)` | removes a stored value; the next scope's, or the default, holds again |
-| `diagnostics [--test]` | the integrations' states (see [Diagnostics](#diagnostics)); `--test` runs their safe tests too, each audited as `ops.diagnostic-tested`. Exits 1 when one is unconfigured, unavailable or fails its test. Asks nothing: it changes nothing |
+| Command                                                                                                            | What it does                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tenant:list`                                                                                                      | the tenants: id, slug, members, active                                                                                                                                                                                                                                                                                                                                                                            |
+| `user:list <tenant>`                                                                                               | a tenant's users (id or slug): roles, two-factor, active                                                                                                                                                                                                                                                                                                                                                          |
+| `admin:create <email> [--tenant <id\|slug>] [--name <name>]`                                                       | an administrator of a tenant (`--tenant` is optional when the deployment has one tenant). A new address gets an account (verified) and a one-time password; an existing account keeps its password and becomes the tenant's administrator                                                                                                                                                                         |
+| `user:reset-password <email>`                                                                                      | a new one-time password; every session and token client of the account is signed out, and their realtime connections on the API end (through Redis)                                                                                                                                                                                                                                                               |
+| `user:remove-mfa <email>`                                                                                          | removes the authenticator and the recovery codes, clears the failed-code counter, revokes the account's tokens                                                                                                                                                                                                                                                                                                    |
+| `user:unlock <email>`                                                                                              | clears the failed second-factor attempts (the 15-minute lockout) and takes the address off the mail suppression list. Per-address rate limits (Redis) lapse by themselves within minutes                                                                                                                                                                                                                          |
+| `notifications:settle <email> [--before <date>]`                                                                   | drops a user's undelivered `notifications.deliver` outbox messages (all, or created before the date) and marks their notifications delivered and read; `mandatory` types are left alone. Shows the counts first; works tenant by tenant in chunks of 5,000, so a backlog of hundreds of thousands never meets the statement timeout (docs/notifications.md, "Stopping a mail storm")                              |
+| `backlog:count (--tenant <id\|slug> \| --global) [--topic <t>] [--type <t>] [--template <mail>] [--before <date>]` | the dry run: the outbox backlog (pending by topic and notification type, dead letters, being delivered) and the `mail` queue (jobs by state and mail class) of one tenant, or of every tenant with `--global` (exactly one). Changes nothing                                                                                                                                                                      |
+| `backlog:discard <outbox\|mail> (--tenant … \| --global) [filters]`                                                | deletes that backlog in batches of 1,000: pending outbox messages not being delivered and dead letters (a discarded notification stays listed, marked delivered, with no push, mail or webhook), or the mail queue's waiting, delayed and failed jobs. Never a `mandatory` notification type, essential mail or running work. Audited as `ops.backlog-discarded` (docs/notifications.md, "Stopping a mail storm") |
+| `backlog:retry <outbox\|mail> (--tenant … \| --global) [filters]`                                                  | requeues the dead letters in scope, or retries the failed mail jobs; the mail mode and budgets still apply. Audited as `ops.backlog-retried`                                                                                                                                                                                                                                                                      |
+| `queue:pause <name>`, `queue:resume <name>`                                                                        | pauses or resumes one queue for every worker (BullMQ, kept in Redis; nothing is lost). Leaving maintenance mode resumes every queue. Audited as `queue.paused` / `queue.resumed`                                                                                                                                                                                                                                  |
+| `setting:delete <key> (--tenant <id\|slug> \| --platform)`                                                         | removes a stored value; the next scope's, or the default, holds again                                                                                                                                                                                                                                                                                                                                             |
+| `diagnostics [--test]`                                                                                             | the integrations' states (see [Diagnostics](#diagnostics)); `--test` runs their safe tests too, each audited as `ops.diagnostic-tested`. Exits 1 when one is unconfigured, unavailable or fails its test. Asks nothing: it changes nothing                                                                                                                                                                        |
 
 - **Each command shows what it will do and asks** (`Proceed? (y/N)`).
   `--yes` skips the question, for scripts; without it a terminal is needed
@@ -1770,8 +1739,7 @@ docker compose run --rm api node dist/cli setting:delete auth.requireMfa --tenan
 ```
 
 On the Compose deployment (`.env` sets `COMPOSE_FILE`), `api` is
-`compose.prod.yaml`'s service; with blue-green, run it as `api-blue` (or
-`api-green`), which extends it. On Swarm, run the image on the stack's
+`compose.prod.yaml`'s service. On Swarm, run the image on the stack's
 network: `docker run --rm -it --network <stack>_default --env-file .env
 $APP_IMAGE node dist/cli …` ([Swarm](deploy-swarm.md)). The command needs
 what the app starts with (`DATABASE_URL`, `REDIS_URL`, `DATA_ENCRYPTION_KEYS`,
@@ -1800,14 +1768,14 @@ for an outage: `GET /v1/ops/diagnostics` (the operations page's
 "Diagnostics" tab, and `pnpm ops diagnostics` on a server). Operators only
 (`@OperatorOnly()`, docs/tenancy.md) with `Ops.view`.
 
-| Check | `ok` / `configured` | `disabled` | `unconfigured` | `unavailable` |
-| --- | --- | --- | --- | --- |
-| `database` | answered a ping | | | no answer within 5 s |
-| `redis` | answered PING | | | no answer |
-| `workers` | a worker is connected to a queue | | | none (start `APP_ROLE=worker` or `all`) |
-| `mail` | `MAIL_TRANSPORT` set (configured) | | `file`, `log` or `memory` in production | its test failed |
-| `storage` | `STORAGE_DRIVER` set (configured) | | `memory` in production | its test failed |
-| `realtime` | Redis answers | `REALTIME=off` | | Redis does not answer |
+| Check      | `ok` / `configured`               | `disabled`     | `unconfigured`                          | `unavailable`                           |
+| ---------- | --------------------------------- | -------------- | --------------------------------------- | --------------------------------------- |
+| `database` | answered a ping                   |                |                                         | no answer within 5 s                    |
+| `redis`    | answered PING                     |                |                                         | no answer                               |
+| `workers`  | a worker is connected to a queue  |                |                                         | none (start `APP_ROLE=worker` or `all`) |
+| `mail`     | `MAIL_TRANSPORT` set (configured) |                | `file`, `log` or `memory` in production | its test failed                         |
+| `storage`  | `STORAGE_DRIVER` set (configured) |                | `memory` in production                  | its test failed                         |
+| `realtime` | Redis answers                     | `REALTIME=off` |                                         | Redis does not answer                   |
 
 Each item carries the driver's name (`smtp`, `s3`), a masked error and a
 hint at the fix. It is built from switches and driver names: no URL,
@@ -2075,9 +2043,10 @@ so it is the last resort after a dump restore isn't enough:
    `restore-pitr` unpacks the base backup, puts the WAL where the server
    reads it, and writes `restore_command`, `recovery_target_time` and
    `recovery.signal`.
+
 4. **Start PostgreSQL:** `docker compose up -d postgres`. It replays the WAL up
    to the target (`docker compose logs postgres`: `recovery stopping before
-   commit of transaction …`), then opens.
+commit of transaction …`), then opens.
 5. **Check the data, then start the app** (`docker compose up -d`) and take a
    base backup at once (`docker compose exec backup backup`): the recovered
    database runs on a new timeline, which older base backups don't follow.
@@ -2136,12 +2105,14 @@ yours takes. Time a restore of a real dump once and set
 The **CI / CD** workflow (`.github/workflows/ci.yml`) validates changes and,
 for eligible releases, publishes images and release notes. Its filename remains
 stable because image signatures and provenance identify that workflow path.
-CI never deploys. The separately reviewed
-manual **Deploy** workflow accepts a verified release run ID through the protected
-production environment; see [manual deployment](deploy-k3s.md#deploy-a-verified-release-manually).
+CI never deploys. The separate
+**Deploy** workflow (`.github/workflows/deploy.yml`) deploys a verified build to
+single-node Docker Swarm hosts: staging after every merge to `main` when
+`AUTO_DEPLOY` is on, production only by a manual run with a release tag
+([deploy-swarm.md](deploy-swarm.md), "Environments and CI deploys").
 
 Application validation stays centralized here. Workflows with different path
-triggers, permissions or schedules (Helm, monitoring, migrations, the typed
+triggers, permissions or schedules (monitoring, migrations, the typed
 client, docs, restore drills) remain separate. PR concurrency groups include the
 workflow and PR ref, cancelling superseded runs without cancelling other PRs.
 Publication and production deployment keep their serialization.
@@ -2155,16 +2126,16 @@ file counts, unknown paths and shared root dependencies trigger comprehensive
 validation. A failed compare never silently skips tests. Nightly (03:17 UTC),
 manual full runs and `v*` tags are comprehensive too.
 
-| Change | Validation |
-| --- | --- |
-| API | lint/build, API unit coverage, API E2E (a sixth again, instrumented), browser/accessibility tests, migrations, security, API image and hardened runtime |
-| Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks |
-| Typed client/shared roots | dependent packages; shared root dependencies run comprehensive validation |
-| Generator/platform contracts | generator smoke checks in addition to affected application checks |
-| Compose service images | database/browser E2E and generator smoke on those images |
-| Stack/images | stack config (secrets, hardening, Swarm render) and image checks, with the hardened runtime |
-| CI orchestration | routing, gate, manifest and workflow syntax tests |
-| Docs, Helm/K3s | the corresponding companion workflow |
+| Change                       | Validation                                                                                                                                              |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| API                          | lint/build, API unit coverage, API E2E (a sixth again, instrumented), browser/accessibility tests, migrations, security, API image and hardened runtime |
+| Web/UI                       | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks                                                  |
+| Typed client/shared roots    | dependent packages; shared root dependencies run comprehensive validation                                                                               |
+| Generator/platform contracts | generator smoke checks in addition to affected application checks                                                                                       |
+| Compose service images       | database/browser E2E and generator smoke on those images                                                                                                |
+| Stack/images                 | stack config (secrets, hardening, Swarm render) and image checks, with the hardened runtime                                                             |
+| CI orchestration             | routing, gate, manifest and workflow syntax tests                                                                                                       |
+| Docs                         | the corresponding companion workflow                                                                                                                    |
 
 The classifier has explicit routes for infrastructure, generators, migrations and
 image contexts. Workspace lint/build/coverage tasks use Turbo's `--affected` with
@@ -2172,20 +2143,20 @@ explicit `TURBO_SCM_BASE`/`TURBO_SCM_HEAD` and full checkout history. When a
 comparison includes inputs outside the workspace graph, explicit routing retains
 the necessary tasks. Knip and translation parity still inspect the whole workspace.
 
-| Job | Purpose |
-| --- | --- |
-| `changes` | classification, expected jobs and cumulative image rebuild plan |
-| `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, OpenAPI breaking-change report, bundle budget and Storybook, leftover-notes guard |
-| `unit-web` | web unit coverage, whole, thresholds enforced directly |
-| `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a few e2e specs instrumented and the built app's trace check |
-| `feature-smoke` | generated features, schema/client generation and their E2E tests |
-| `template-without-notes` | exhaustive generated-template variant; weekly/manual/release or conservative full fallback |
-| `stack-config` | Compose secrets, hardening and settings, then the Swarm stack render |
-| `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
-| `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
-| `publish`, `publish-caddy`, `publish-gotenberg` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |
-| `release-manifest` | verify reuse evidence and preserve the complete immutable release image set |
-| `release` | version-tag notes and the existing complete image set |
+| Job                                                                   | Purpose                                                                                                                                                                    |
+| --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `changes`                                                             | classification, expected jobs and cumulative image rebuild plan                                                                                                            |
+| `check`                                                               | affected lint/build, API and package unit coverage, API client/migrations when relevant, OpenAPI breaking-change report, bundle budget and Storybook, leftover-notes guard |
+| `unit-web`                                                            | web unit coverage, whole, thresholds enforced directly                                                                                                                     |
+| `e2e`, `e2e-web`                                                      | isolated API/database and browser/accessibility tests; `e2e-web` also runs a few e2e specs instrumented and the built app's trace check                                    |
+| `feature-smoke`                                                       | generated features, schema/client generation and their E2E tests                                                                                                           |
+| `template-without-notes`                                              | exhaustive generated-template variant; weekly/manual/release or conservative full fallback                                                                                 |
+| `stack-config`                                                        | Compose secrets, hardening and settings, then the Swarm stack render                                                                                                       |
+| `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack)                                            |
+| `ci-gate` (**CI gate**)                                               | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips                                                            |
+| `publish`, `publish-caddy`, `publish-gotenberg`                       | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest                                                                                   |
+| `release-manifest`                                                    | verify reuse evidence and preserve the complete immutable release image set                                                                                                |
+| `release`                                                             | version-tag notes and the existing complete image set                                                                                                                      |
 
 Require **CI gate** as the stable application status check, rather than individual
 matrix names that may not exist on an unaffected PR. Companion workflows retain
@@ -2238,9 +2209,6 @@ the trusted manifest, so failed or skipped intervening releases cannot lose work
 Those cumulative component changes are revalidated against the same Turbo base.
 Runtime-only infrastructure checks may build an API artifact without publishing
 an unchanged API image.
-A change to the chart alone (`deploy/helm/app/`) also makes a manifest on `main`:
-the previous images with the new source SHA, so Deploy ships the chart without a
-rebuild.
 
 Reuse requires a successful `main` CI run's manifest, source ancestry, registry
 availability, an exact main-workflow cosign identity, a signed CycloneDX SBOM and
@@ -2348,7 +2316,7 @@ Set `VERIFY_IDENTITY_REGEXP` to accept a different signer (a fork's workflow, sa
 non-zero and prints cosign's reason; do not deploy that image.
 
 **In the deploy scripts:** `VERIFY_IMAGES=1` makes `pnpm deploy:rolling`
-(before it pulls `APP_IMAGE`), `deploy:blue-green` (with `--image`) and
+(before it pulls `APP_IMAGE`) and
 `deploy:swarm deploy` run the script first and stop when it fails. Off by
 default, because it needs cosign on the deploy host; the plain
 `docker compose pull` path above is unchanged.

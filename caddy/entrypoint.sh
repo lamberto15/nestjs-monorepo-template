@@ -73,8 +73,9 @@ if [ "${STORAGE_DRIVER:-}" = s3 ] && [ -n "${S3_BUCKET:-}" ]; then
   host=${host%%/*}
   case $scheme in http | https) ;; *) host= ;; esac
   # Only what a host and a bucket name are made of: nothing that could end the
-  # directive. The bucket, which can become a source's path, gets the narrower
-  # set Helm's helper uses too.
+  # directive. The bucket, which can become a source's path, gets a narrower
+  # set.
+
   case $host in
     *[!]A-Za-z0-9._:[-]*) host= ;;
   esac
