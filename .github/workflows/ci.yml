@@ -420,11 +420,18 @@ jobs:
             def gib: . / 1073741824;
             [.services[] | select(.deploy.mode != "replicated-job")] as $app
             | ([$app[] | (.deploy.replicas // 1) * (.deploy.resources.limits.memory | tonumber)] | add | gib) as $steady
-            | (.services.api.deploy.resources.limits.memory | tonumber | gib) as $surge
+            # A deploy runs each start-first service's new task next to the
+            # old one: its limit and its reservations count twice. Swarm won't
+            # place a task whose reservations don't fit (v0.1.1's api stayed
+            # pending on the 2-CPU host).
+            | [$app[] | select(.deploy.update_config.order == "start-first")] as $first
+            | ([$first[] | .deploy.resources.limits.memory | tonumber] | add // 0 | gib) as $surge
             | ([$app[] | .deploy.resources.reservations.cpus | tonumber] | add) as $cpu
+            | ([$first[] | .deploy.resources.reservations.cpus | tonumber] | add // 0) as $surgeCpu
             | ([$app[] | .deploy.resources.reservations.memory | tonumber] | add | gib) as $reserved
-            | "steady \($steady) GiB, deploying \($steady + $surge) GiB, reserved \($cpu) CPU / \($reserved) GiB" | debug
-            | $steady <= 2.75 and $steady + $surge <= 3.25 and $cpu <= 2 and $reserved <= 3.25
+            | ([$first[] | .deploy.resources.reservations.memory | tonumber] | add // 0 | gib) as $surgeReserved
+            | "steady \($steady) GiB, deploying \($steady + $surge) GiB; reserved \($cpu) CPU / \($reserved) GiB, deploying \($cpu + $surgeCpu) CPU / \($reserved + $surgeReserved) GiB" | debug
+            | $steady <= 2.75 and $steady + $surge <= 3.25 and $cpu + $surgeCpu <= 2 and $reserved + $surgeReserved <= 3.25
           ' small.json
 
   # A Knip-only pull request needs lint/Knip validation, but does not

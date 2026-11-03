@@ -8,7 +8,10 @@
 # state and 3.1 GiB while a deploy starts the new api next to the old one
 # (start-first), out of the ~3.3 GiB a 4 GB host leaves after the OS, Docker
 # and Tailscale. CPU limits may add up to more than 2 (CPU is shared, not
-# reserved); the reservations add up to 1.6 CPU. Each Node.js memory limit
+# reserved); the reservations must fit the 2 CPUs even during a deploy, when
+# Swarm reserves the new api's share next to the old one's, or the new task
+# stays pending ("insufficient resources", v0.1.1's first production deploy):
+# 1.4 CPU, 1.65 while deploying. Only the api starts first. Each Node.js memory limit
 # follows docs/deployment.md: heap + 128 MiB + hash concurrency × 128 MiB.
 # Database connections: api pool 10 + worker pool 10 + backup and migrations,
 # within max_connections 50. The heavy worker, ClamAV and the monitoring stack
@@ -28,7 +31,8 @@ services:
       replicas: 1
       resources:
         limits: { cpus: '1', memory: 512M } # 256 + 128 + 1 × 128
-        reservations: { cpus: '0.5', memory: 384M }
+        # 0.25, not more: reserved twice while a deploy runs both apis.
+        reservations: { cpus: '0.25', memory: 384M }
 
   worker:
     environment:
@@ -84,6 +88,12 @@ services:
       resources:
         limits: { cpus: '0.5', memory: 512M }
         reservations: { cpus: '0.1', memory: 256M }
+      # No room for a second Chromium during a deploy: PDF rendering waits the
+      # few seconds the new one takes to start (the api retries it).
+      update_config:
+        order: stop-first
+      rollback_config:
+        order: stop-first
 
   backup:
     deploy:

@@ -112,7 +112,7 @@ numbers.
 
 | Service   | Replicas                    | CPU limit / reservation | Memory limit / reservation | Settings                                        |
 | --------- | --------------------------- | ----------------------- | -------------------------- | ----------------------------------------------- |
-| api       | 1 (2 while a deploy starts) | 1 / 0.5                 | 512 MB / 384 MB            | heap 256 MB, 1 password hash at a time, pool 10 |
+| api       | 1 (2 while a deploy starts) | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, 1 password hash at a time, pool 10 |
 | worker    | 1 (stop-first update)       | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, pool 10                            |
 | postgres  | 1                           | 1 / 0.5                 | 640 MB / 512 MB            | `max_connections` 50, `shared_buffers` 160 MB   |
 | redis     | 1                           | 0.25 / 0.1              | 160 MB / 128 MB            | `maxmemory` 112 MB                              |
@@ -125,7 +125,10 @@ numbers.
 Memory limits are hard caps: about 2.6 GiB in steady state and 3.1 GiB while
 a deploy runs the new api next to the old one, within what a 4 GB host leaves
 after the OS, Docker and Tailscale. CPU limits add up to more than 2 on
-purpose (CPU is shared, not reserved); the reservations add up to 1.6 CPU.
+purpose (CPU is shared, not reserved); the reservations add up to 1.4 CPU,
+and 1.65 while a deploy reserves the new api's share next to the old one's
+(Swarm leaves a task pending when its reservations don't fit). Only the api
+starts first; the worker and Gotenberg stop first.
 CI's `stack-config` job renders the overlay and fails if it outgrows the host.
 One api replica means a single process serves requests: scale out by moving
 to a bigger host (or more nodes) rather than squeezing a second replica in.
