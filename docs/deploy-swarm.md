@@ -114,7 +114,7 @@ numbers.
 | --------- | --------------------------- | ----------------------- | -------------------------- | ----------------------------------------------- |
 | api       | 1 (2 while a deploy starts) | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, 1 password hash at a time, pool 10 |
 | worker    | 1 (stop-first update)       | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, pool 10                            |
-| postgres  | 1                           | 1 / 0.5                 | 640 MB / 512 MB            | `max_connections` 50, `shared_buffers` 160 MB   |
+| postgres  | 1                           | 1 / 0.5                 | 1600 MB / 704 MB           | `max_connections` 50, `shared_buffers` 384 MB, `max_wal_size` 4 GB |
 | redis     | 1                           | 0.25 / 0.1              | 160 MB / 128 MB            | `maxmemory` 112 MB                              |
 | caddy     | 1                           | 0.25 / 0.1              | 128 MB / 64 MB             |                                                 |
 | gotenberg | 1                           | 0.5 / 0.1               | 512 MB / 256 MB            |                                                 |
@@ -122,7 +122,11 @@ numbers.
 | migrate   | a job, before the rollout   | 0.5                     | 384 MB                     |                                                 |
 | cloudflared | 1 (production only)     | 0.25 / 0.05             | 64 MB / 32 MB              | `compose.tunnel.yaml`                           |
 
-Memory limits are hard caps: about 2.6 GiB in steady state and 3.1 GiB while
+PostgreSQL's cap is mostly the kernel's cache of its files, which cgroups
+charge to the container and the kernel reclaims under pressure: CI budgets it
+by its reservation (shared buffers and connections). Too small a cap makes it
+throw its cache away and read the disk again (it held 640 MB before v0.1.3).
+The other memory limits are hard caps: about 2.6 GiB in steady state and 3.1 GiB while
 a deploy runs the new api next to the old one, within what a 4 GB host leaves
 after the OS, Docker and Tailscale. CPU limits add up to more than 2 on
 purpose (CPU is shared, not reserved); the reservations add up to 1.4 CPU,

@@ -57,17 +57,32 @@ services:
       - -c
       - max_connections=50
       - -c
-      - shared_buffers=160MB
+      - shared_buffers=384MB
+      # What the planner may assume the kernel caches: about the cap below.
       - -c
-      - effective_cache_size=384MB
+      - effective_cache_size=1200MB
       - -c
       - work_mem=4MB
       - -c
       - maintenance_work_mem=64MB
+      # Bulk writes (imports, bulk upserts): fewer forced checkpoints, which
+      # wrote the same pages again and again at the default 1 GB, and less WAL.
+      # `on` (pglz) is built into every PostgreSQL; a value the server can't
+      # read would stop it, and it stops first on an update.
+      - -c
+      - max_wal_size=4GB
+      - -c
+      - wal_compression=on
     deploy:
       resources:
-        limits: { cpus: '1', memory: 640M }
-        reservations: { cpus: '0.5', memory: 512M }
+        # The cap is mostly the kernel's cache of the database's files, which
+        # cgroups charge to this container: at 640 MB it held 589 MB of cache
+        # and evicted pages 20 million times while the host had 2.3 GB free.
+        # The kernel takes that cache back under pressure; what it can't take
+        # back (shared_buffers, the connections) is the reservation, which is
+        # what CI's sizing check budgets for PostgreSQL.
+        limits: { cpus: '1', memory: 1600M }
+        reservations: { cpus: '0.5', memory: 704M }
 
   redis:
     environment:
