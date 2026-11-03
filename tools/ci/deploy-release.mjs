@@ -6,19 +6,12 @@
 //   staging, by hand               a release tag, or the newest such main run
 //   production, only by hand       a release tag whose GitHub release is
 //                                  published and not a pre-release
-import { execFileSync } from 'node:child_process';
 import { appendFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { githubCli } from './github-cli.mjs';
+import { execute } from './github-cli.mjs';
 import { validateEvidence, verifyImages } from './release-manifest.mjs';
-
-const execute = (command, args) =>
-  execFileSync(command === 'gh' ? githubCli() : command, args, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
 
 export function releaseRunId(value) {
   if (

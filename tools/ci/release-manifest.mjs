@@ -1,7 +1,6 @@
-import { githubCli } from './github-cli.mjs';
+import { execute } from './github-cli.mjs';
 // The registry cannot establish whether a complete release passed CI. GitHub's
 // successful workflow artifacts provide that evidence; signatures bind images.
-import { execFileSync } from 'node:child_process';
 import {
   appendFileSync,
   mkdirSync,
@@ -21,11 +20,6 @@ export const components = {
 };
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;
-const execute = (command, args) =>
-  execFileSync(command === 'gh' ? githubCli() : command, args, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
 
 export function validateManifest(manifest, repository) {
   if (

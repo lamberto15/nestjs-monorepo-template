@@ -7,19 +7,13 @@
 //   after CI / CD on main   the v* tag on the run's commit, if there is one
 //                           and its release is not published yet
 //   by hand                 the tag given (a retry, or a tag made by hand)
-import { execFileSync } from 'node:child_process';
 import { appendFileSync, writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { githubCli } from './github-cli.mjs';
+import { execute } from './github-cli.mjs';
 import { deploymentManifest } from './deploy-release.mjs';
 
 const TAG = /^v\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?$/;
 const SHA = /^[a-f0-9]{40}$/;
-const execute = (command, args) =>
-  execFileSync(command === 'gh' ? githubCli() : command, args, {
-    encoding: 'utf8',
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
 const succeeds = (fn) => {
   try {
     fn();
