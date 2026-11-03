@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1](https://github.com/lamby-dev/nestjs-monorepo-template/compare/v0.1.0...v0.1.1) (2026-11-03)
+
+
+### Bug Fixes
+
+* **ci:** read large GitHub API answers in the release tooling ([#1031](https://github.com/lamby-dev/nestjs-monorepo-template/issues/1031)) ([b161133](https://github.com/lamby-dev/nestjs-monorepo-template/commit/b161133ab32fe9c972008e03f59bdcf260466c39))
+
 ## 0.1.0 (2026-11-02)
 
 
