@@ -420,10 +420,10 @@ jobs:
             def gib: . / 1073741824;
             [.services[] | select(.deploy.mode != "replicated-job")] as $app
             | ([$app[] | (.deploy.replicas // 1) * (.deploy.resources.limits.memory | tonumber)] | add | gib) as $steady
-            # A deploy runs each start-first service's new task next to the
-            # old one: its limit and its reservations count twice. Swarm won't
-            # place a task whose reservations don't fit (v0.1.1's api stayed
-            # pending on the 2-CPU host).
+            # A deploy runs the new task of each start-first service next to the
+            # old one: its limit and its reservations count twice. Swarm does
+            # not place a task whose reservations do not fit (the v0.1.1 api
+            # stayed pending on the 2-CPU host).
             | [$app[] | select(.deploy.update_config.order == "start-first")] as $first
             | ([$first[] | .deploy.resources.limits.memory | tonumber] | add // 0 | gib) as $surge
             | ([$app[] | .deploy.resources.reservations.cpus | tonumber] | add) as $cpu
