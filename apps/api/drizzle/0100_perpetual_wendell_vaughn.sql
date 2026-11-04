@@ -1,0 +1,1 @@
+CREATE INDEX "notes_tenant_id_idx" ON "notes" USING btree ("tenant_id","id" DESC NULLS FIRST) WHERE deleted_at is null;
