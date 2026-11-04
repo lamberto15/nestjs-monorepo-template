@@ -3,8 +3,8 @@ import {
   ConflictException,
   ForbiddenException,
 } from '@nestjs/common';
-import ExcelJS from 'exceljs';
 import { Readable } from 'node:stream';
+import { readXlsx } from 'turbosheet';
 import { z } from 'zod';
 import { refusal, valuesSet } from './data-transfer.processor.js';
 import type { ImportColumn } from './data-transfer.types.js';
@@ -128,8 +128,7 @@ describe('createTemplate', () => {
       guide,
       now,
     );
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(file as unknown as ArrayBuffer);
+    const workbook = readXlsx(file);
     const data = workbook.getWorksheet('Data')!;
     expect(data.getRow(1).values).toEqual([
       undefined,
@@ -141,17 +140,21 @@ describe('createTemplate', () => {
       'day',
       'tags',
     ]);
-    expect(data.getCell('E2').value).toEqual(new Date('2026-10-15T22:26:23Z'));
-    expect(data.getCell('F2').value).toEqual(new Date('2026-10-15T00:00:00Z'));
+    expect(data.getValue('E2')).toEqual(new Date('2026-10-15T22:26:23Z'));
+    expect(data.getValue('F2')).toEqual(new Date('2026-10-15T00:00:00Z'));
     expect(data.getCell('F2').numFmt).toBe('yyyy-mm-dd');
-    expect(data.getCell('C2').dataValidation).toMatchObject({
-      type: 'list',
-      formulae: ['Lists!$C$1:$C$2'],
-    });
-    expect(data.getCell('C500').dataValidation?.type).toBe('list');
-    expect(data.getCell('A2').dataValidation).toBeUndefined();
+    expect(data.views[0]).toMatchObject({ state: 'frozen', ySplit: 1 });
+    // One dropdown over each choice column's rows.
+    expect(data.dataValidations).toEqual([
+      expect.objectContaining({
+        sqref: 'C2:C1001',
+        type: 'list',
+        formula1: 'Lists!$C$1:$C$2',
+      }),
+    ]);
+    expect(workbook.getWorksheet('Lists')!.state).toBe('veryHidden');
     const help = workbook.getWorksheet('Columns')!;
-    expect(help.getCell('A1').value).toBe('Row 2 is an example.');
+    expect(help.getValue('A1')).toBe('Row 2 is an example.');
     expect(help.getRow(3).values).toEqual([undefined, 'Column', 'Required']);
     expect(help.getRow(4).values).toEqual([undefined, 'title', 'Yes']);
   });
