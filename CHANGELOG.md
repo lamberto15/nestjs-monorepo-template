@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/lamby-dev/nestjs-monorepo-template/compare/v0.2.0...v0.2.1) (2026-11-04)
+
+
+### Performance Improvements
+
+* **notes:** index the tenant's notes in id order for exports ([#1043](https://github.com/lamby-dev/nestjs-monorepo-template/issues/1043)) ([da49acf](https://github.com/lamby-dev/nestjs-monorepo-template/commit/da49acf21c50900027845f39a39898afca140424))
+
 ## [0.2.0](https://github.com/lamby-dev/nestjs-monorepo-template/compare/v0.1.2...v0.2.0) (2026-11-04)
 
 
