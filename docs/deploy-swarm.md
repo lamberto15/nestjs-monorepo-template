@@ -50,15 +50,15 @@ each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
 
 **Settings** (GitHub, Settings, Secrets and variables):
 
-| Where            | Name                                | Kind     | What                                                                                                                                                                           |
-| ---------------- | ----------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| each environment | `DEPLOY_HOST`                       | variable | the host's tailnet name                                                                                                                                                        |
-| each environment | `APP_URL`                           | variable | the public URL the health check calls                                                                                                                                          |
-| each environment | `DEPLOY_ENV_FILE`                   | secret   | the `.env` ([Configuration](#configuration-deploy-env-file))                                                                                                                   |
-| each environment | `TS_TAG`                            | variable | the tailnet tag its deploys join as (`tag:github-staging-deploy`, `tag:github-prod-deploy`)                                                                                    |
-| each environment | `SWARM_OVERLAYS`                    | variable | the Compose files on top of the stack: `compose.small.yaml` (the default), production adds `compose.tunnel.yaml` ([Public access](#public-access-through-a-cloudflare-tunnel)) |
-| each environment | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | its own Tailscale trust credential, that tag only; its subject is the job's OIDC `sub` (below)                                                                                 |
-| repository       | `AUTO_DEPLOY`                       | variable | `true` turns on staging deploys from `main`                                                                                                                                    |
+| Where            | Name                                | Kind     | What                                                                     |
+| ---------------- | ----------------------------------- | -------- | --------------------------------------------------------------------------------------------------- |
+| each environment | `DEPLOY_HOST`                       | variable | the host's tailnet name                                                  |
+| each environment | `APP_URL`                           | variable | the public URL the health check calls                                    |
+| each environment | `DEPLOY_ENV_FILE`                   | secret   | the `.env` ([Configuration](#configuration-deploy-env-file))             |
+| each environment | `TS_TAG`                            | variable | the tailnet tag its deploys join as (`tag:github-staging-deploy`, `tag:github-prod-deploy`)         |
+| each environment | `SWARM_OVERLAYS` | variable | the Compose files on top of the stack: `compose.small.yaml` (the default), production adds `compose.tunnel.yaml` ([Public access](#public-access-through-a-cloudflare-tunnel)) |
+| each environment | `TS_OAUTH_CLIENT_ID`, `TS_AUDIENCE` | secrets  | its own Tailscale trust credential, that tag only; its subject is the job's OIDC `sub` (below) |
+| repository       | `AUTO_DEPLOY`                       | variable | `true` turns on staging deploys from `main`                              |
 
 The trust credential's subject must be exactly the `sub` GitHub puts in the
 job's token. With immutable subjects (GitHub's default for new repositories:
@@ -110,17 +110,17 @@ Staging and production use the same overlay, `compose.small.yaml`, made for a
 2 vCPU / 4 GB host, so staging matches production. See the file for the
 numbers.
 
-| Service     | Replicas                    | CPU limit / reservation | Memory limit / reservation | Settings                                        |
-| ----------- | --------------------------- | ----------------------- | -------------------------- | ----------------------------------------------- |
-| api         | 1 (2 while a deploy starts) | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, 1 password hash at a time, pool 10 |
-| worker      | 1 (stop-first update)       | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, pool 10                            |
-| postgres    | 1                           | 1 / 0.5                 | 640 MB / 512 MB            | `max_connections` 50, `shared_buffers` 160 MB   |
-| redis       | 1                           | 0.25 / 0.1              | 160 MB / 128 MB            | `maxmemory` 112 MB                              |
-| caddy       | 1                           | 0.25 / 0.1              | 128 MB / 64 MB             |                                                 |
-| gotenberg   | 1                           | 0.5 / 0.1               | 512 MB / 256 MB            |                                                 |
-| backup      | 1                           | 0.25 / 0.05             | 160 MB / 64 MB             |                                                 |
-| migrate     | a job, before the rollout   | 0.5                     | 384 MB                     |                                                 |
-| cloudflared | 1 (production only)         | 0.25 / 0.05             | 64 MB / 32 MB              | `compose.tunnel.yaml`                           |
+| Service   | Replicas                    | CPU limit / reservation | Memory limit / reservation | Settings                                        |
+| --------- | --------------------------- | ----------------------- | -------------------------- | ----------------------------------------------- |
+| api       | 1 (2 while a deploy starts) | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, 1 password hash at a time, pool 10 |
+| worker    | 1 (stop-first update)       | 1 / 0.25                | 512 MB / 384 MB            | heap 256 MB, pool 10                            |
+| postgres  | 1                           | 1 / 0.5                 | 640 MB / 512 MB            | `max_connections` 50, `shared_buffers` 160 MB   |
+| redis     | 1                           | 0.25 / 0.1              | 160 MB / 128 MB            | `maxmemory` 112 MB                              |
+| caddy     | 1                           | 0.25 / 0.1              | 128 MB / 64 MB             |                                                 |
+| gotenberg | 1                           | 0.5 / 0.1               | 512 MB / 256 MB            |                                                 |
+| backup    | 1                           | 0.25 / 0.05             | 160 MB / 64 MB             |                                                 |
+| migrate   | a job, before the rollout   | 0.5                     | 384 MB                     |                                                 |
+| cloudflared | 1 (production only)     | 0.25 / 0.05             | 64 MB / 32 MB              | `compose.tunnel.yaml`                           |
 
 Memory limits are hard caps: about 2.6 GiB in steady state and 3.1 GiB while
 a deploy runs the new api next to the old one, within what a 4 GB host leaves
@@ -199,14 +199,14 @@ it, `.env` is read as usual (`--env-file <path>` for another).
 
 What Swarm lacks, and what replaces it:
 
-| Compose                               | Swarm                                                                                                                                                                                                    |
+| Compose | Swarm |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build:`                              | Images are pulled: `APP_IMAGE`, `GOTENBERG_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
-| `depends_on`                          | Ignored. A task that starts before PostgreSQL or Redis fails its healthcheck or exits, and `restart_policy` retries it.                                                                                  |
-| one-shot `migrate`                    | A `replicated-job` service the script deploys and waits for before the app is touched.                                                                                                                   |
-| bind mounts (`Caddyfile`, `redis.sh`) | Swarm configs.                                                                                                                                                                                           |
-| `restart:`                            | `deploy.restart_policy` (any, 5 s).                                                                                                                                                                      |
-| `.env` secrets as files               | Swarm secrets, from the same files (`X_FILE` in `.env`).                                                                                                                                                 |
+| `build:` | Images are pulled: `APP_IMAGE`, `GOTENBERG_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
+| `depends_on` | Ignored. A task that starts before PostgreSQL or Redis fails its healthcheck or exits, and `restart_policy` retries it. |
+| one-shot `migrate` | A `replicated-job` service the script deploys and waits for before the app is touched. |
+| bind mounts (`Caddyfile`, `redis.sh`) | Swarm configs. |
+| `restart:` | `deploy.restart_policy` (any, 5 s). |
+| `.env` secrets as files | Swarm secrets, from the same files (`X_FILE` in `.env`). |
 
 ## Images
 
@@ -392,12 +392,12 @@ On a one-node swarm (2 api replicas, 1 worker), three clients at about 9
 requests a second to `GET /v1/account` without credentials (a real route:
 401 expected) through Caddy, during each deploy:
 
-| Deploy                               | Requests                      | Unexpected                                                                               |
+| Deploy | Requests | Unexpected |
 | ------------------------------------ | ----------------------------- | ---------------------------------------------------------------------------------------- |
-| api image update, run 1              | 1251                          | 0                                                                                        |
-| api image update, run 2              | 1251                          | 0                                                                                        |
+| api image update, run 1 | 1251 | 0 |
+| api image update, run 2 | 1251 | 0 |
 | a version that never becomes healthy | 1289 (probing `/health/live`) | 0: one new task tried and failed, the old two kept serving; `rollback_completed`, exit 1 |
-| Caddy update (new Caddyfile)         | 1212 (probing `/health/live`) | 13, about two seconds of refused connections                                             |
+| Caddy update (new Caddyfile) | 1212 (probing `/health/live`) | 13, about two seconds of refused connections |
 
 Probe a real route, not `/health` or `/health/live`: a draining replica
 answers 503 on both by design while it still serves real requests, so an
