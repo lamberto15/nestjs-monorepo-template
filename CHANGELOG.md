@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.2.0](https://github.com/lamby-dev/nestjs-monorepo-template/compare/v0.1.2...v0.2.0) (2026-11-04)
+
+
+### Features
+
+* **deploy:** production needs a green staging deploy of the release ([#1042](https://github.com/lamby-dev/nestjs-monorepo-template/issues/1042)) ([2ddba7b](https://github.com/lamby-dev/nestjs-monorepo-template/commit/2ddba7b1082cc7789835094d8bc4c0c49479f129))
+
+
+### Bug Fixes
+
+* **deploy:** let PostgreSQL use the host's spare memory ([#1038](https://github.com/lamby-dev/nestjs-monorepo-template/issues/1038)) ([2d3a237](https://github.com/lamby-dev/nestjs-monorepo-template/commit/2d3a237c65114c10fc50402b8628d9c55502e1bd))
+* typed client job, swarm deploy retry, docs say pnpm run setup ([#1040](https://github.com/lamby-dev/nestjs-monorepo-template/issues/1040)) ([39f3705](https://github.com/lamby-dev/nestjs-monorepo-template/commit/39f3705813e05696ba6f0a1cd02ab37922a328fb))
+
 ## [0.1.2](https://github.com/lamby-dev/nestjs-monorepo-template/compare/v0.1.1...v0.1.2) (2026-11-03)
 
 
