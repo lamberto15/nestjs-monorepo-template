@@ -32,7 +32,7 @@ const things = pgTable('things', {
   kind: text('kind').notNull(),
   size: integer('size'),
   done: boolean('done').notNull(),
-  at: timestamp('at', { withTimezone: true, mode: 'date' }),
+  at: timestamp('at', { withTimezone: true, mode: 'date', precision: 3 }),
 });
 /** The same table, written with microseconds (a Date has milliseconds only). */
 const thingsWritten = pgTable('things', {
@@ -112,10 +112,11 @@ describe('the advanced list query (PostgreSQL)', () => {
     // default privileges, as a table of a later migration is.
     await database.asOwner(`create table things (
       id uuid primary key, name text, kind text not null, size integer,
-      done boolean not null, at timestamptz)`);
+      done boolean not null, at timestamptz(3))`);
     const names = ['alpha', 'Beta', null, '50%_off', 'alphabet'];
     for (let i = 0; i < 37; i++) {
-      // Microseconds in the timestamps: the cursor (milliseconds) must still be exact.
+      // Microseconds written: the column keeps milliseconds (as at() does), so
+      // the cursor (milliseconds) is exact.
       const micro = String(i % 4).padStart(3, '0');
       rows.push({
         id: randomUUID(),
@@ -557,11 +558,12 @@ describe('the advanced list query (PostgreSQL)', () => {
     ).toBe(false);
   });
 
-  // Last in this describe: the extra rows must not change the other tests' expectations.
-  it('bounds a deep sorted page in the index', async () => {
-    await database.asOwner(`create index things_at_ms on things (
-      (date_trunc('milliseconds', at at time zone 'UTC') at time zone 'UTC') desc nulls first,
-      id desc nulls first)`);
+  // Last in this describe: the extra rows and the policy must not change the
+  // other tests' expectations. Under row-level security only a leakproof
+  // comparison (the plain column's, not date_trunc's) can bound the index.
+  it('bounds a deep sorted page in the index, under row-level security', async () => {
+    await database.asOwner(`create index things_at_id on things (
+      at desc nulls first, id desc nulls first)`);
     const deep = Array.from({ length: 2000 }, (_, i) => ({
       id: randomUUID(),
       name: `deep ${i}`,
@@ -571,6 +573,8 @@ describe('the advanced list query (PostgreSQL)', () => {
       at: new Date(Date.UTC(2025, 0, 1) + i * 1000).toISOString(),
     }));
     await db.insert(thingsWritten).values(deep);
+    await database.asOwner(`alter table things enable row level security;
+      create policy things_read on things using (kind <> 'z')`);
     await db.execute(sql`analyze things`);
     let cursor: string | null = null;
     for (let i = 0; i < 19; i++) {

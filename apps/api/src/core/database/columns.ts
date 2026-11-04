@@ -7,9 +7,14 @@ export const uuidPk = () =>
     .primaryKey()
     .default(sql`uuidv7()`);
 
-/** A point in time: timestamptz, read as a Date (UTC in the API). */
+/**
+ * A point in time: timestamptz to the millisecond, read as a Date (UTC in
+ * the API). A JavaScript Date holds milliseconds, so a value the API hands
+ * out (a list cursor, a filter bound) compares equal to the stored one and
+ * a keyset can seek the plain column's index.
+ */
 export const at = (name: string) =>
-  timestamp(name, { withTimezone: true, mode: 'date' });
+  timestamp(name, { withTimezone: true, mode: 'date', precision: 3 });
 
 /**
  * When a record was created and last changed, for every entity table:

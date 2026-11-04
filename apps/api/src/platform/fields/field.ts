@@ -272,12 +272,16 @@ export const field = {
       z.iso.date(),
       z.iso.date(),
     ),
-  /** A point in time (timestamptz, UTC in the API). */
+  /** A point in time (timestamptz to the millisecond, as `at()`; UTC in the API). */
   datetime: () =>
     plain(
       'datetime',
       (name) =>
-        timestamp(columnName(name), { withTimezone: true, mode: 'date' }),
+        timestamp(columnName(name), {
+          withTimezone: true,
+          mode: 'date',
+          precision: 3,
+        }),
       z.iso.datetime(),
       z.iso.datetime(),
     ),
