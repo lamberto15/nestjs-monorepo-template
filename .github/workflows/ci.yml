@@ -36,9 +36,10 @@ on:
         description: 'Build and publish a complete manifest on main (no deployment)'
         type: boolean
         default: false
-  # A nightly run of everything on main, the checks a pull request skips
-  # included (below): new advisories in the images. Sunday's also runs
-  # template-without-notes (tools/ci/changes.mjs reads which cron this is).
+  # Weekday nights scan for new advisories only: the images and the
+  # dependencies (security). Sunday's run validates everything, the checks a
+  # pull request skips included (template-without-notes). tools/ci/changes.mjs
+  # reads which cron this is.
   schedule:
     - cron: '17 3 * * 1-6'
     - cron: '17 3 * * 0'
@@ -1061,7 +1062,8 @@ jobs:
   security:
     needs: changes
     # Scan runtime/deploy changes and executable tooling, not Knip-only edits.
-    if: needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true'
+    if: >-
+      needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true' || needs.changes.outputs.nightly == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

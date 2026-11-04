@@ -12,7 +12,11 @@ function eventOutput(
   eventName,
   event,
   response,
-  { ref = 'refs/heads/main', planning = releasePlan } = {},
+  {
+    ref = 'refs/heads/main',
+    planning = releasePlan,
+    bumped = () => false,
+  } = {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), 'ci-events-'));
   try {
@@ -39,6 +43,7 @@ function eventOutput(
       },
       planning,
       () => ['apps/api/example.ts'],
+      bumped,
     );
     const lines = readFileSync(output, 'utf8').trim().split('\n');
     assert.equal(
@@ -162,12 +167,59 @@ test('API failures and truncated comparisons run comprehensively', () => {
   }
 });
 
-test('template-without-notes runs on the weekly schedule, not the nightly one', () => {
+test('weekday nights scan the images and dependencies; Sunday validates everything', () => {
   const expected = (schedule) =>
     JSON.parse(eventOutput('schedule', { schedule }, null).result.expected);
-  assert.ok(!expected(NIGHTLY_CRON).includes('template-without-notes'));
-  assert.ok(expected(NIGHTLY_CRON).includes('e2e'));
-  assert.ok(expected('17 3 * * 0').includes('template-without-notes'));
+  assert.deepEqual(expected(NIGHTLY_CRON), [
+    'changes',
+    'security',
+    'image',
+    'backup-image',
+    'caddy-image',
+    'gotenberg-image',
+  ]);
+  for (const job of ['e2e', 'template-without-notes', 'check'])
+    assert.ok(expected('17 3 * * 0').includes(job), job);
+});
+
+test('a release (changelog, manifest, root version) runs no tests and publishes a manifest on main', () => {
+  const files = [
+    { filename: 'CHANGELOG.md', status: 'modified' },
+    { filename: '.release-please-manifest.json', status: 'modified' },
+    { filename: 'package.json', status: 'modified' },
+  ];
+  const pr = eventOutput(
+    'pull_request',
+    {
+      number: 1047,
+      pull_request: {
+        base: { sha: base },
+        head: { sha: head },
+        changed_files: 3,
+      },
+    },
+    [files],
+    { bumped: (from, to) => from === base && to === head },
+  ).result;
+  assert.deepEqual(JSON.parse(pr.expected), ['changes']);
+  assert.equal(pr.publish, false);
+  const main = eventOutput(
+    'push',
+    { before: base },
+    { status: 'ahead', files },
+    { planning: (flags) => ({ publish: flags.code }), bumped: () => true },
+  ).result;
+  assert.deepEqual(JSON.parse(main.expected), ['changes']);
+  assert.equal(main.publish, true);
+  // Any other package.json change validates the applications.
+  const other = eventOutput(
+    'push',
+    { before: base },
+    { status: 'ahead', files },
+    { planning: (flags) => ({ publish: flags.code }) },
+  ).result;
+  assert.ok(other.api && other.web);
+  assert.ok(JSON.parse(other.expected).includes('e2e'));
 });
 
 test('scheduled, manual and version-tag events validate comprehensively; only a bootstrap publishes', () => {

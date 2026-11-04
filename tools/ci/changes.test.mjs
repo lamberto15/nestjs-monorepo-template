@@ -6,6 +6,7 @@ import {
   expectedJobs,
   gitFiles,
   keys,
+  versionBump,
 } from './changes.mjs';
 import { gate } from './gate.mjs';
 import { publicationGate } from './publication-gate.mjs';
@@ -215,4 +216,52 @@ test('root dependency routing never hides another affected image or an unknown p
     ['unknown', 'package.json'],
   ])
     assert.ok(classify({ files }).full);
+});
+
+test('release files route to a manifest only; package.json only when just its version changed', () => {
+  const release = classify({
+    files: ['.release-please-manifest.json', 'CHANGELOG.md', 'package.json'],
+    versionOnly: true,
+  });
+  assert.deepEqual(selected(release), ['code']);
+  assert.deepEqual(expectedJobs(release), ['changes']);
+  const bump = classify({ files: ['package.json'], versionOnly: false });
+  assert.ok(bump.api && bump.web);
+  // The flag covers the root package.json, never a workspace's.
+  assert.ok(
+    classify({ files: ['apps/api/package.json'], versionOnly: true }).api,
+  );
+});
+
+test('versionBump compares the root package.json without its version, failing closed', () => {
+  const [a, b] = ['a'.repeat(40), 'b'.repeat(40)];
+  const show = (files) => (_git, args) => {
+    const text = files[args[1].split(':')[0]];
+    if (text === undefined) throw new Error('missing');
+    return text;
+  };
+  const pkg = (version, extra = {}) =>
+    JSON.stringify({ name: 'x', version, scripts: { b: 'b' }, ...extra });
+  assert.equal(
+    versionBump(a, b, show({ [a]: pkg('1.0.0'), [b]: pkg('1.1.0') })),
+    true,
+  );
+  assert.equal(
+    versionBump(a, b, show({ [a]: pkg('1.0.0'), [b]: pkg('1.0.0') })),
+    false,
+  );
+  assert.equal(
+    versionBump(
+      a,
+      b,
+      show({
+        [a]: pkg('1.0.0'),
+        [b]: pkg('1.1.0', { dependencies: { y: '1' } }),
+      }),
+    ),
+    false,
+  );
+  assert.equal(versionBump(a, b, show({ [a]: pkg('1.0.0') })), false);
+  assert.equal(versionBump(a, b, show({ [a]: pkg('1.0.0'), [b]: '{' })), false);
+  assert.equal(versionBump('main', b, show({})), false);
 });

@@ -29,7 +29,18 @@ const roots =
 const inert =
   /^(docs\/|\.claude\/|\.changeset\/[^/]*\.md$|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
 
-export function classify({ files, full = false, complete = true }) {
+// Release Please's own files. A release commit (these, the changelog and the
+// root package.json's version) changes no code and no image: it runs no tests,
+// and on main publishes a manifest that reuses the previous images, so staging
+// deploys the release commit and production's staging gate finds it.
+const releaseFiles = /^\.release-please-manifest\.json$/;
+
+export function classify({
+  files,
+  full = false,
+  complete = true,
+  versionOnly = false,
+}) {
   const flags = Object.fromEntries(keys.map((key) => [key, false]));
   const all = () => Object.fromEntries(keys.map((key) => [key, true]));
   if (full || !complete || !Array.isArray(files) || !files.length) return all();
@@ -41,6 +52,10 @@ export function classify({ files, full = false, complete = true }) {
       continue;
     }
     if (inert.test(file)) continue;
+    if (releaseFiles.test(file) || (file === 'package.json' && versionOnly)) {
+      flags.code = true;
+      continue;
+    }
     if (roots.test(file)) {
       // Root dependency changes validate all applications. Merge only true
       // contributions so another path can still require an infrastructure job.
@@ -158,7 +173,7 @@ export function expectedJobs(f) {
     'e2e-web': f.api || f.web || f.services,
     'feature-smoke': f.generator || f.tools || f.services,
     'template-without-notes': f.full && !f.nightly,
-    security: f.app || f.tools,
+    security: f.app || f.tools || f.nightly,
     image: f.image,
     'backup-image': f.backup,
     'caddy-image': f.caddy,
@@ -187,11 +202,39 @@ export function gitFiles(base, head, run = execFileSync) {
   }
 }
 
+/** Whether the root package.json differs between two commits in its version only. */
+export function versionBump(base, head, run = execFileSync) {
+  try {
+    if (!/^[a-f0-9]{40}$/.test(base) || !/^[a-f0-9]{40}$/.test(head))
+      return false;
+    const [before, after] = [base, head].map((sha) => {
+      const { version, ...rest } = JSON.parse(
+        run('git', ['show', `${sha}:package.json`], { encoding: 'utf8' }),
+      );
+      return { version, rest: JSON.stringify(rest) };
+    });
+    return before.version !== after.version && before.rest === after.rest;
+  } catch {
+    return false;
+  }
+}
+
+// Weekday nights look for new advisories only: the images (Trivy, in each
+// image job) and the dependencies (security). Sunday's run validates all.
+const nightlyKeys = new Set([
+  'image',
+  'api_image',
+  'backup',
+  'gotenberg',
+  'caddy',
+]);
+
 export function runChanges(
   env = process.env,
   gh = (args) => execFileSync(githubCli(), args, { encoding: 'utf8' }),
   planning = releasePlan,
   compare = gitFiles,
+  bumped = versionBump,
 ) {
   const event = JSON.parse(readFileSync(env.GITHUB_EVENT_PATH, 'utf8'));
   const full =
@@ -216,8 +259,24 @@ export function runChanges(
       files = null;
     }
   }
-  const flags = classify({ files, full, complete: Boolean(files) });
-  const plan = planning(flags, env, event, classify, compare);
+  const route = (args, from) =>
+    classify({
+      ...args,
+      versionOnly:
+        Array.isArray(args.files) &&
+        args.files.includes('package.json') &&
+        bumped(from, head),
+    });
+  const nightly = event.schedule === NIGHTLY_CRON;
+  const flags = route({ files, full, complete: Boolean(files) }, base);
+  if (nightly) for (const key of keys) flags[key] = nightlyKeys.has(key);
+  const plan = planning(
+    flags,
+    env,
+    event,
+    (args) => route(args, args.base),
+    compare,
+  );
   if (plan.previous) {
     base = plan.previous.sourceSha;
     files = compare(base, head);
@@ -230,7 +289,6 @@ export function runChanges(
     files.length > 0 &&
     files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
     Boolean(compare(base, head));
-  const nightly = event.schedule === NIGHTLY_CRON;
   const outputs = {
     ...flags,
     nightly,

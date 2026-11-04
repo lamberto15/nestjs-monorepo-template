@@ -2122,8 +2122,12 @@ Publication and production deployment keep their serialization.
 Renames count at both paths, and deleted files count too. A missing or empty
 comparison, a capped list (300 compare files or 3000 PR files), inconsistent PR
 file counts, unknown paths and shared root dependencies trigger comprehensive
-validation. A failed compare never silently skips tests. Nightly (03:17 UTC),
-manual full runs and `v*` tags are comprehensive too.
+validation. A failed compare never silently skips tests. A release commit
+(`CHANGELOG.md`, `.release-please-manifest.json` and only the version in the
+root `package.json`) runs no tests and reuses the previous images
+([releases](releases.md)). Sunday's scheduled run (03:17 UTC), manual full
+runs and `v*` tags are comprehensive; weekday nights scan only the images and
+the dependencies for new advisories.
 
 | Change | Validation |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -2172,7 +2176,7 @@ runner budget, the evidence and the chosen defaults.
 
 The bundle budget and the Storybook build run in `check` for frontend changes,
 and the browser tests in `e2e-web`. The Web workflow holds only report-only
-Lighthouse, which runs nightly, manually and for each release (release.yml
+Lighthouse, which runs manually and for each release (release.yml
 starts it on the tag).
 Migration lint retains its separate PR workflow and existing acceptance controls
 ([migrations](development.md#migrations)). Third-party actions remain pinned;
