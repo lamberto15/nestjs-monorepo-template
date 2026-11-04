@@ -159,10 +159,12 @@ jobs:
           SWARM_OVERLAYS: ${{ vars.SWARM_OVERLAYS || 'compose.small.yaml' }}
           APP_IMAGE: ${{ needs.verify.outputs.api }}
           CADDY_IMAGE: ${{ needs.verify.outputs.caddy }}
-          GOTENBERG_IMAGE: ${{ needs.verify.outputs.gotenberg }}
           BACKUP_IMAGE: ${{ needs.verify.outputs.backup }}
+          # Only a release from before Gotenberg ran its official image (pinned
+          # in compose.prod.yaml since) has one: its stack file still asks.
+          GOTENBERG_IMAGE: ${{ needs.verify.outputs.gotenberg }}
         run: |
-          for image in "$APP_IMAGE" "$CADDY_IMAGE" "$GOTENBERG_IMAGE" "$BACKUP_IMAGE"; do
+          for image in "$APP_IMAGE" "$CADDY_IMAGE" "$BACKUP_IMAGE" ${GOTENBERG_IMAGE:+"$GOTENBERG_IMAGE"}; do
             [[ "$image" =~ ^ghcr\.io/[a-z0-9./_-]+@sha256:[a-f0-9]{64}$ ]] || { echo "::error::not a pinned image: $image"; exit 1; }
           done
           umask 077

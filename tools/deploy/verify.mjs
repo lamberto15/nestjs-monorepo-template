@@ -1,6 +1,6 @@
 // The optional image check of the deploy scripts: with VERIFY_IMAGES=1 they
 // run scripts/verify-image.sh (cosign signature, signed SBOM, provenance of
-// APP_IMAGE, GOTENBERG_IMAGE and CADDY_IMAGE) before touching anything, and
+// APP_IMAGE and CADDY_IMAGE) before touching anything, and
 // stop when it fails. Off by default (docs/deployment.md, "Signing and
 // verifying images").
 import { spawn } from 'node:child_process';

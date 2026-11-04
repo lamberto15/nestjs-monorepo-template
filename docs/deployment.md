@@ -423,22 +423,20 @@ its own, never Chromium in the worker's image, so a browser that runs out of
 memory, or is attacked through a page, doesn't take the queues, workflows and
 database credentials with it.
 
-- **The image** (`gotenberg/Dockerfile`): the official
-  `gotenberg/gotenberg:<version>-chromium`, pinned by version and digest,
-  with its Debian packages upgraded and its two Go programs (gotenberg,
-  pdfcpu) built again from the same release with a current Go and fixed
-  `golang.org/x` modules, so CI's scan finds nothing fixable (job
-  `gotenberg-image`). Fonts are the official image's: Noto for Latin, Arabic,
+- **The image:** the official `gotenberg/gotenberg:<version>-chromium`,
+  pinned by version and digest in `compose.prod.yaml` (and the same in
+  `compose.dev.yaml`). Nothing is built or published here: every
+  deployment pulls that image from Docker Hub, and a release runs the one
+  its commit pins. Fonts are the official image's: Noto for Latin, Arabic,
   Chinese, Japanese, Korean, and emoji.
-- **Which image runs:** CI publishes the image it scanned, as it does the
-  app's ([below](#publishing-and-rolling-back-images), job
-  `publish-gotenberg`): `ghcr.io/<owner>/<repo>/gotenberg:<commit SHA>`,
-  set as `GOTENBERG_IMAGE` next to `APP_IMAGE`. Each CI run upgrades the
-  Debian packages afresh (`APT_REFRESH`), so a newer commit's image carries
-  newer Chromium fixes. Unset, `docker compose up -d --build` builds it on
-  the host, as a fallback: its Debian step is then cached after the first
-  build, so rebuild it with `docker compose build --no-cache gotenberg` to
-  pick up fixes.
+- **Checked by CI** (job `gotenberg-image`), on every change to the two
+  Compose files and every night: the two pin the same image with the same
+  flags, it renders a PDF that opens, and Trivy finds no fixable high or
+  critical vulnerability in it. Gotenberg publishes an image per release
+  only, so a fix in Debian (Chromium's above all) reaches it with the next
+  release: when the nightly scan fails, raise the pin to a release that has
+  the fix, or wait for one. Chromium here runs no JavaScript and reaches
+  nothing but the page it is given (below), which keeps that window small.
 - **The network:** `documents`, `internal: true`: no gateway, so nothing on
   it reaches the internet, the host or the other networks; no port is
   published. Only `worker` joins it (besides `default`); `api` never talks
@@ -462,10 +460,9 @@ database credentials with it.
   `documents_unavailable`); leave the service out with it if you like
   (`docker compose up -d --scale gotenberg=0`). The app starts either way:
   nothing calls Gotenberg until a document is asked for.
-- **Raising its version:** Dependabot proposes the `FROM` line;
-  `compose.dev.yaml`'s image follows it in the same pull request
-  (`gotenberg-image` fails until they match, and while the two Compose
-  files' flags differ).
+- **Raising its version:** Dependabot (`docker-compose`) proposes the new
+  release in both Compose files in one pull request (`gotenberg-image`
+  fails while they differ, or while their flags do).
 
 ### Resource limits
 
@@ -2153,7 +2150,7 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | `stack-config` | Compose secrets, hardening and settings, then the Swarm stack render |
 | `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
 | `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
-| `publish`, `publish-caddy`, `publish-gotenberg` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |
+| `publish`, `publish-caddy`, `publish-backup` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |
 | `release-manifest` | verify reuse evidence and preserve the complete immutable release image set |
 | `release` | version-tag notes and the existing complete image set |
 
@@ -2249,21 +2246,21 @@ Logging in once on the host, with a classic personal access token that has
 echo "$GHCR_TOKEN" | docker login ghcr.io -u <github user> --password-stdin
 ```
 
-Deploying a published image: set `APP_IMAGE` (and `GOTENBERG_IMAGE` and
-`CADDY_IMAGE`, using all three immutable references from one release manifest) in `.env`, then pull and start. Without
+Deploying a published image: set `APP_IMAGE` (and `CADDY_IMAGE`, using
+both immutable references from one release manifest) in `.env`, then pull
+and start (Gotenberg's image is the official one the Compose file pins). Without
 `--build`: a build would replace the pulled images with local ones.
 
 ```bash
 # .env
 APP_IMAGE=ghcr.io/lamby-dev/nestjs-monorepo-template:<full commit SHA>
-GOTENBERG_IMAGE=ghcr.io/lamby-dev/nestjs-monorepo-template/gotenberg:<full commit SHA>
 CADDY_IMAGE=ghcr.io/lamby-dev/nestjs-monorepo-template/caddy:<full commit SHA>
 
 docker compose pull migrate api worker gotenberg caddy
 docker compose up -d --remove-orphans
 ```
 
-Rolling back: set `APP_IMAGE` (and `GOTENBERG_IMAGE`, `CADDY_IMAGE`) to the previous commit's SHA, then the same
+Rolling back: set `APP_IMAGE` (and `CADDY_IMAGE`) to the previous commit's SHA, then the same
 two commands. `git log --format=%H main` lists the SHAs; the package's page
 on GitHub lists the published ones. The Compose files must fit the image:
 when a release changed them, check them out at that SHA too (`git checkout
@@ -2304,7 +2301,7 @@ Verify before pulling (needs [cosign](https://docs.sigstore.dev/cosign/system_co
 and, for provenance, the `gh` CLI):
 
 ```bash
-scripts/verify-image.sh                # APP_IMAGE, GOTENBERG_IMAGE, CADDY_IMAGE
+scripts/verify-image.sh                # APP_IMAGE, CADDY_IMAGE
 scripts/verify-image.sh ghcr.io/<owner>/<repo>:<full commit SHA>
 
 # what it runs, per image:

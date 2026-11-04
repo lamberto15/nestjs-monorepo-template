@@ -268,11 +268,6 @@ up` stops with "cannot create secret … in read-only service …: `file` is
   Swarm) with `STORAGE_DRIVER=local`; S3 links point at the bucket. The fix needs Caddy
   restarted: the Caddyfile is a bind mount, read at start.
 
-- **A Dependabot bump of Gotenberg is half a bump.** It raises the `FROM`
-  line of `gotenberg/Dockerfile`, but not `compose.dev.yaml`'s image: raise
-  that by hand in the same pull request. CI's `gotenberg-image` job fails
-  until the two agree.
-
 - **A Drizzle query runs when it is awaited, in the awaiter's context.**
   `tenancy.run(tenantId, () => db.select()…)` returned the query unawaited,
   and the `await` outside ran it with no tenant (403 `tenant_required` on
