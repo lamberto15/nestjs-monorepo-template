@@ -2,7 +2,7 @@
 
 ```bash
 pnpm install
-pnpm setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
+pnpm run setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
 pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci, Gotenberg (project <name>-dev)
 pnpm dev                  # the API and its workers (http://localhost:3000/api) and the web app (http://localhost:5173), with reload
 pnpm db:seed:demo         # optional, from a second terminal: demo users, organizational units and each feature's demo data (passwords printed once)
@@ -147,7 +147,7 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 
 | Command | Does |
 | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `pnpm setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
+| `pnpm run setup` | the first-run wizard: asks the deployment shape and the few choices, writes the env file with generated secrets (`--dry-run`, `--yes`, `--rotate`; [configuration](configuration.md), "First setup") |
 | `pnpm env:check` | an env file against its template, by name: the variables it lacks, the ones the template does not name, the REQUIRED ones that are empty (exit 1); `--strict`, `--target`, `--file`, `--templates` ([configuration](configuration.md), "First setup"; its tests: `node --test tools/setup/*.test.mjs`) |
 | `pnpm dev` | the API and its workers, and the web app, with reload (Turborepo's `dev` task in both, the client built first) |
 | `pnpm dev:api` / `pnpm start:dev` | the API and its workers alone, with reload (through Turborepo / straight through pnpm) |

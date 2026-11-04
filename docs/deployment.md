@@ -3,7 +3,7 @@
 ## Production with Docker Compose
 
 ```bash
-pnpm setup --target production          # asks, writes .env (chmod 600), every secret generated
+pnpm run setup --target production          # asks, writes .env (chmod 600), every secret generated
 # or by hand:
 cp env.example .env && chmod 600 .env   # then fill it (below)
 pnpm env:check                    # names missing from .env, REQUIRED ones empty (exits 1)
@@ -15,9 +15,9 @@ docker compose ps
 else: Compose has defaults for most variables, so `docker compose config`
 passes with a stale `.env` and the app then runs with values you never saw.
 Run it before every `docker compose up` that follows an update of the
-template; a re-run of `pnpm setup --target production` adds the missing
+template; a re-run of `pnpm run setup --target production` adds the missing
 variables with the template's defaults
-([configuration.md](configuration.md#first-setup-pnpm-setup)).
+([configuration.md](configuration.md#first-setup-pnpm-run-setup)).
 
 Filling `.env` (each step is commented in `env.example`):
 

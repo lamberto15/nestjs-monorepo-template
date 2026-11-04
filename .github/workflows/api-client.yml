@@ -113,8 +113,12 @@ jobs:
     outputs:
       has-changesets: ${{ steps.changesets.outputs.has-changesets }}
     steps:
+      # The full history: `changeset version` looks up the commit that added
+      # each changeset for the changelog, and on a shallow clone it fetches
+      # more history from origin, which fails without credentials (#1039).
       - uses: actions/checkout@v7
         with:
+          fetch-depth: 0
           persist-credentials: false
       - name: Install pnpm and Node.js
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
@@ -136,7 +140,7 @@ jobs:
       - name: Why the pull request could not be opened
         if: failure() && steps.changesets.outcome == 'failure'
         run: |
-          echo '::error::The version pull request needs "Allow GitHub Actions to create and approve pull requests" (Settings, Actions, General) or an API_CLIENT_RELEASE_TOKEN secret (docs/releases.md, "The typed client").'
+          echo '::error::The version pull request failed (see the step above). When it could not open or update the pull request, it needs "Allow GitHub Actions to create and approve pull requests" (Settings, Actions, General) or an API_CLIENT_RELEASE_TOKEN secret (docs/releases.md, "The typed client").'
 
   # main, once no changeset is pending (the version pull request was merged):
   # publishes the client's new version to npm and tags it

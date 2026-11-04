@@ -102,7 +102,7 @@ Both are secrets (`_FILE` works; Compose mounts `data_encryption_keys` and
 `blind_index_keys`). **The app never creates them and never keeps them in the
 database**: a key next to its ciphertext protects nothing in a backup. Boot is
 refused when a column is declared encrypted and `DATA_ENCRYPTION_KEYS` is unset, or
-a column has a blind index and `BLIND_INDEX_KEYS` is unset. `pnpm setup` writes both.
+a column has a blind index and `BLIND_INDEX_KEYS` is unset. `pnpm run setup` writes both.
 
 ## Rotating a key
 

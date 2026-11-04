@@ -329,7 +329,7 @@ async function deploy(ctx) {
     const migrateName = `${ctx.stack}_migrate`;
     const known = await taskIds(ctx, migrateName);
     ctx.log('deploying the stores and running the migrations');
-    await docker(ctx, deployArgs, { input: JSON.stringify(infra) });
+    await stackDeploy(ctx, deployArgs, infra);
     await waitForMigration(ctx, migrateName, known, infra.services.migrate);
     ctx.log('migrations done');
   }
@@ -347,11 +347,35 @@ async function deploy(ctx) {
     });
   }
   ctx.log('deploying the stack');
-  await docker(ctx, deployArgs, { input: JSON.stringify(full) });
+  await stackDeploy(ctx, deployArgs, full);
   const startedAt = ctx.now();
 
   const outcomes = await waitForServices(ctx, waited, before, startedAt);
   return report(ctx, outcomes);
+}
+
+// Step 1 doesn't wait for the stores it updates (gotenberg, redis...): one
+// still rolling bumps its service version, and step 2's update of it is
+// refused as "update out of sequence". The stack file is declarative, so
+// deploying it again is safe.
+const STACK_DEPLOY_ATTEMPTS = 5;
+
+async function stackDeploy(ctx, args, stack) {
+  for (let attempt = 1; ; attempt += 1) {
+    const result = await docker(ctx, args, {
+      input: JSON.stringify(stack),
+      allowFailure: attempt < STACK_DEPLOY_ATTEMPTS,
+    });
+    if (result.code === 0) return;
+    const detail = (result.stderr || result.stdout).trim();
+    if (!detail.includes('update out of sequence')) {
+      throw new DeployError(
+        `docker ${args.slice(0, 3).join(' ')} failed (${result.code}): ${detail}`,
+      );
+    }
+    ctx.log(`a service changed while deploying: retrying (${attempt})`);
+    await ctx.sleep(ctx.pollMs);
+  }
 }
 
 function imageOf(service) {

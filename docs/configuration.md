@@ -9,9 +9,9 @@ Every variable is validated at startup (`apps/api/src/env.ts` merges each group'
 value. Every secret can come from a file instead ([Secrets](#secrets)). Read
 them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`).
 
-- First run: `pnpm setup` asks a few questions and writes either file below
-  with the secrets generated ([First setup](#first-setup-pnpm-setup)).
-- Production: `.env` is Docker Compose's file (`pnpm setup --target production`,
+- First run: `pnpm run setup` asks a few questions and writes either file below
+  with the secrets generated ([First setup](#first-setup-pnpm-run-setup)).
+- Production: `.env` is Docker Compose's file (`pnpm run setup --target production`,
   or by hand `cp env.example .env`, then
   fill it: `env.example` marks what is required); the containers get their variables from `compose.prod.yaml`.
 - Development: `apps/api/.env.development` (`cp
@@ -93,9 +93,9 @@ them with `ConfigService<GroupEnv, true>` (`config.get('PORT', { infer: true })`
 | Container logs (Compose) | `DOCKER_LOG_DRIVER` (`local`; `json-file` for a shipper reading Docker's files), `DOCKER_LOG_MAX_SIZE` (20m), `DOCKER_LOG_MAX_FILE` (5): per container |
 | Example feature | `NOTE_PUBLISH_DELAY`, `EXAMPLE_SENDER_WEBHOOK_SECRET` |
 
-## First setup: pnpm setup
+## First setup: pnpm run setup
 
-`pnpm setup` is the wizard for a new project: it asks the few questions that
+`pnpm run setup` is the wizard for a new project: it asks the few questions that
 shape it and writes the env file from the template, so most toggles stay off
 and no secret is made by hand (`tools/setup/`: `setup.mjs` asks and writes,
 `plan.mjs` maps answers to variables, `envfile.mjs` merges them into the
@@ -171,15 +171,15 @@ template's text, keeping its comments, order and unknown keys).
   the two database passwords, `MFA_ENCRYPTION_KEYS`, `DATA_ENCRYPTION_KEYS` and
   `BLIND_INDEX_KEYS`; a `_FILE` or a managed database's URL stands in for
   its variable). `--strict` fails on missing variables too. It writes
-  nothing; `pnpm setup` adds what is missing. Run it before `docker compose
+  nothing; `pnpm run setup` adds what is missing. Run it before `docker compose
   up`. CI runs `pnpm env:check --templates` (no variable set twice in a
   template, the REQUIRED ones named) and the wizard's tests.
 - **Without a terminal:** `--yes` takes the defaults and the flags (one per
-  question, `pnpm setup --help`; a required one missing is an error naming
+  question, `pnpm run setup --help`; a required one missing is an error naming
   it), `--dry-run` prints the plan and writes nothing.
 
 ```bash
-pnpm setup --yes --target production --app-domain api.example.com --acme-email ops@example.com \
+pnpm run setup --yes --target production --app-domain api.example.com --acme-email ops@example.com \
   --cloudflare-api-token <token> --tenancy single --mail smtp --smtp-url <url> --mail-from <from> --no-passkeys
 ```
 

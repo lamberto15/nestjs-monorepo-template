@@ -4,10 +4,10 @@
 // writes its env file from the template, with every secret generated. The
 // deployment shape (TENANCY) is chosen once, here. Idle features stay off.
 //
-//   pnpm setup                                   # asks; development or production
-//   pnpm setup --target production --tenancy single --mail smtp --smtp-url "smtp://…" --yes
-//   pnpm setup --dry-run --yes                   # the plan (secrets masked), nothing written
-//   pnpm setup --rotate                          # new secrets in an existing file
+//   pnpm run setup                                   # asks; development or production
+//   pnpm run setup --target production --tenancy single --mail smtp --smtp-url "smtp://…" --yes
+//   pnpm run setup --dry-run --yes                   # the plan (secrets masked), nothing written
+//   pnpm run setup --rotate                          # new secrets in an existing file
 //   node --test tools/setup/setup.test.mjs       # its tests
 //
 // Development writes apps/api/.env.development (from env.development.example),
@@ -56,7 +56,7 @@ const REPO = path.resolve(
 
 const kebab = (id) => id.replace(/[A-Z]/g, (c) => `-${c.toLowerCase()}`);
 
-const USAGE = `pnpm setup [--target development|production] [options]
+const USAGE = `pnpm run setup [--target development|production] [options]
 
   --yes, -y        take the defaults and the flags below, ask nothing
   --dry-run        print the plan (secrets masked), write nothing
@@ -157,7 +157,7 @@ export async function run(argv, io = {}) {
   }
   if (!values.yes && !isTTY) {
     err(
-      'pnpm setup asks questions and needs a terminal. Run it in one, or pass --yes (the defaults and the flags; --help lists them).',
+      'pnpm run setup asks questions and needs a terminal. Run it in one, or pass --yes (the defaults and the flags; --help lists them).',
     );
     return 1;
   }
@@ -212,7 +212,7 @@ async function wizard(values, io) {
     root = checkout(values.root ?? REPO, files.template);
   } catch (error) {
     throw new Error(
-      `${error.message} Another checkout is set up from its own directory: cd there, then pnpm setup.`,
+      `${error.message} Another checkout is set up from its own directory: cd there, then pnpm run setup.`,
     );
   }
   const templatePath = path.join(root, files.template);

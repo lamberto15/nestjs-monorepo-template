@@ -8,7 +8,7 @@ A production-ready starting point for NestJS 12 REST APIs: everything a
 project would otherwise rebuild is here, so a new project only writes its own
 features. JSON in, JSON out; Swagger UI at `/api` is the API's only page.
 
-You choose the shape once, with the first-run wizard (`pnpm setup`: one
+You choose the shape once, with the first-run wizard (`pnpm run setup`: one
 organization or many, which optional services and security switches are on);
 you add features with a generator (`pnpm feature:add`) that writes everything
 standard, so you write only the business logic; and you deploy without
@@ -23,7 +23,7 @@ room for more frontends in `apps/` ([monorepo](docs/monorepo.md)).
 
 | Area            | What you get                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Docs                                                                                                                                                                                                                                                                                                     |
 | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Setup           | `pnpm setup`: a first-run wizard that asks the deployment shape and the few choices, lets you disable unused modules and writes the env file with generated secrets                                                                                                                                                                                                                                                                                                                                                                                                                     | [configuration](docs/configuration.md)                                                                                                                                                                                                                                                                   |
+| Setup           | `pnpm run setup`: a first-run wizard that asks the deployment shape and the few choices, lets you disable unused modules and writes the env file with generated secrets                                                                                                                                                                                                                                                                                                                                                                                                                     | [configuration](docs/configuration.md)                                                                                                                                                                                                                                                                   |
 | Choices         | Deployment switches, set once: one tenant or many (`TENANCY`), `IDEMPOTENCY` (required or optional), `WEBHOOKS`, `REPORTS`, `USAGE`, `REALTIME`, `AUTH_MFA`, `API_CLIENTS`, `IMPERSONATION` (off by default); auth policies changed at runtime (`auth.requireMfa`, `auth.passwordMinLength`) under the env's ceiling                                                                                                                                                                                                                                                                    | [configuration](docs/configuration.md), [settings](docs/settings.md)                                                                                                                                                                                                                                     |
 | Features        | A generator (`pnpm feature:add`, the `/add-feature` skill for Claude Code) writes a feature from one declaration, `<item>.record.ts`: fields, recycle bin, organizational units, and capabilities (tags, comments, attachments, revisions, PDF, bulk, watch, search, export, custom fields, webhooks for its changes, gapless numbers), approvals and settings, plus API-key access, grants and idempotency; `pnpm feature:sync` applies a changed declaration later                                                                                                                    | [adding a feature](docs/adding-a-feature.md)                                                                                                                                                                                                                                                             |
 | Tenants         | Many organizations in one deployment behind PostgreSQL row-level security (or one, with `TENANCY=single`), the tenant of every request, job, workflow and cron run, operators, independent tenants with strict isolation, break-glass (an operator reading a tenant read only), platform analytics on anonymized aggregates                                                                                                                                                                                                                                                             | [tenancy](docs/tenancy.md)                                                                                                                                                                                                                                                                               |
@@ -53,7 +53,7 @@ generator (`pnpm feature:add`), never from a copy.
 
 ```bash
 pnpm install
-pnpm setup                # first run: a few questions, writes apps/api/.env.development (or the root .env: --target production)
+pnpm run setup                # first run: a few questions, writes apps/api/.env.development (or the root .env: --target production)
 pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES), Gotenberg (PDF)
 pnpm dev                  # the API (http://localhost:3000/api) and the web app (http://localhost:5173)
 pnpm db:seed:demo         # optional, from a second terminal: demo users and organizational units, and each feature's demo data (passwords printed once)
@@ -62,12 +62,12 @@ pnpm db:seed:demo         # optional, from a second terminal: demo users and org
 Open http://localhost:5173 and sign in as the administrator (below) or a
 demo member the seed printed ([monorepo](docs/monorepo.md#running-it)).
 
-`pnpm setup` asks what shapes a project (one organization or many, mail,
+`pnpm run setup` asks what shapes a project (one organization or many, mail,
 storage, sign-up, bot protection, the deployment switches), keeps the
 rest off, and generates the secrets; without it, copy `apps/api/env.development.example` to
 `apps/api/.env.development` by hand ([configuration](docs/configuration.md),
 "First setup"). The first start creates the administrator (`ADMIN_EMAIL`; the password is
-logged once unless `ADMIN_PASSWORD` is set, which `pnpm setup` does). More in
+logged once unless `ADMIN_PASSWORD` is set, which `pnpm run setup` does). More in
 [development](docs/development.md).
 
 ## Start a new project
@@ -83,7 +83,7 @@ pnpm db:generate && pnpm client:generate
 pnpm build                  # the web's build regenerates its route tree
 ```
 
-Then run `pnpm setup` and rename it (the root `package.json` `name`, the `@nestjs-monorepo-template/`
+Then run `pnpm run setup` and rename it (the root `package.json` `name`, the `@nestjs-monorepo-template/`
 scope, `API_TITLE`, `API_KEY_PREFIX`) and write only the business logic, where
 the generated service says so. With Claude Code, `/add-feature` asks what the
 feature needs and runs the generator. GitHub's "Use this template" works too,
@@ -93,7 +93,7 @@ More in [adding a feature](docs/adding-a-feature.md).
 ## Deploy
 
 ```bash
-pnpm setup --target production           # asks, writes .env (chmod 600) with every secret generated
+pnpm run setup --target production           # asks, writes .env (chmod 600) with every secret generated
 docker compose up -d --build             # the first start; later deploys: one of the three below
 ```
 
@@ -129,7 +129,7 @@ git fetch template --tags && git merge v1.3.0
 Getting started
 
 - [Development](docs/development.md): setup, commands, tests, the demo seed, the typed client, the database, the git workflow
-- [Configuration](docs/configuration.md): `pnpm setup` and every variable
+- [Configuration](docs/configuration.md): `pnpm run setup` and every variable
 - [Architecture](docs/architecture.md): the repository, the groups, the processes, how features plug in
 - [Monorepo](docs/monorepo.md): the root scripts, Turborepo, the web app (running it, its pages, its tests), adding a frontend app
 

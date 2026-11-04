@@ -1494,7 +1494,7 @@ chosen one afterwards. `ADMIN_ONBOARDING=off` keeps it from being flagged.
   the two-factor enrolment (`auth.requireMfa`) carry both decorators, so
   the two guards never lock each other out.
 - API clients and impersonations are never restricted.
-- `pnpm setup` warns when a production `ADMIN_EMAIL` is a placeholder.
+- `pnpm run setup` warns when a production `ADMIN_EMAIL` is a placeholder.
 
 ## Policies
 

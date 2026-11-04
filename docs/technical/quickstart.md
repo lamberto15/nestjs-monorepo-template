@@ -12,7 +12,7 @@ Run these commands from the repository root:
 
 ```bash
 pnpm install
-pnpm setup
+pnpm run setup
 pnpm services:up
 pnpm dev
 ```

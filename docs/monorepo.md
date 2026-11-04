@@ -26,7 +26,7 @@ its work to the packages:
 | `pnpm client:generate`, `pnpm client:check`                                                                                        | the API's dump, then the client's generator                                                                                                     |
 | `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes`                                                                      | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md))                                            |
 | `pnpm services:up` / `services:down`, `pnpm format`, `pnpm format:check` | at the root                                                                                                                                     |
-| `pnpm setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys)                                               |
+| `pnpm run setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys)                                               |
 
 - **One package:** `pnpm --filter <name> <script>`, e.g. `pnpm --filter
 @nestjs-monorepo-template/api test src/core/http/route-key.spec.ts`.
@@ -107,7 +107,7 @@ web app needs the API, so `dev:web` alone suits an API already running.
   `Cross-Origin-Resource-Policy`. Swagger UI stays at http://localhost:3000/api.
 - **Signing in:** the administrator the API's first start creates
   (`ADMIN_EMAIL`, `admin@example.com` unless set; the password is
-  `ADMIN_PASSWORD` in `apps/api/.env.development` when `pnpm setup` wrote it,
+  `ADMIN_PASSWORD` in `apps/api/.env.development` when `pnpm run setup` wrote it,
   otherwise logged once in the API's output). That account is in the
   operators' tenant, which holds no demo data. In production the first
   sign-in is the onboarding step (docs/auth.md); locally

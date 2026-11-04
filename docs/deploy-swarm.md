@@ -93,7 +93,7 @@ Compose stack is running (see the warning under [One node](#one-node)).
 ## Configuration (`DEPLOY_ENV_FILE`)
 
 The environment secret `DEPLOY_ENV_FILE` is the `.env` that
-`pnpm setup --target production` produces ([configuration.md](configuration.md)).
+`pnpm run setup --target production` produces ([configuration.md](configuration.md)).
 Keep `NODE_ENV=production` on both environments; on staging set
 `APP_ENV=staging`. The image variables are not in the file: the workflow pins
 them by digest. To change a setting, edit the secret and run Deploy again.

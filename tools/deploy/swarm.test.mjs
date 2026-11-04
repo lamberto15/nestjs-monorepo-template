@@ -185,6 +185,7 @@ function fakeDocker({
   update = 'completed',
   swarm = true,
   labelled = true,
+  outOfSequence = 0,
 } = {}) {
   const calls = [];
   let deployed = 0;
@@ -220,6 +221,12 @@ function fakeDocker({
     if (line.startsWith('docker node inspect'))
       return ok(JSON.stringify(labelled ? { stateful: 'true' } : {}));
     if (line.startsWith('docker stack deploy')) {
+      if (deployed === 1 && outOfSequence > 0) {
+        outOfSequence -= 1;
+        return fail(
+          'failed to update service swtest_gotenberg: Error response from daemon: rpc error: code = Unknown desc = update out of sequence',
+        );
+      }
       deployed += 1;
       return ok();
     }
@@ -336,6 +343,18 @@ test('deploy: the same SWARM_DEPLOY_ID in both renders (the job reruns once per 
   assert.equal(seen.length, 2);
   assert.equal(seen[0], seen[1]);
   assert.ok(seen[0]);
+});
+
+test('deploy: retries the app deploy when a store is still updating (update out of sequence)', async () => {
+  const docker = fakeDocker({ outOfSequence: 2 });
+  const { deps, lines } = baseDeps(docker);
+  assert.equal(await main(['deploy', '--stack', 'swtest'], deps), 0);
+  assert.equal(
+    docker.calls.filter((call) => call.line.startsWith('docker stack deploy'))
+      .length,
+    4,
+  );
+  assert.ok(lines.includes('api: ok (updated)'));
 });
 
 test('deploy: a rolled back update exits 1 and says so', async () => {
