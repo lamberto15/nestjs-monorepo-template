@@ -44,7 +44,7 @@ export interface SortBy {
   name: string;
   /** Where the rows hold the sort value (the cursor reads it there): the name, or `sortValueKey` when the field sorts by another expression. */
   key: string;
-  /** What is ordered by: the column, a datetime to the millisecond (see sortExpression). */
+  /** What is ordered by: the column, or a datetime expression to the millisecond (see sortExpression). */
   expression: ListColumn;
   /** The values in the cursor: datetimes as ISO strings, the rest as JSON. */
   type: FilterField['type'];
@@ -54,14 +54,16 @@ export interface SortBy {
 }
 
 /**
- * A datetime sorts by the millisecond: Postgres keeps microseconds, a
- * JavaScript Date (and so the cursor) milliseconds. Ordering by the
- * truncated value makes the cursor's value exact; ties go to the id. An
- * index for this sort is on the same expression.
+ * A datetime column sorts as it is: `at()` stores milliseconds, as a
+ * JavaScript Date (and so the cursor) holds them, so the cursor's value is
+ * exact and the keyset seeks the column's index (an expression would be a
+ * filter under row-level security, rescanning every earlier row per page).
+ * A datetime SQL expression may carry microseconds: it sorts truncated to
+ * the millisecond. Ties go to the id.
  */
 const sortExpression = (field: FilterField): ListColumn => {
   const column = field.sort ?? field.column;
-  if (field.type !== 'datetime') {
+  if (field.type !== 'datetime' || is(column, Column)) {
     return column;
   }
   return typeof column === 'function'
@@ -258,19 +260,21 @@ export function afterKeyset(
   const columns = sort.map(
     (item) => columnOf(item.expression, query) as AnyColumn, // a column or SQL: both work
   );
+  // A datetime comes as an ISO string, which a Date column's own mapping
+  // would refuse: it goes in as a timestamptz.
+  const values = sort.map((item, index) =>
+    item.type === 'datetime' && after[index] !== null
+      ? sql`${after[index]}::timestamptz`
+      : after[index],
+  );
   if (sort.every((item, index) => item.desc && after[index] !== null)) {
     // KEEP: Drizzle has no row-comparison helper.
-    const values = sort.map((item, index) =>
-      item.type === 'datetime'
-        ? sql`${after[index]}::timestamptz`
-        : sql`${after[index]}`,
-    );
-    return sql`(${sql.join([...columns, id], sql`, `)}) < (${sql.join([...values, sql`${lastId}`], sql`, `)})`;
+    return sql`(${sql.join([...columns, id], sql`, `)}) < (${sql.join([...values.map((value) => sql`${value}`), sql`${lastId}`], sql`, `)})`;
   }
   const terms: (SQL | undefined)[] = [];
   const equal: (SQL | undefined)[] = [];
   sort.forEach((item, index) => {
-    const value = after[index];
+    const value = values[index];
     const column = columns[index];
     const past =
       value === null
@@ -288,7 +292,7 @@ export function afterKeyset(
   terms.push(and(...equal, lt(id, lastId)));
   const exact = or(...terms);
   const [first] = sort;
-  const value = after[0];
+  const value = values[0];
   let bound: SQL | undefined;
   if (first && value !== null) {
     if (first.desc) {

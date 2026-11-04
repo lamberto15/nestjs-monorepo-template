@@ -1,42 +1,22 @@
-import type { SQL } from 'drizzle-orm';
-import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
-import { sortSchema } from '../../core/http/list-sort.js';
+import { getTableConfig } from 'drizzle-orm/pg-core';
 import { notes } from './notes.tables.js';
 
-// The feature's own index, beside it: `pnpm feature:remove notes` takes this
-// spec with the table (core's list-sort.spec.ts checks the audit log's).
-const dialect = new PgDialect();
+// The feature's own indexes, beside it: `pnpm feature:remove notes` takes
+// this spec with the table (core's list-sort.spec.ts checks the audit log's).
+const indexColumns = (name: string) =>
+  (
+    getTableConfig(notes).indexes.find((item) => item.config.name === name)
+      ?.config.columns as unknown as { name: string }[] | undefined
+  )?.map((column) => column.name);
 
 describe('the notes table', () => {
-  it('indexes the timestamp expression the list sorts by', () => {
-    const [sort] = sortSchema({
-      updatedAt: { column: notes.updatedAt, type: 'datetime', sortable: true },
-    }).parse('-updatedAt');
-    const runtime = dialect.sqlToQuery(sort!.expression as SQL).sql;
-    const index = getTableConfig(notes).indexes.find(
-      (item) => item.config.name === 'notes_tenant_updated_ms_idx',
-    );
-    expect(index).toBeDefined();
-    expect(dialect.sqlToQuery(index!.config.columns[1] as SQL).sql).toContain(
-      runtime,
-    );
-  });
-
-  it('indexes the published timestamp expression the list sorts by', () => {
-    const [sort] = sortSchema({
-      publishedAt: {
-        column: notes.publishedAt,
-        type: 'datetime',
-        sortable: true,
-      },
-    }).parse('-publishedAt');
-    const runtime = dialect.sqlToQuery(sort!.expression as SQL).sql;
-    const index = getTableConfig(notes).indexes.find(
-      (item) => item.config.name === 'notes_tenant_published_ms_idx',
-    );
-    expect(index).toBeDefined();
-    expect(dialect.sqlToQuery(index!.config.columns[1] as SQL).sql).toContain(
-      runtime,
-    );
+  // The list sorts a datetime by the plain column (list-sort.ts), so a
+  // keyset page seeks these instead of rescanning the rows before it.
+  it.each([
+    ['notes_tenant_created_at_idx', 'created_at'],
+    ['notes_tenant_updated_at_idx', 'updated_at'],
+    ['notes_tenant_published_at_id_idx', 'published_at'],
+  ])('indexes the timestamp column the list sorts by (%s)', (name, column) => {
+    expect(indexColumns(name)).toEqual(['tenant_id', column, 'id']);
   });
 });

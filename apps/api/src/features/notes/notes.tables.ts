@@ -8,7 +8,6 @@ import {
   uuid,
 } from 'drizzle-orm/pg-core';
 import { searchVector } from '../../core/database/search.js';
-import { utcMilliseconds } from '../../core/database/utc-milliseconds.js';
 import {
   at,
   softDeletable,
@@ -60,7 +59,8 @@ export const notes = pgTable(
   (table) => [
     // Uniques are per tenant: each numbers its own notes.
     uniqueIndex('notes_number_idx').on(table.tenantId, table.number),
-    // The dashboard's week range and the notes list's default ordering.
+    // The dashboard's week range, and ?sort=-createdAt (the default) and
+    // -updatedAt: a keyset page seeks them.
     index('notes_tenant_created_at_idx')
       .on(
         table.tenantId,
@@ -72,21 +72,6 @@ export const notes = pgTable(
       .on(
         table.tenantId,
         table.updatedAt.desc().nullsFirst(),
-        table.id.desc().nullsFirst(),
-      )
-      .where(sql`deleted_at is null`),
-    // The API's list sort truncates timestamps to JavaScript's millisecond precision.
-    index('notes_tenant_created_ms_idx')
-      .on(
-        table.tenantId,
-        sql`${utcMilliseconds(table.createdAt)} desc nulls first`,
-        table.id.desc().nullsFirst(),
-      )
-      .where(sql`deleted_at is null`),
-    index('notes_tenant_updated_ms_idx')
-      .on(
-        table.tenantId,
-        sql`${utcMilliseconds(table.updatedAt)} desc nulls first`,
         table.id.desc().nullsFirst(),
       )
       .where(sql`deleted_at is null`),
@@ -113,12 +98,12 @@ export const notes = pgTable(
     index('notes_tenant_title_id_idx')
       .on(table.tenantId, table.title.asc().nullsLast(), table.id.desc())
       .where(sql`deleted_at is null`),
-    // ?sort=-publishedAt: the list sorts by the UTC millisecond expression.
-    index('notes_tenant_published_ms_idx')
+    // ?sort=-publishedAt.
+    index('notes_tenant_published_at_id_idx')
       .on(
         table.tenantId,
-        sql`${utcMilliseconds(table.publishedAt)} desc nulls first`,
-        table.id.desc(),
+        table.publishedAt.desc().nullsFirst(),
+        table.id.desc().nullsFirst(),
       )
       .where(sql`deleted_at is null`),
     // The purge job finds old deleted rows by it: live rows (NULL) left out.

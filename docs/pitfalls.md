@@ -8,6 +8,13 @@
   every service joins it. Never call `db.transaction()` on an injected
   database in a service; only stores that must stay outside transactions
   (locks, sessions, idempotency) inject it with `@InjectDrizzle()`.
+- **A deep export slowed to a crawl**: date-sorted lists ordered and
+  paged by `date_trunc('milliseconds', column)` (columns held microseconds,
+  a JavaScript cursor milliseconds). Under row-level security that function
+  can't bound an index scan, so each 1,000-row page rescanned every earlier
+  row: 10k rows/s at the start, 1k/s at 600k. Moments are now stored to the
+  millisecond (`at()`), and lists sort and index the plain column
+  (docs/adding-a-feature.md, "Sort index").
 - **Raw SQL crept in** (#779): whole statements through
   `db.execute(sql`…`)` with literal table and column names (`update notes
 set …`, `organizational_unit_closure`, `deleted_at is null`), which no type check sees and

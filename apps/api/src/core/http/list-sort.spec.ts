@@ -1,4 +1,4 @@
-import { sql, type SQL } from 'drizzle-orm';
+import { sql } from 'drizzle-orm';
 import { getTableConfig, PgDialect } from 'drizzle-orm/pg-core';
 import {
   afterKeyset,
@@ -11,41 +11,26 @@ import { auditLog, users } from '../../iam/iam.tables.js';
 
 const dialect = new PgDialect();
 
-const indexExpression = (
-  table: Parameters<typeof getTableConfig>[0],
-  name: string,
-) => {
-  const expression = getTableConfig(table).indexes.find(
-    (item) => item.config.name === name,
-  )?.config.columns[1];
-  if (!expression) throw new Error(`Missing index expression: ${name}`);
-  return dialect.sqlToQuery(expression as SQL).sql;
-};
-
 describe('datetime list sorting', () => {
-  it('uses an explicit UTC millisecond expression and keeps the declared null ordering', () => {
+  it('sorts a datetime column as it is, keeping the declared null ordering', () => {
     const sort = sortSchema({
       at: { column: auditLog.at, type: 'datetime', sortable: true },
     }).parse('at');
     const query = dialect.sqlToQuery(sortOrder(sort)[0]!);
-    expect(query.sql).toContain("at time zone 'UTC'");
-    expect(query.sql).toContain('asc nulls last');
+    expect(query.sql).toBe('"audit_log"."at" asc nulls last');
   });
 
-  it('uses the same timestamp expressions in list ordering and supporting indexes', () => {
-    const auditSort = sortSchema({
-      at: { column: auditLog.at, type: 'datetime', sortable: true },
-    }).parse('-at');
-    const auditRuntime = dialect.sqlToQuery(
-      auditSort[0]!.expression as SQL,
-    ).sql;
-
-    expect(
-      indexExpression(auditLog, 'audit_log_tenant_at_ms_id_idx'),
-    ).toContain(auditRuntime);
+  it('truncates a datetime SQL expression to the millisecond', () => {
+    const sort = sortSchema({
+      at: { column: sql`now()`, type: 'datetime', sortable: true },
+    }).parse('at');
+    const query = dialect.sqlToQuery(sortOrder(sort)[0]!);
+    expect(query.sql).toContain("date_trunc('milliseconds'");
   });
 
-  it('keeps tied timestamps together in the keyset predicate before the id tie breaker', () => {
+  // An expression would be a filter under row-level security, not an index
+  // bound: every page would rescan the rows before it.
+  it('compares the plain columns in the keyset predicate, so an index can seek it', () => {
     const sort: SortBy[] = sortSchema({
       at: { column: auditLog.at, type: 'datetime', sortable: true },
     }).parse('-at');
@@ -57,16 +42,26 @@ describe('datetime list sorting', () => {
         '0199a000-0000-7000-8000-00000000000a',
       )!,
     );
-    expect(query.sql).toContain('date_trunc');
-    expect(query.sql).toContain('"audit_log"."id") < (');
+    expect(query.sql).toContain('("audit_log"."at", "audit_log"."id") < (');
+    expect(query.sql).not.toContain('date_trunc');
   });
 
-  it('uses the id tie breaker in the supporting index in the list order (desc nulls first)', () => {
-    const column = getTableConfig(auditLog).indexes.find(
-      (item) => item.config.name === 'audit_log_tenant_at_ms_id_idx',
-    )?.config.columns[2] as { indexConfig: { order: string; nulls: string } };
-    expect(column.indexConfig.order).toBe('desc');
-    expect(column.indexConfig.nulls).toBe('first');
+  it('has a supporting index in the list order (desc nulls first, then the id)', () => {
+    const columns = getTableConfig(auditLog).indexes.find(
+      (item) => item.config.name === 'audit_log_tenant_at_id_idx',
+    )?.config.columns as unknown as {
+      name: string;
+      indexConfig: { order: string; nulls: string };
+    }[];
+    expect(columns.map((column) => column.name)).toEqual([
+      'tenant_id',
+      'at',
+      'id',
+    ]);
+    for (const column of columns.slice(1)) {
+      expect(column.indexConfig.order).toBe('desc');
+      expect(column.indexConfig.nulls).toBe('first');
+    }
   });
 
   it('continues after nulls according to descending nulls-first order', () => {

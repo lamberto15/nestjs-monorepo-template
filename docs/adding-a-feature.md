@@ -408,17 +408,20 @@ the controller (`notes.*`); singular for what describes one record
    - Every entity table: `id: uuidPk()` and `...timestamps()`. Link and log
      tables (rows added and removed, never edited) don't need `updated_at`.
    - Snake_case column names, camelCase properties; moments are `at()`
-     (timestamptz, UTC), never `timestamp()` without a zone.
+     (timestamptz to the millisecond, UTC), never `timestamp()` directly.
    - An index for every foreign key and for what lists filter or sort by.
      Indexes lead with `tenant_id` (the service adds `inTenant`). A datetime
-     sort index is on `utcMilliseconds(column)` with `id desc nulls first` (as
-     `notes_tenant_created_ms_idx`). List indexes are partial on
+     sort index is on the plain column with `id desc nulls first` (as
+     `notes_tenant_created_at_idx`). List indexes are partial on
      `deleted_at is null`; an index backing a foreign key is not, and
      `deleted_at`'s own index is partial on `deleted_at is not null`.
    - Sort index: it repeats the list's ORDER BY exactly, `id desc nulls first`
-     included. A datetime sort:
-     ``index('<t>_tenant_<col>_ms_idx').on(t.tenantId, sql`${utcMilliseconds(t.<col>)} desc nulls first`, t.id.desc().nullsFirst())``;
-     another column: `.on(t.tenantId, t.<col>.desc().nullsFirst(), t.id.desc().nullsFirst())`.
+     included, for a datetime as for any column:
+     `.on(t.tenantId, t.<col>.desc().nullsFirst(), t.id.desc().nullsFirst())`.
+     A datetime column holds milliseconds (`at()`), as the cursor does, so a
+     keyset page seeks the index; never sort or index a datetime through a
+     function (under row-level security it can't bound an index scan, and
+     each page rescans the rows before it).
      One index serves `-<col>` (forward) and `<col>` (backward scan plus a
      short sort on ties); a partial `.where(...)` must match what the list
      always filters (e.g. `deleted_at is null`).
