@@ -419,7 +419,9 @@ jobs:
           jq -e '
             def gib: . / 1073741824;
             [.services[] | select(.deploy.mode != "replicated-job")] as $app
-            | ([$app[] | (.deploy.replicas // 1) * (.deploy.resources.limits.memory | tonumber)] | add | gib) as $steady
+            # PostgreSQL counts by its reservation: the rest of its cap is the
+            # kernel file cache (compose.small.yaml), which is reclaimed under pressure.
+            | ([.services | to_entries[] | select(.value.deploy.mode != "replicated-job") | (.value.deploy.replicas // 1) * (if .key == "postgres" then .value.deploy.resources.reservations.memory else .value.deploy.resources.limits.memory end | tonumber)] | add | gib) as $steady
             # A deploy runs the new task of each start-first service next to the
             # old one: its limit and its reservations count twice. Swarm does
             # not place a task whose reservations do not fit (the v0.1.1 api
