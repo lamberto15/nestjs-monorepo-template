@@ -36,7 +36,9 @@ each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
   staging means the newest `main` build; required for production).
 - A first job, with no environment and no secret but the workflow's token,
   picks the CI run and verifies it; production's reviewer is asked only for a
-  run that passed.
+  run that passed. Production also needs a staging Deploy run after CI whose
+  deploy job passed on the release's commit or a newer one: when staging
+  failed, fix it (or re-run that staging run) before deploying production.
 - The deploy job joins the tailnet with `tailscale/github-action` (OIDC, the
   environment's own tag `TS_TAG`, so a staging run can't reach the production
   host), writes the environment secret `DEPLOY_ENV_FILE` to a

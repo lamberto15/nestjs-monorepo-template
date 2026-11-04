@@ -84,8 +84,9 @@ pull request open, `chore(main): release x.y.z`, with the next version in
 
 Production is deployed by hand (Actions, Deploy, `production`, the tag) and
 the environment's required reviewer approves the run. The workflow refuses a
-tag whose GitHub release is a draft (not promoted yet) or a pre-release, and
-deploys the digests its `release-manifest.json` names, checked again. A
+tag whose GitHub release is a draft (not promoted yet) or a pre-release, or
+whose commit staging hasn't deployed successfully (that commit or a newer
+one), and deploys the digests its `release-manifest.json` names, checked again. A
 release whose CI artifact has expired (90 days) can no longer be deployed:
 take a newer one.
 
