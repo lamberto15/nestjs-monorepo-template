@@ -97,6 +97,12 @@ export const notes = pgTable(
     // notes_unit_fk's ON DELETE RESTRICT lookup: not partial, the key also
     // reaches deleted notes.
     index('notes_tenant_unit_id_idx').on(table.tenantId, table.unitId),
+    // The list's order without a sort (id desc nulls first, as pageOrder
+    // spells it): an export's keyset walk reads the tenant's rows only,
+    // not every tenant's from the primary key.
+    index('notes_tenant_id_idx')
+      .on(table.tenantId, table.id.desc().nullsFirst())
+      .where(sql`deleted_at is null`),
     // ?status= with the default order, and ?sort=status.
     index('notes_tenant_status_id_idx')
       .on(table.tenantId, table.status, table.id.desc())
