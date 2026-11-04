@@ -236,12 +236,12 @@ describe('pnpm env:check', () => {
     const bare = root();
     const none = check(['--root', bare]);
     assert.equal(none.code, 1);
-    assert.match(none.err, /No env file to check.*pnpm setup writes one/);
+    assert.match(none.err, /No env file to check.*pnpm run setup writes one/);
     const asked = check(['--root', bare, '--target', 'production']);
     assert.equal(asked.code, 1);
     assert.match(
       asked.err,
-      /does not exist \(pnpm setup --target production writes it\)/,
+      /does not exist \(pnpm run setup --target production writes it\)/,
     );
   });
 

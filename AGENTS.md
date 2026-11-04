@@ -95,7 +95,7 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
   (docs/releases.md, docs/deploy-swarm.md).
 - **Newest versions, pinned** (never `:latest`); Dependabot proposes updates.
 - `.env*` files must not be written directly by agents: the owner copies the template
-  (`pnpm setup` writes them, or `cp env.example .env` at the root and fills it, or `cp
+  (`pnpm run setup` writes them, or `cp env.example .env` at the root and fills it, or `cp
 apps/api/env.development.example apps/api/.env.development`). Keep
   `env.example` complete when adding variables.
 

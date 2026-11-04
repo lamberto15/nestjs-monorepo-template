@@ -12,7 +12,7 @@ Run these commands from the repository root:
 
 ```bash
 pnpm install
-pnpm setup
+pnpm run setup
 pnpm services:up
 pnpm dev
 ```
@@ -78,13 +78,13 @@ Read the [source audit](implementation-audit.md) for a code-grounded snapshot of
 
 ## Common problems
 
-| Symptom | First check |
+| Symptom                                          | First check                                                                                           |
 | ------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
-| Cannot connect to PostgreSQL or Redis | `pnpm services:up`, Docker status, and [development's environment-file separation](../development.md) |
-| Swagger loads but no authenticated requests work | Administrator onboarding, credentials, session/tenant selection, [auth](../auth.md) |
-| Generated API client does not match routes | `pnpm client:generate` and [API conventions](../api-conventions.md) |
-| Migration mismatches | [Database and migration rules](../development.md), [pitfalls](../pitfalls.md) |
-| Worker-dependent job never completes | API/worker roles, Redis and queues in [background work](../background-work.md) |
-| A capability returns "unavailable" | Setup switches, providers and [configuration](../configuration.md) |
+| Cannot connect to PostgreSQL or Redis            | `pnpm services:up`, Docker status, and [development's environment-file separation](../development.md) |
+| Swagger loads but no authenticated requests work | Administrator onboarding, credentials, session/tenant selection, [auth](../auth.md)                   |
+| Generated API client does not match routes       | `pnpm client:generate` and [API conventions](../api-conventions.md)                                   |
+| Migration mismatches                             | [Database and migration rules](../development.md), [pitfalls](../pitfalls.md)                         |
+| Worker-dependent job never completes             | API/worker roles, Redis and queues in [background work](../background-work.md)                        |
+| A capability returns "unavailable"               | Setup switches, providers and [configuration](../configuration.md)                                    |
 
 For production, **do not simply deploy this development setup**. Follow the [operations checklist](release-and-operations-checklist.md) and [deployment guide](../deployment.md).

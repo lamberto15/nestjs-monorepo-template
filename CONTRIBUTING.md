@@ -24,7 +24,7 @@ See the [AGENTS.md guide](https://agents.md/) and
 
 ```bash
 pnpm install        # also installs the git hooks (lefthook)
-pnpm setup          # first run: writes apps/api/.env.development
+pnpm run setup          # first run: writes apps/api/.env.development
 pnpm services:up    # PostgreSQL, Redis, Mailpit and the rest, in Docker
 pnpm dev            # the API on :3000 and the web app on :5173
 ```

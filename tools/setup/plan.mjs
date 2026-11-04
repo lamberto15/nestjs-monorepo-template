@@ -1,4 +1,4 @@
-// What `pnpm setup` writes, from the answers: the questions (in the order they
+// What `pnpm run setup` writes, from the answers: the questions (in the order they
 // are asked), the env variables each answer sets, the secrets to generate,
 // the masked diff and the warnings. Pure (no I/O, no prompts); the secrets'
 // randomness is injected. tools/setup/setup.mjs asks and writes.

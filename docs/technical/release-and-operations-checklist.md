@@ -5,7 +5,7 @@
 ## Before first production deployment
 
 - [ ] **Legal and scope:** verify the [license](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/LICENSE), ownership of the derived application, feature scope, data classification and support arrangements.
-- [ ] **Environment:** create production settings using [`pnpm setup --target production`](../configuration.md); review every secret/provider and the chosen feature switches; keep secrets outside source control.
+- [ ] **Environment:** create production settings using [`pnpm run setup --target production`](../configuration.md); review every secret/provider and the chosen feature switches; keep secrets outside source control.
 - [ ] **Infrastructure:** choose the supported deployment path in [deployment](../deployment.md) and provision PostgreSQL, Redis, API, workers, storage, reverse proxy/TLS and configured optional dependencies.
 - [ ] **Identity and permissions:** review admin onboarding, MFA/SSO, recovery, tenant isolation, account provisioning, API clients and feature access rules. See [auth](../auth.md), [permissions](../permissions.md) and [tenancy](../tenancy.md).
 - [ ] **Data protection:** establish retention, encryption keys and key rotation, backups, any required privacy controls and legal holds. See [encryption](../encryption.md), [retention](../retention.md).

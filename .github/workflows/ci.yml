@@ -933,7 +933,7 @@ jobs:
           pnpm env:check --templates
       - name: The generator's tests
         run: node --test 'tools/feature/*.test.mjs'
-      - name: The setup wizard's tests (tools/setup, `pnpm setup`)
+      - name: The setup wizard's tests (tools/setup, `pnpm run setup`)
         run: node --test 'tools/setup/*.test.mjs'
       - name: The deploy scripts' tests (tools/deploy, `pnpm deploy:*`)
         run: node --test 'tools/deploy/*.test.mjs'

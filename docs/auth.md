@@ -6,26 +6,26 @@ store contract (`apps/api/test/stores.e2e-spec.ts`).
 
 ## Users
 
-| Need | Route |
-| --- | --- |
-| Sign in / out | `POST /v1/auth/sign-in`, `POST /v1/auth/sign-out` |
-| Who am I, what may I do | `GET /v1/auth/me` (`can`: every `Subject.action`) |
-| Name, language, time zone | `PATCH /v1/auth/me` |
-| Sign-up (when `AUTH_SIGN_UP=on`) | `POST /v1/auth/sign-up` |
-| Sign-in options for the page | `GET /v1/auth/methods` |
-| Which switches are on (a signed-in client) | `GET /v1/features`: [configuration](configuration.md#which-switches-are-on-get-v1features) |
-| Forgot / reset password | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset` |
-| Change password | `POST /v1/auth/password/change` (others signed out; [step-up](#step-up-recent-authentication)) |
-| Verify email | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` (signed in), `POST /v1/auth/email/verification/resend { email }` (no session) |
-| Sessions and apps (each with how it was signed in, and its device: "Chrome on macOS", "NestJSMobile on iOS") | `GET /v1/auth/sessions` (browsers, `kind: browser`, then token clients still signed in, `kind: app`, `id` their family's `sid`), `DELETE /v1/auth/sessions/{id}` (either), `POST /v1/auth/sign-out-everywhere` |
-| Re-authenticate for a sensitive action | `GET /v1/auth/reauthenticate` (how, until when), `POST /v1/auth/reauthenticate`: see [Step-up](#step-up-recent-authentication) |
-| Two-factor (TOTP) | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa` |
-| Magic link | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify` |
-| Passkeys | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
-| Google, Microsoft, GitHub | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}` |
-| Mobile apps | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh` (`tenantId`: move to another of your tenants), `/token/revoke`; a provider, SSO or a magic link: `POST /v1/auth/token/exchange` ([Native and mobile apps](#native-and-mobile-apps)) |
-| A tenant's own identity provider (SAML, OpenID Connect) | `POST /v1/auth/sso/discover { email }` → `loginUrl`, `GET /v1/auth/sso/{tenantId}/{connectionId}/login`; set up with `/v1/sso/…`, SCIM at `/v1/scim`: see [Enterprise SSO](#enterprise-sso) |
-| Your tenants, and acting in another | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md) |
+| Need                                                                                                         | Route                                                                                                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign in / out                                                                                                | `POST /v1/auth/sign-in`, `POST /v1/auth/sign-out`                                                                                                                                                                                                                      |
+| Who am I, what may I do                                                                                      | `GET /v1/auth/me` (`can`: every `Subject.action`)                                                                                                                                                                                                                      |
+| Name, language, time zone                                                                                    | `PATCH /v1/auth/me`                                                                                                                                                                                                                                                    |
+| Sign-up (when `AUTH_SIGN_UP=on`)                                                                             | `POST /v1/auth/sign-up`                                                                                                                                                                                                                                                |
+| Sign-in options for the page                                                                                 | `GET /v1/auth/methods`                                                                                                                                                                                                                                                 |
+| Which switches are on (a signed-in client)                                                                   | `GET /v1/features`: [configuration](configuration.md#which-switches-are-on-get-v1features)                                                                                                                                                                             |
+| Forgot / reset password                                                                                      | `POST /v1/auth/password/forgot`, `POST /v1/auth/password/reset`                                                                                                                                                                                                        |
+| Change password                                                                                              | `POST /v1/auth/password/change` (others signed out; [step-up](#step-up-recent-authentication))                                                                                                                                                                         |
+| Verify email                                                                                                 | `POST /v1/auth/email/verify`, resend: `POST /v1/auth/email/verification` (signed in), `POST /v1/auth/email/verification/resend { email }` (no session)                                                                                                                 |
+| Sessions and apps (each with how it was signed in, and its device: "Chrome on macOS", "NestJSMobile on iOS") | `GET /v1/auth/sessions` (browsers, `kind: browser`, then token clients still signed in, `kind: app`, `id` their family's `sid`), `DELETE /v1/auth/sessions/{id}` (either), `POST /v1/auth/sign-out-everywhere`                                                         |
+| Re-authenticate for a sensitive action                                                                       | `GET /v1/auth/reauthenticate` (how, until when), `POST /v1/auth/reauthenticate`: see [Step-up](#step-up-recent-authentication)                                                                                                                                         |
+| Two-factor (TOTP)                                                                                            | `GET /v1/auth/mfa` (status), `POST /v1/auth/mfa/enroll`, `/confirm` (recovery codes), `/verify` (sign-in), `/recovery-codes`, `DELETE /v1/auth/mfa`                                                                                                                    |
+| Magic link                                                                                                   | `POST /v1/auth/magic-link`, `POST /v1/auth/magic-link/verify`                                                                                                                                                                                                          |
+| Passkeys                                                                                                     | `GET /v1/auth/passkeys`, `POST /v1/auth/passkeys/registration/options` → `POST /v1/auth/passkeys`, `PATCH`/`DELETE /v1/auth/passkeys/{id}`; sign in: `POST /v1/auth/passkeys/sign-in/options` → `/sign-in` (a browser) or `/token` (an app); see [Passkeys](#passkeys) |
+| Google, Microsoft, GitHub                                                                                    | `GET /v1/auth/oidc/{provider}/login` → `/callback`; linked: `GET /v1/auth/identities`, unlink: `DELETE /v1/auth/identities/{provider}`                                                                                                                                 |
+| Mobile apps                                                                                                  | `POST /v1/auth/token` (`tenantId`: the tenant the tokens act in), `/token/refresh` (`tenantId`: move to another of your tenants), `/token/revoke`; a provider, SSO or a magic link: `POST /v1/auth/token/exchange` ([Native and mobile apps](#native-and-mobile-apps)) |
+| A tenant's own identity provider (SAML, OpenID Connect)                                                      | `POST /v1/auth/sso/discover { email }` → `loginUrl`, `GET /v1/auth/sso/{tenantId}/{connectionId}/login`; set up with `/v1/sso/…`, SCIM at `/v1/scim`: see [Enterprise SSO](#enterprise-sso)                                                                            |
+| Your tenants, and acting in another                                                                          | `GET /v1/auth/tenants`, `POST /v1/auth/tenant { tenantId }` (re-issues the session): [tenancy](tenancy.md)                                                                                                                                                             |
 
 - **Email links** open pages of the web app (`WEB_URL/reset-password`,
   `/verify-email`, `/magic-link`) that POST the token back: mail scanners
@@ -188,7 +188,7 @@ acceptance (`POST /v1/auth/invitations/accept`) and
 - **Checked once per password, then every `PASSWORD_BREACH_RECHECK_DAYS`**
   (30): a Redis key per account and stored hash
   (`password-breach:<user id>:<16 characters of the SHA-256 of the scrypt
-  hash>`, `SET NX EX`, so concurrent sign-ins check once). The scrypt hash
+hash>`, `SET NX EX`, so concurrent sign-ins check once). The scrypt hash
   is salted and changes with every new password (and every rehash), so a new
   password is checked at its first sign-in without anything to clear, and a
   breached one that isn't changed is told about again after the period (the
@@ -197,14 +197,14 @@ acceptance (`POST /v1/auth/invitations/accept`) and
 
 ### Your data, your account's deletion, consents (`/v1/account`)
 
-| Need | Route |
-| --- | --- |
-| A pending deletion, what you agreed to | `GET /v1/account` |
-| A copy of everything held about you | `POST /v1/account/export { format? }` → 202 `{ id, status }`, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's) |
-| The copies you asked for | `GET /v1/account/exports?limit=&cursor=` (below) |
-| Delete your account | `POST /v1/account/deletion { password? }` (your password when the account has one: `hasPassword` of `GET /v1/auth/me`; and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; your other sessions are signed out (below); `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below), until the job starts on it |
-| The kinds of consent asked for | `GET /v1/account/consent-kinds` (public: `kind`, current `version`, `required`, `label`, `description`) |
-| Terms, privacy policy, marketing | `POST /v1/account/consents { kind, version }` (a declared kind, its current version), `DELETE /v1/account/consents/{kind}` (withdraw), `GET /v1/account/consents` (the latest of each kind, with `withdrawnAt`; every acceptance kept as proof) |
+| Need                                   | Route                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A pending deletion, what you agreed to | `GET /v1/account`                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| A copy of everything held about you    | `POST /v1/account/export { format? }` → 202 `{ id, status }`, then `GET /v1/data/transfers/{id}` for the file (one row per record: `kind`, `id`, `data`; the account's own records, then, after a `membership` row, each tenant's)                                                                                                                                                                                                 |
+| The copies you asked for               | `GET /v1/account/exports?limit=&cursor=` (below)                                                                                                                                                                                                                                                                                                                                                                                   |
+| Delete your account                    | `POST /v1/account/deletion { password? }` (your password when the account has one: `hasPassword` of `GET /v1/auth/me`; and a recent sign-in: [step-up](#step-up-recent-authentication)) → carried out after `ACCOUNT_DELETION_GRACE_DAYS`, a mail says when; your other sessions are signed out (below); `DELETE /v1/account/deletion` cancels, and so does the mail's link, without a sign-in (below), until the job starts on it |
+| The kinds of consent asked for         | `GET /v1/account/consent-kinds` (public: `kind`, current `version`, `required`, `label`, `description`)                                                                                                                                                                                                                                                                                                                            |
+| Terms, privacy policy, marketing       | `POST /v1/account/consents { kind, version }` (a declared kind, its current version), `DELETE /v1/account/consents/{kind}` (withdraw), `GET /v1/account/consents` (the latest of each kind, with `withdrawnAt`; every acceptance kept as proof)                                                                                                                                                                                    |
 
 **Consents** are declared, not free text: `CONSENT_KINDS`
 (`platform/account/consent-kinds.ts`, handed over in `app.module.ts` as
@@ -225,10 +225,10 @@ Accepting anything else (an unknown kind, an older or newer version) is a
   per kind; the account export holds them all.
 - **Withdrawing** (GDPR Art. 7(3): as easy as giving it) is one request
   with no password and no step-up, as accepting is: `DELETE
-  /v1/account/consents/{kind}` stamps the kind's acceptances still in force
+/v1/account/consents/{kind}` stamps the kind's acceptances still in force
   with `withdrawn_at` and the address (`withdrawal_ip`), in one transaction
   with its audit entry (`account.consent-withdrawn`, `details: { kind,
-  version }`), and answers the kind's state. Nothing in force: 404.
+version }`), and answers the kind's state. Nothing in force: 404.
   Accepting again gives it anew (a new row; the withdrawn one stays). A
   kind no longer declared can still be withdrawn.
 - **A required kind can't be withdrawn** (409 `consent_required`): the terms
@@ -327,10 +327,10 @@ re-authenticates and retries. The second factor's own step-up
 Every session's metadata (the package's `SessionRecord.metadata`, the
 `sessions.metadata` column) records, next to the user agent and address:
 
-| Key | What |
-| --- | --- |
-| `method` | `password`, `magic-link`, `oidc`, `passkey`, `sso` (a tenant's connection, [Enterprise SSO](#enterprise-sso)); `impersonation` for an administrator's session as the user |
-| `provider` | the OIDC provider (`google`), or the SSO connection's id |
+| Key               | What                                                                                                                                                                                                                         |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `method`          | `password`, `magic-link`, `oidc`, `passkey`, `sso` (a tenant's connection, [Enterprise SSO](#enterprise-sso)); `impersonation` for an administrator's session as the user                                                    |
+| `provider`        | the OIDC provider (`google`), or the SSO connection's id                                                                                                                                                                     |
 | `authenticatedAt` | the sign-in, then each re-authentication (ISO 8601); dropped by a tenant switch (`POST /v1/auth/tenant`), so a step-up proven in one tenant never authorizes a sensitive action in another: the new tenant asks again (#738) |
 
 The second factor is the session's own `mfa` (`verified`). Both keys are
@@ -441,30 +441,30 @@ with the password (and with a token client's passkey).
 
 ### The protected routes
 
-| Route | Why |
-| --- | --- |
-| `POST /v1/auth/password/change` | a new password; an account without one gets its first here, with no current password to check (the current one is still asked when there is one, ASVS V6.2.3) |
-| `POST /v1/auth/mfa/enroll` | a thief's authenticator would lock the owner out |
-| `POST /v1/auth/mfa/recovery-codes`, `DELETE /v1/auth/mfa` | new codes are credentials; two-factor off weakens the account (both also want `mfa: verified`) |
-| `GET /v1/auth/oidc/{provider}/login?link=true` | a linked provider lets whoever linked it back in at will (a plain sign-in isn't asked). The browser navigates here, so a stale session isn't answered with the 403 problem but sent to the web app: `redirectTo` (else its root) with `?error=reauthentication_required`; the frontend asks `GET /v1/auth/reauthenticate` before it starts a link, and spares the round trip. Nobody signed in: 401 |
-| `DELETE /v1/auth/identities/{provider}` | removes a way to sign in |
-| `POST /v1/auth/passkeys/registration/options`, `POST /v1/auth/passkeys` | a stolen session must not add its own passkey, a way back in at will |
-| `PATCH /v1/auth/passkeys/{id}` | the name is what the owner reads in alerts and lists: a stolen session must not relabel its own passkey as the owner's |
-| `DELETE /v1/auth/passkeys/{id}` | removes a way to sign in |
-| `POST /v1/account/deletion` | irreversible after the grace period. The password stays required too (when the account has one): within the window a stolen session can enrol its own authenticator, and re-authenticating with that must not be enough to lock the owner out of "sign in and cancel". Passwordless accounts: step-up alone |
-| `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate` | a new API key is a new credential |
-| `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked) |
-| `POST /v1/access/users`, only with non-empty `roleIds` | an invitation with privileges (one without roles isn't asked) |
-| `POST /v1/access/invitations/{id}/send`, `POST /v1/access/invitations/{id}/resend` | a link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks) |
-| `PATCH /v1/access/invitations/{id}`, only with `roleIds` or `email` | roles are privileges; a new address sends them to another mailbox |
-| `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true` | roles are privileges; reactivating brings their access back (a deactivation isn't asked) |
-| `POST /v1/access/users/{id}/impersonate` | acting as someone |
-| `POST /v1/tenants/{id}/export`, `POST /v1/tenants/{id}/deletion` | the operators' copy of every record of a tenant; a tenant erased after its grace period ([tenancy](tenancy.md)) |
-| `POST /v1/tenants/{id}/break-glass` | an operator reading a tenant that never invited them ([tenancy](tenancy.md#break-glass)) |
-| `POST /v1/sso/connections`, `PATCH`/`DELETE /v1/sso/connections/{id}`, `POST /v1/sso/saml/metadata`, `POST /v1/sso/domains`, `DELETE /v1/sso/domains/{id}`, `PUT /v1/sso/policy`, `PUT`/`DELETE /v1/sso/exemptions/{userId}` | who may sign in to the tenant, and how ([Enterprise SSO](#enterprise-sso)) |
-| `POST /v1/access/clients/{clientId}/webhook-endpoints`, `…/{id}/rotate-secret`, `PUT /v1/access/clients/{clientId}/webhook-scope`; `POST /v1/webhook-senders`, `…/{id}/rotate-secret` | where a client's events go, and who may write into the tenant's webhooks: a new destination or secret ([webhooks-and-realtime](webhooks-and-realtime.md)) |
-| `POST /v1/auth/identities/{provider}/native`, only with `purpose: link` | a token client's way to link a provider ([Native and mobile apps](#native-and-mobile-apps)) |
-| `POST /v1/branding/domains`, `POST /v1/branding/domains/{id}/verify`, `DELETE /v1/branding/domains/{id}` | the hosts the tenant's branding answers on ([branding](branding.md)) |
+| Route                                                                                                                                                                                                                        | Why                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /v1/auth/password/change`                                                                                                                                                                                              | a new password; an account without one gets its first here, with no current password to check (the current one is still asked when there is one, ASVS V6.2.3)                                                                                                                                                                                                                                       |
+| `POST /v1/auth/mfa/enroll`                                                                                                                                                                                                   | a thief's authenticator would lock the owner out                                                                                                                                                                                                                                                                                                                                                    |
+| `POST /v1/auth/mfa/recovery-codes`, `DELETE /v1/auth/mfa`                                                                                                                                                                    | new codes are credentials; two-factor off weakens the account (both also want `mfa: verified`)                                                                                                                                                                                                                                                                                                      |
+| `GET /v1/auth/oidc/{provider}/login?link=true`                                                                                                                                                                               | a linked provider lets whoever linked it back in at will (a plain sign-in isn't asked). The browser navigates here, so a stale session isn't answered with the 403 problem but sent to the web app: `redirectTo` (else its root) with `?error=reauthentication_required`; the frontend asks `GET /v1/auth/reauthenticate` before it starts a link, and spares the round trip. Nobody signed in: 401 |
+| `DELETE /v1/auth/identities/{provider}`                                                                                                                                                                                      | removes a way to sign in                                                                                                                                                                                                                                                                                                                                                                            |
+| `POST /v1/auth/passkeys/registration/options`, `POST /v1/auth/passkeys`                                                                                                                                                      | a stolen session must not add its own passkey, a way back in at will                                                                                                                                                                                                                                                                                                                                |
+| `PATCH /v1/auth/passkeys/{id}`                                                                                                                                                                                               | the name is what the owner reads in alerts and lists: a stolen session must not relabel its own passkey as the owner's                                                                                                                                                                                                                                                                              |
+| `DELETE /v1/auth/passkeys/{id}`                                                                                                                                                                                              | removes a way to sign in                                                                                                                                                                                                                                                                                                                                                                            |
+| `POST /v1/account/deletion`                                                                                                                                                                                                  | irreversible after the grace period. The password stays required too (when the account has one): within the window a stolen session can enrol its own authenticator, and re-authenticating with that must not be enough to lock the owner out of "sign in and cancel". Passwordless accounts: step-up alone                                                                                         |
+| `POST /v1/access/clients`, `POST /v1/access/clients/{id}/rotate`                                                                                                                                                             | a new API key is a new credential                                                                                                                                                                                                                                                                                                                                                                   |
+| `PATCH /v1/access/clients/{id}`, only with `roleIds` or `active: true`                                                                                                                                                       | roles are privileges; reactivating brings its keys back (revoking, a quota aren't asked)                                                                                                                                                                                                                                                                                                            |
+| `POST /v1/access/users`, only with non-empty `roleIds`                                                                                                                                                                       | an invitation with privileges (one without roles isn't asked)                                                                                                                                                                                                                                                                                                                                       |
+| `POST /v1/access/invitations/{id}/send`, `POST /v1/access/invitations/{id}/resend`                                                                                                                                           | a link to a membership with the invitation's roles (the route can't tell from its request whether it has any, so it always asks)                                                                                                                                                                                                                                                                    |
+| `PATCH /v1/access/invitations/{id}`, only with `roleIds` or `email`                                                                                                                                                          | roles are privileges; a new address sends them to another mailbox                                                                                                                                                                                                                                                                                                                                   |
+| `PATCH /v1/access/users/{id}`, only with `roleIds` or `active: true`                                                                                                                                                         | roles are privileges; reactivating brings their access back (a deactivation isn't asked)                                                                                                                                                                                                                                                                                                            |
+| `POST /v1/access/users/{id}/impersonate`                                                                                                                                                                                     | acting as someone                                                                                                                                                                                                                                                                                                                                                                                   |
+| `POST /v1/tenants/{id}/export`, `POST /v1/tenants/{id}/deletion`                                                                                                                                                             | the operators' copy of every record of a tenant; a tenant erased after its grace period ([tenancy](tenancy.md))                                                                                                                                                                                                                                                                                     |
+| `POST /v1/tenants/{id}/break-glass`                                                                                                                                                                                          | an operator reading a tenant that never invited them ([tenancy](tenancy.md#break-glass))                                                                                                                                                                                                                                                                                                            |
+| `POST /v1/sso/connections`, `PATCH`/`DELETE /v1/sso/connections/{id}`, `POST /v1/sso/saml/metadata`, `POST /v1/sso/domains`, `DELETE /v1/sso/domains/{id}`, `PUT /v1/sso/policy`, `PUT`/`DELETE /v1/sso/exemptions/{userId}` | who may sign in to the tenant, and how ([Enterprise SSO](#enterprise-sso))                                                                                                                                                                                                                                                                                                                          |
+| `POST /v1/access/clients/{clientId}/webhook-endpoints`, `…/{id}/rotate-secret`, `PUT /v1/access/clients/{clientId}/webhook-scope`; `POST /v1/webhook-senders`, `…/{id}/rotate-secret`                                        | where a client's events go, and who may write into the tenant's webhooks: a new destination or secret ([webhooks-and-realtime](webhooks-and-realtime.md))                                                                                                                                                                                                                                           |
+| `POST /v1/auth/identities/{provider}/native`, only with `purpose: link`                                                                                                                                                      | a token client's way to link a provider ([Native and mobile apps](#native-and-mobile-apps))                                                                                                                                                                                                                                                                                                         |
+| `POST /v1/branding/domains`, `POST /v1/branding/domains/{id}/verify`, `DELETE /v1/branding/domains/{id}`                                                                                                                     | the hosts the tenant's branding answers on ([branding](branding.md))                                                                                                                                                                                                                                                                                                                                |
 
 Not protected, on purpose: signing out (sessions, everywhere), data export
 (a user can read their data anyway), consents, the profile, role
@@ -597,15 +597,15 @@ platform's notifications (in-app, realtime, mail; see
 of the change's audit entry. All are mandatory: the mail can go hourly or
 daily, never off.
 
-| Type | When | `data` |
-| --- | --- | --- |
-| `security.newSignIn` | a sign-in from a new device, by any method: password (a browser or a token client), email link, passkey, Google / Microsoft / GitHub, a tenant's SSO (even with two-factor still to do) | `device` ("Chrome on macOS"), `ip`, `at` |
-| `security.passwordChanged` | `POST /auth/password/change`, or a reset link when the account was used before (any audit entry as its actor: not an invitation's first password) | `via` (`change` \| `reset`), `ip` |
-| `security.passwordBreached` | a password sign-in (browser or token) whose password is in the breach corpus, once per password per `PASSWORD_BREACH_RECHECK_DAYS` ([Passwords](#passwords)) | `at`, `ip` (the sign-in's) |
-| `security.mfaChanged` | two-factor confirmed on, or turned off | `enabled`, `ip` |
-| `security.passkeyAdded`, `security.passkeyRemoved` | a passkey registered, or removed | `name`, `ip` |
-| `security.apiKeyRotated` | to the API client: `POST /access/clients/{id}/rotate` (webhook) | `clientId`, `keyId`, `previousKeysEnd` |
-| `security.breakGlassStarted` | to each administrator of a tenant an operator opened with break-glass, in that tenant ([tenancy](tenancy.md#break-glass)) | `operator` (their address), `reason`, `expiresAt`, `ip` |
+| Type                                               | When                                                                                                                                                                                    | `data`                                                  |
+| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `security.newSignIn`                               | a sign-in from a new device, by any method: password (a browser or a token client), email link, passkey, Google / Microsoft / GitHub, a tenant's SSO (even with two-factor still to do) | `device` ("Chrome on macOS"), `ip`, `at`                |
+| `security.passwordChanged`                         | `POST /auth/password/change`, or a reset link when the account was used before (any audit entry as its actor: not an invitation's first password)                                       | `via` (`change` \| `reset`), `ip`                       |
+| `security.passwordBreached`                        | a password sign-in (browser or token) whose password is in the breach corpus, once per password per `PASSWORD_BREACH_RECHECK_DAYS` ([Passwords](#passwords))                            | `at`, `ip` (the sign-in's)                              |
+| `security.mfaChanged`                              | two-factor confirmed on, or turned off                                                                                                                                                  | `enabled`, `ip`                                         |
+| `security.passkeyAdded`, `security.passkeyRemoved` | a passkey registered, or removed                                                                                                                                                        | `name`, `ip`                                            |
+| `security.apiKeyRotated`                           | to the API client: `POST /access/clients/{id}/rotate` (webhook)                                                                                                                         | `clientId`, `keyId`, `previousKeysEnd`                  |
+| `security.breakGlassStarted`                       | to each administrator of a tenant an operator opened with break-glass, in that tenant ([tenancy](tenancy.md#break-glass))                                                               | `operator` (their address), `reason`, `expiresAt`, `ip` |
 
 - **A device** is the user agent without its version numbers (a browser
   update is the same browser) plus the network: an IPv4 address whole, an
@@ -668,14 +668,14 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 `passkeys` is global (a user's, not a tenant's: users are global; no
 `tenant_id`, no row-level security, [tenancy.md](tenancy.md)).
 
-| Need | Route |
-| --- | --- |
-| Your passkeys | `GET /v1/auth/passkeys` (name, `deviceType`, `backedUp`, transports, last use) |
-| Register one | `POST /v1/auth/passkeys/registration/options` → `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`) → `POST /v1/auth/passkeys { name, response }`; both want a recent sign-in ([step-up](#step-up-recent-authentication)) |
-| Rename, remove | `PATCH /v1/auth/passkeys/{id} { name }`, `DELETE /v1/auth/passkeys/{id}` (step-up; not the last way to sign in) |
-| Sign in (browser) | `POST /v1/auth/passkeys/sign-in/options { email? }` → `navigator.credentials.get()` → `POST /v1/auth/passkeys/sign-in { response }` (the session cookie) |
-| Sign in (app) | the same options → `POST /v1/auth/passkeys/token { response, code?, tenantId? }` (tokens) |
-| Re-authenticate | `POST /v1/auth/passkeys/reauthentication/options` → `POST /v1/auth/reauthenticate { passkey }` |
+| Need              | Route                                                                                                                                                                                                                                                   |
+| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Your passkeys     | `GET /v1/auth/passkeys` (name, `deviceType`, `backedUp`, transports, last use)                                                                                                                                                                          |
+| Register one      | `POST /v1/auth/passkeys/registration/options` → `navigator.credentials.create()` (or @simplewebauthn/browser `startRegistration`) → `POST /v1/auth/passkeys { name, response }`; both want a recent sign-in ([step-up](#step-up-recent-authentication)) |
+| Rename, remove    | `PATCH /v1/auth/passkeys/{id} { name }`, `DELETE /v1/auth/passkeys/{id}` (step-up; not the last way to sign in)                                                                                                                                         |
+| Sign in (browser) | `POST /v1/auth/passkeys/sign-in/options { email? }` → `navigator.credentials.get()` → `POST /v1/auth/passkeys/sign-in { response }` (the session cookie)                                                                                                |
+| Sign in (app)     | the same options → `POST /v1/auth/passkeys/token { response, code?, tenantId? }` (tokens)                                                                                                                                                               |
+| Re-authenticate   | `POST /v1/auth/passkeys/reauthentication/options` → `POST /v1/auth/reauthenticate { passkey }`                                                                                                                                                          |
 
 - **The relying party** is configuration ([configuration.md](configuration.md)):
   the RP ID is `PASSKEY_RP_ID`, by default `WEB_URL`'s host (else
@@ -707,7 +707,7 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
 - **User verification.** Every ceremony asks for it (`required`).
   Registering wants the `uv` flag (a passkey that can't verify its user
   could never be a second factor: 400 `passkey_invalid`, `reason:
-  user-verification`). At sign-in, an assertion **with** `uv` counts for
+user-verification`). At sign-in, an assertion **with** `uv` counts for
   both factors: with two-factor on, the session is `mfa: verified` at once;
   one **without** it is the first factor only (`mfaRequired`, finish with
   `POST /v1/auth/mfa/verify`). Re-authenticating wants `uv`. A token client
@@ -720,7 +720,7 @@ default (`PASSKEYS`); `GET /v1/auth/methods` says `passkeys: true`.
   tenant (who still signs in). The token route takes `tenantId` like
   `POST /v1/auth/token`: a tenant the user isn't a member of is the same
   401 as a refused assertion, audited as a failed sign-in with `reason:
-  tenant` ([sign-in log](#sign-in-log-tenant-administrators)); the tokens
+tenant` ([sign-in log](#sign-in-log-tenant-administrators)); the tokens
   carry it as `tid`.
 - **Verify first.** An account whose address was never proved (a self
   sign-up) can't register a passkey (403 `email_unverified`, as for
@@ -814,7 +814,7 @@ Lark/Feishu), one or more **connections** per tenant
 1. **Verify the email domains** (`POST /v1/sso/domains`): the answer names
    a TXT record (`_sso-verification.<domain>`, value
    `sso-verification=…`); once it is published, `POST
-   /v1/sso/domains/{id}/verify` looks it up on the queue (`GET` shows
+/v1/sso/domains/{id}/verify` looks it up on the queue (`GET` shows
    `verified`, or `lastError`). Only addresses of verified domains sign in
    or are provisioned: a tenant can't claim someone else's addresses.
 2. **Add a connection** (`POST /v1/sso/connections`, recent sign-in):
@@ -825,7 +825,7 @@ Lark/Feishu), one or more **connections** per tenant
    - `protocol: "oidc"`: the issuer, client id and secret. Register
      `oidc.redirectUri` at the IdP. The discovery document is fetched on
      the queue (`oidc.metadataFetchedAt`, `oidc.metadataError`; `POST
-     …/{id}/refresh` again).
+…/{id}/refresh` again).
    - `protocol: "oauth2"`: the provider's endpoints, client id and secret,
      and a `mapping` of its user-info answer, or a `preset` (`lark`) that
      fills them. Register `oauth2.redirectUri` at the provider. No discovery:
@@ -916,7 +916,7 @@ OAuth server). The connection holds the endpoints and a declarative
   a refused destination, a timeout (10 s) or more than 512 KiB: no sign-in,
   `?error=sso_failed`, and the reason in the audit log
   (`auth.sign-in-failed`: `token_rejected:<why>`, `userinfo_failed:<status
-  or why>`, `userinfo_malformed`, `userinfo_error:<code>`,
+or why>`, `userinfo_malformed`, `userinfo_error:<code>`,
   `no_stable_subject`), never in the URL.
 - **Weaker than OpenID Connect**, and said so: no ID token (nothing signed
   by the provider; the user info is trusted because it came over TLS from
@@ -934,7 +934,7 @@ OAuth server). The connection holds the endpoints and a declarative
   `client_secret_post`, PKCE) and
   `https://open.larksuite.com/open-apis/authen/v1/user_info`, which answers
   `{ code, msg, data: { open_id, union_id, user_id, tenant_key, name,
-  avatar_url, email, enterprise_email } }`. The mapping: `root: data`,
+avatar_url, email, enterprise_email } }`. The mapping: `root: data`,
   `subject: open_id`, `email: enterprise_email` (the address the Lark
   tenant's administrator assigns, in the tenant's own domain),
   `emailVerified: "verified-domains"`, `errorCode: code`. The personal
@@ -1035,14 +1035,14 @@ connections.
   through one of its connections (a password, passkey, magic link or
   Google session, an access token, a switch into the tenant) gets 403
   `sso_required` everywhere but `GET /v1/auth/me`, signing out, `GET
-  /v1/auth/tenants`, `POST /v1/auth/tenant` and accepting an invitation
+/v1/auth/tenants`, `POST /v1/auth/tenant` and accepting an invitation
   (`SsoRequiredGuard`, `iam/sso/sso-required.guard.ts`, after the
   two-factor guard). Nothing is stored on the session: turning the policy
   on restricts sessions already open, turning it off frees them. Never
   restricted: API clients (SCIM's token included), impersonations.
 - **Exemptions (the tenant's own break-glass members; not the operators'
   read-only break-glass access of docs/tenancy.md).** `PUT
-  /v1/sso/exemptions/{userId} { reason }` exempts an active member: their password and passkey still sign in (when the IdP is
+/v1/sso/exemptions/{userId} { reason }` exempts an active member: their password and passkey still sign in (when the IdP is
   down or misconfigured), each use audited (`sso.exemption-used`). Only a
   member with two-factor set up (409 `sso_exemption_needs_mfa`; not asked
   with `AUTH_MFA=off`, where nobody can). `DELETE` ends it.
@@ -1120,7 +1120,7 @@ verification; a domain verified before it existed is added at its next
   bindings are stored as their SHA-256.
 - **The ACS** is a cross-site form POST by design: it is exempt from the
   CSRF check (`http-setup.ts`), signs nobody in, and hands over to `GET
-  …/saml/complete` (same site, the same browser's binding, two minutes,
+…/saml/complete` (same site, the same browser's binding, two minutes,
   once), which does.
 
 ### SCIM provisioning
@@ -1202,7 +1202,7 @@ one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
   `sso_failed`).
 - **Link a provider, or step up through one, when signed in:** the app's
   token asks `POST /v1/auth/identities/{provider}/native { purpose:
-  'link' | 'reauthenticate', redirectUri, codeChallenge }` → `{ url }`
+'link' | 'reauthenticate', redirectUri, codeChallenge }` → `{ url }`
   and opens that `url` in the system browser. It carries a one-time ticket
   (five minutes) bound to the user, the token session (`sid`), the
   purpose, `redirectUri` and the challenge, since that browser doesn't
@@ -1216,7 +1216,7 @@ one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
   (audited `user.identity-linked`) when the app completes it, with its
   verifier and session. The same token then posts
   `POST /v1/auth/identities/native/complete { handoffCode,
-  codeVerifier, code?, recoveryCode?, refreshToken? }`: a link answers the
+codeVerifier, code?, recoveryCode?, refreshToken? }`: a link answers the
   identity, a step-up new tokens with `auth_time` now (as
   `/auth/reauthenticate` does for a password; `refreshToken` revokes the
   old pair; audited `auth.reauthenticated`, or
@@ -1229,8 +1229,8 @@ one-time **handoff code** instead (RFC 8252, with PKCE: RFC 7636 `S256`):
   opens `WEB_URL/magic-link?token=…` as a universal / app link, and posts
   `POST /v1/auth/magic-link/handoff { token, codeChallenge }` → `{ code }`.
 - **Exchange:** `POST /v1/auth/token/exchange { handoffCode, codeVerifier,
-  code?, recoveryCode?, tenantId? }` → `{ accessToken, refreshToken,
-  expiresIn }`. A code lives a minute, works once, and only with its
+code?, recoveryCode?, tenantId? }` → `{ accessToken, refreshToken,
+expiresIn }`. A code lives a minute, works once, and only with its
   verifier (any wrong answer spends it). Two-factor as for `/auth/token`:
   without a code from the app, 401 `mfa_required` and the handoff code
   still works; a wrong one spends it. The tenant: an SSO connection's own;
@@ -1310,7 +1310,7 @@ server-side with Cloudflare Turnstile. **Off by default**: without
   refused (`reason: action`). The provider-side error codes
   (`invalid-input-secret`, `missing-input-secret`, `bad-request`,
   `internal-error`, which siteverify answers as a 200 with `success:
-  false`) are an **outage**, not an invalid token: a mis-rotated secret or a
+false`) are an **outage**, not an invalid token: a mis-rotated secret or a
   Cloudflare incident trips the breaker and the alert instead of locking
   everyone out with a 403. Around it, `@nestjs/resilience`
   (`CaptchaService`): **one attempt within `CAPTCHA_TIMEOUT_MS` (2 s)** and
@@ -1416,7 +1416,7 @@ for), verified here, with no provider to fail open or closed. A 403
   is bound to one.
 - **iOS (App Attest):** once per install, `DCAppAttestService.attestKey`
   over the challenge's SHA-256, then `POST /v1/auth/app-attestation/keys
-  { keyId, attestation, challenge }` (base64url): checked against Apple's
+{ keyId, attestation, challenge }` (base64url): checked against Apple's
   root CA, the nonce, the key id, an app of `PASSKEY_APPLE_APPS`, a zero
   counter and the production environment (`APP_ATTEST_DEVELOPMENT=on`
   accepts debug builds too), and stored (`app_attest_keys`). Per request,
@@ -1446,11 +1446,11 @@ this deployment, as with `PASSKEYS=off`), after authentication: a caller
 who is not signed in still gets 401. The routes stay in the OpenAPI document
 and the typed client either way (each lists the 404).
 
-| Switch | Default | Off |
-| --- | --- | --- |
-| `IMPERSONATION` | `off` | `POST /v1/access/users/{id}/impersonate` and `POST /v1/auth/impersonation/stop` answer 404. A running impersonation ends at its next request (401): the session is refused while the switch is off; the administrator signs in again. |
-| `AUTH_MFA` | `on` | `POST /v1/auth/mfa/enroll` and `/confirm` answer 404: nobody can set two-factor up. Accounts that **already have it** are still asked for a code at sign-in and can still use their recovery codes or turn it off themselves (`GET`, `/verify`, `/recovery-codes`, `DELETE`): switching it off never weakens an account silently. |
-| `API_CLIENTS` | `on` | `/v1/access/clients…` (list, read one, create, rotate, revoke a key, change, delete) and a client's usage answer 404, and a bearer key (`sk_…`) no longer authenticates (401, as a revoked one). Users are unaffected. Clients and keys stay stored and work again when it is turned on. |
+| Switch          | Default | Off                                                                                                                                                                                                                                                                                                                               |
+| --------------- | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `IMPERSONATION` | `off`   | `POST /v1/access/users/{id}/impersonate` and `POST /v1/auth/impersonation/stop` answer 404. A running impersonation ends at its next request (401): the session is refused while the switch is off; the administrator signs in again.                                                                                             |
+| `AUTH_MFA`      | `on`    | `POST /v1/auth/mfa/enroll` and `/confirm` answer 404: nobody can set two-factor up. Accounts that **already have it** are still asked for a code at sign-in and can still use their recovery codes or turn it off themselves (`GET`, `/verify`, `/recovery-codes`, `DELETE`): switching it off never weakens an account silently. |
+| `API_CLIENTS`   | `on`    | `/v1/access/clients…` (list, read one, create, rotate, revoke a key, change, delete) and a client's usage answer 404, and a bearer key (`sk_…`) no longer authenticates (401, as a revoked one). Users are unaffected. Clients and keys stay stored and work again when it is turned on.                                          |
 
 Impersonation is a privileged support tool, so it is opt in: set
 `IMPERSONATION=on` (the development example does).
@@ -1494,7 +1494,7 @@ chosen one afterwards. `ADMIN_ONBOARDING=off` keeps it from being flagged.
   the two-factor enrolment (`auth.requireMfa`) carry both decorators, so
   the two guards never lock each other out.
 - API clients and impersonations are never restricted.
-- `pnpm setup` warns when a production `ADMIN_EMAIL` is a placeholder.
+- `pnpm run setup` warns when a production `ADMIN_EMAIL` is a placeholder.
 
 ## Policies
 
@@ -1504,14 +1504,14 @@ Auth rules a tenant's administrators change at runtime, as settings
 the ceiling:** a setting may only tighten what the deployment allows,
 never loosen it. Unset, every policy is today's behaviour.
 
-| Setting | Scopes | Does | Ceiling |
-| --- | --- | --- | --- |
-| `auth.requireMfa` | tenant, unit | users it applies to who have no authenticator must set one up before anything else (below) | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
-| `auth.allowBreakGlass` | tenant | whether the deployment's operators may open the tenant with break-glass (default `true`; `false`: new grants are refused, running ones stop: [tenancy](tenancy.md#break-glass)) | none |
-| `auth.passwordHistory` | tenant | the last N passwords of the account (0 to 24, `0` off) can't be used again on a change or a reset link: 422 `password_reused`; hashes only ([Passwords](#passwords)) | the upper limit of 24; none else |
-| `auth.passwordMinLength` | tenant | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum |
-| `auth.sessionIdleMinutes` | tenant | a browser session ends after this many minutes without a request (5 to 10080; [below](#session-lifetime)) | `SESSION_IDLE_MINUTES` (120): a longer value is refused (400 `setting_not_allowed`) |
-| `auth.sessionMaxHours` | tenant | a browser session, and a token client's refresh-token family, ends this many hours after the sign-in, however active (1 to 720) | `SESSION_MAX_HOURS` (12): a longer value is refused |
+| Setting                   | Scopes       | Does                                                                                                                                                                                                                   | Ceiling                                                                                     |
+| ------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `auth.requireMfa`         | tenant, unit | users it applies to who have no authenticator must set one up before anything else (below)                                                                                                                             | `AUTH_MFA=off`: refused when set (400 `setting_not_allowed`); a stored `true` has no effect |
+| `auth.allowBreakGlass`    | tenant       | whether the deployment's operators may open the tenant with break-glass (default `true`; `false`: new grants are refused, running ones stop: [tenancy](tenancy.md#break-glass))                                        | none                                                                                        |
+| `auth.passwordHistory`    | tenant       | the last N passwords of the account (0 to 24, `0` off) can't be used again on a change or a reset link: 422 `password_reused`; hashes only ([Passwords](#passwords))                                                   | the upper limit of 24; none else                                                            |
+| `auth.passwordMinLength`  | tenant       | a new password (change, reset link, an invitation's acceptance, a sign-up with `TENANCY=single`) is at least this long: 400 `password_too_short` (`minLength`, the field in `errors`), checked before the breach check | never under 12 (the floor) nor over 64; 128 stays the maximum                               |
+| `auth.sessionIdleMinutes` | tenant       | a browser session ends after this many minutes without a request (5 to 10080; [below](#session-lifetime))                                                                                                              | `SESSION_IDLE_MINUTES` (120): a longer value is refused (400 `setting_not_allowed`)         |
+| `auth.sessionMaxHours`    | tenant       | a browser session, and a token client's refresh-token family, ends this many hours after the sign-in, however active (1 to 720)                                                                                        | `SESSION_MAX_HOURS` (12): a longer value is refused                                         |
 
 - **Two-factor required.** The first factor signs in as usual (no code
   is asked: there is no authenticator yet), but the session or token is
@@ -1548,7 +1548,7 @@ never loosen it. Unset, every policy is today's behaviour.
   at its default, the largest allowed, is no choice), checked on every
   request by `SessionAuth` through `SessionLifetime`
   (`iam/auth/session-lifetime.ts`): a session older than the maximum, or
-  idle longer than the timeout *before this request*, answers 401 and is
+  idle longer than the timeout _before this request_, answers 401 and is
   deleted (the store hands over the activity before the request moved it:
   `sessionExtra.previousActiveAt`). A policy that is turned off frees only
   sessions not yet ended. The session's tenant decides (a switch of tenant

@@ -4,7 +4,7 @@
 // silently), the ones the file has and the template does not name, and the
 // REQUIRED ones that are empty. Exit code 1 when a REQUIRED one is empty (the
 // stack would not start, or would run with a placeholder); with --strict also
-// when any variable is missing. Nothing is written: `pnpm setup` adds the
+// when any variable is missing. Nothing is written: `pnpm run setup` adds the
 // missing ones (with the template's defaults) on a re-run.
 //
 //   pnpm env:check                       # .env and apps/api/.env.development, whichever exist
@@ -193,7 +193,7 @@ export function run(argv, io = {}) {
       // A file named (or a single target asked for) must be there; the default scan skips the one it does not find.
       if (values.file || values.target) {
         err(
-          `${shown} does not exist (pnpm setup --target ${target} writes it).`,
+          `${shown} does not exist (pnpm run setup --target ${target} writes it).`,
         );
         failed = true;
       }
@@ -226,7 +226,7 @@ export function run(argv, io = {}) {
     }
     if (found.missing.length) {
       out(
-        `  ${found.missing.length} variable${found.missing.length > 1 ? 's' : ''} of ${templateName} not in the file (the app runs with its defaults for them; pnpm setup adds them with the template's defaults):`,
+        `  ${found.missing.length} variable${found.missing.length > 1 ? 's' : ''} of ${templateName} not in the file (the app runs with its defaults for them; pnpm run setup adds them with the template's defaults):`,
       );
       out(wrap(found.missing));
     }
@@ -242,7 +242,7 @@ export function run(argv, io = {}) {
   }
   if (!checked && !failed) {
     err(
-      `No env file to check (${targets.map((t) => TARGETS[t].file).join(', ')}): pnpm setup writes one.`,
+      `No env file to check (${targets.map((t) => TARGETS[t].file).join(', ')}): pnpm run setup writes one.`,
     );
     return 1;
   }
