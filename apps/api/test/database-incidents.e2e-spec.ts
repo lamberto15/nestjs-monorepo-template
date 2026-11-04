@@ -57,7 +57,9 @@ describe('automatic database incidents on PostgreSQL', () => {
       migrate: false,
       pool: {
         max: 1,
-        timeoutMs: 100,
+        // Also bounds opening a connection: 100 ms timed out on a busy CI
+        // runner before the test's first query.
+        timeoutMs: 1000,
         statementTimeoutMs,
         idleTxTimeoutMs: 5000,
         applicationName: 'incident-tests',
