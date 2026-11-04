@@ -7,6 +7,7 @@ import {
   deploymentManifest,
   deploymentRun,
   releaseRunId,
+  requireStagingDeploy,
 } from './deploy-release.mjs';
 const repository = 'owner/repo',
   source = 'a'.repeat(40),
@@ -268,4 +269,60 @@ test('Deploy verifies before any secret, targets Swarm by digest and never build
   );
   assert.ok(!text.includes('docker/build-push-action'));
   assert.ok(!/helm|kubectl/i.test(text));
+});
+
+test('production needs a green staging deploy of its source or a newer commit', () => {
+  const deploys = (runs, jobs) => (command, args) => {
+    const path = args[1];
+    if (path.includes('/workflows/deploy.yml/runs'))
+      return JSON.stringify({ workflow_runs: runs });
+    const runId = path.split('/runs/')[1].split('/')[0];
+    return JSON.stringify({ jobs: jobs[runId] ?? [] });
+  };
+  // 'old' is before the source; 'new' contains it.
+  const isAncestor = (commit, descendant) =>
+    commit === source && descendant !== 'old';
+  const staging = (id, sha) => ({
+    id,
+    head_sha: sha,
+    display_title: 'Deploy staging ',
+  });
+  const passed = [
+    { name: 'verify', conclusion: 'success' },
+    { name: 'deploy', conclusion: 'success' },
+  ];
+  const skipped = [
+    { name: 'verify', conclusion: 'success' },
+    { name: 'deploy', conclusion: 'skipped' },
+  ];
+  assert.doesNotThrow(() =>
+    requireStagingDeploy(
+      repository,
+      source,
+      isAncestor,
+      deploys([staging(3, 'new'), staging(2, source)], {
+        3: skipped,
+        2: passed,
+      }),
+    ),
+  );
+  for (const [runs, jobs] of [
+    [[], {}],
+    [[staging(1, 'old')], { 1: passed }],
+    [[staging(2, source)], { 2: skipped }],
+    [
+      [{ ...staging(2, source), display_title: 'Deploy production v1.2.0' }],
+      { 2: passed },
+    ],
+  ])
+    assert.throws(
+      () =>
+        requireStagingDeploy(
+          repository,
+          source,
+          isAncestor,
+          deploys(runs, jobs),
+        ),
+      /Staging has not deployed/,
+    );
 });

@@ -5,7 +5,8 @@
 //   staging, after CI on main      that run, when it kept a release manifest
 //   staging, by hand               a release tag, or the newest such main run
 //   production, only by hand       a release tag whose GitHub release is
-//                                  published and not a pre-release
+//                                  published and not a pre-release, once
+//                                  staging deployed it (requireStagingDeploy)
 import { appendFileSync, mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -124,6 +125,51 @@ export function deploymentRun(
   return latestReleaseRun(repository, run);
 }
 
+/**
+ * Production takes a release only once staging has deployed its source (or a
+ * newer main commit) successfully: a staging Deploy run after CI whose deploy
+ * job passed. A run that only verified (nothing published) doesn't count.
+ */
+export function requireStagingDeploy(
+  repository,
+  sourceSha,
+  isAncestor,
+  run = execute,
+) {
+  const { workflow_runs: runs = [] } = JSON.parse(
+    run('gh', [
+      'api',
+      `repos/${repository}/actions/workflows/deploy.yml/runs?branch=main&event=workflow_run&status=success&per_page=50`,
+    ]),
+  );
+  for (const record of runs) {
+    if (!record.display_title?.startsWith('Deploy staging')) continue;
+    if (!isAncestor(sourceSha, record.head_sha)) continue;
+    const { jobs = [] } = JSON.parse(
+      run('gh', [
+        'api',
+        `repos/${repository}/actions/runs/${releaseRunId(String(record.id))}/jobs`,
+      ]),
+    );
+    if (
+      jobs.some((job) => job.name === 'deploy' && job.conclusion === 'success')
+    )
+      return;
+  }
+  throw new Error(
+    `Staging has not deployed ${sourceSha} (or a newer main commit) successfully: deploy it there first`,
+  );
+}
+
+function isAncestor(commit, descendant, run = execute) {
+  try {
+    run('git', ['merge-base', '--is-ancestor', commit, descendant]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function deploymentManifest(repository, value, head, run = execute) {
   const id = releaseRunId(value);
   const record = JSON.parse(
@@ -154,14 +200,9 @@ export function deploymentManifest(repository, value, head, run = execute) {
   const manifest = JSON.parse(
     readFileSync(join(directory, 'release-manifest.json'), 'utf8'),
   );
-  validateEvidence(manifest, record, repository, (source) => {
-    try {
-      run('git', ['merge-base', '--is-ancestor', source, head]);
-      return true;
-    } catch {
-      return false;
-    }
-  });
+  validateEvidence(manifest, record, repository, (source) =>
+    isAncestor(source, head, run),
+  );
   verifyImages(manifest, repository, head, run);
   return manifest;
 }
@@ -191,6 +232,12 @@ if (
       id,
       process.env.GITHUB_SHA,
     );
+    if (process.env.DEPLOY_ENVIRONMENT === 'production')
+      requireStagingDeploy(
+        process.env.GITHUB_REPOSITORY,
+        manifest.sourceSha,
+        isAncestor,
+      );
     // Images as repository@digest, ready for the stack's *_IMAGE variables.
     appendFileSync(
       process.env.GITHUB_OUTPUT,
