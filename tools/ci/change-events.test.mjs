@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { NIGHTLY_CRON, runChanges } from './changes.mjs';
+import { runChanges } from './changes.mjs';
 import { releasePlan } from './release-manifest.mjs';
 const base = 'a'.repeat(40),
   head = 'b'.repeat(40);
@@ -158,16 +158,18 @@ test('API failures and truncated comparisons run comprehensively', () => {
       response,
     );
     assert.ok(result.full && result.api && result.web);
-    assert.ok(JSON.parse(result.expected).includes('template-without-notes'));
+    assert.ok(!JSON.parse(result.expected).includes('template-without-notes'));
   }
 });
 
-test('template-without-notes runs on the weekly schedule, not the nightly one', () => {
-  const expected = (schedule) =>
-    JSON.parse(eventOutput('schedule', { schedule }, null).result.expected);
-  assert.ok(!expected(NIGHTLY_CRON).includes('template-without-notes'));
-  assert.ok(expected(NIGHTLY_CRON).includes('e2e'));
-  assert.ok(expected('17 3 * * 0').includes('template-without-notes'));
+test('template-without-notes runs on a manual run only', () => {
+  const expected = (name) =>
+    JSON.parse(eventOutput(name, {}, null).result.expected);
+  assert.ok(expected('workflow_dispatch').includes('template-without-notes'));
+  for (const name of ['schedule', 'push']) {
+    assert.ok(!expected(name).includes('template-without-notes'), name);
+    assert.ok(expected(name).includes('e2e'), name);
+  }
 });
 
 test('scheduled, manual and version-tag events validate comprehensively; only a bootstrap publishes', () => {
