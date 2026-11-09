@@ -42,6 +42,11 @@ FROM node:26.13.0-trixie-slim
 # The app runs on node alone: drop the npm CLI the base image bundles. Nothing
 # uses it, and its own dependencies are what the image scan (CI) flags first.
 RUN rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
+# Debian's zlib fix (CVE-2026-76844, CVE-2026-85091: 1.3.1-1+deb13u1) is newer
+# than the base image; drop this once node's trixie-slim ships it.
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends --only-upgrade zlib1g \
+ && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 ENV NODE_ENV=production TZ=UTC
 COPY --from=build /deploy/api/package.json ./

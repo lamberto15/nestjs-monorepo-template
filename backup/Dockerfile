@@ -27,7 +27,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
 
 # rclone also built from its release tag with a current Go, instead of copied
 # from the official image (rclone/rclone): that binary carries the Go standard library
-# it was built with (1.27.2 in v1.75.2, the newest release), and CI's scan
+# it was built with (1.27.2 in v1.75.2), and CI's scan
 # fails on its fixable CVE-2026-111943. Once a release built with Go 1.27.3 or
 # newer exists, this can go back to `FROM rclone/rclone:<version> AS rclone`
 # and `COPY --from=rclone /usr/local/bin/rclone` (Dependabot raises that FROM).
@@ -45,7 +45,7 @@ FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS rclone
 ARG TARGETOS
 ARG TARGETARCH
 # https://github.com/rclone/rclone/releases
-ARG RCLONE_TAG=v1.75.2
+ARG RCLONE_TAG=v1.76.0
 WORKDIR /src
 RUN dir=$(go mod download -json "github.com/rclone/rclone@$RCLONE_TAG" | grep '"Dir"' | cut -d'"' -f4) \
  && test -n "$dir" \
