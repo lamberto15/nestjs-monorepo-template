@@ -303,10 +303,17 @@ export function lintFiles(files, { cwd = process.cwd() } = {}) {
       '--include',
       'ban-drop-index',
     ]);
-    // 0: nothing found, 1: findings; anything else is squawk failing.
+    // 0: nothing found, 1: findings (a JSON report on stdout); anything
+    // else is squawk failing. So is a 1 without a report: it could not read
+    // the files (a mount it can't see), and says so on stderr (#1092).
     if (checked.status !== 0 && checked.status !== 1) {
       throw new Error(
         `squawk exited with ${checked.status}: ${checked.stderr.slice(0, 2000)}`,
+      );
+    }
+    if (checked.status === 1 && checked.stdout.trim() === '') {
+      throw new Error(
+        `squawk exited with 1 and no report: ${checked.stderr.slice(0, 2000)}`,
       );
     }
     const violations = JSON.parse(checked.stdout);
