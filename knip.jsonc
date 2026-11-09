@@ -17,9 +17,7 @@
       // tools/setup/vapid.mjs loads the API's web-push (apps/api/package.json)
       // from the API's folder, for its key generator: the root does not
       // depend on it.
-      // lefthook is executed by its install lifecycle and git hooks
-      // (lefthook.yml / pnpm-workspace.yaml), not imported by application code.
-      "ignoreDependencies": ["k6", "web-push", "lefthook"],
+      "ignoreDependencies": ["k6", "web-push"],
     },
     "apps/api": {
       // Started as `node dist/<name>` (package.json: migrate, db:seed:demo,
