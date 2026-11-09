@@ -229,10 +229,7 @@ describe('render', () => {
   it('names the images in lower case, by version and digest', () => {
     const notes = render({ ...base, digests: { app: 'sha256:aaa' } });
     assert.match(notes, /`ghcr\.io\/owner\/repo:0\.2\.0` \| `sha256:aaa` \|/);
-    assert.match(
-      notes,
-      /`ghcr\.io\/owner\/repo\/gotenberg:0\.2\.0` \| see the package page \|/,
-    );
+    assert.doesNotMatch(notes, /gotenberg:0\.2\.0|GOTENBERG_IMAGE/);
     assert.match(
       notes,
       /`ghcr\.io\/owner\/repo\/caddy:0\.2\.0` \| see the package page \|/,

@@ -21,7 +21,7 @@ const previous = createManifest({
   repository,
   sourceSha: oldSha,
   runId: 10,
-  published: { api: dig(1), caddy: dig(2), gotenberg: dig(3), backup: dig(4) },
+  published: { api: dig(1), caddy: dig(2), backup: dig(4) },
 });
 const record = {
   id: 10,
@@ -46,6 +46,43 @@ test('versioned manifest reuses exact digests and retains their producer evidenc
   assert.equal(mixed.images.api.digest, dig(4));
   assert.equal(mixed.images.api.runId, 11);
   assert.equal(mixed.sourceSha, newSha);
+});
+
+test('a manifest from before Gotenberg ran its official image stays valid; the next leaves it out', () => {
+  const legacy = {
+    ...previous,
+    images: {
+      ...previous.images,
+      gotenberg: {
+        ...previous.images.caddy,
+        repository: `ghcr.io/${repository}/gotenberg`,
+        digest: dig(3),
+      },
+    },
+  };
+  assert.equal(validateManifest(legacy, repository), legacy);
+  assert.throws(
+    () =>
+      validateManifest(
+        {
+          ...legacy,
+          images: {
+            ...legacy.images,
+            gotenberg: { ...legacy.images.gotenberg, digest: 'latest' },
+          },
+        },
+        repository,
+      ),
+    /Invalid gotenberg/,
+  );
+  const next = createManifest({
+    repository,
+    sourceSha: newSha,
+    runId: 11,
+    previous: legacy,
+    published: { api: dig(5) },
+  });
+  assert.deepEqual(Object.keys(next.images).sort(), ['api', 'backup', 'caddy']);
 });
 
 test('invalid schema, repository, source, missing components and mutable tags fail closed', () => {
@@ -119,17 +156,17 @@ test('reuse checks registry, exact main identity, SBOM and source-bound provenan
     return cmd === 'gh' && args[0] === 'api' ? JSON.stringify(record) : '';
   };
   verifyImages(previous, repository, newSha, runner);
-  assert.equal(calls.filter(([cmd]) => cmd === 'docker').length, 4);
+  assert.equal(calls.filter(([cmd]) => cmd === 'docker').length, 3);
   assert.equal(
     calls.filter(([cmd, args]) => cmd === 'cosign' && args[0] === 'verify')
       .length,
-    4,
+    3,
   );
   assert.equal(
     calls.filter(
       ([cmd, args]) => cmd === 'cosign' && args[0] === 'verify-attestation',
     ).length,
-    4,
+    3,
   );
   assert.equal(
     calls.filter(
@@ -138,7 +175,7 @@ test('reuse checks registry, exact main identity, SBOM and source-bound provenan
         args.includes('--source-digest') &&
         args.includes(oldSha),
     ).length,
-    4,
+    3,
   );
   assert.ok(
     calls.find(
@@ -198,7 +235,7 @@ test('cumulative image routing includes failed intervening releases', () => {
   assert.ok(cumulative.image && cumulative.caddy);
   assert.ok(!cumulative.gotenberg);
   assert.ok(calls[1].includes(oldSha));
-  assert.equal(Object.keys(components).length, 4);
+  assert.equal(Object.keys(components).length, 3);
 });
 
 test('release planning revalidates cumulative failures, separates runtime builds, and requires explicit bootstrap', () => {
@@ -289,9 +326,7 @@ test('release planning revalidates cumulative failures, separates runtime builds
       ).publish,
       true,
     );
-    assert.ok(
-      built.api_image && built.caddy && built.gotenberg && built.backup,
-    );
+    assert.ok(built.api_image && built.caddy && built.backup);
     for (const event of ['schedule', 'workflow_dispatch', 'pull_request'])
       assert.equal(
         releasePlan(

@@ -26,10 +26,7 @@ run writes nothing), so groups completed before the row that crosses the
 limit have already been imported.
 Ordinary row validation errors retain the existing partial-success behavior.
 
-Uploads stay private. CSV and JSON stream; an Excel workbook is spooled to
-a temporary file and streamed too, except one whose zip entry order exceljs'
-streaming reader would misread, or one of several sheets, which is read whole
-([data-transfer.md](data-transfer.md)): such a file can still hold up to the
-byte limit and what it unpacks to in a worker's memory, so size the worker's
-memory (and its temporary disk) for concurrent imports before raising the
-limits.
+Uploads stay private. CSV, JSON and Excel stream. An Excel sheet stored
+before the workbook's styles is held in memory, re-compressed, until they
+arrive ([data-transfer.md](data-transfer.md)), so size the worker's memory
+for concurrent imports before raising the limits.

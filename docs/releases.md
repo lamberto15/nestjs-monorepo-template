@@ -107,7 +107,7 @@ hand, GitHub's generated list of pull requests):
 | Upgrading        | the merge, and [upgrading](upgrading.md)                                                                                                                                                                                        |
 | Images           | the app's, Gotenberg's and Caddy's version tags and digests, as `release.yml` tagged them                                                                                                                                       |
 | Migrations       | the files added under `apps/api/drizzle/` since the previous release, each linked; the expand/contract lint's findings (squawk, as CI's `migration-lint`); a merged migration edited or deleted, which drizzle never re-applies |
-| Rolling back     | the previous release's `APP_IMAGE`, `GOTENBERG_IMAGE` and `CADDY_IMAGE`; whether the previous release runs on this schema; the Compose files to check out with them                                                             |
+| Rolling back     | the previous release's `APP_IMAGE` and `CADDY_IMAGE`; whether the previous release runs on this schema; the Compose files to check out with them                                                             |
 | Configuration    | variables added to or removed from `env.example`                                                                                                                                                                                |
 | Typed client     | its version, when it changed, with a link to its changelog                                                                                                                                                                      |
 

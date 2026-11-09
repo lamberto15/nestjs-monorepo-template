@@ -1,6 +1,6 @@
 {
   "name": "nestjs-monorepo-template",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "NestJS 12 REST backend template: accounts (passwords, two-factor, OAuth, magic links, tokens, impersonation), roles with CASL, API keys, audit log, idempotency, outbox, webhooks, workflows, queues, mail, storage, realtime, i18n, Docker Compose for dev and production.",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -53,7 +53,7 @@
     "@changesets/cli": "3.0.3",
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
-    "knip": "6.43.0",
+    "knip": "6.44.1",
     "lefthook": "2.2.2",
     "oxlint": "1.88.0",
     "oxlint-tsgolint": "7.0.2005",

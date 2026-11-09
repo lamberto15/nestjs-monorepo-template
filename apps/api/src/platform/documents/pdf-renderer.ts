@@ -70,7 +70,7 @@ export class PdfRenderer {
     form.append('preferCssPageSize', 'true');
     form.append('printBackground', 'true');
     // Headings and reading order for screen readers (PDF/UA-friendly).
-    form.append('generateTaggedPdf', 'true');
+    form.append('nativeTaggedPdf', 'true');
     try {
       const response = await this.http.post('/forms/chromium/convert/html', {
         body: form,
