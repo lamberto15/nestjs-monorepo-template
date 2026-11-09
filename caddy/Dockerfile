@@ -28,7 +28,7 @@ RUN pnpm --filter @nestjs-monorepo-template/web... build
 # sends: compressed once here, not for each request.
 RUN pnpm --filter @nestjs-monorepo-template/web precompress
 
-FROM caddy:2.11.7-builder AS builder
+FROM caddy:2.11.9-builder AS builder
 # The Cloudflare DNS plugin is pinned (v0.2.4, its newest release), so two
 # builds of one commit are the same image; Dependabot doesn't see a version
 # inside this RUN line: raise it by hand, and with it the Caddy release the
@@ -41,7 +41,7 @@ RUN xcaddy build --with github.com/caddy-dns/cloudflare@v0.2.4 \
       --replace golang.org/x/net=golang.org/x/net@v0.62.0 \
       --replace github.com/go-jose/go-jose/v4=github.com/go-jose/go-jose/v4@v4.1.6
 
-FROM caddy:2.11.7
+FROM caddy:2.11.9
 # Stable IDs also used by the one-time certificate-volume migration.
 RUN apk upgrade --no-cache brotli-libs curl libcurl \
  && addgroup -S -g 10001 caddy \
