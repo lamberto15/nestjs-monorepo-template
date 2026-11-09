@@ -10,9 +10,9 @@
 #   pnpm deploy:swarm status | rollback | render
 #
 # What Swarm lacks, and what replaces it:
-# - build:       images are pulled: APP_IMAGE, GOTENBERG_IMAGE, BACKUP_IMAGE and
-#                CADDY_IMAGE are required (CI publishes all but the backup's,
-#                docs/deploy-swarm.md).
+# - build:       images are pulled: APP_IMAGE, BACKUP_IMAGE and CADDY_IMAGE
+#                are required (docs/deploy-swarm.md); Gotenberg's is the
+#                official one compose.prod.yaml pins.
 # - depends_on:  ignored. Tasks that start before PostgreSQL or Redis fail
 #                their healthcheck or exit, and restart_policy retries them.
 # - one-shot:    `migrate` is a replicated job; the script deploys it first and
@@ -199,9 +199,7 @@ services:
       <<: *stateful
 
   gotenberg:
-    build: !reset null
     restart: !reset null
-    image: ${GOTENBERG_IMAGE:?set GOTENBERG_IMAGE (docs/deploy-swarm.md)}
     deploy:
       restart_policy: *restart
       placement:

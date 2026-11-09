@@ -31,11 +31,10 @@ updates:
       # in 7.1. Remove this once 7.1 is out and they build with it.
       - dependency-name: typescript
         versions: ['7.0.x']
-  # apps/api/Dockerfile, caddy/Dockerfile, backup/Dockerfile and
-  # gotenberg/Dockerfile. Not seen: backup's SUPERCRONIC_VERSION and RCLONE_TAG build arguments (rclone is
+  # apps/api/Dockerfile, caddy/Dockerfile and backup/Dockerfile. Not seen: backup's SUPERCRONIC_VERSION and RCLONE_TAG build arguments (rclone is
   # built from its release tag, not copied from its image).
   - package-ecosystem: docker
-    directories: [/apps/api, /caddy, /backup, /gotenberg]
+    directories: [/apps/api, /caddy, /backup]
     schedule:
       interval: weekly
     # Node.js is a coordinated platform choice: the runtime image, the
@@ -44,6 +43,8 @@ updates:
     ignore:
       - dependency-name: node
         versions: ['>=27.0.0']
+  # The Compose files' images, Gotenberg's among them (compose.prod.yaml and
+  # compose.dev.yaml pin the same one: one pull request raises both).
   - package-ecosystem: docker-compose
     directory: /
     schedule:

@@ -1,13 +1,22 @@
 import type { EventEmitter } from 'node:events';
-import { createReadStream, createWriteStream } from 'node:fs';
-import { mkdtemp, open, readFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { pipeline as pipelineAsync } from 'node:stream/promises';
 import { PassThrough, pipeline, type Readable } from 'node:stream';
 import { parse } from 'csv-parse';
 import { stringify } from 'csv-stringify';
-import ExcelJS from 'exceljs';
+import {
+  addDataValidation,
+  autoFitColumns,
+  type CellValue,
+  createXlsxWriter,
+  EncryptedFileError,
+  estimateColumnWidths,
+  type StreamSheet,
+  Workbook,
+  writeXlsx,
+  XlsxParseError,
+  type XlsxRow,
+  xlsxRows,
+  ZipLimitError,
+} from 'turbosheet';
 import { streamArray } from 'stream-json/streamers/stream-array.js';
 import type {
   ImportColumn,
@@ -23,7 +32,7 @@ import {
 
 /**
  * The file formats, streamed both ways: a 100 MB export or import never sits
- * in memory. The libraries (csv-stringify / csv-parse, exceljs) are used only
+ * in memory. The libraries (csv-stringify / csv-parse, turbosheet) are used only
  * here, so one can be replaced in one place.
  */
 
@@ -234,16 +243,16 @@ export function createWriter(
     columns.map((column) => {
       const value = read(column, row);
       if (format === 'xlsx' && column.type === 'date' && isDay(value)) {
-        // A day as an Excel date cell (exceljs turns a Date into a serial
-        // from its UTC time).
+        // A day as an Excel date cell (a Date becomes a serial from its UTC
+        // time).
         return new Date(`${value}T00:00:00Z`);
       }
       if (!datetime(column) || !(value instanceof Date)) {
         return cell(value, timeZone);
       }
       if (format === 'csv') return localDateTime(value, timeZone);
-      // exceljs turns a Date into a serial from its UTC time, and an Excel
-      // date has no zone: the local wall-clock time, given as UTC.
+      // A Date becomes a serial from its UTC time, and an Excel date has no
+      // zone: the local wall-clock time, given as UTC.
       const { date, time, ms } = wallClock(value, timeZone);
       return new Date(`${date}T${time}.${ms}Z`);
     });
@@ -318,33 +327,54 @@ export function createWriter(
     };
   }
 
-  const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-    stream: output,
-    // Styles: a date cell needs its number format to show as a date.
-    useStyles: true,
-    useSharedStrings: false,
-  });
-  const sheet = workbook.addWorksheet('Data');
-  sheet.addRow(headers).commit();
   // A date cell shows as a date only with a number format: per column.
   const numFmts = columns.map((column) =>
-    column.type === 'date' ? DAY_FORMAT : DATETIME_FORMAT,
+    column.type === 'date'
+      ? DAY_FORMAT
+      : column.type === 'datetime'
+        ? DATETIME_FORMAT
+        : undefined,
   );
+  const writer = createXlsxWriter({
+    // Inline strings: rows are flushed as written, nothing kept per string.
+    strings: 'inline',
+    sink: async (chunk) => {
+      assertOpen(output);
+      if (!output.write(chunk)) await drained(output);
+    },
+  });
+  let sheet: StreamSheet | undefined;
+  // The sheet starts with the first batch, so its columns are as wide as
+  // that batch's values (a streamed sheet can't be fitted afterwards).
+  const start = (sample: CellValue[][]) => {
+    const widths = estimateColumnWidths([headers, ...sample], {
+      numFmts,
+      max: 60,
+    });
+    return writer.addWorksheet('Data', {
+      columns: columns.map((_, i) => ({
+        width: widths[i],
+        style: numFmts[i] ? { numFmt: numFmts[i] } : undefined,
+      })),
+      freeze: 1,
+    });
+  };
   return {
     output,
     write: async (rows: Record<string, unknown>[]) => {
       assertOpen(output);
-      for (const row of rows) {
-        const line = sheet.addRow(values(row));
-        line.eachCell((cell, i) => {
-          if (cell.value instanceof Date) cell.numFmt = numFmts[i - 1]!;
-        });
-        line.commit();
+      const lines = rows.map(values);
+      if (!sheet) {
+        sheet = start(lines);
+        sheet.addRow(headers);
       }
+      for (const line of lines) sheet.addRow(line);
+      await sheet.flush();
     },
     end: async () => {
-      sheet.commit();
-      await workbook.commit();
+      if (!sheet) start([]).addRow(headers);
+      await writer.end();
+      output.end();
     },
     destroy: (error: Error) => {
       output.destroy(error);
@@ -407,10 +437,9 @@ export async function createTemplate(
     return Buffer.concat(chunks);
   }
 
-  const workbook = new ExcelJS.Workbook();
-  const data = workbook.addWorksheet(guide.sheets.data, {
-    views: [{ state: 'frozen', ySplit: 1 }],
-  });
+  const workbook = new Workbook();
+  const data = workbook.addWorksheet(guide.sheets.data);
+  data.freeze(1);
   const help = workbook.addWorksheet(guide.sheets.columns);
   // The choices of the dropdowns: a range, not an inline list (Excel caps
   // that at 255 characters, and a comma would split a choice).
@@ -422,8 +451,9 @@ export async function createTemplate(
         ? zonedHeader(column.name, timeZone)
         : column.name,
     ),
-  ).font = { bold: true };
-  const line = data.addRow(
+    { font: { bold: true } },
+  );
+  data.addRow(
     columns.map((column) => {
       const value = example[column.name];
       if (column.type === 'date' && isDay(value)) {
@@ -440,10 +470,10 @@ export async function createTemplate(
     const sheetColumn = data.getColumn(i + 1);
     sheetColumn.width = Math.max(14, column.name.length + 4);
     if (column.type === 'datetime') {
-      line.getCell(i + 1).numFmt = DATETIME_FORMAT;
+      data.setStyle(2, i + 1, { numFmt: DATETIME_FORMAT });
       sheetColumn.width = Math.max(sheetColumn.width, 22);
     } else if (column.type === 'date') {
-      line.getCell(i + 1).numFmt = DAY_FORMAT;
+      data.setStyle(2, i + 1, { numFmt: DAY_FORMAT });
     }
     const choices =
       column.type === 'boolean'
@@ -452,31 +482,30 @@ export async function createTemplate(
           ? column.options
           : undefined;
     if (!choices?.length) return;
-    const listColumn = lists.getColumn(i + 1);
     choices.forEach((choice, row) => {
-      lists.getCell(row + 1, i + 1).value = choice;
+      lists.setCell(row + 1, i + 1, choice);
     });
-    const range = `Lists!$${listColumn.letter}$1:$${listColumn.letter}$${choices.length}`;
-    for (let row = 2; row <= TEMPLATE_ROWS + 1; row++) {
-      data.getCell(row, i + 1).dataValidation = {
-        type: 'list',
-        allowBlank: !column.required,
-        formulae: [range],
-        showErrorMessage: true,
-      };
-    }
+    const letter = sheetColumn.letter;
+    // One rule over the column's rows, as Excel stores a dropdown filled down.
+    addDataValidation(data, {
+      sqref: `${letter}2:${letter}${TEMPLATE_ROWS + 1}`,
+      type: 'list',
+      allowBlank: !column.required,
+      formula1: `Lists!$${letter}$1:$${letter}$${choices.length}`,
+      showErrorMessage: true,
+    });
   });
 
-  help.addRow([guide.note]).font = { italic: true };
+  help.addRow([guide.note], { font: { italic: true } });
   help.addRow([]);
-  help.addRow(guide.headers).font = { bold: true };
+  help.addRow(guide.headers, { font: { bold: true } });
   for (const column of columns) {
     help.addRow(guide.line(column));
   }
-  help.columns.forEach((column, i) => {
-    column.width = [24, 10, 14, 40, 24, 50][i] ?? 20;
-  });
-  return Buffer.from(await workbook.xlsx.writeBuffer());
+  // Fitted to the guide's table: the note above it may overflow its cell.
+  autoFitColumns(help, { rows: { from: 3 }, min: 10, max: 60 });
+  const bytes = writeXlsx(workbook);
+  return Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength);
 }
 
 /**
@@ -562,79 +591,71 @@ async function* records(
 }
 
 /**
- * A spreadsheet's first sheet, one row at a time (#618). The upload is
- * spooled to a temporary file first (never held whole in memory), its zip
- * directory checked (a zip bomb is refused before anything is unpacked),
- * then exceljs's streaming reader reads it, unless the file's entry order
- * would make that reader wrong: see `streamable()`. Such a file (and one
- * with several sheets) is read whole as before, still checked first.
+ * A spreadsheet's first sheet, one row at a time (#618), read as the upload
+ * streams in: turbosheet's reader checks the zip while it inflates (entry
+ * count, unpacked size, compression ratio, entry paths), so a zip bomb
+ * stops before it fills the worker. A sheet stored before the workbook's
+ * styles or shared strings (a streamed export, Google Sheets, LibreOffice)
+ * is held compressed in memory until they arrive, so its dates still read
+ * as dates.
  */
 async function* xlsxRecords(
   input: Readable,
   dateColumns: ReadonlySet<string>,
   mapping: ImportMapping | undefined,
 ): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
-  const dir = await mkdtemp(join(tmpdir(), 'import-xlsx-'));
+  const rows = xlsxRows(input, {
+    limits: {
+      maxEntries: MAX_ZIP_ENTRIES,
+      maxTotalBytes: MAX_UNZIPPED_BYTES,
+    },
+    // A sheet held until the styles arrive is re-compressed meanwhile.
+    profile: 'low-memory',
+  });
   try {
-    const path = join(dir, 'upload.xlsx');
-    await pipelineAsync(input, createWriteStream(path));
-    const entries = await zipEntries(path);
-    if (streamable(entries)) {
-      const reader = new ExcelJS.stream.xlsx.WorkbookReader(
-        createReadStream(path),
-        {
-          sharedStrings: 'cache',
-          styles: 'cache',
-          hyperlinks: 'ignore',
-          worksheets: 'emit',
-          entries: 'ignore',
-        },
-      );
-      // The first sheet only, as a loaded workbook's worksheets[0].
-      const sheets = reader[Symbol.asyncIterator]();
-      try {
-        const first = await sheets.next();
-        if (!first.done) {
-          yield* sheetRecords(
-            first.value as AsyncIterable<ExcelJS.Row>,
-            dateColumns,
-            mapping,
-          );
-        }
-      } finally {
-        await sheets.return?.(undefined);
-      }
-      return;
-    }
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load((await readFile(path)) as unknown as ArrayBuffer);
-    const sheet = workbook.worksheets[0];
-    if (!sheet) return;
-    yield* sheetRecords(loadedRows(sheet), dateColumns, mapping);
-  } finally {
-    await rm(dir, { recursive: true, force: true });
+    yield* sheetRecords(firstSheet(rows), dateColumns, mapping);
+  } catch (error) {
+    throw xlsxFormatError(error);
   }
 }
 
-/** A loaded sheet's rows, as eachRow() (the rows with values), without a second copy of them. */
-function* loadedRows(sheet: ExcelJS.Worksheet) {
-  for (let number = 1; number <= sheet.rowCount; number++) {
-    const line = sheet.findRow(number);
-    if (line) yield line;
+/** The rows of the workbook's first sheet (in tab order). */
+async function* firstSheet(rows: AsyncIterable<XlsxRow>) {
+  for await (const row of rows) {
+    if (row.sheetIndex === 0) yield row;
   }
+}
+
+/** The reader's errors, as the person reads them; anything else (the source failing) as it is. */
+function xlsxFormatError(error: unknown) {
+  if (error instanceof EncryptedFileError) {
+    return new FormatError(
+      'The spreadsheet is password-protected: save it without a password.',
+    );
+  }
+  if (
+    error instanceof ZipLimitError &&
+    /^(Too many|Zip (entry|total))/.test(error.message)
+  ) {
+    return new FormatError('The spreadsheet is too large to import.');
+  }
+  if (error instanceof ZipLimitError || error instanceof XlsxParseError) {
+    return new FormatError('The spreadsheet is not a valid .xlsx file.');
+  }
+  return error;
 }
 
 /** The records of a sheet's rows: the first row with values is the header. */
 async function* sheetRecords(
-  rows: Iterable<ExcelJS.Row> | AsyncIterable<ExcelJS.Row>,
+  rows: AsyncIterable<XlsxRow>,
   dateColumns: ReadonlySet<string>,
   mapping: ImportMapping | undefined,
 ): AsyncGenerator<{ row: number; record: Record<string, unknown> }> {
   let row = 0;
   let headers: (string | null)[] | undefined;
   for await (const line of rows) {
-    if (!line.hasValues) continue;
-    const cells = (line.values as unknown[]).slice(1);
+    // Sparse, 0-based by column: an empty header cell is a hole, skipped.
+    const cells = line.values;
     if (!headers) {
       headers = renameHeaders(
         cells.map((header) =>
@@ -787,101 +808,3 @@ export function formatOf(contentType: string): TransferFormat | undefined {
 /** What a spreadsheet may unpack to, and how many files it may hold. */
 const MAX_UNZIPPED_BYTES = 300 * 1024 * 1024;
 const MAX_ZIP_ENTRIES = 2_000;
-
-/** A zip entry as its central directory lists it. */
-export interface ZipEntry {
-  name: string;
-  /** Where its local header starts: the order a streaming reader meets it in. */
-  offset: number;
-}
-
-/** The end-of-central-directory record is in the last 22 bytes plus a comment of at most 65,535. */
-const ZIP_TAIL = 22 + 0xffff;
-/** A directory of MAX_ZIP_ENTRIES entries with long names stays far below this. */
-const MAX_DIRECTORY_BYTES = 4 * 1024 * 1024;
-
-/**
- * The entries of a zip file (an .xlsx) on disk, from its central directory
- * alone (the end of the file), refusing one that declares more than
- * MAX_UNZIPPED_BYTES or MAX_ZIP_ENTRIES: a zip bomb would fill the
- * worker's memory or disk.
- */
-export async function zipEntries(path: string): Promise<ZipEntry[]> {
-  const invalid = () =>
-    new FormatError('The spreadsheet is not a valid .xlsx file.');
-  const file = await open(path, 'r');
-  try {
-    const { size } = await file.stat();
-    const tailLength = Math.min(size, ZIP_TAIL);
-    const tail = Buffer.alloc(tailLength);
-    await file.read(tail, 0, tailLength, size - tailLength);
-    const end = tail.lastIndexOf(Buffer.from([0x50, 0x4b, 0x05, 0x06]));
-    if (end < 0 || end + 22 > tail.length) throw invalid();
-    const count = tail.readUInt16LE(end + 10);
-    const length = tail.readUInt32LE(end + 12);
-    const start = tail.readUInt32LE(end + 16);
-    if (count > MAX_ZIP_ENTRIES || length > MAX_DIRECTORY_BYTES) {
-      throw new FormatError('The spreadsheet is too large to import.');
-    }
-    if (start + length > size) throw invalid();
-    const directory = Buffer.alloc(length);
-    await file.read(directory, 0, length, start);
-    const entries: ZipEntry[] = [];
-    let total = 0;
-    for (let i = 0, at = 0; i < count; i++) {
-      if (
-        at + 46 > directory.length ||
-        directory.readUInt32LE(at) !== 0x02014b50
-      ) {
-        throw invalid();
-      }
-      total += directory.readUInt32LE(at + 24);
-      if (total > MAX_UNZIPPED_BYTES) {
-        throw new FormatError('The spreadsheet is too large to import.');
-      }
-      const nameLength = directory.readUInt16LE(at + 28);
-      entries.push({
-        name: directory.toString('utf8', at + 46, at + 46 + nameLength),
-        offset: directory.readUInt32LE(at + 42),
-      });
-      at +=
-        46 +
-        nameLength +
-        directory.readUInt16LE(at + 30) +
-        directory.readUInt16LE(at + 32);
-    }
-    return entries;
-  } finally {
-    await file.close();
-  }
-}
-
-const SHEET_ENTRY = /^xl\/worksheets\/sheet\d+\.xml$/;
-
-/**
- * Whether exceljs's streaming reader (4.4) reads this file right, from the
- * order of its entries (the documented entry-order problem, #618). The
- * reader parses a sheet as it meets it once it has the shared strings and
- * the workbook's relationships, else it spools the sheet to a temporary
- * file and parses it at the end: both right. But a sheet it parses at once
- * before `xl/styles.xml` has no number formats yet, so its date cells come
- * out as serial numbers (46310, not 2026-10-15), silently. That order, and
- * a workbook of several sheets (the reader's first could be another than
- * the workbook's first), are read whole instead.
- */
-export function streamable(entries: readonly ZipEntry[]): boolean {
-  const at = (name: string) =>
-    entries.find((entry) => entry.name === name)?.offset;
-  const sheets = entries.filter((entry) => SHEET_ENTRY.test(entry.name));
-  if (sheets.length !== 1) return false;
-  const sheet = sheets[0]!.offset;
-  const strings = at('xl/sharedStrings.xml');
-  const rels = at('xl/_rels/workbook.xml.rels');
-  const styles = at('xl/styles.xml');
-  const parsedAtOnce =
-    strings !== undefined &&
-    strings < sheet &&
-    rels !== undefined &&
-    rels < sheet;
-  return !parsedAtOnce || styles === undefined || styles < sheet;
-}
