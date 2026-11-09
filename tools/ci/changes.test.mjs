@@ -203,6 +203,14 @@ test('ordinary API, web and docs pull requests occupy few runners', () => {
     'caddy-image',
   ]);
   assert.deepEqual(expectedJobs(route('docs/deployment.md')), ['changes']);
+  // The repository scans read .trivyignore.yaml and scan the Dockerfiles: a
+  // change to either runs them, not only the image jobs.
+  for (const file of [
+    '.trivyignore.yaml',
+    'caddy/Dockerfile',
+    'backup/Dockerfile',
+  ])
+    assert.ok(expectedJobs(route(file)).includes('security'), file);
 });
 
 test('root dependency routing never hides another affected image or an unknown path', () => {
