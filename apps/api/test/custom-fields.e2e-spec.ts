@@ -1117,15 +1117,12 @@ describe('custom fields (e2e)', () => {
         .responseType('blob')
         .expect(200)
     ).body as Buffer;
-    const ExcelJS = (await import('exceljs')).default;
-    const workbook = new ExcelJS.Workbook();
-    await workbook.xlsx.load(file as unknown as ArrayBuffer);
-    const sheet = workbook.worksheets[0]!;
-    const column = (sheet.getRow(1).values as unknown[]).indexOf('custom.due');
+    const { readXlsx } = await import('turbosheet');
+    const sheet = readXlsx(file).worksheets[0]!;
+    const column = sheet.getRow(1).values.indexOf('custom.due');
     expect(column).toBeGreaterThan(0);
-    const cell = sheet.getRow(2).getCell(column);
-    expect(cell.value).toEqual(new Date('2026-01-05T00:00:00Z'));
-    expect(cell.numFmt).toBe('yyyy-mm-dd');
+    expect(sheet.getValue(2, column)).toEqual(new Date('2026-01-05T00:00:00Z'));
+    expect(sheet.getCell(2, column).numFmt).toBe('yyyy-mm-dd');
 
     // The file back in: the date cell is the day again.
     const other = await node.client();

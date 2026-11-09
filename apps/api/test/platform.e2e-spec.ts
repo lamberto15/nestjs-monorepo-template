@@ -908,12 +908,12 @@ describe('platform: queues, storage and realtime (e2e)', () => {
     expect(titles.sort()).toEqual(['Imported one', 'Imported two']);
 
     // An Excel file works the same.
-    const ExcelJS = (await import('exceljs')).default;
-    const workbook = new ExcelJS.Workbook();
+    const { Workbook, writeXlsx } = await import('turbosheet');
+    const workbook = new Workbook();
     const sheet = workbook.addWorksheet('Test items');
     sheet.addRow(['title', 'body']);
     sheet.addRow(['From Excel', 'cell']);
-    const xlsx = Buffer.from(await workbook.xlsx.writeBuffer());
+    const xlsx = Buffer.from(writeXlsx(workbook));
     const fromExcel = await node
       .http()
       .post('/v1/data/imports')
