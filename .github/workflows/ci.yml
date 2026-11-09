@@ -165,6 +165,10 @@ jobs:
       METRICS_TOKEN: metrics-token-for-ci-only
     steps:
       - uses: actions/checkout@v7
+      # The stack's shell: the images' entrypoints, the backup and restore
+      # scripts, the operations scripts (ubuntu-24.04 ships shellcheck).
+      - name: Shell scripts pass shellcheck
+        run: git ls-files -z '*.sh' | xargs -0 shellcheck -S warning
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com

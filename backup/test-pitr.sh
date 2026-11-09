@@ -72,7 +72,8 @@ fi
 export BUCKET_DIR=$T/bucket PATH="$T/bin:$PATH"
 
 age-keygen -o "$T/identity" >/dev/null 2>&1
-export BACKUP_ENCRYPTION_KEY=$(age-keygen -y "$T/identity")
+BACKUP_ENCRYPTION_KEY=$(age-keygen -y "$T/identity")
+export BACKUP_ENCRYPTION_KEY
 export BACKUP_DECRYPTION_KEY_FILE=$T/identity
 
 # An SSH public key is a recipient too: a whole line (it has spaces in it),

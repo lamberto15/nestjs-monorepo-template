@@ -2151,7 +2151,7 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a few e2e specs instrumented and the built app's trace check |
 | `feature-smoke` | generated features, schema/client generation and their E2E tests |
 | `template-without-notes` | exhaustive generated-template variant; manual runs only |
-| `stack-config` | Compose secrets, hardening and settings, then the Swarm stack render |
+| `stack-config` | shellcheck over the tracked shell scripts; Compose secrets, hardening and settings, then the Swarm stack render |
 | `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
 | `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
 | `publish`, `publish-caddy`, `publish-backup` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |

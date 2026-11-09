@@ -226,7 +226,7 @@ pruned=$(find . -maxdepth 1 -type f \( -name 'db-*' -o -name 'files-*' -o -name 
 # be replayed from. (This run's base backup exists, so there is always one.)
 if pitr_on; then
   step=prune-wal
-  oldest=$(cat $(ls base-*.walstart | sort | head -n 1))
+  oldest=$(cat "$(ls base-*.walstart | sort | head -n 1)")
   pg_archivecleanup "$WAL_DIR" "$oldest"
 fi
 
