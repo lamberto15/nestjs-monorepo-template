@@ -38,6 +38,16 @@ test('a session change in another tab resets this one', async ({ page }) => {
   await page.getByLabel('Title').fill('Draft from the previous identity');
   await page.getByLabel('Text').fill('Keep these unsaved words');
 
+  // Record what other tabs announce on the identity channel (a second
+  // listener on the app's own channel, lib/session-bus.ts), so the test waits
+  // for the cross-tab event itself rather than guessing how long it takes.
+  await page.evaluate(() => {
+    const heard: (string | null)[] = [];
+    (window as unknown as { heard: typeof heard }).heard = heard;
+    new BroadcastChannel('app-session-identity').onmessage = (event) =>
+      heard.push(event.data ?? null);
+  });
+
   // Another tab of this browser (the same cookie jar) impersonates the
   // viewer: the cookie is re-issued, that tab's flow resets its cache and
   // announces the new identity.
@@ -69,7 +79,15 @@ test('a session change in another tab resets this one', async ({ page }) => {
 
   // This tab never reloaded and navigated nowhere: the announced identity
   // resets its cache, and the `me` refetch under the re-issued cookie shows
-  // the impersonated session — the banner and the user menu, live.
+  // the impersonated session — the banner and the user menu, live. The tab is
+  // in the background (the other one was opened after it), where the browser
+  // may delay its work: bring it back, then wait for the announcement.
+  await page.bringToFront();
+  await page.waitForFunction(
+    () => (window as unknown as { heard: unknown[] }).heard.length > 0,
+    undefined,
+    { timeout: 30_000 },
+  );
   await expect(actingAs(page)).toBeVisible();
   await expect(actingAs(page)).toContainText(viewer.email);
   await expect(footer.getByText(viewer.email)).toBeVisible();
