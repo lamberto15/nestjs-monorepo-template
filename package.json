@@ -1,6 +1,6 @@
 {
   "name": "nestjs-monorepo-template",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "NestJS 12 REST backend template: accounts (passwords, two-factor, OAuth, magic links, tokens, impersonation), roles with CASL, API keys, audit log, idempotency, outbox, webhooks, workflows, queues, mail, storage, realtime, i18n, Docker Compose for dev and production.",
   "private": true,
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -66,7 +66,7 @@
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
-      "version": "12.15.0",
+      "version": "12.18.0",
       "onFail": "download"
     },
     "runtime": {

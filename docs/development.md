@@ -143,6 +143,12 @@ and `node tools/ci/pinned-deps.mjs` (part of `pnpm lint`) fails on a range in
 `dependencies`, `devDependencies` or `optionalDependencies`. `engines`,
 `devEngines` and `peerDependencies` stay ranges.
 
+pnpm itself is pinned in three places that must agree: `devEngines.packageManager`
+in the root `package.json` (what `pnpm install` and CI's `pnpm/setup` run) and the
+`ghcr.io/pnpm/pnpm` image of `apps/api/Dockerfile` and `caddy/Dockerfile` (what
+builds the images). The same check fails when they differ. Dependabot raises
+only the images: when its pull request arrives, raise `devEngines` in it too.
+
 ## Commands
 
 | Command | Does |

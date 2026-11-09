@@ -32,7 +32,7 @@ x-logging: &logging
 
 services:
   prometheus:
-    image: prom/prometheus:v3.15.1
+    image: prom/prometheus:v3.16.0
     restart: unless-stopped
     command:
       - --config.file=/etc/prometheus/prometheus.yml
@@ -181,7 +181,7 @@ services:
   redis-exporter:
     # The Alpine build: redis/redis.sh reads REDIS_PASSWORD_FILE (the scratch
     # one has no shell, and its --redis.password-file wants a JSON map).
-    image: oliver006/redis_exporter:v1.96.0-alpine
+    image: oliver006/redis_exporter:v1.97.0-alpine
     restart: unless-stopped
     entrypoint: ['sh', '/etc/redis-scripts/redis.sh', 'exporter']
     environment:
