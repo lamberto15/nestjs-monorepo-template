@@ -243,7 +243,11 @@ export function releasePlan(
     try {
       plan.previous = load(env.GITHUB_REPOSITORY, env.GITHUB_SHA);
       const files = gitFiles(plan.previous.sourceSha, env.GITHUB_SHA);
-      const cumulative = classify({ files, complete: Boolean(files) });
+      const cumulative = classify({
+        files,
+        complete: Boolean(files),
+        base: plan.previous.sourceSha,
+      });
       // Include changes from failed/skipped intervening releases, rather than
       // comparing images only with the immediately preceding source commit.
       // A failed validation cannot supply evidence for a rebuilt component.

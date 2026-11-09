@@ -241,6 +241,25 @@ test('release planning revalidates cumulative failures, separates runtime builds
     assert.equal(sizingPlan.publish, true);
     assert.equal(sizingPlan.previous.sourceSha, oldSha);
     assert.ok(!sizing.api_image && !sizing.caddy && !sizing.gotenberg);
+    // A release commit reuses every image: classify learns the cumulative
+    // comparison's base, to tell a version bump from another root change.
+    const releaseFiles = ['.release-please-manifest.json', 'package.json'];
+    const release = classify({ files: releaseFiles, versionOnly: true });
+    const bases = [];
+    const releasePlanned = releasePlan(
+      release,
+      env,
+      {},
+      (args) => {
+        bases.push(args.base);
+        return classify({ ...args, versionOnly: true });
+      },
+      () => releaseFiles,
+      () => previous,
+    );
+    assert.equal(releasePlanned.publish, true);
+    assert.deepEqual(bases, [oldSha]);
+    assert.ok(!release.image && !release.api_image && !release.caddy);
     const infra = classify({ files: ['compose.prod.yaml'] });
     assert.ok(infra.image);
     assert.equal(infra.api_image, false);

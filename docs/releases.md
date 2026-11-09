@@ -55,8 +55,12 @@ pull request open, `chore(main): release x.y.z`, with the next version in
    a bot-made change.
 2. **Release Please tags** the merge commit `vX.Y.Z` and leaves a **draft**
    GitHub release with the changelog entry.
-3. **CI / CD runs on that commit** (it changed `package.json`): every check,
-   then it builds, scans, signs and publishes the images, as for any merge.
+3. **CI / CD runs on that commit.** The release changes only `CHANGELOG.md`,
+   `.release-please-manifest.json` and the root `package.json`'s version,
+   which `main` already validated: no tests run and no image is rebuilt (the
+   release pull request's CI is just as short). CI keeps a release manifest
+   for the commit that reuses the previous images' digests, so staging
+   deploys it, as production's staging gate requires.
 4. **`release.yml` promotes the tag** once CI / CD passed there. It never
    builds: it checks that commit's release manifest and images as a deploy
    does (run evidence, ancestry, signatures, attestations), tags the images

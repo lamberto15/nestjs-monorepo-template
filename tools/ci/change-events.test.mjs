@@ -3,7 +3,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { runChanges } from './changes.mjs';
+import { NIGHTLY_CRON, runChanges } from './changes.mjs';
 import { releasePlan } from './release-manifest.mjs';
 const base = 'a'.repeat(40),
   head = 'b'.repeat(40);
@@ -12,7 +12,11 @@ function eventOutput(
   eventName,
   event,
   response,
-  { ref = 'refs/heads/main', planning = releasePlan } = {},
+  {
+    ref = 'refs/heads/main',
+    planning = releasePlan,
+    bumped = () => false,
+  } = {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), 'ci-events-'));
   try {
@@ -39,6 +43,7 @@ function eventOutput(
       },
       planning,
       () => ['apps/api/example.ts'],
+      bumped,
     );
     const lines = readFileSync(output, 'utf8').trim().split('\n');
     assert.equal(
@@ -160,6 +165,62 @@ test('API failures and truncated comparisons run comprehensively', () => {
     assert.ok(result.full && result.api && result.web);
     assert.ok(!JSON.parse(result.expected).includes('template-without-notes'));
   }
+});
+
+test('weekday nights scan the images and dependencies; Sunday validates the rest', () => {
+  const expected = (schedule) =>
+    JSON.parse(eventOutput('schedule', { schedule }, null).result.expected);
+  assert.deepEqual(expected(NIGHTLY_CRON), [
+    'changes',
+    'security',
+    'image',
+    'backup-image',
+    'caddy-image',
+    'gotenberg-image',
+  ]);
+  const sunday = expected('17 3 * * 0');
+  for (const job of ['e2e', 'check']) assert.ok(sunday.includes(job), job);
+  assert.ok(!sunday.includes('template-without-notes'));
+});
+
+test('a release (changelog, manifest, root version) runs no tests and publishes a manifest on main', () => {
+  const files = [
+    { filename: 'CHANGELOG.md', status: 'modified' },
+    { filename: '.release-please-manifest.json', status: 'modified' },
+    { filename: 'package.json', status: 'modified' },
+  ];
+  const pr = eventOutput(
+    'pull_request',
+    {
+      number: 1047,
+      pull_request: {
+        base: { sha: base },
+        head: { sha: head },
+        changed_files: 3,
+      },
+    },
+    [files],
+    { bumped: (from, to) => from === base && to === head },
+  ).result;
+  assert.deepEqual(JSON.parse(pr.expected), ['changes']);
+  assert.equal(pr.publish, false);
+  const main = eventOutput(
+    'push',
+    { before: base },
+    { status: 'ahead', files },
+    { planning: (flags) => ({ publish: flags.code }), bumped: () => true },
+  ).result;
+  assert.deepEqual(JSON.parse(main.expected), ['changes']);
+  assert.equal(main.publish, true);
+  // Any other package.json change validates the applications.
+  const other = eventOutput(
+    'push',
+    { before: base },
+    { status: 'ahead', files },
+    { planning: (flags) => ({ publish: flags.code }) },
+  ).result;
+  assert.ok(other.api && other.web);
+  assert.ok(JSON.parse(other.expected).includes('e2e'));
 });
 
 test('template-without-notes runs on a manual run only', () => {

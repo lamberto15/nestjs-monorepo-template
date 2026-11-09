@@ -5,7 +5,8 @@
 # CHANGELOG.md entry. Merging it is the decision to release:
 #
 #   release PR merged → tag vX.Y.Z on its commit + a DRAFT GitHub release
-#     → CI / CD runs on that commit (it changes package.json): builds, signs
+#     → CI / CD runs on that commit: no tests, no build (a version bump);
+#       its release manifest reuses the previous images
 #     → release.yml promotes the tag: same images, version tags, notes,
 #       release published → production can take it (deploy.yml)
 #

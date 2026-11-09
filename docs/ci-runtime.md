@@ -34,11 +34,22 @@ guesses, decide the layout. The audit behind it: issue
   `tools/ci/changes.test.mjs` pins the jobs an ordinary API, web or docs
   pull request runs: a new job there is a runner every such pull request
   waits for.
-- **Comprehensive where it costs no pull request:** the nightly run adds the
-  images. `template-without-notes` (two shards) runs only on a manual run
+- **Comprehensive where it costs no pull request:** weekday nights scan the
+  images and the dependencies only (new advisories); Sunday's scheduled run,
+  tags, manual runs and changes that classify as `full` run everything else.
+  `template-without-notes` (two shards) runs only on a manual run
   (Actions > CI / CD > Run workflow): before a release, or after a change to
-  the generator or the core. `web.yml` adds
-  Lighthouse.
+  the generator or the core. `web.yml` runs Lighthouse for each release and
+  by hand.
+- **A release reruns nothing:** Release Please's pull request and its merge
+  change only the changelog, `.release-please-manifest.json` and the root
+  version, so they run `changes` alone; on `main` the merge keeps a release
+  manifest of the previous images for staging and the production gate. They
+  had run the full suite twice per release (about 200 runner-minutes and 40
+  minutes of waiting).
+- **Runner size:** the timings below are from 4-vCPU public-repository
+  runners. A private repository gets 2-vCPU runners, which more than doubled
+  the e2e shards (8–13 min each in November 2026).
 - **Flaky is a bug, not a retry:** Playwright's one CI retry stays, but a
   retried attempt's trace is uploaded (`playwright-report`), so a flake
   leaves evidence (one such trace explained a flake of
