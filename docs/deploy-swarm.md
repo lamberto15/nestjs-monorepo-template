@@ -26,7 +26,8 @@ records them in the `release-manifest-v1` artifact. A deploy never rebuilds:
 `tools/ci/deploy-release.mjs` verifies the run's evidence, that the source
 commit is an ancestor of `main`, and the cosign signature and attestation of
 each image digest, then deploys by digest (`APP_IMAGE`, `CADDY_IMAGE`,
-`GOTENBERG_IMAGE`, `BACKUP_IMAGE`).
+`BACKUP_IMAGE`; Gotenberg's is the official image `compose.prod.yaml` pins,
+and a release from before that still passes its own `GOTENBERG_IMAGE`).
 
 **The Deploy workflow** (`.github/workflows/deploy.yml`):
 
@@ -207,7 +208,7 @@ What Swarm lacks, and what replaces it:
 
 | Compose | Swarm |
 | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `build:` | Images are pulled: `APP_IMAGE`, `GOTENBERG_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required, pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
+| `build:` | Images are pulled: `APP_IMAGE`, `BACKUP_IMAGE`, `CADDY_IMAGE` are required (Gotenberg's is the official image `compose.prod.yaml` pins), pushed to a registry first (below). `--with-registry-auth` hands a private registry's login to the nodes. |
 | `depends_on` | Ignored. A task that starts before PostgreSQL or Redis fails its healthcheck or exits, and `restart_policy` retries it. |
 | one-shot `migrate` | A `replicated-job` service the script deploys and waits for before the app is touched. |
 | bind mounts (`Caddyfile`, `redis.sh`) | Swarm configs. |
@@ -227,7 +228,7 @@ docker build -t ghcr.io/<owner>/<repo>/backup:1 backup && docker push ghcr.io/<o
 ```
 
 For a hand deploy, `.env` (or the shell): `APP_IMAGE=ghcr.io/<owner>/<repo>:<full commit SHA>`,
-`GOTENBERG_IMAGE`, `CADDY_IMAGE` (the same commit as `APP_IMAGE`: it holds the web
+`CADDY_IMAGE` (the same commit as `APP_IMAGE`: it holds the web
 build that fits that API), `BACKUP_IMAGE`. Never `latest`: a deploy
 names the version it runs, and a rollback goes back to the one before it.
 

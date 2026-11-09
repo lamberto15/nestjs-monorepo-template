@@ -1,8 +1,5 @@
-import ExcelJS from 'exceljs';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { Readable } from 'node:stream';
+import { readXlsx, Workbook, writeXlsx } from 'turbosheet';
 import type { TransferFormat } from './data-transfer.types.js';
 import {
   createWriter,
@@ -10,8 +7,6 @@ import {
   isoInZone,
   localDateTime,
   readRecords,
-  streamable,
-  zipEntries,
 } from './formats.js';
 import { MappingError } from './import-mapping.js';
 
@@ -225,6 +220,40 @@ describe('date columns', () => {
   });
 });
 
+describe('Excel exports', () => {
+  async function exported(rows: Record<string, unknown>[][]) {
+    const writer = createWriter('xlsx', [
+      { key: 'title' },
+      { key: 'day', type: 'date' },
+    ]);
+    const chunks: Buffer[] = [];
+    const collected = (async () => {
+      for await (const chunk of writer.output) chunks.push(chunk as Buffer);
+    })();
+    for (const batch of rows) await writer.write(batch);
+    await writer.end();
+    await collected;
+    return readXlsx(Buffer.concat(chunks)).worksheets[0]!;
+  }
+
+  it('freezes the header and sizes the columns from the first batch', async () => {
+    const sheet = await exported([
+      [{ title: 'A title long enough to widen its column', day: '2026-01-05' }],
+      [{ title: 'Second batch', day: '2026-01-06' }],
+    ]);
+    expect(sheet.views[0]).toMatchObject({ state: 'frozen', ySplit: 1 });
+    expect(sheet.getColumn(1).width).toBeGreaterThan(30);
+    expect(sheet.getCell('B3').numFmt).toBe('yyyy-mm-dd');
+    expect(sheet.getValue('A3')).toBe('Second batch');
+  });
+
+  it('writes the header of an export without rows', async () => {
+    const sheet = await exported([]);
+    expect(sheet.getRow(1).values).toEqual([undefined, 'title', 'day']);
+    expect(sheet.rowCount).toBe(1);
+  });
+});
+
 describe('JSON imports', () => {
   /** The file as the upload delivers it: in `size`-byte chunks. */
   async function read(text: string, size = 3) {
@@ -315,11 +344,11 @@ describe('readRecords with a column mapping', () => {
   });
 
   it('reads an Excel date cell as the day under a date target', async () => {
-    const workbook = new ExcelJS.Workbook();
+    const workbook = new Workbook();
     const sheet = workbook.addWorksheet('Sheet1');
     sheet.addRow(['Birthday']);
     sheet.addRow([new Date('2026-01-05T00:00:00Z')]);
-    const file = Buffer.from(await workbook.xlsx.writeBuffer());
+    const file = Buffer.from(writeXlsx(workbook));
     expect(
       await read('xlsx', file, {
         dateColumns: new Set(['day']),
@@ -336,81 +365,33 @@ describe('readRecords with a column mapping', () => {
 });
 
 describe('streaming spreadsheet imports (#618)', () => {
-  const entries = (...names: string[]) =>
-    names.map((name, offset) => ({ name, offset }));
-
-  it('streams a single sheet unless its styles would come after a sheet read at once', () => {
-    // exceljs's own writeBuffer(): the sheet before the shared strings (spooled, then read).
-    expect(
-      streamable(
-        entries(
-          'xl/_rels/workbook.xml.rels',
-          'xl/worksheets/sheet1.xml',
-          'xl/sharedStrings.xml',
-          'xl/styles.xml',
-          'xl/workbook.xml',
-        ),
-      ),
-    ).toBe(true);
-    // Strings and relationships first, styles last: dates would read as serial numbers.
-    expect(
-      streamable(
-        entries(
-          'xl/_rels/workbook.xml.rels',
-          'xl/sharedStrings.xml',
-          'xl/worksheets/sheet1.xml',
-          'xl/styles.xml',
-        ),
-      ),
-    ).toBe(false);
-    expect(
-      streamable(
-        entries(
-          'xl/_rels/workbook.xml.rels',
-          'xl/styles.xml',
-          'xl/sharedStrings.xml',
-          'xl/worksheets/sheet1.xml',
-        ),
-      ),
-    ).toBe(true);
-    // Several sheets: read whole (the workbook's first sheet).
-    expect(
-      streamable(
-        entries('xl/worksheets/sheet2.xml', 'xl/worksheets/sheet1.xml'),
-      ),
-    ).toBe(false);
-  });
-
-  it('lists the entries of a workbook from its directory, and refuses what is not a zip', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'formats-spec-'));
-    try {
-      const workbook = new ExcelJS.Workbook();
-      workbook.addWorksheet('Sheet1').addRow(['title']);
-      const path = join(dir, 'a.xlsx');
-      await writeFile(path, Buffer.from(await workbook.xlsx.writeBuffer()));
-      const names = (await zipEntries(path)).map((entry) => entry.name);
-      expect(names).toEqual(
-        expect.arrayContaining(['xl/worksheets/sheet1.xml', 'xl/styles.xml']),
-      );
-      const bad = join(dir, 'b.xlsx');
-      await writeFile(bad, 'PK not really a zip');
-      await expect(zipEntries(bad)).rejects.toThrow('not a valid .xlsx');
-    } finally {
-      await rm(dir, { recursive: true, force: true });
-    }
-  });
-
-  it("reads a workbook of several sheets whole: the first sheet's rows", async () => {
-    const workbook = new ExcelJS.Workbook();
-    const first = workbook.addWorksheet('First');
-    first.addRow(['title']);
-    first.addRow(['One']);
-    workbook.addWorksheet('Second').addRow(['other']);
-    const file = Buffer.from(await workbook.xlsx.writeBuffer());
+  const read = async (file: Buffer) => {
     const records = [];
     for await (const { record } of readRecords('xlsx', Readable.from(file))) {
       records.push(record);
     }
-    expect(records).toEqual([{ title: 'One' }]);
+    return records;
+  };
+
+  it('refuses what is not a valid .xlsx', async () => {
+    const workbook = new Workbook();
+    const sheet = workbook.addWorksheet('Sheet1');
+    sheet.addRow(['title']);
+    for (let i = 0; i < 2_000; i++) sheet.addRow([`Row ${i}`]);
+    const file = Buffer.from(writeXlsx(workbook));
+    await expect(read(file.subarray(0, file.length / 2))).rejects.toThrow(
+      'not a valid .xlsx',
+    );
+  });
+
+  it("reads a workbook of several sheets: the first sheet's rows", async () => {
+    const workbook = new Workbook();
+    const first = workbook.addWorksheet('First');
+    first.addRow(['title']);
+    first.addRow(['One']);
+    workbook.addWorksheet('Second').addRow(['other']);
+    expect(await read(Buffer.from(writeXlsx(workbook)))).toEqual([
+      { title: 'One' },
+    ]);
   });
 });

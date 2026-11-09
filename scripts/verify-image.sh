@@ -4,8 +4,8 @@
 # CycloneDX SBOM, and, when the gh CLI is installed, the SLSA build
 # provenance. The signer must be this repository's ci.yml on main or a v* tag.
 #
-#   scripts/verify-image.sh [image...]    (default: APP_IMAGE, GOTENBERG_IMAGE
-#                                          and CADDY_IMAGE, those that are set)
+#   scripts/verify-image.sh [image...]    (default: APP_IMAGE and CADDY_IMAGE,
+#                                          those that are set)
 #
 # VERIFY_IDENTITY_REGEXP overrides the accepted signer identity. The deploy
 # scripts call this when VERIFY_IMAGES=1.
@@ -13,12 +13,12 @@ set -euo pipefail
 
 images=("$@")
 if [[ ${#images[@]} -eq 0 ]]; then
-  for v in APP_IMAGE GOTENBERG_IMAGE CADDY_IMAGE; do
+  for v in APP_IMAGE CADDY_IMAGE; do
     [[ -n "${!v:-}" ]] && images+=("${!v}")
   done
 fi
 if [[ ${#images[@]} -eq 0 ]]; then
-  echo "verify-image: no image given and none of APP_IMAGE, GOTENBERG_IMAGE, CADDY_IMAGE set" >&2
+  echo "verify-image: no image given and neither APP_IMAGE nor CADDY_IMAGE set" >&2
   exit 2
 fi
 command -v cosign >/dev/null 2>&1 || {

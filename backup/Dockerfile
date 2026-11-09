@@ -37,7 +37,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
 # bin/cross-compile.go: no build tags, CGO off, and fs.Version set to the tag,
 # which is what `rclone version` reports). Its sources come through the Go
 # module proxy (checked against Go's checksum database) and build with the
-# versions its own go.sum locks, as gotenberg/Dockerfile does. No -trimpath:
+# versions its own go.sum locks. No -trimpath:
 # built from a copy, the binary's build info says "(devel)", and Trivy then
 # reads rclone's version from the recorded -ldflags (fs.Version), which
 # -trimpath would drop, so a CVE in rclone itself is still found.

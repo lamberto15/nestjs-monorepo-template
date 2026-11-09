@@ -197,20 +197,20 @@ processed }` (an import also `imported`, `failed`; an export's at most once
   (`custom.<key>`).
 - Imports aren't retried automatically: a retry could write rows twice.
   Make `write()` idempotent (an upsert on a natural key) to allow it.
-- Excel through exceljs (4.4, last released Dec 2024): exports stream, and
-  so do imports (#618): the upload is spooled to a temporary file, its zip
-  directory checked (declared size and entry count: a zip bomb is refused
-  before anything is unpacked), then exceljs' streaming reader hands over
-  one row at a time (a 100,000-row export imported back peaks at about
-  155 MB of process memory instead of 375; 200,000 rows: 160 instead of
-  615). Its known entry-order problem: a sheet it reads before
-  `xl/styles.xml`, when the shared strings and the workbook's relationships
-  came first, gets its dates as serial numbers (46310). Such a file, and a
-  workbook of several sheets, is read whole as before (`streamable()` in
-  `formats.ts` decides from the zip directory), so dates and the first sheet
-  stay right. The reader spools a sheet that comes before the shared
-  strings to a temporary file too (exceljs' own export order): the disk
-  holds at most the upload plus its unpacked sheet. CSV imports stream (csv-parse), and so do JSON imports
+- Excel through [turbosheet](https://www.npmjs.com/package/turbosheet):
+  exports stream (inline strings, rows flushed per batch, the header frozen
+  and the columns sized from the first batch; 1.25 million rows take about
+  20 s and 120 MB of process memory). Imports stream too (#618), straight
+  from the upload: the reader checks the zip as it inflates (at most 2,000
+  entries and 300 MB unpacked, a compression-ratio cap, safe entry paths),
+  so a zip bomb fails as "too large to import" before it fills the worker,
+  and a password-protected file is refused by name. A sheet stored before
+  the workbook's styles or shared strings (the streaming writer's own
+  order, Google Sheets, LibreOffice) is held in memory, re-compressed, until
+  they arrive, so its dates still read as dates: a 1.25-million-row export
+  imported back peaks at about 180 MB. Only the workbook's first sheet is
+  read. The import template has one dropdown rule per choice column and a
+  guide sheet fitted to its contents. CSV imports stream (csv-parse), and so do JSON imports
   (stream-json: one element of the top-level array at a time; a 45 MB,
   200,000-record file peaks at about 130 MB of process memory instead of
   400). A malformed JSON file fails with "The file is not valid JSON: …",

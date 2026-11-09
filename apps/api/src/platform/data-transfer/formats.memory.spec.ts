@@ -1,4 +1,3 @@
-import ExcelJS from 'exceljs';
 import { createReadStream, createWriteStream } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -7,6 +6,7 @@ import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { setFlagsFromString } from 'node:v8';
 import { runInNewContext } from 'node:vm';
+import { createXlsxWriter } from 'turbosheet';
 import type { TransferFormat } from './data-transfer.types.js';
 import { readRecords } from './formats.js';
 
@@ -102,19 +102,23 @@ describe('import memory budget (#618)', () => {
       yield ']';
     };
     await pipeline(Readable.from(elements()), createWriteStream(file('json')));
-    // exceljs's streaming writer: inline strings, rows flushed as written.
-    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
-      filename: file('xlsx'),
-      useSharedStrings: false,
-      useStyles: false,
+    // The streaming writer: inline strings, rows flushed as written.
+    const out = createWriteStream(file('xlsx'));
+    const workbook = createXlsxWriter({
+      strings: 'inline',
+      sink: (chunk) =>
+        new Promise<void>((resolve, reject) =>
+          out.write(chunk, (error) => (error ? reject(error) : resolve())),
+        ),
     });
     const sheet = workbook.addWorksheet('Notes');
-    sheet.addRow(['title', 'body', 'status', 'amount']).commit();
+    sheet.addRow(['title', 'body', 'status', 'amount']);
     for (let i = 1; i <= ROWS; i++) {
-      sheet.addRow(Object.values(recordOf(i))).commit();
+      sheet.addRow(Object.values(recordOf(i)));
+      if (i % 1_000 === 0) await sheet.flush();
     }
-    sheet.commit();
-    await workbook.commit();
+    await workbook.end();
+    await new Promise<void>((resolve) => out.end(resolve));
   }, 60_000);
 
   afterAll(async () => {

@@ -70,10 +70,6 @@ set …`, `organizational_unit_closure`, `deleted_at is null`), which no type ch
 - **Empty env values:** `skipProcessEnv: true` makes `FOO=` read as unset.
 - **Queued mail carries no mail class:** tests find mails by recipient and
   subject (`node.waitForMail({ to, subject })`).
-- **exceljs' streaming reader** reads dates as serial numbers when a sheet
-  comes before `xl/styles.xml` (after the shared strings and the
-  relationships): imports check the zip's entry order (`streamable()`,
-  `formats.ts`) and read such a file, or one of several sheets, whole.
 - **`Intl.DateTimeFormat`** refuses `timeZoneName` together with
   `dateStyle`/`timeStyle`.
 - **Duplicate incoming webhooks** are answered 200 by the package, empty,
@@ -267,11 +263,6 @@ up` stops with "cannot create secret … in read-only service …: `file` is
   documents e2e). It showed on the stacks that run `caddy/Caddyfile` (Compose and
   Swarm) with `STORAGE_DRIVER=local`; S3 links point at the bucket. The fix needs Caddy
   restarted: the Caddyfile is a bind mount, read at start.
-
-- **A Dependabot bump of Gotenberg is half a bump.** It raises the `FROM`
-  line of `gotenberg/Dockerfile`, but not `compose.dev.yaml`'s image: raise
-  that by hand in the same pull request. CI's `gotenberg-image` job fails
-  until the two agree.
 
 - **A Drizzle query runs when it is awaited, in the awaiter's context.**
   `tenancy.run(tenantId, () => db.select()…)` returned the query unawaited,
