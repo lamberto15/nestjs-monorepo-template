@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.1](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.4.0...v0.4.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **deploy:** unblock production deploys (manual staging gate, migrate health check) ([#1098](https://github.com/lamberto15/nestjs-monorepo-template/issues/1098)) ([1dfe813](https://github.com/lamberto15/nestjs-monorepo-template/commit/1dfe813c4aac3a5bb637de5b37111657e114c216)), closes [#1097](https://github.com/lamberto15/nestjs-monorepo-template/issues/1097)
+
 ## [0.4.0](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.3.0...v0.4.0) (2026-11-09)
 
 
