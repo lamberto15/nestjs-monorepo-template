@@ -2149,7 +2149,7 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | `unit-web` | web unit coverage, whole, thresholds enforced directly |
 | `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a few e2e specs instrumented and the built app's trace check |
 | `feature-smoke` | generated features, schema/client generation and their E2E tests |
-| `template-without-notes` | exhaustive generated-template variant; weekly/manual/release or conservative full fallback |
+| `template-without-notes` | exhaustive generated-template variant; manual runs only |
 | `stack-config` | Compose secrets, hardening and settings, then the Swarm stack render |
 | `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
 | `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
@@ -2194,7 +2194,7 @@ settings in production (the captcha stub, text logs) reads it.
 ## Publishing and rolling back images
 
 On affected pushes to `main`, CI publishes verified images
-to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamby-dev/nestjs-monorepo-template`).
+to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamberto15/nestjs-monorepo-template`).
 Each affected image is built once, scanned and runtime-validated. A Docker image
 archive, checksum and image config ID transfer that exact build to runtime and
 publish jobs; publication does
@@ -2255,9 +2255,9 @@ Deploying a published image: set `APP_IMAGE` (and `GOTENBERG_IMAGE` and
 
 ```bash
 # .env
-APP_IMAGE=ghcr.io/lamby-dev/nestjs-monorepo-template:<full commit SHA>
-GOTENBERG_IMAGE=ghcr.io/lamby-dev/nestjs-monorepo-template/gotenberg:<full commit SHA>
-CADDY_IMAGE=ghcr.io/lamby-dev/nestjs-monorepo-template/caddy:<full commit SHA>
+APP_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template:<full commit SHA>
+GOTENBERG_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template/gotenberg:<full commit SHA>
+CADDY_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template/caddy:<full commit SHA>
 
 docker compose pull migrate api worker gotenberg caddy
 docker compose up -d --remove-orphans

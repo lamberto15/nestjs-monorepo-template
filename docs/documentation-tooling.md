@@ -15,15 +15,15 @@ pnpm docs:preview   # preview its production output
 
 The scripts use **VitePress 1.6.4**, pinned to the stable npm release when this was configured. They invoke `pnpm dlx vitepress@1.6.4` rather than changing the application's locked workspace dependencies. The first use downloads the tool; its **transitive dependencies are not locked** by this approach. If the site becomes release-critical or must build offline, add VitePress with pnpm, commit the regenerated `pnpm-lock.yaml`, and replace the `dlx` scripts in a focused follow-up PR.
 
-The configuration is [`.vitepress/config.mjs`](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/docs/.vitepress/config.mjs). It defines nontechnical and technical navigation, in-browser **local search**, GitHub edit links and a nested reference sidebar.
+The configuration is [`.vitepress/config.mjs`](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/docs/.vitepress/config.mjs). It defines nontechnical and technical navigation, in-browser **local search**, GitHub edit links and a nested reference sidebar.
 
 ## GitHub Pages publishing
 
-The [Documentation workflow](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/.github/workflows/docs.yml) validates docs on pull requests and **publishes only after a docs-related change is merged into `main`** (or when manually dispatched from `main`). The PR build uses the same base path as production, but PRs cannot upload or publish Pages artifacts.
+The [Documentation workflow](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/.github/workflows/docs.yml) validates docs on pull requests and **publishes only after a docs-related change is merged into `main`** (or when manually dispatched from `main`). The PR build uses the same base path as production, but PRs cannot upload or publish Pages artifacts.
 
 The public URL, **once publishing is enabled and succeeds**, is:
 
-**https://lamby-dev.github.io/nestjs-monorepo-template/**
+**https://lamberto15.github.io/nestjs-monorepo-template/**
 
 The workflow builds with `DOCS_BASE=/nestjs-monorepo-template/`, uploads only `docs/.vitepress/dist` and deploys through GitHub's artifact-based Pages integration. It does not publish the source tree, involve the NestJS/React production containers or require additional stored credentials.
 
@@ -31,12 +31,12 @@ The workflow builds with `DOCS_BASE=/nestjs-monorepo-template/`, uploads only `d
 
 GitHub Pages needs a repository administrator to select its publishing source:
 
-1. Go to [Repository settings → Pages](https://github.com/lamby-dev/nestjs-monorepo-template/settings/pages).
+1. Go to [Repository settings → Pages](https://github.com/lamberto15/nestjs-monorepo-template/settings/pages).
 2. Under **Build and deployment → Source**, select **GitHub Actions** (not `Deploy from a branch`).
-3. Merge the reviewed documentation PR to `main`. The Documentation workflow will then build and deploy. If the setting was enabled *after* merging, open [Actions → Documentation](https://github.com/lamby-dev/nestjs-monorepo-template/actions/workflows/docs.yml) and use **Run workflow** on `main`.
+3. Merge the reviewed documentation PR to `main`. The Documentation workflow will then build and deploy. If the setting was enabled *after* merging, open [Actions → Documentation](https://github.com/lamberto15/nestjs-monorepo-template/actions/workflows/docs.yml) and use **Run workflow** on `main`.
 4. Check that the **Publish documentation to GitHub Pages** job succeeded and open the published URL. GitHub can require a short delay for the first site to become visible.
 
-Recommended: under [Settings → Environments](https://github.com/lamby-dev/nestjs-monorepo-template/settings/environments), restrict the `github-pages` environment to deployments from `main`. The workflow itself already enforces this; the environment rule supplies defense in depth.
+Recommended: under [Settings → Environments](https://github.com/lamberto15/nestjs-monorepo-template/settings/environments), restrict the `github-pages` environment to deployments from `main`. The workflow itself already enforces this; the environment rule supplies defense in depth.
 
 ### Security and maintenance
 
