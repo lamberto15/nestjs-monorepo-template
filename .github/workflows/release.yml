@@ -76,7 +76,7 @@ jobs:
           VERSION: ${{ steps.plan.outputs.version }}
           IMAGES: >-
             ${{ steps.plan.outputs.api }} ${{ steps.plan.outputs.caddy }}
-            ${{ steps.plan.outputs.gotenberg }} ${{ steps.plan.outputs.backup }}
+            ${{ steps.plan.outputs.backup }}
         run: |
           set -euo pipefail
           for ref in $IMAGES; do
@@ -101,7 +101,6 @@ jobs:
           PRERELEASE: ${{ steps.plan.outputs.prerelease }}
           VERSION: ${{ steps.plan.outputs.version }}
           APP_DIGEST: ${{ steps.plan.outputs.api_digest }}
-          GOTENBERG_DIGEST: ${{ steps.plan.outputs.gotenberg_digest }}
           CADDY_DIGEST: ${{ steps.plan.outputs.caddy_digest }}
         run: |
           set -euo pipefail
@@ -120,7 +119,7 @@ jobs:
             gh release view "$TAG" --json body --jq .body > "$dir/changes.md"
           fi
           node tools/release/notes.mjs --tag "$TAG" --previous "${previous:-none}" \
-            --image-version "$VERSION" --app-digest "$APP_DIGEST" --gotenberg-digest "$GOTENBERG_DIGEST" --caddy-digest "$CADDY_DIGEST" \
+            --image-version "$VERSION" --app-digest "$APP_DIGEST" --caddy-digest "$CADDY_DIGEST" \
             --changes "$dir/changes.md" --out "$dir/notes.md"
           # The manifest first: a published release always has it (deploy.yml).
           gh release upload "$TAG" release-manifest.json --clobber

@@ -29,7 +29,6 @@ const manifest = createManifest({
   published: {
     api: 'sha256:' + '1'.repeat(64),
     caddy: 'sha256:' + '2'.repeat(64),
-    gotenberg: 'sha256:' + '3'.repeat(64),
     backup: 'sha256:' + '4'.repeat(64),
   },
 });
@@ -75,18 +74,18 @@ test('deploy resolves the exact successful run and verifies every immutable imag
         args.includes('release-manifest-v1'),
     ),
   );
-  assert.equal(calls.filter(([command]) => command === 'docker').length, 4);
+  assert.equal(calls.filter(([command]) => command === 'docker').length, 3);
   assert.equal(
     calls.filter(
       ([command, args]) => command === 'cosign' && args[0] === 'verify',
     ).length,
-    4,
+    3,
   );
   assert.equal(
     calls.filter(
       ([command, args]) => command === 'gh' && args.includes('--source-digest'),
     ).length,
-    4,
+    3,
   );
 });
 test('untrusted source runs are rejected before downloading an artifact', () => {

@@ -180,7 +180,7 @@ test('real workflow conditions and dependencies agree with the gate for affected
     'apps/api/drizzle/a.sql',
     'compose.yaml',
     'caddy/Caddyfile',
-    'gotenberg/Dockerfile',
+    'gotenberg/smoke.html',
     'tools/feature/add.mjs',
     'tools/deploy/rolling.mjs',
     'knip.jsonc',
@@ -224,7 +224,6 @@ test('the stable gate needs every validation job and CI has no production rollou
   for (const id of [
     'publish',
     'publish-caddy',
-    'publish-gotenberg',
     'publish-backup',
     'release-manifest',
   ])
@@ -246,7 +245,6 @@ test('every release image is built once and handed off with integrity evidence',
   for (const [builder, publisher, image] of [
     ['image', 'publish', 'app'],
     ['caddy-image', 'publish-caddy', 'caddy'],
-    ['gotenberg-image', 'publish-gotenberg', 'gotenberg'],
   ]) {
     const build = all.find((job) => job.id === builder).lines.join('\n');
     assert.equal(

@@ -43,6 +43,8 @@ describe('PdfRenderer', () => {
     expect(file.name).toBe('index.html');
     expect(await file.text()).toBe('<!DOCTYPE html><p>Hi</p>');
     expect(form.get('preferCssPageSize')).toBe('true');
+    // Gotenberg 9's name: it refuses Gotenberg 8's generateTaggedPdf (400).
+    expect(form.get('nativeTaggedPdf')).toBe('true');
   });
 
   it.each([400, 409, 413])(
