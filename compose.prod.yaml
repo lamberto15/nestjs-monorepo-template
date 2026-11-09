@@ -649,7 +649,10 @@ services:
     # Docker sees it healthy once it serves its admin API (localhost only, in
     # the container): the process is up and its configuration loaded.
     healthcheck:
-      test: ['CMD', 'wget', '-q', '--spider', 'http://127.0.0.1:2019/config/']
+      # The whole answer is read (into the tmpfs below): --spider closed the
+      # connection after the headers, and the admin API logged a broken pipe
+      # and a failed error response at every check (#1033).
+      test: ['CMD', 'wget', '-qO', '/tmp/healthcheck.json', 'http://127.0.0.1:2019/config/']
       interval: 10s
       timeout: 5s
       retries: 3
