@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.2.2...v0.3.0) (2026-11-09)
+
+
+### Features
+
+* **data-transfer:** replace exceljs with turbosheet ([#1048](https://github.com/lamberto15/nestjs-monorepo-template/issues/1048)) ([1c2af66](https://github.com/lamberto15/nestjs-monorepo-template/commit/1c2af66345a22f4f86ec0a4d21a3014c638fe6ec))
+
+
+### Bug Fixes
+
+* **deps:** bump fast-uri to 3.1.9 and serialize-javascript to 7.1.4 ([#1066](https://github.com/lamberto15/nestjs-monorepo-template/issues/1066), [#1067](https://github.com/lamberto15/nestjs-monorepo-template/issues/1067)) ([1c2af66](https://github.com/lamberto15/nestjs-monorepo-template/commit/1c2af66345a22f4f86ec0a4d21a3014c638fe6ec))
+* **documents:** run the official Gotenberg 9.2.0 image, pinned by digest, instead of rebuilding our own ([#1050](https://github.com/lamberto15/nestjs-monorepo-template/issues/1050)) ([1c2af66](https://github.com/lamberto15/nestjs-monorepo-template/commit/1c2af66345a22f4f86ec0a4d21a3014c638fe6ec))
+* **images:** patch zlib in the app image and build rclone v1.76.0 ([#1064](https://github.com/lamberto15/nestjs-monorepo-template/issues/1064)) ([e9ef081](https://github.com/lamberto15/nestjs-monorepo-template/commit/e9ef081506f787392109b0e5465f0c07028e41da))
+
 ## [0.2.2](https://github.com/lamby-dev/nestjs-monorepo-template/compare/v0.2.1...v0.2.2) (2026-11-04)
 
 
