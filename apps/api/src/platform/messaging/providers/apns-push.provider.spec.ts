@@ -3,6 +3,7 @@ import {
   createServer,
   type Http2Server,
   type IncomingHttpHeaders,
+  type ServerHttp2Stream,
 } from 'node:http2';
 import type { AddressInfo } from 'node:net';
 import { ApnsPushProvider } from './apns-push.provider.js';
@@ -20,7 +21,7 @@ async function stub() {
   const requests: { headers: IncomingHttpHeaders; body: string }[] = [];
   const state = { status: 200, reason: undefined as string | undefined };
   const server: Http2Server = createServer();
-  server.on('stream', (stream, headers) => {
+  server.on('stream', (stream: ServerHttp2Stream, headers) => {
     let body = '';
     stream.on('data', (chunk) => (body += chunk));
     stream.on('end', () => {

@@ -79,10 +79,9 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       .post('/v1/auth/sign-in')
       .send({ email: user.email, password: user.password })
       .expect(200);
-    const cookie = (signedIn.headers['set-cookie'] as string[])[0]!.split(
-      ';',
-      1,
-    )[0]!;
+    const cookie = (
+      signedIn.headers['set-cookie'] as unknown as string[]
+    )[0]!.split(';', 1)[0]!;
     const { port } = node.app.getHttpServer().address() as AddressInfo;
     const socket = io(`http://127.0.0.1:${port}/realtime`, {
       extraHeaders: { Cookie: cookie },

@@ -365,7 +365,13 @@ describe('email deliverability (e2e)', () => {
     const notify = (to: string) =>
       mailQueue.send(NotificationMail, {
         to,
-        data: { name: 'Ada', title: 'Hello', body: 'World', link: null },
+        data: {
+          name: 'Ada',
+          title: 'Hello',
+          body: 'World',
+          link: null,
+          unsubscribe: null,
+        },
       });
     await notify(bounced.email);
     await notify(complained.email);
@@ -397,7 +403,13 @@ describe('email deliverability (e2e)', () => {
     const fine = `fine-${randomUUID().slice(0, 6)}@example.com`;
     await mailQueue.send(NotificationMail, {
       to: [bounced.email, fine],
-      data: { name: 'Both', title: 'Hello', body: 'World', link: null },
+      data: {
+        name: 'Both',
+        title: 'Hello',
+        body: 'World',
+        link: null,
+        unsubscribe: null,
+      },
     });
     const partial = await node.waitForMail({ to: fine });
     expect(partial.to.map((r) => r.address)).toEqual([fine]);
@@ -419,7 +431,13 @@ describe('email deliverability (e2e)', () => {
     const mailQueue = node.app.get(MailQueue);
     await mailQueue.send(NotificationMail, {
       to: victim.email,
-      data: { name: 'V', title: 'Not essential', body: 'x', link: null },
+      data: {
+        name: 'V',
+        title: 'Not essential',
+        body: 'x',
+        link: null,
+        unsubscribe: null,
+      },
     });
     expect(await entry(victim.email, (row) => row.skipped === 1)).toBeDefined();
     expect(mailTo(victim.email)).toEqual([]);
@@ -439,7 +457,13 @@ describe('email deliverability (e2e)', () => {
       .where(eq(mailSuppressions.id, suppressed!.id));
     await mailQueue.send(NotificationMail, {
       to: victim.email,
-      data: { name: 'V', title: 'After expiry', body: 'x', link: null },
+      data: {
+        name: 'V',
+        title: 'After expiry',
+        body: 'x',
+        link: null,
+        unsubscribe: null,
+      },
     });
     await node.waitForMail({ to: victim.email, subject: 'After expiry' });
     expect(
@@ -547,7 +571,13 @@ describe('email deliverability (e2e)', () => {
     // Removed: the mail goes out again.
     await node.app.get(MailQueue).send(NotificationMail, {
       to: address,
-      data: { name: 'M', title: 'Back', body: 'again', link: null },
+      data: {
+        name: 'M',
+        title: 'Back',
+        body: 'again',
+        link: null,
+        unsubscribe: null,
+      },
     });
     await node.waitForMail({ to: address.toLowerCase(), subject: 'Back' });
 

@@ -320,7 +320,11 @@ describe('operator CLI (e2e)', () => {
       const other = await node.user([]);
       const service = node.app.get(NotificationsService);
       const txHost = node.app.get(TransactionHost);
-      const tell = async (to: string, type: string, data: object) => {
+      const tell = async (
+        to: string,
+        type: string,
+        data: Record<string, unknown>,
+      ) => {
         const [id] = await node.inTenant(() =>
           inTransaction(txHost, (tx) =>
             service.notify(tx, {

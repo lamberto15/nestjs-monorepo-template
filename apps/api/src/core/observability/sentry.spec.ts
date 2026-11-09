@@ -100,7 +100,7 @@ describe('starting Sentry', () => {
   it('leaves Node to end the process on a floating rejection', () => {
     const names = (integrations: { name: string }[]) =>
       integrations.map((integration) => integration.name);
-    const defaults = Sentry.getDefaultIntegrations({});
+    const defaults = Sentry.getDefaultIntegrations({}) ?? [];
     // The default integration that turns the crash into a log line ...
     expect(names(defaults)).toContain('OnUnhandledRejection');
     const kept = names(sentryIntegrations(defaults));

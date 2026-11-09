@@ -21,7 +21,7 @@ import {
   TEST_TAX_NUMBER,
   testEncryptedRecords as records,
 } from './fixtures/encrypted/encrypted-fixture.tables.js';
-import { bootApp, type TestApp } from './support.js';
+import { bootApp, rowsOf, type TestApp } from './support.js';
 
 // Read when AppModule loads: a rotation under way, the new keys in front of
 // the old ones, for the data and for the blind indexes; and /metrics served.
@@ -242,11 +242,11 @@ describe('encrypted columns and re-encryption (e2e)', () => {
       // …while the batch reads the old value and waits on the lock to write it back.
       const batch = node.inTenant(() => reencryption.batch(TEST_TAX_NUMBER));
       for (let i = 0; i < 100; i++) {
-        const [waiting] = (
+        const [waiting] = rowsOf<{ n: number }>(
           await node.db.execute(
             sql`select count(*)::int as n from pg_locks where not granted`,
-          )
-        ).rows as { n: number }[];
+          ),
+        );
         if (waiting!.n > 0) {
           break;
         }

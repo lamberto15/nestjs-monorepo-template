@@ -48,6 +48,7 @@ describe('SessionLifetime', () => {
   const source = {
     requireMfa: async () => false,
     passwordMinLength: async () => undefined,
+    passwordHistory: async () => undefined,
     sessionIdleMinutes: async () => chosen.idle ?? SESSION_IDLE_MINUTES_LIMIT,
     sessionMaxHours: async () => chosen.max ?? SESSION_MAX_HOURS_LIMIT,
   };

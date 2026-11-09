@@ -30,7 +30,9 @@ const source = (
           ...extra,
         })),
     ),
-  ...(dismiss ? { dismiss: (_: Principal, id: string) => dismiss(id) } : {}),
+  ...(dismiss
+    ? { dismiss: async (_: Principal, id: string) => dismiss(id) }
+    : {}),
 });
 
 function inboxOf(...sources: ReturnType<typeof source>[]) {

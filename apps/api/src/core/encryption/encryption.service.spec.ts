@@ -169,7 +169,7 @@ describe('EncryptionService', () => {
       afterIndex.isStale(entry, sealed.taxNumber, sealed.taxNumberIndex),
     ).toBe(true);
 
-    const rewritten = afterData.rewrite(entry, sealed.taxNumber, TENANT);
+    const rewritten = afterData.rewrite(entry, sealed.taxNumber!, TENANT);
     expect(afterData.keyIdOf(rewritten.value)).toBe(afterData.currentKeyId);
     expect(rewritten.value.startsWith(afterData.currentPrefix()!)).toBe(true);
     expect(rewritten.index?.startsWith(afterData.currentIndexPrefix()!)).toBe(

@@ -35,13 +35,10 @@ function verify(
     if (resolved) {
       cls.set(TENANT_SENDER, resolved);
     }
-    return scheme.verify(
-      {
-        headers: signed.headers,
-        rawBody: Buffer.from(options.tamper ? `${signed.body} ` : signed.body),
-      },
-      [],
-    );
+    return scheme.verify({
+      headers: signed.headers,
+      rawBody: Buffer.from(options.tamper ? `${signed.body} ` : signed.body),
+    });
   });
 }
 

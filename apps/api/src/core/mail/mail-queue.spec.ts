@@ -5,7 +5,11 @@ import { DEFAULT_MAIL_BRAND, type MailBranding } from './mail-branding.js';
 import type { MailDeliveryGate } from './mail-delivery.js';
 import { MailQueue } from './mail-queue.js';
 
-class Hello {}
+class Hello {
+  render() {
+    return { subject: 'Hello', html: '<p>Hi</p>' };
+  }
+}
 
 describe('MailQueue', () => {
   const rendered = {

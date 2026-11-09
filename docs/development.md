@@ -164,7 +164,7 @@ only the images: when its pull request arrives, raise `devEngines` in it too.
 | `pnpm lint` | oxlint in every package (Turborepo), the translation parity check, the pinned-versions and raw-SQL checks (`tools/ci/raw-sql.mjs`: the API's raw SQL against `tools/ci/raw-sql.allow.json`), then knip: unused files, exports and dependencies across the workspaces ([Dead code](#dead-code-knip)); `pnpm lint:code` is all but knip, `pnpm knip` knip alone |
 | `pnpm format` | Prettier on the TypeScript of every package (not on Markdown, nor `packages/ui`: the shadcn CLI writes it) |
 | `pnpm format:check` | the same files, `prettier --check`: what CI runs in `check`; `pnpm format` fixes it |
-| `pnpm turbo run typecheck` | `tsc --noEmit` of `packages/ui` (it has no build); run by CI in `check` |
+| `pnpm turbo run typecheck` | `tsc` over the API (`src` and `test`), the web app (`tsc -b`, tests included) and `packages/ui`; run by CI in `check` |
 | `pnpm db:generate` | a migration from the tables (after any `*.tables.ts` change) |
 | `pnpm db:generate:fixtures` | the test-only record's migrations (`apps/api/test/fixtures/drizzle`), after changing `test/fixtures/test-items` |
 | `pnpm db:check` | the migrations match the schema |

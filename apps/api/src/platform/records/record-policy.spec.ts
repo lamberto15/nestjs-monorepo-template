@@ -1,8 +1,11 @@
-import { text, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, uuid } from 'drizzle-orm/pg-core';
 import { defineRecord } from './record.js';
 import { recordPermissions } from './record-policy.js';
 
-const table = { ownerId: text('owner_id'), unitId: uuid('unit_id') };
+const table = pgTable('widgets', {
+  ownerId: text('owner_id'),
+  unitId: uuid('unit_id'),
+});
 const declare = (
   extra: { clientAccess?: false | 'own'; grants?: 'standard' | 'none' } = {},
   unit = false,
@@ -58,7 +61,12 @@ describe('recordPermissions: clientAccess and grants', () => {
     expect(
       recordPermissions(declare({ grants: 'none' }, true), table).seedRoles,
     ).toEqual([]);
-    const own = { key: 'auditor', name: 'Auditor', permissions: [] };
+    const own = {
+      key: 'auditor',
+      name: 'Auditor',
+      description: 'Reads the widgets',
+      permissions: [],
+    };
     expect(
       recordPermissions(declare({ grants: 'none' }), table, {
         seedRoles: [own],

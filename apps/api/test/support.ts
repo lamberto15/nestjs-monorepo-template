@@ -133,6 +133,12 @@ async function onServer(statement: string) {
  * suite's copies would otherwise fill the container's tmpfs, or pile up on
  * the server TEST_DATABASE_URL points at).
  */
+/**
+ * The rows of a Drizzle `execute()` result. The `Database` type is not tied to
+ * a driver, so it types the result `unknown`.
+ */
+export const rowsOf = <T>(result: unknown) => (result as { rows: T[] }).rows;
+
 export async function testDatabase() {
   const name = `test_${randomUUID().replace(/-/g, '')}`;
   const ownerRole = decodeURIComponent(new URL(inject('ownerUrl')).username);

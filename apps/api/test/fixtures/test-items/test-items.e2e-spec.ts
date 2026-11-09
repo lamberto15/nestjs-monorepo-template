@@ -8,7 +8,7 @@ import { testItems } from './test-items.tables.js';
 import { TEST_ITEM } from './test-item.record.js';
 import { fieldSamples } from '../../../src/platform/fields/fields.js';
 import { describeCapabilities } from '../../record-capabilities.js';
-import { bootApp, type TestApp } from '../../support.js';
+import { bootApp, rowsOf, type TestApp } from '../../support.js';
 
 /**
  * Test items: the standard routes, on bodies from the declaration (fieldSamples):
@@ -367,7 +367,7 @@ describe('test items (e2e)', () => {
           const result = await tx.execute(
             sql`explain (format json) ${statement}`,
           );
-          return JSON.stringify(result.rows[0]);
+          return JSON.stringify(rowsOf(result)[0]);
         }),
       );
       expect(plan).toContain('"Index Name":"test_items_parent_id_idx"');

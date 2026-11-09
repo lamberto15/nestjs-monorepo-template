@@ -1,5 +1,6 @@
 import { BadRequestException } from '@nestjs/common';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
+import type { ChoiceOptionsQuery } from './choices.schemas.js';
 import { ChoicesRegistry, type ChoiceProvider } from './choices.registry.js';
 import { ChoicesService } from './choices.service.js';
 
@@ -81,7 +82,7 @@ describe('ChoicesService', () => {
   it('bounds the answer and says when more match', async () => {
     const answer = await service.options(principal, 'work', 'customer', {
       limit: 1,
-    });
+    } as unknown as ChoiceOptionsQuery);
     expect(answer.items).toHaveLength(1);
     expect(answer.hasMore).toBe(true);
   });

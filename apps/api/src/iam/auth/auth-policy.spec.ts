@@ -70,11 +70,13 @@ describe('AuthPolicyService', () => {
   ]);
   const source = {
     requireMfa: vi.fn(async (_user: UserPrincipal) => true),
-    passwordMinLength: vi.fn(async (tenantId: string) =>
-      tenantId === 't2' ? 20 : undefined,
+    passwordMinLength: vi.fn(
+      async (tenantId: string): Promise<number | undefined> =>
+        tenantId === 't2' ? 20 : undefined,
     ),
-    passwordHistory: vi.fn(async (tenantId: string) =>
-      tenantId === 't1' ? 3 : tenantId === 't2' ? 5 : undefined,
+    passwordHistory: vi.fn(
+      async (tenantId: string): Promise<number | undefined> =>
+        tenantId === 't1' ? 3 : tenantId === 't2' ? 5 : undefined,
     ),
   } satisfies AuthPolicySource;
 
