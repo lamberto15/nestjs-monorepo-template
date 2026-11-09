@@ -915,6 +915,8 @@ describe('notifications (e2e)', () => {
         count: 1,
         data: { at: expect.any(String) },
       });
+      // The mail is sent by the mail queue's worker, not by `deliver()`.
+      await node.waitForMail({ to: email, subject: /Testbenachrichtigung/ });
       expect(noticesTo(email)).toHaveLength(1);
       expect(noticesTo(otherEmail)).toEqual([]);
       expect(

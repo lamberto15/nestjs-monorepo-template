@@ -174,6 +174,13 @@ describe('automatic database incidents on PostgreSQL', () => {
         100,
         kind === 'application' ? database.url : database.ownerUrl,
       );
+      // The capture has 1 s in all, opening the monitor's connection included
+      // (SCRAM, a loaded runner): when that ran out the reason was
+      // `capture_timeout`, not the role check under test. Open it first, so
+      // the capture reuses an idle connection and the check is what runs.
+      await (
+        pool.observer!.incidents as unknown as { monitor: Pool }
+      ).monitor.query('select 1');
       await pool.query('select pg_sleep(1)').catch(() => undefined);
       await vi.waitFor(
         () =>

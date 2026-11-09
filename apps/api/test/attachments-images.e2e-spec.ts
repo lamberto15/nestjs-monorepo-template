@@ -168,14 +168,31 @@ describe('image attachments (e2e)', () => {
     const original = await photo();
     expect((await sharp(original).metadata()).exif).toBeDefined();
 
-    const added = await upload(
-      editor,
-      note.id,
-      original,
-      'photo.jpg',
-      'image/jpeg',
-    ).expect(201);
-    // Not yet: the job runs on a worker, never in the request.
+    // The original's key, read just before the real job is queued: the worker
+    // may finish before the upload's response is read, so reading the row
+    // afterwards could already show the stripped copy's key.
+    const queue = node.app.get(AttachmentImagesQueue);
+    const enqueue = queue.enqueue.bind(queue);
+    let before: Awaited<ReturnType<typeof rowOf>> | undefined;
+    const spy = vi
+      .spyOn(queue, 'enqueue')
+      .mockImplementation(async (...args) => {
+        before = await rowOf(args[0]);
+        return enqueue(...args);
+      });
+    let added;
+    try {
+      added = await upload(
+        editor,
+        note.id,
+        original,
+        'photo.jpg',
+        'image/jpeg',
+      ).expect(201);
+    } finally {
+      spy.mockRestore();
+    }
+    // The job runs on a worker, never in the request.
     expect(added.body).toMatchObject({
       contentType: 'image/jpeg',
       size: original.length,
@@ -183,13 +200,13 @@ describe('image attachments (e2e)', () => {
       renditionStatus: 'pending',
       renditions: {},
     });
-    const before = await rowOf(added.body.id);
     await processed(added.body.id);
+    expect(before?.id).toBe(added.body.id);
 
     // The row: renditions recorded, the original replaced by a stripped copy.
     const row = await rowOf(added.body.id);
     expect(row.renditionStatus).toBe('ready');
-    expect(row.key).not.toBe(before.key);
+    expect(row.key).not.toBe(before!.key);
     expect(row.key.endsWith('.jpg')).toBe(true);
     const stripped = await disk.getBuffer(row.key);
     expect(row.size).toBe(stripped.length);
@@ -199,7 +216,7 @@ describe('image attachments (e2e)', () => {
     expect(info.orientation).toBeUndefined();
     expect(stripped.includes(Buffer.from('ACME'))).toBe(false);
     // The file it replaced is gone; the renditions are next to the new one.
-    expect(await disk.exists(before.key)).toBe(false);
+    expect(await disk.exists(before!.key)).toBe(false);
     const stem = row.key.slice(0, -'.jpg'.length);
     expect(row.renditions.thumb?.key).toBe(`${stem}.thumb.webp`);
     expect(row.renditions.preview?.key).toBe(`${stem}.preview.webp`);
