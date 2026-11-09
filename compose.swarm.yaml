@@ -16,7 +16,7 @@
 # - depends_on:  ignored. Tasks that start before PostgreSQL or Redis fail
 #                their healthcheck or exit, and restart_policy retries them.
 # - one-shot:    `migrate` is a replicated job; the script deploys it first and
-#                waits for it (api and worker are the `app` profile, left out
+#                waits for it (api, worker and the heavy worker are left out
 #                of that first deploy).
 # - bind mounts: the Caddyfile and redis.sh are Swarm configs.
 # - local state: PostgreSQL, Redis, Caddy, the backups and the files volume
@@ -111,6 +111,42 @@ services:
 
   worker:
     profiles: [app]
+    build: !reset null
+    depends_on: !reset null
+    restart: !reset null
+    image: ${APP_IMAGE:?set APP_IMAGE (docs/deploy-swarm.md)}
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 5s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    deploy:
+      restart_policy: *restart
+      placement:
+        constraints:
+          - ${SWARM_APP_CONSTRAINT:-node.platform.os == linux}
+      update_config:
+        parallelism: 1
+        delay: 10s
+        order: start-first
+        failure_action: rollback
+        monitor: ${SWARM_MONITOR:-60s}
+        max_failure_ratio: 0
+      rollback_config:
+        parallelism: 1
+        order: start-first
+        monitor: 30s
+        failure_action: pause
+
+  # The heavy queues in a worker of their own (profile heavy-worker, which
+  # tools/deploy/swarm.mjs turns on when HEAVY_QUEUES is set). Rolls like
+  # worker; its profile stays compose.prod.yaml's.
+  worker-heavy:
     build: !reset null
     depends_on: !reset null
     restart: !reset null

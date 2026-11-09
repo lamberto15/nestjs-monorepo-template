@@ -2,7 +2,15 @@
 // deploy flow runs against a fake that answers like `docker` would.
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { main, parseArgs, preflight, UsageError } from './swarm.mjs';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import {
+  main,
+  parseArgs,
+  preflight,
+  spawnRunner,
+  UsageError,
+} from './swarm.mjs';
 import { shortHash, toStack } from './render.mjs';
 
 const secretFile = '/repo/secret.empty';
@@ -448,6 +456,126 @@ test('SWARM_OVERLAYS adds repository Compose files after the three, and refuses 
     assert.equal(await main(['check', '--stack', 'swtest'], deps), 2);
   }
 });
+
+const profilesOf = (docker) =>
+  docker.calls
+    .find((call) => call.line.includes(' config '))
+    .line.split(' ')
+    .flatMap((word, i, words) => (words[i - 1] === '--profile' ? [word] : []));
+
+test('the heavy-worker profile is on with HEAVY_QUEUES, from the environment or the env file', async () => {
+  const off = fakeDocker();
+  await main(['check', '--stack', 'swtest'], baseDeps(off).deps);
+  assert.deepEqual(profilesOf(off), ['app']);
+
+  const fromEnv = fakeDocker();
+  const env = baseDeps(fromEnv);
+  env.deps.env = { HEAVY_QUEUES: 'documents' };
+  await main(['check', '--stack', 'swtest'], env.deps);
+  assert.deepEqual(profilesOf(fromEnv), ['app', 'heavy-worker']);
+
+  const fromFile = fakeDocker();
+  const file = baseDeps(fromFile);
+  file.deps.exists = (path) => path === '/repo/.env';
+  file.deps.readFile = (path) =>
+    path === '/repo/.env'
+      ? Buffer.from('A=1\nHEAVY_QUEUES="documents,data-transfers"\n')
+      : readFile(path);
+  await main(['check', '--stack', 'swtest'], file.deps);
+  assert.deepEqual(profilesOf(fromFile), ['app', 'heavy-worker']);
+
+  const empty = fakeDocker();
+  const blank = baseDeps(empty);
+  blank.deps.exists = () => true;
+  blank.deps.readFile = () => Buffer.from('HEAVY_QUEUES=\n');
+  await main(['check', '--stack', 'swtest'], blank.deps);
+  assert.deepEqual(profilesOf(empty), ['app']);
+});
+
+test('the pitr overlay is followed by its Swarm part', async () => {
+  const docker = fakeDocker();
+  const { deps } = baseDeps(docker);
+  deps.env = { SWARM_OVERLAYS: 'compose.pitr.yaml' };
+  deps.exists = () => true;
+  await main(['check', '--stack', 'swtest'], deps);
+  const config = docker.calls.find((call) => call.line.includes(' config '));
+  assert.match(
+    config.line,
+    /-f \/repo\/compose\.pitr\.yaml -f \/repo\/compose\.swarm-pitr\.yaml /,
+  );
+});
+
+// The real thing: Compose renders the repository's files (CI's stack-config
+// job also runs `check`, which `docker stack config` validates). Skipped
+// where Docker is missing.
+const dockerHere =
+  spawnSync('docker', ['compose', 'version'], { stdio: 'ignore' }).status === 0;
+const repo = fileURLToPath(new URL('../..', import.meta.url));
+const realStack = async (extra = {}) => {
+  const lines = [];
+  const code = await main(['render', '--stack', 'swtest'], {
+    env: {
+      ...process.env,
+      APP_DOMAIN: 'app.example.test',
+      ACME_EMAIL: 'ops@example.test',
+      APP_IMAGE: 'ghcr.io/example/app:1',
+      CADDY_IMAGE: 'ghcr.io/example/caddy:1',
+      BACKUP_IMAGE: 'ghcr.io/example/backup:1',
+      POSTGRES_PASSWORD: 'ci',
+      POSTGRES_APP_PASSWORD: 'ci',
+      POSTGRES_MAINTENANCE_PASSWORD: 'ci',
+      CLOUDFLARE_API_TOKEN: 'ci',
+      HEAVY_QUEUES: '',
+      SWARM_OVERLAYS: '',
+      ...extra,
+    },
+    runner: spawnRunner,
+    root: repo,
+    log: (line) => lines.push(line),
+  });
+  assert.equal(code, 0, lines.join('\n'));
+  return JSON.parse(lines.join('\n'));
+};
+
+test(
+  'real render: the heavy worker only with HEAVY_QUEUES',
+  { skip: !dockerHere },
+  async () => {
+    assert.equal((await realStack()).services['worker-heavy'], undefined);
+    const stack = await realStack({ HEAVY_QUEUES: 'documents' });
+    const heavy = stack.services['worker-heavy'];
+    assert.equal(heavy.image, 'ghcr.io/example/app:1');
+    assert.equal(heavy.build, undefined);
+    assert.equal(heavy.deploy.update_config.order, 'start-first');
+    assert.equal(heavy.environment.WORKER_QUEUES, 'documents');
+    assert.equal(
+      stack.services.worker.environment.WORKER_QUEUES_EXCLUDE,
+      'documents',
+    );
+  },
+);
+
+for (const [overlay, service] of [
+  ['compose.pgbouncer.yaml', 'pgbouncer'],
+  ['compose.pitr.yaml', 'wal-init'],
+  ['compose.clamav.yaml', 'clamav'],
+]) {
+  test(
+    `real render: ${overlay} through SWARM_OVERLAYS`,
+    { skip: !dockerHere },
+    async () => {
+      const stack = await realStack({ SWARM_OVERLAYS: overlay });
+      assert.ok(stack.services[service], `${service} is in the stack`);
+      for (const [name, spec] of Object.entries(stack.services)) {
+        assert.equal(spec.build, undefined, `${name} has no build`);
+        assert.equal(spec.depends_on, undefined, `${name} has no depends_on`);
+      }
+      if (service === 'wal-init') {
+        assert.equal(stack.services[service].deploy.mode, 'replicated-job');
+      }
+    },
+  );
+}
 
 test('usage errors exit 2', async () => {
   const { deps } = baseDeps(fakeDocker());

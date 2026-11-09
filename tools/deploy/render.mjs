@@ -56,6 +56,10 @@ export function toStack(rendered, { stack, readFile, placeholder }) {
         delete service[key];
     }
     delete service.profiles;
+    // Swarm ignores `depends_on` and `docker stack config` refuses Compose's
+    // long form, which the overlays (pgbouncer, pitr, clamav) add back after
+    // compose.swarm.yaml's reset: tasks retry until their dependencies are up.
+    delete service.depends_on;
     // `docker stack deploy` ignores a service's `tmpfs:` list (docker/cli's
     // Compose conversion reads only `volumes:`) yet keeps `read_only: true`,
     // which would leave the service with no writable /tmp. A `type: tmpfs`

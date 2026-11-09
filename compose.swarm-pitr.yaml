@@ -1,0 +1,21 @@
+# compose.swarm.yaml's part for compose.pitr.yaml, added after it when
+# SWARM_OVERLAYS lists that overlay (tools/deploy/swarm.mjs): the overlay's
+# wal-init (it chowns the WAL volume) re-adds the build and restart the Swarm
+# file removed, so this one comes last. A job, like migrate, on the node of
+# the volume.
+services:
+  wal-init:
+    build: !reset null
+    depends_on: !reset null
+    restart: !reset null
+    image: ${BACKUP_IMAGE:?set BACKUP_IMAGE (docs/deploy-swarm.md)}
+    deploy:
+      mode: replicated-job
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 12
+      placement:
+        constraints:
+          - ${SWARM_STATEFUL_CONSTRAINT:-node.labels.stateful == true}
