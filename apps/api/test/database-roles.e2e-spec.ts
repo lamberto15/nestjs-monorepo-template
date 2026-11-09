@@ -8,7 +8,7 @@ import {
   ensureReportingRole,
 } from '../src/core/database/roles.js';
 import { databaseUrl } from './global-setup.js';
-import { testDatabase } from './support.js';
+import { rowsOf, testDatabase } from './support.js';
 
 /**
  * The database role api and worker connect as (docs/deployment.md, "Database
@@ -283,14 +283,13 @@ describe('the app role', () => {
     );
     await bootstrap();
     // By oid: without USAGE the app can't even name the table.
-    const { rows } = await database.db.execute<{
-      usage: boolean;
-      select: boolean;
-    }>(
-      `select has_schema_privilege(current_user, n.oid, 'USAGE') as usage,
+    const rows = rowsOf<{ usage: boolean; select: boolean }>(
+      await database.db.execute(
+        `select has_schema_privilege(current_user, n.oid, 'USAGE') as usage,
               has_table_privilege(current_user, c.oid, 'SELECT') as select
        from pg_class c join pg_namespace n on n.oid = c.relnamespace
        where n.nspname = '${schema}' and c.relname = 'secrets'`,
+      ),
     );
     expect(rows).toEqual([{ usage: false, select: false }]);
   });
@@ -369,13 +368,12 @@ describe('the app role', () => {
   describe('the tenant wall (every migrate checks the policies as declared)', () => {
     /** A live policy's expressions, as the server deparses them. */
     async function policy(table: string, name: string) {
-      const { rows } = await database.db.execute<{
-        using: string | null;
-        withCheck: string | null;
-      }>(
-        `select pg_get_expr(p.polqual, p.polrelid) as using, pg_get_expr(p.polwithcheck, p.polrelid) as "withCheck"
+      const rows = rowsOf<{ using: string | null; withCheck: string | null }>(
+        await database.db.execute(
+          `select pg_get_expr(p.polqual, p.polrelid) as using, pg_get_expr(p.polwithcheck, p.polrelid) as "withCheck"
          from pg_policy p join pg_class c on c.oid = p.polrelid
          where c.relnamespace = 'public'::regnamespace and c.relname = '${table}' and p.polname = '${name}'`,
+        ),
       );
       return rows[0]!;
     }
@@ -532,11 +530,13 @@ describe('the app role', () => {
       expect(lines.at(-1)).toMatch(
         new RegExp(`^Monitor role "${monitor}" created: pg_monitor only`),
       );
-      const memberships = await database.db.execute<{ rolname: string }>(
-        `select r.rolname from pg_auth_members m join pg_roles r on r.oid = m.roleid
+      const memberships = rowsOf<{ rolname: string }>(
+        await database.db.execute(
+          `select r.rolname from pg_auth_members m join pg_roles r on r.oid = m.roleid
          where m.member = '${monitor}'::regrole order by 1`,
+        ),
       );
-      expect(memberships.rows).toEqual([{ rolname: 'pg_monitor' }]);
+      expect(memberships).toEqual([{ rolname: 'pg_monitor' }]);
       await asMonitor(async (client) => {
         const { rows } = await client.query(
           `select rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication, rolcanlogin
@@ -713,11 +713,13 @@ describe('the app role', () => {
           `^Reporting role "${reporting}" created: reads the analytics schema's aggregates only`,
         ),
       );
-      const memberships = await database.db.execute<{ rolname: string }>(
-        `select r.rolname from pg_auth_members m join pg_roles r on r.oid = m.roleid
+      const memberships = rowsOf<{ rolname: string }>(
+        await database.db.execute(
+          `select r.rolname from pg_auth_members m join pg_roles r on r.oid = m.roleid
          where m.member = '${reporting}'::regrole`,
+        ),
       );
-      expect(memberships.rows).toEqual([]);
+      expect(memberships).toEqual([]);
       await asReporting(async (client) => {
         const { rows } = await client.query(
           `select rolsuper, rolbypassrls, rolcreatedb, rolcreaterole, rolreplication, rolcanlogin
@@ -737,11 +739,9 @@ describe('the app role', () => {
     });
 
     it('cannot select from a tenant table, a global table or a store, even in a tenant’s scope', async () => {
-      const [tenant] = (
-        await database.db.execute<{ id: string }>(
-          `select id from tenants limit 1`,
-        )
-      ).rows;
+      const [tenant] = rowsOf<{ id: string }>(
+        await database.db.execute(`select id from tenants limit 1`),
+      );
       await asReporting(async (client) => {
         const refused = async (statement: string) => {
           await client.query('begin');

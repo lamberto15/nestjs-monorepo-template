@@ -14,7 +14,7 @@ const dialect = new PgDialect();
 describe('datetime list sorting', () => {
   it('sorts a datetime column as it is, keeping the declared null ordering', () => {
     const sort = sortSchema({
-      at: { column: auditLog.at, type: 'datetime', sortable: true },
+      at: { column: auditLog.at, type: 'datetime', sortable: true, ops: [] },
     }).parse('at');
     const query = dialect.sqlToQuery(sortOrder(sort)[0]!);
     expect(query.sql).toBe('"audit_log"."at" asc nulls last');
@@ -22,7 +22,7 @@ describe('datetime list sorting', () => {
 
   it('truncates a datetime SQL expression to the millisecond', () => {
     const sort = sortSchema({
-      at: { column: sql`now()`, type: 'datetime', sortable: true },
+      at: { column: sql`now()`, type: 'datetime', sortable: true, ops: [] },
     }).parse('at');
     const query = dialect.sqlToQuery(sortOrder(sort)[0]!);
     expect(query.sql).toContain("date_trunc('milliseconds'");
@@ -32,7 +32,7 @@ describe('datetime list sorting', () => {
   // bound: every page would rescan the rows before it.
   it('compares the plain columns in the keyset predicate, so an index can seek it', () => {
     const sort: SortBy[] = sortSchema({
-      at: { column: auditLog.at, type: 'datetime', sortable: true },
+      at: { column: auditLog.at, type: 'datetime', sortable: true, ops: [] },
     }).parse('-at');
     const query = dialect.sqlToQuery(
       afterKeyset(
@@ -90,14 +90,15 @@ describe('datetime list sorting', () => {
 describe('the keyset cursor shapes', () => {
   const id = '0199a000-0000-7000-8000-00000000000a';
   const fields = {
-    at: { column: auditLog.at, type: 'datetime', sortable: true },
+    at: { column: auditLog.at, type: 'datetime', sortable: true, ops: [] },
     published: {
       column: users.deprovisionedAt,
       type: 'datetime',
       sortable: true,
+      ops: [],
     },
-    name: { column: sql`lower(x)`, type: 'string', sortable: true },
-    size: { column: auditLog.id, type: 'number', sortable: true },
+    name: { column: sql`lower(x)`, type: 'string', sortable: true, ops: [] },
+    size: { column: auditLog.id, type: 'number', sortable: true, ops: [] },
   } satisfies Record<string, FilterField>;
   const where = (text: string, after: unknown[]) =>
     dialect

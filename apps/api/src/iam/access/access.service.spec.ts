@@ -113,14 +113,18 @@ function accessWith(...permissions: PermissionInput[]) {
     {} as never,
     { permissions: [] } as never,
   );
-  vi.spyOn(access as never, 'loadPermissions').mockResolvedValue({
+  const internals = access as unknown as {
+    loadPermissions(): Promise<unknown>;
+    loadContext(): Promise<unknown>;
+  };
+  vi.spyOn(internals, 'loadPermissions').mockResolvedValue({
     held: permissions.map((permission, i) => ({
       permission,
       roleId: `role-${i}`,
       expiresAt: null,
     })),
   } as never);
-  vi.spyOn(access as never, 'loadContext').mockResolvedValue({
+  vi.spyOn(internals, 'loadContext').mockResolvedValue({
     context: {
       directUnitIds: ['unit-1'],
       unitIdsAndBelow: ['unit-1'],

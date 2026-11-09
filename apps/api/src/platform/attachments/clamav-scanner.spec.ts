@@ -9,7 +9,7 @@ async function fakeClamd(reply: (received: Buffer) => string | null) {
   const received: Buffer[] = [];
   const server: Server = createServer((socket) => {
     const chunks: Buffer[] = [];
-    socket.on('data', (data) => {
+    socket.on('data', (data: Buffer) => {
       chunks.push(data);
       const all = Buffer.concat(chunks);
       // The stream ends with a zero length after the command.

@@ -6,8 +6,11 @@ import {
   type SessionService,
   type TokenService,
 } from '@nestjs/authentication';
+import type { TenantSwitchService } from '../access/tenant-switch.service.js';
 import type { AccountService } from '../account/account.service.js';
+import type { NativeSignIn } from '../account/native-sign-in.service.js';
 import { TokensController } from '../account/tokens.controller.js';
+import type { SessionLifetime } from '../auth/session-lifetime.js';
 import type { UsersRepository } from '../auth/users.repository.js';
 import { Captcha, CaptchaGuard, type CaptchaOptions } from './captcha.guard.js';
 import type { CaptchaRequest, CaptchaService } from './captcha.service.js';
@@ -161,6 +164,9 @@ describe('TokensController: the second factor and the failure counters', () => {
         {} as TokenService,
         account,
         captcha.service,
+        {} as SessionLifetime,
+        {} as TenantSwitchService,
+        {} as NativeSignIn,
       ),
       released: captcha.released,
     };

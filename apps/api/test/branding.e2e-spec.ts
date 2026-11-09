@@ -1,5 +1,6 @@
 import { StorageDisk } from '@nestjs/storage';
 import { randomUUID } from 'node:crypto';
+import type { Response } from 'supertest';
 import { BrandingService } from '../src/platform/branding/branding.service.js';
 import { bootApp, type TestApp } from './support.js';
 
@@ -18,12 +19,14 @@ const HTML = Buffer.from('<html><script>alert(1)</script></html>');
 
 /** The bytes of a response, whatever its type. */
 const binary = (
-  res: NodeJS.ReadableStream,
+  res: Response,
   done: (error: Error | null, body: Buffer) => void,
 ) => {
+  // At runtime the response is the stream; superagent's type is its parsed shape.
+  const stream = res as unknown as NodeJS.ReadableStream;
   const chunks: Buffer[] = [];
-  res.on('data', (chunk: Buffer) => chunks.push(chunk));
-  res.on('end', () => done(null, Buffer.concat(chunks)));
+  stream.on('data', (chunk: Buffer) => chunks.push(chunk));
+  stream.on('end', () => done(null, Buffer.concat(chunks)));
 };
 
 describe('tenant branding (e2e)', () => {

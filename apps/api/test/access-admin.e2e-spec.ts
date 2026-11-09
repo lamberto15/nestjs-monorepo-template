@@ -447,7 +447,7 @@ describe('access administration (e2e)', () => {
         .expect(202);
       expect(resent.body).toMatchObject({ id: pending.id, email });
       expect(Date.parse(resent.body.expiresAt)).toBeGreaterThanOrEqual(
-        Date.parse(pending.expiresAt),
+        Date.parse(pending.expiresAt!),
       );
       let second: string | undefined;
       for (let tries = 0; tries < 100 && !second; tries++) {

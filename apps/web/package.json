@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "vite build && tsc -b",
     "lint": "oxlint --type-aware src/",
+    "typecheck": "tsc -b",
     "pwa:icons": "pwa-assets-generator",
     "preview": "vite preview",
     "precompress": "node scripts/precompress.mjs dist/assets",

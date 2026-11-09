@@ -56,7 +56,7 @@ describe('api client: notes (e2e)', () => {
       api.POST('/v1/notes', { body: { title: 'Second', body: '' } }),
     );
     const ids: string[] = [];
-    for await (const item of api.items('/v1/notes', { limit: '1' })) {
+    for await (const item of api.items('/v1/notes', { limit: 1 })) {
       ids.push(item.id);
     }
     expect(ids).toHaveLength(2);

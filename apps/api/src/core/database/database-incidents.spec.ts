@@ -31,7 +31,7 @@ describe('database incident snapshots', () => {
     await capture.close();
     vi.restoreAllMocks();
   });
-  const logs = () => warnings.mock.calls.map((call) => call[1]);
+  const logs = () => warnings.mock.calls.map((call: unknown[]) => call[1]);
 
   it('uses a dedicated single-connection pool and a bounded statistics-only query', async () => {
     const query = vi
@@ -96,7 +96,7 @@ describe('database incident snapshots', () => {
     expect(fake.connect).toHaveBeenCalledTimes(1);
     expect(
       logs().filter(
-        (l) => (l as { event?: string }).event === 'database_incident',
+        (l: unknown) => (l as { event?: string }).event === 'database_incident',
       ),
     ).toHaveLength(3);
   });
@@ -108,11 +108,12 @@ describe('database incident snapshots', () => {
     capture.subscribe(seen);
     const incidentLogs = () =>
       logs().filter(
-        (l) => (l as { event?: string }).event === 'database_incident',
+        (l: unknown) => (l as { event?: string }).event === 'database_incident',
       );
     const summaries = () =>
       logs().filter(
-        (l) => (l as { event?: string }).event === 'database_incident_summary',
+        (l: unknown) =>
+          (l as { event?: string }).event === 'database_incident_summary',
       );
     for (let i = 0; i < 8; i++)
       capture.record({ trigger: 'slow_query', fingerprint: 'a' });

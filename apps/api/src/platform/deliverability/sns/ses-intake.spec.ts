@@ -38,11 +38,11 @@ const CERT_URL =
 
 /** Signs a message as SNS does (version 1: SHA1withRSA; 2: SHA256withRSA). */
 function sign(
-  fields: Omit<
+  fields: Pick<
     SnsMessage,
-    'Signature' | 'SignatureVersion' | 'SigningCertURL'
+    'Type' | 'MessageId' | 'TopicArn' | 'Message' | 'Timestamp'
   > &
-    Partial<Pick<SnsMessage, 'SignatureVersion' | 'SigningCertURL'>>,
+    Partial<SnsMessage>,
   key = privateKey,
 ): SnsMessage {
   const message: SnsMessage = {
@@ -264,11 +264,13 @@ describe('SES message parsing', () => {
         detail: 'Permanent/General: 5.1.1: smtp; 550 5.1.1 user unknown',
       },
     ]);
-    expect(sesEvents(bounce(['a@example.com'], 'Transient'))[0]).toMatchObject({
-      type: 'soft_bounce',
-      detail: expect.stringContaining('Transient'),
-    });
-    expect(sesEvents(bounce(['a@example.com'], 'Undetermined'))[0]?.type).toBe(
+    expect(sesEvents(bounce(['a@example.com'], 'Transient'))![0]).toMatchObject(
+      {
+        type: 'soft_bounce',
+        detail: expect.stringContaining('Transient'),
+      },
+    );
+    expect(sesEvents(bounce(['a@example.com'], 'Undetermined'))![0]?.type).toBe(
       'soft_bounce',
     );
     expect(

@@ -24,7 +24,7 @@ import {
   pageOrder,
   toPage,
 } from '../src/core/http/pagination.js';
-import { bootApp, type TestApp, testDatabase } from './support.js';
+import { bootApp, rowsOf, type TestApp, testDatabase } from './support.js';
 
 const things = pgTable('things', {
   id: uuid('id').primaryKey(),
@@ -595,7 +595,7 @@ describe('the advanced list query (PostgreSQL)', () => {
       // A tiny table must not flip the plan to a sequential scan.
       await tx.execute(sql`set local enable_seqscan = off`);
       const result = await tx.execute(sql`explain (format json) ${statement}`);
-      return JSON.stringify(result.rows[0]);
+      return JSON.stringify(rowsOf(result)[0]);
     });
     expect(plan).toMatch(/"Index Cond":"[^"]*ROW\(/);
     expect(plan).not.toMatch(/"Filter":"[^"]* OR /);

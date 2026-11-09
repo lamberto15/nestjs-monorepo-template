@@ -22,7 +22,12 @@ import {
 } from '../../core/tenancy/tenant-scope.js';
 import { organizationalUnits } from '../../iam/iam.tables.js';
 import { defineCustomFields } from '../custom-fields/custom-field.types.js';
-import { columnName, type Fields, tableHolds } from '../fields/field.js';
+import {
+  columnName,
+  type Fields,
+  type Referenced,
+  tableHolds,
+} from '../fields/field.js';
 import type { NumberingFieldKind } from '../sequences/naming-series.registry.js';
 import {
   type FieldColumns,
@@ -448,7 +453,7 @@ export function recordTableOf(declaration: RecordDeclaration) {
       `${declaration.subject}: its table is not made yet (recordTable(${declaration.subject.toUpperCase()}) in its tables file).`,
     );
   }
-  return table as PgTable & Record<string, AnyPgColumn>;
+  return table as PgTable & Referenced & Record<string, AnyPgColumn>;
 }
 
 /**
