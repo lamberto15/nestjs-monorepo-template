@@ -38,7 +38,7 @@ FROM caddy:2.11.7-builder AS builder
 # CI's scan (job caddy-image) finds nothing fixable; drop each once a Caddy
 # release ships its version or a newer one.
 RUN xcaddy build --with github.com/caddy-dns/cloudflare@v0.2.4 \
-      --replace golang.org/x/net=golang.org/x/net@v0.61.0 \
+      --replace golang.org/x/net=golang.org/x/net@v0.62.0 \
       --replace github.com/go-jose/go-jose/v4=github.com/go-jose/go-jose/v4@v4.1.6
 
 FROM caddy:2.11.7
