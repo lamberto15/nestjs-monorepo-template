@@ -6,7 +6,7 @@ No. It includes a NestJS API, React frontend, administrative and platform capabi
 
 ## Can I use it for a company or a paid product?
 
-**Do not assume so.** The repository contains the [PolyForm Noncommercial 1.0.0 license](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/LICENSE). Commercial use needs permission under separate terms from the copyright holder. Evaluate your particular use with appropriate legal advice; a public GitHub repository is not necessarily licensed for commercial reuse.
+**Do not assume so.** The repository contains the [PolyForm Noncommercial 1.0.0 license](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE). Commercial use needs permission under separate terms from the copyright holder. Evaluate your particular use with appropriate legal advice; a public GitHub repository is not necessarily licensed for commercial reuse.
 
 ## Is it only a NestJS backend?
 
@@ -26,11 +26,11 @@ The documented development workflow uses Docker Compose for services such as Pos
 
 ## Does it support APIs for mobile apps?
 
-The API exposes REST routes, and the repository includes a typed client meant for clients beyond the bundled web app. A complete native mobile app is not supplied. See [API conventions](../api-conventions.md) and [client package](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/packages/api-client/README.md).
+The API exposes REST routes, and the repository includes a typed client meant for clients beyond the bundled web app. A complete native mobile app is not supplied. See [API conventions](../api-conventions.md) and [client package](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md).
 
 ## Does it come with support, hosting or a guaranteed SLA?
 
-No hosting or SLA is granted by the repository. The adopter is responsible for its own application operations. The [security policy](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/SECURITY.md) covers reporting vulnerabilities in the template, not support contracts for applications derived from it.
+No hosting or SLA is granted by the repository. The adopter is responsible for its own application operations. The [security policy](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md) covers reporting vulnerabilities in the template, not support contracts for applications derived from it.
 
 ## Can I pull future template improvements into my project?
 
@@ -38,7 +38,7 @@ The repository documents a history-preserving clone and a release-tag merge stra
 
 ## Where can I see the latest limitations and release changes?
 
-Use the [roadmap](../roadmap.md), [releases guide](../releases.md), [GitHub releases](https://github.com/lamby-dev/nestjs-monorepo-template/releases) and [open issues](https://github.com/lamby-dev/nestjs-monorepo-template/issues). These change more often than an introductory page.
+Use the [roadmap](../roadmap.md), [releases guide](../releases.md), [GitHub releases](https://github.com/lamberto15/nestjs-monorepo-template/releases) and [open issues](https://github.com/lamberto15/nestjs-monorepo-template/issues). These change more often than an introductory page.
 
 ## I'm an engineer. Where should I start?
 

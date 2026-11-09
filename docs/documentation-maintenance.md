@@ -5,7 +5,7 @@
 - **Nontechnical pages** in `docs/nontechnical/` help people decide whether to adopt the template. Avoid code details unless necessary for a decision.
 - **Technical navigation and task guides** in `docs/technical/` point to the deep technical references rather than repeating every implementation detail.
 - **Topic reference guides** directly under `docs/` are the authoritative description of runtime behavior, configuration, security boundaries and extension contracts.
-- The root [README](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/README.md) is a short public entry point plus overview; [docs/index.md](index.md) is the documentation hub.
+- The root [README](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/README.md) is a short public entry point plus overview; [docs/index.md](index.md) is the documentation hub.
 
 ## Write what is verified
 

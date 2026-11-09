@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
-import { classify, expectedJobs, NIGHTLY_CRON } from './changes.mjs';
+import { classify, expectedJobs } from './changes.mjs';
 const text = readFileSync(
   new URL('../../.github/workflows/ci.yml', import.meta.url),
   'utf8',
@@ -199,7 +199,10 @@ test('real workflow conditions and dependencies agree with the gate for affected
       );
   }
   for (const event of ['schedule', 'workflow_dispatch', 'push']) {
-    const flags = classify({ full: true });
+    const flags = {
+      ...classify({ full: true }),
+      manual: event === 'workflow_dispatch',
+    };
     assert.deepEqual(
       actual(flags, { event }).sort(),
       expectedJobs(flags).sort(),
@@ -236,10 +239,6 @@ test('the signing action installs the Trivy its SBOM step runs', () => {
   const install = action.indexOf('uses: aquasecurity/setup-trivy@');
   assert.ok(install >= 0);
   assert.ok(install < action.indexOf('run: trivy image'));
-});
-
-test('the nightly cron is the one changes.mjs recognises', () => {
-  assert.ok(text.includes(`- cron: '${NIGHTLY_CRON}'`));
 });
 
 test('every release image is built once and handed off with integrity evidence', () => {

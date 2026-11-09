@@ -163,11 +163,11 @@ test('API failures and truncated comparisons run comprehensively', () => {
       response,
     );
     assert.ok(result.full && result.api && result.web);
-    assert.ok(JSON.parse(result.expected).includes('template-without-notes'));
+    assert.ok(!JSON.parse(result.expected).includes('template-without-notes'));
   }
 });
 
-test('weekday nights scan the images and dependencies; Sunday validates everything', () => {
+test('weekday nights scan the images and dependencies; Sunday validates the rest', () => {
   const expected = (schedule) =>
     JSON.parse(eventOutput('schedule', { schedule }, null).result.expected);
   assert.deepEqual(expected(NIGHTLY_CRON), [
@@ -178,8 +178,9 @@ test('weekday nights scan the images and dependencies; Sunday validates everythi
     'caddy-image',
     'gotenberg-image',
   ]);
-  for (const job of ['e2e', 'template-without-notes', 'check'])
-    assert.ok(expected('17 3 * * 0').includes(job), job);
+  const sunday = expected('17 3 * * 0');
+  for (const job of ['e2e', 'check']) assert.ok(sunday.includes(job), job);
+  assert.ok(!sunday.includes('template-without-notes'));
 });
 
 test('a release (changelog, manifest, root version) runs no tests and publishes a manifest on main', () => {
@@ -220,6 +221,16 @@ test('a release (changelog, manifest, root version) runs no tests and publishes 
   ).result;
   assert.ok(other.api && other.web);
   assert.ok(JSON.parse(other.expected).includes('e2e'));
+});
+
+test('template-without-notes runs on a manual run only', () => {
+  const expected = (name) =>
+    JSON.parse(eventOutput(name, {}, null).result.expected);
+  assert.ok(expected('workflow_dispatch').includes('template-without-notes'));
+  for (const name of ['schedule', 'push']) {
+    assert.ok(!expected(name).includes('template-without-notes'), name);
+    assert.ok(expected(name).includes('e2e'), name);
+  }
 });
 
 test('scheduled, manual and version-tag events validate comprehensively; only a bootstrap publishes', () => {

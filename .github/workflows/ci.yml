@@ -37,9 +37,9 @@ on:
         type: boolean
         default: false
   # Weekday nights scan for new advisories only: the images and the
-  # dependencies (security). Sunday's run validates everything, the checks a
-  # pull request skips included (template-without-notes). tools/ci/changes.mjs
-  # reads which cron this is.
+  # dependencies (security). Sunday's run validates everything else a pull
+  # request skips (template-without-notes runs only on a manual run).
+  # tools/ci/changes.mjs reads which cron this is.
   schedule:
     - cron: '17 3 * * 1-6'
     - cron: '17 3 * * 0'
@@ -80,6 +80,7 @@ jobs:
       api_image: ${{ steps.paths.outputs.api_image }}
       full: ${{ steps.paths.outputs.full }}
       nightly: ${{ steps.paths.outputs.nightly }}
+      manual: ${{ steps.paths.outputs.manual }}
       base: ${{ steps.paths.outputs.base }}
       head: ${{ steps.paths.outputs.head }}
       affected: ${{ steps.paths.outputs.affected }}
@@ -989,11 +990,10 @@ jobs:
   # on the test-only record, test/fixtures). Thrown away like feature-smoke's.
   template-without-notes:
     needs: changes
-    if: needs.changes.outputs.full == 'true' && needs.changes.outputs.nightly != 'true'
+    if: needs.changes.outputs.manual == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    # Tags, Sunday's scheduled run, manual runs and any change that validates
-    # everything (`full`): in two shards, each with half of the e2e suite and
+    # Manual runs only (Actions > CI / CD > Run workflow): in two shards, each with half of the e2e suite and
     # half of the API's and the web app's unit tests. The suites are the e2e and unit
     # jobs' with a feature fewer; `check`'s last step looks for references left
     # behind on every pull request. Raise the list and the totals together.

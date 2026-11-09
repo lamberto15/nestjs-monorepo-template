@@ -81,7 +81,12 @@ test('ambiguous comparisons and comprehensive triggers never skip checks', () =>
   ])
     assert.ok(keys.every((k) => classify(input)[k]));
   const jobs = expectedJobs(classify({ full: true }));
-  assert.ok(jobs.includes('template-without-notes'));
+  assert.ok(!jobs.includes('template-without-notes'));
+  assert.ok(
+    expectedJobs({ ...classify({ full: true }), manual: true }).includes(
+      'template-without-notes',
+    ),
+  );
   assert.ok(jobs.includes('e2e-web'));
   assert.ok(jobs.includes('feature-smoke'));
 });

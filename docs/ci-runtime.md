@@ -6,7 +6,7 @@ kept. Runners are the scarce resource. The repository is public, so minutes
 are free and runners are 4-vCPU, but every job counts against the plan's 20
 concurrent jobs, which several open pull requests share. Measurements, not
 guesses, decide the layout. The audit behind it: issue
-[#681](https://github.com/lamby-dev/nestjs-monorepo-template/issues/681).
+[#681](https://github.com/lamberto15/nestjs-monorepo-template/issues/681).
 
 ## The rules the workflow follows
 
@@ -36,9 +36,11 @@ guesses, decide the layout. The audit behind it: issue
   waits for.
 - **Comprehensive where it costs no pull request:** weekday nights scan the
   images and the dependencies only (new advisories); Sunday's scheduled run,
-  tags, manual runs and changes that classify as `full` run everything,
-  `template-without-notes` (two shards) included. `web.yml` runs Lighthouse
-  for each release and by hand.
+  tags, manual runs and changes that classify as `full` run everything else.
+  `template-without-notes` (two shards) runs only on a manual run
+  (Actions > CI / CD > Run workflow): before a release, or after a change to
+  the generator or the core. `web.yml` runs Lighthouse for each release and
+  by hand.
 - **A release reruns nothing:** Release Please's pull request and its merge
   change only the changelog, `.release-please-manifest.json` and the root
   version, so they run `changes` alone; on `main` the merge keeps a release
@@ -51,7 +53,7 @@ guesses, decide the layout. The audit behind it: issue
 - **Flaky is a bug, not a retry:** Playwright's one CI retry stays, but a
   retried attempt's trace is uploaded (`playwright-report`), so a flake
   leaves evidence (one such trace explained a flake of
-  [#683](https://github.com/lamby-dev/nestjs-monorepo-template/issues/683)).
+  [#683](https://github.com/lamberto15/nestjs-monorepo-template/issues/683)).
 
 ## Jobs per pull request
 
@@ -186,7 +188,7 @@ and add them here.
 ## Earlier measurements (#629)
 
 Three runs per configuration on one source revision (the files in
-[tools/ci/evidence](https://github.com/lamby-dev/nestjs-monorepo-template/tree/main/tools/ci/evidence))
+[tools/ci/evidence](https://github.com/lamberto15/nestjs-monorepo-template/tree/main/tools/ci/evidence))
 selected **two API e2e shards** (6.37 median minutes and 11.30 runner-minutes,
 against 8.55 and 12.75 for three shards, 8.77 and 14.67 for six) and
 **unsharded unit coverage** (6.83 median runner-minutes against 9.95 sharded,
