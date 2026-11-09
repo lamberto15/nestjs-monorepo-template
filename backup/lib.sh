@@ -1,4 +1,5 @@
 # Shared by backup, restore and backup-health (sourced, not run).
+# shellcheck shell=sh
 
 BACKUP_DIR=${BACKUP_DIR:-/backups}
 
@@ -109,6 +110,7 @@ pitr_on() {
       ;;
   esac
 }
+# shellcheck disable=SC2034 # backup.sh and wal-ship.sh read it after sourcing this file
 WAL_DIR=${BACKUP_WAL_DIR:-/wal}
 
 # Client-side encryption with age (https://age-encryption.org): with
