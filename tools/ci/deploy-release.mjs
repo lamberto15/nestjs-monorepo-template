@@ -127,8 +127,9 @@ export function deploymentRun(
 
 /**
  * Production takes a release only once staging has deployed its source (or a
- * newer main commit) successfully: a staging Deploy run after CI whose deploy
- * job passed. A run that only verified (nothing published) doesn't count.
+ * newer main commit) successfully: a staging Deploy run, automatic after CI or
+ * started by hand, whose deploy job passed. A run that only verified (nothing
+ * published) doesn't count.
  */
 export function requireStagingDeploy(
   repository,
@@ -139,7 +140,7 @@ export function requireStagingDeploy(
   const { workflow_runs: runs = [] } = JSON.parse(
     run('gh', [
       'api',
-      `repos/${repository}/actions/workflows/deploy.yml/runs?branch=main&event=workflow_run&status=success&per_page=50`,
+      `repos/${repository}/actions/workflows/deploy.yml/runs?branch=main&status=success&per_page=50`,
     ]),
   );
   for (const record of runs) {
