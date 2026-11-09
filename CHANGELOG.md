@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.4.0](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.3.0...v0.4.0) (2026-11-09)
+
+
+### Features
+
+* **deploy:** render the heavy worker and the pgbouncer, pitr and clamav overlays under Swarm ([#1094](https://github.com/lamberto15/nestjs-monorepo-template/issues/1094)) ([cadb603](https://github.com/lamberto15/nestjs-monorepo-template/commit/cadb603126d42d0f07267b3f4172d6279ef5ccda))
+
+
+### Bug Fixes
+
+* **api:** type-check the tests in CI and fix their 66 type errors ([#1091](https://github.com/lamberto15/nestjs-monorepo-template/issues/1091)) ([f6830e3](https://github.com/lamberto15/nestjs-monorepo-template/commit/f6830e3ef41526ac7584e66fac14d762deff3d27))
+* **backup:** the shellcheck findings in the backup scripts, and shellcheck in CI ([#1090](https://github.com/lamberto15/nestjs-monorepo-template/issues/1090)) ([4e16a68](https://github.com/lamberto15/nestjs-monorepo-template/commit/4e16a68db35f34dee611283e87aba23fdeca0e3a))
+* **ci:** pin pnpm 12.18.0 everywhere and check devEngines agrees with the Dockerfiles ([#1079](https://github.com/lamberto15/nestjs-monorepo-template/issues/1079)) ([5430e5b](https://github.com/lamberto15/nestjs-monorepo-template/commit/5430e5b8c4cfecf62948c561042e7acec851e344))
+* **deploy:** Caddy health check reads its answer, migration lint names squawk's failure, monitoring note ([#1093](https://github.com/lamberto15/nestjs-monorepo-template/issues/1093)) ([db1a21e](https://github.com/lamberto15/nestjs-monorepo-template/commit/db1a21ea37209511c43c84a330b14a4bd1b6afaf))
+* **deps:** clear the high advisories in @lhci/cli's chain and refresh seroval ([#1076](https://github.com/lamberto15/nestjs-monorepo-template/issues/1076)) ([b5a3141](https://github.com/lamberto15/nestjs-monorepo-template/commit/b5a3141c6abc97ac6c833692d9689166a6c30a55))
+
 ## [0.3.0](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.2.2...v0.3.0) (2026-11-09)
 
 
