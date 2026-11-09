@@ -273,16 +273,21 @@ test('Deploy verifies before any secret, targets Swarm by digest and never build
 test('production needs a green staging deploy of its source or a newer commit', () => {
   const deploys = (runs, jobs) => (command, args) => {
     const path = args[1];
-    if (path.includes('/workflows/deploy.yml/runs'))
-      return JSON.stringify({ workflow_runs: runs });
+    if (path.includes('/workflows/deploy.yml/runs')) {
+      const event = new URLSearchParams(path.split('?')[1]).get('event');
+      return JSON.stringify({
+        workflow_runs: runs.filter((r) => !event || r.event === event),
+      });
+    }
     const runId = path.split('/runs/')[1].split('/')[0];
     return JSON.stringify({ jobs: jobs[runId] ?? [] });
   };
   // 'old' is before the source; 'new' contains it.
   const isAncestor = (commit, descendant) =>
     commit === source && descendant !== 'old';
-  const staging = (id, sha) => ({
+  const staging = (id, sha, event = 'workflow_run') => ({
     id,
+    event,
     head_sha: sha,
     display_title: 'Deploy staging ',
   });
@@ -303,6 +308,15 @@ test('production needs a green staging deploy of its source or a newer commit', 
         3: skipped,
         2: passed,
       }),
+    ),
+  );
+  // A staging deploy started by hand counts too.
+  assert.doesNotThrow(() =>
+    requireStagingDeploy(
+      repository,
+      source,
+      isAncestor,
+      deploys([staging(4, source, 'workflow_dispatch')], { 4: passed }),
     ),
   );
   for (const [runs, jobs] of [
