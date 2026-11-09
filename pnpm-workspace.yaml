@@ -12,6 +12,13 @@ overrides:
   'body-parser@^2.0.0': 2.4.0
   'multer@^2.0.0': 2.5.0
   'node-gyp@13.1.0>undici': 8.12.2
+  # @lhci/cli's chain (the web app's Lighthouse runs, web.yml): express 4
+  # still asks for body-parser 1.20.8 (GHSA-27r3-jxmh-p828, fixed in 1.20.9),
+  # and proxy-agent's get-uri for basic-ftp 5 (GHSA-c475-qrg2-pj4r, fixed in
+  # 6.2.1; only used for ftp:// proxy configuration URLs). Drop each once
+  # @lhci/cli's dependencies ask for the fixed version themselves (#1072).
+  'body-parser@^1.0.0': 1.20.9
+  'basic-ftp@<6.2.1': 6.2.1
   # GHSA-3f7j-7jwc-fxfj (high, fixed in 5.33.16), through
   # @opentelemetry/instrumentation-host-metrics and the CLI's dependency.
   'systeminformation@<5.33.16': 5.33.18
