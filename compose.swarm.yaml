@@ -56,6 +56,10 @@ services:
     image: ${APP_IMAGE:?set APP_IMAGE (docs/deploy-swarm.md)}
     environment:
       SWARM_DEPLOY_ID: ${SWARM_DEPLOY_ID:-0}
+    # The image's check asks the API's port, which a migration never serves:
+    # Swarm would kill any run longer than its start period and retries (~2 min).
+    healthcheck:
+      disable: true
     deploy:
       mode: replicated-job
       replicas: 1

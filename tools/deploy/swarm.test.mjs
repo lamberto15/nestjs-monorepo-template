@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { spawnSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import {
   main,
@@ -58,6 +59,15 @@ const files = {
   '/repo/caddy/Caddyfile': Buffer.from('{}'),
 };
 const readFile = (path) => files[path];
+
+test('the migrate job runs without the image health check', () => {
+  const swarm = readFileSync(
+    fileURLToPath(new URL('../../compose.swarm.yaml', import.meta.url)),
+    'utf8',
+  );
+  const migrate = swarm.split(/\n {2}migrate:\n/)[1].split(/\n {2}\w+:\n/)[0];
+  assert.match(migrate, /healthcheck:\n\s+disable: true/);
+});
 
 test('toStack: fixes what docker stack refuses', () => {
   const stack = toStack(rendered(), {
