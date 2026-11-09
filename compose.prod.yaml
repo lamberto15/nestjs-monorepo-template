@@ -726,7 +726,7 @@ services:
   # no JavaScript. Gotenberg's other outgoing calls (downloadFrom, webhooks)
   # are off. Read-only, no capabilities: only /tmp and its home are written.
   gotenberg:
-    image: gotenberg/gotenberg:8.39.0-chromium@sha256:558943677cf9092df83ff654c2645856dcb9ddf777f359243789688e74f3bcdd
+    image: gotenberg/gotenberg:9.2.0-chromium@sha256:1b37aa0a4407b204ee810c64a4daf8c36c9a7c12115f2680c363530c3dd27d6c
     restart: unless-stopped
     logging: *logging
     # The same flags as compose.dev.yaml's (CI's gotenberg-image job compares them).
@@ -743,7 +743,7 @@ services:
       - --webhook-disable
       # Longer than the app's GOTENBERG_TIMEOUT_MS: the app gives up first, and retries.
       - --api-timeout=60s
-      - --log-format=json
+      - --log-std-format=json
     networks:
       - documents
     read_only: true
