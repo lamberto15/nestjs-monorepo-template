@@ -45,7 +45,7 @@ jobs:
         run: node tools/docs/check.mjs
       - name: Build searchable GitHub Pages site
         env:
-          # Project Pages: https://lamby-dev.github.io/nestjs-monorepo-template/
+          # Project Pages: https://lamberto15.github.io/nestjs-monorepo-template/
           DOCS_BASE: /nestjs-monorepo-template/
         run: pnpm docs:build
       # A PR builds with the production base but never uploads/deploys.

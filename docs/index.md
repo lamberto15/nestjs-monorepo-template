@@ -28,8 +28,8 @@ Read [technical quickstart](technical/quickstart.md), [system map](technical/sys
 
 - The API is a NestJS REST service and Swagger UI, not a general-purpose HTML site. The repository also includes a separate React web application and typed API client.
 - Some capabilities are configurable or require external services, credentials and operational work. Having code in a template does not mean a real deployment is production-ready without validation.
-- **License:** [PolyForm Noncommercial 1.0.0](https://github.com/lamby-dev/nestjs-monorepo-template/blob/main/LICENSE). Check the license and obtain separate permission before assuming a commercial use is allowed.
-- **Release maturity:** consult the [roadmap](roadmap.md), [releases](releases.md) and [GitHub release notes](https://github.com/lamby-dev/nestjs-monorepo-template/releases) for the current state, including possible breaking changes.
+- **License:** [PolyForm Noncommercial 1.0.0](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/LICENSE). Check the license and obtain separate permission before assuming a commercial use is allowed.
+- **Release maturity:** consult the [roadmap](roadmap.md), [releases](releases.md) and [GitHub release notes](https://github.com/lamberto15/nestjs-monorepo-template/releases) for the current state, including possible breaking changes.
 
 ## Website
 
