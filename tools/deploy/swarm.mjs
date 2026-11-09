@@ -9,7 +9,9 @@
 //   pnpm deploy:swarm rollback   `docker service rollback` of api and worker
 //
 // SWARM_OVERLAYS: more Compose files after those three, comma-separated
-// (compose.small.yaml sizes the stack for a 2 vCPU / 4 GB host).
+// (compose.small.yaml sizes the stack for a 2 vCPU / 4 GB host), including
+// compose.pgbouncer.yaml, compose.pitr.yaml and compose.clamav.yaml. The
+// heavy worker is deployed when HEAVY_QUEUES is set (environment or .env).
 //
 // Options: --stack <name> (SWARM_STACK, default "app"), --env-file <path>
 // (Compose's, instead of ./.env), --timeout <seconds> (default 600),
@@ -167,9 +169,20 @@ async function renderStack(ctx, { app }) {
   const args = ['compose', '--project-directory', ctx.root, '-p', ctx.stack];
   if (ctx.options.envFile)
     args.push('--env-file', resolve(ctx.options.envFile));
-  for (const file of [...COMPOSE_FILES, ...overlays(ctx)])
-    args.push('-f', join(ctx.root, file));
-  if (app) args.push('--profile', 'app');
+  const files = [...COMPOSE_FILES, ...overlays(ctx)];
+  // wal-init (compose.pitr.yaml) needs Swarm settings after the overlay's.
+  if (files.includes('compose.pitr.yaml'))
+    files.push('compose.swarm-pitr.yaml');
+  for (const file of files) args.push('-f', join(ctx.root, file));
+  const profiles = [];
+  if (app) profiles.push('app');
+  // The heavy worker runs with the app, and only when HEAVY_QUEUES names its
+  // queues: compose.prod.yaml's `worker` leaves exactly those out
+  // (WORKER_QUEUES_EXCLUDE: ${HEAVY_QUEUES}), so without it the heavy worker
+  // would run the same queues twice. env.example asks for the profile in
+  // COMPOSE_PROFILES, which we ignore (below): HEAVY_QUEUES is the switch.
+  if (app && setting(ctx, 'HEAVY_QUEUES')) profiles.push('heavy-worker');
+  for (const profile of profiles) args.push('--profile', profile);
   args.push('config', '--format', 'json');
   // An .env's COMPOSE_FILE/COMPOSE_PROFILES would add to ours.
   const env = { ...ctx.env };
@@ -182,6 +195,23 @@ async function renderStack(ctx, { app }) {
     readFile: ctx.readFile,
     placeholder: join(ctx.root, 'swarm.placeholder'),
   });
+}
+
+/**
+ * A variable of the deployment: the environment's, else the `--env-file` (or
+ * ./.env) Compose reads. Only the plain KEY=value lines.
+ */
+export function setting(ctx, name) {
+  if (ctx.env[name]) return ctx.env[name];
+  const file = ctx.options.envFile
+    ? resolve(ctx.options.envFile)
+    : join(ctx.root, '.env');
+  if (!ctx.exists(file)) return '';
+  const line = String(ctx.readFile(file))
+    .split('\n')
+    .map((l) => l.trim())
+    .find((l) => l.startsWith(`${name}=`));
+  return (line ?? '').slice(name.length + 1).replace(/^(['"])(.*)\1$/, '$2');
 }
 
 /** SWARM_OVERLAYS: Compose files of the repository, added after ours. */
@@ -336,7 +366,7 @@ async function deploy(ctx) {
 
   // 2. The app: api and worker roll one task at a time, start-first.
   const waited = Object.keys(full.services).filter(
-    (name) => name !== 'migrate',
+    (name) => full.services[name].deploy?.mode !== 'replicated-job',
   );
   const before = new Map();
   for (const name of waited) {
