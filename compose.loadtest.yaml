@@ -36,7 +36,7 @@ services:
     environment:
       APP_ENV: loadtest
       # No PDFs in the scenarios: documents off, and no Gotenberg image to
-      # build or pull (it is in no request path).
+      # pull (it is in no request path).
       GOTENBERG_URL: ''
   migrate:
     environment:

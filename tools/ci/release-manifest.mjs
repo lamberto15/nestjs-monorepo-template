@@ -15,9 +15,12 @@ import { pathToFileURL } from 'node:url';
 export const components = {
   api: '',
   caddy: '/caddy',
-  gotenberg: '/gotenberg',
   backup: '/backup',
 };
+// Images CI no longer publishes: manifests from before still list them, and
+// stay valid, so their releases deploy and roll back. A new manifest leaves
+// them out. Gotenberg runs its official image, pinned in compose.prod.yaml.
+const retired = { gotenberg: '/gotenberg' };
 const sha = /^[a-f0-9]{40}$/;
 const digest = /^sha256:[a-f0-9]{64}$/;
 
@@ -33,6 +36,7 @@ export function validateManifest(manifest, repository) {
   if (
     !manifest.images ||
     Object.keys(manifest.images)
+      .filter((key) => !Object.hasOwn(retired, key))
       .sort((a, b) => a.localeCompare(b))
       .join() !==
       Object.keys(components)
@@ -40,7 +44,8 @@ export function validateManifest(manifest, repository) {
         .join()
   )
     throw new Error('Incomplete image set');
-  for (const [key, suffix] of Object.entries(components)) {
+  for (const [key, suffix] of Object.entries({ ...components, ...retired })) {
+    if (!Object.hasOwn(components, key) && !manifest.images[key]) continue;
     const image = manifest.images[key];
     if (
       image.repository !== `ghcr.io/${repository.toLowerCase()}${suffix}` ||
@@ -260,12 +265,7 @@ export function releasePlan(
   }
 
   if (bootstrap)
-    outputs.image =
-      outputs.api_image =
-      outputs.caddy =
-      outputs.gotenberg =
-      outputs.backup =
-        true;
+    outputs.image = outputs.api_image = outputs.caddy = outputs.backup = true;
   const directory = join(env.RUNNER_TEMP ?? tmpdir(), 'ci-release-plan');
   mkdirSync(directory, { recursive: true });
   writeFileSync(join(directory, 'plan.json'), JSON.stringify(plan));

@@ -388,7 +388,6 @@ jobs:
           APP_DOMAIN: app.example.test
           ACME_EMAIL: ops@example.test
           APP_IMAGE: ghcr.io/example/app:0000000000000000000000000000000000000000
-          GOTENBERG_IMAGE: ghcr.io/example/app/gotenberg:0000000000000000000000000000000000000000
           CADDY_IMAGE: ghcr.io/example/app/caddy:1
           BACKUP_IMAGE: ghcr.io/example/app/backup:1
           POSTGRES_PASSWORD: ci
@@ -406,7 +405,6 @@ jobs:
           APP_DOMAIN: app.example.test
           ACME_EMAIL: ops@example.test
           APP_IMAGE: ghcr.io/example/app:0000000000000000000000000000000000000000
-          GOTENBERG_IMAGE: ghcr.io/example/app/gotenberg:0000000000000000000000000000000000000000
           CADDY_IMAGE: ghcr.io/example/app/caddy:1
           BACKUP_IMAGE: ghcr.io/example/app/backup:1
           POSTGRES_PASSWORD: ci
@@ -1423,11 +1421,13 @@ jobs:
           if-no-files-found: error
           retention-days: 2
 
-  # Gotenberg's image (gotenberg/: the official one, pinned, made thin on
-  # top of), which renders the PDF documents: its FROM line agrees with
-  # compose.dev.yaml, then it builds (its Debian upgrade fresh each run that
-  # can publish) and passes the same scan. Its own cache scope.
-  # Published by publish-gotenberg, as the app image is.
+  # Gotenberg's image, which renders the PDF documents: the official one,
+  # pinned by digest in compose.prod.yaml and compose.dev.yaml (Dependabot
+  # raises both). Nothing is built or published: the job checks the two
+  # agree, renders a PDF with it and scans it. On every change to them and
+  # every night, so a pinned image that grows a fixable high or critical
+  # vulnerability fails the nightly run (then raise it, or wait for
+  # Gotenberg's release).
   gotenberg-image:
     needs: changes
     if: needs.changes.outputs.gotenberg == 'true'
@@ -1436,50 +1436,32 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: One Gotenberg release everywhere, with the same flags
+        id: pinned
         run: |
-          # The FROM line (Dependabot raises it) and compose.dev.yaml's image.
-          base=$(grep -oE '^FROM gotenberg/gotenberg:[^ ]+' gotenberg/Dockerfile | cut -d' ' -f2)
+          prod=$(yq '.services.gotenberg.image' compose.prod.yaml)
           dev=$(yq '.services.gotenberg.image' compose.dev.yaml)
-          echo "base: $base, development: $dev"
-          case "$base" in
+          echo "production: $prod, development: $dev"
+          case "$prod" in
             gotenberg/gotenberg:*-chromium@sha256:*) ;;
-            *) echo "::error file=gotenberg/Dockerfile::FROM $base is not a Gotenberg Chromium image, pinned by digest"; exit 1 ;;
+            *) echo "::error file=compose.prod.yaml::services.gotenberg.image $prod is not a Gotenberg Chromium image, pinned by digest"; exit 1 ;;
           esac
-          if [ "$dev" != "$base" ]; then
-            echo "::error file=compose.dev.yaml::services.gotenberg.image is $dev, gotenberg/Dockerfile builds on $base"
+          if [ "$dev" != "$prod" ]; then
+            echo "::error file=compose.dev.yaml::services.gotenberg.image is $dev, compose.prod.yaml runs $prod"
             exit 1
           fi
           if [ "$(yq -o json '.services.gotenberg.command' compose.prod.yaml)" != "$(yq -o json '.services.gotenberg.command' compose.dev.yaml)" ]; then
             echo "::error file=compose.dev.yaml::services.gotenberg.command differs from compose.prod.yaml's"
             exit 1
           fi
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          # The runner is thrown away: removing the builder took 30-90 s.
-          cleanup: false
-      - name: The day (a pull request's Debian upgrade)
-        id: day
-        run: echo "day=$(date -u +%F)" >> "$GITHUB_OUTPUT"
-      - name: Build the Gotenberg image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: gotenberg
-          labels: |
-            org.opencontainers.image.source=https://github.com/${{ github.repository }}
-            org.opencontainers.image.revision=${{ github.sha }}
-          load: true
-          tags: gotenberg:ci
-          # A new value per workflow run: the Debian upgrade runs again (the
-          # cache would keep the first one's packages for ever), and the
-          # publish job of the same run reuses this very build. A pull request
-          # publishes nothing: its value is the day's, so its later pushes
-          # reuse that upgrade (3-7 min) from its own cache.
-          build-args: APT_REFRESH=${{ github.event_name == 'pull_request' && format('pr-{0}', steps.day.outputs.day) || github.run_id }}
-          cache-from: type=gha,scope=gotenberg
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=gotenberg,mode=max' || '' }}
+          echo "image=$prod" >> "$GITHUB_OUTPUT"
+      - name: Pull the pinned image
+        env:
+          IMAGE: ${{ steps.pinned.outputs.image }}
+        run: |
+          docker pull --quiet "$IMAGE"
+          docker tag "$IMAGE" gotenberg:ci
       # The unit and e2e tests answer with a stub PDF, never Gotenberg's: only
-      # here does the image render for real (its Go programs rebuilt, its
-      # Debian packages, Chromium among them, upgraded this very run).
+      # here does the image render for real.
       - name: It renders a PDF that opens
         run: |
           # Production's flags (compose.prod.yaml), the container as it runs there.
@@ -1489,14 +1471,13 @@ jobs:
           # The request the API's PdfRenderer makes.
           curl -fsS http://127.0.0.1:3100/forms/chromium/convert/html \
             -F 'files=@gotenberg/smoke.html;filename=index.html' \
-            -F preferCssPageSize=true -F printBackground=true -F generateTaggedPdf=true \
+            -F preferCssPageSize=true -F printBackground=true -F nativeTaggedPdf=true \
             -o "$RUNNER_TEMP/smoke.pdf"
           head -c 5 "$RUNNER_TEMP/smoke.pdf" | grep -q '^%PDF-'
           tail -c 1024 "$RUNNER_TEMP/smoke.pdf" | grep -aq '%%EOF'
-          # The image's own pdfcpu (the one built here) reads it as a whole: one A4 page.
-          docker cp "$RUNNER_TEMP/smoke.pdf" gotenberg-smoke:/tmp/smoke.pdf
-          docker exec gotenberg-smoke pdfcpu validate -m relaxed /tmp/smoke.pdf
-          docker exec gotenberg-smoke pdfcpu info /tmp/smoke.pdf | grep -E 'Page count: +1$'
+          # Gotenberg's own PDF engine reads it as a whole: one page, tagged.
+          curl -fsS http://127.0.0.1:3100/forms/pdf/info -F "files=@$RUNNER_TEMP/smoke.pdf" |
+            jq -e '.["smoke.pdf"] | .pages == 1 and .tagged'
       - name: Gotenberg's log, when it did not
         if: failure()
         run: docker logs gotenberg-smoke || true
@@ -1515,24 +1496,6 @@ jobs:
           exit-code: '1'
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
-      - name: Export the verified image
-        if: needs.changes.outputs.publish == 'true'
-        run: |
-          docker save gotenberg:ci -o "${{ runner.temp }}/gotenberg.tar"
-          (cd "${{ runner.temp }}" && sha256sum gotenberg.tar > gotenberg.tar.sha256)
-          docker image inspect --format '{{.Id}}' gotenberg:ci > "${{ runner.temp }}/gotenberg.id"
-      - name: Transfer the verified image
-        if: needs.changes.outputs.publish == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: image-gotenberg
-          path: |
-            ${{ runner.temp }}/gotenberg.tar
-            ${{ runner.temp }}/gotenberg.tar.sha256
-            ${{ runner.temp }}/gotenberg.id
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 2
 
   ci-gate:
     name: CI gate
@@ -1630,73 +1593,6 @@ jobs:
         uses: ./.github/actions/sign-image
         with:
           image: ghcr.io/${{ github.repository }}
-          digest: ${{ steps.push.outputs.digest }}
-
-  publish-gotenberg:
-    name: Publish gotenberg
-    if: >-
-      !cancelled() && needs.ci-gate.result == 'success' &&
-      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.gotenberg == 'true'
-    needs: [changes, ci-gate]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      digest: ${{ steps.push.outputs.digest }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: image-gotenberg
-          path: ${{ runner.temp }}/image
-      - name: Load the verified image
-        run: |
-          (cd "${{ runner.temp }}/image" && sha256sum -c gotenberg.tar.sha256)
-          docker load -i "${{ runner.temp }}/image/gotenberg.tar"
-          test "$(docker image inspect --format '{{.Id}}' gotenberg:ci)" = "$(cat "${{ runner.temp }}/image/gotenberg.id")"
-      - name: Tags for the verified image
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}/gotenberg
-          flavor: latest=false
-          tags: |
-            type=sha,format=long,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      - name: Log in to GHCR
-        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push without rebuilding
-        id: push
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          REPOSITORY: ghcr.io/${{ github.repository }}/gotenberg
-        run: |
-          set -euo pipefail
-          while IFS= read -r tag; do
-            docker tag gotenberg:ci "$tag"
-            docker push "$tag"
-          done <<< "$TAGS"
-          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
-          ref="${REPOSITORY,,}:$GITHUB_SHA"
-          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
-          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Sign the image, attest its provenance and SBOM
-        uses: ./.github/actions/sign-image
-        with:
-          image: ghcr.io/${{ github.repository }}/gotenberg
           digest: ${{ steps.push.outputs.digest }}
 
   publish-caddy:
@@ -1845,7 +1741,6 @@ jobs:
         ci-gate,
         publish,
         publish-caddy,
-        publish-gotenberg,
         publish-backup,
       ]
     runs-on: ubuntu-24.04
@@ -1858,7 +1753,6 @@ jobs:
     outputs:
       api: ${{ steps.manifest.outputs.api }}
       caddy: ${{ steps.manifest.outputs.caddy }}
-      gotenberg: ${{ steps.manifest.outputs.gotenberg }}
       backup: ${{ steps.manifest.outputs.backup }}
     steps:
       - uses: actions/checkout@v7
@@ -1887,7 +1781,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PUBLISHED: >-
-            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}","gotenberg":"${{ needs.publish-gotenberg.outputs.digest }}","backup":"${{ needs.publish-backup.outputs.digest }}"}
+            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}","backup":"${{ needs.publish-backup.outputs.digest }}"}
         run: node tools/ci/release-manifest.mjs
       - name: Preserve successful release evidence
         uses: actions/upload-artifact@v7
