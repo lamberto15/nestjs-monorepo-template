@@ -1059,9 +1059,10 @@ jobs:
   # private repository on the free plan, so the results are the job's log.
   security:
     needs: changes
-    # Scan runtime/deploy changes and executable tooling, not Knip-only edits.
+    # Scan runtime/deploy changes, executable tooling and whatever rebuilds an
+    # image (a Dockerfile, .trivyignore.yaml), not Knip-only edits.
     if: >-
-      needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true' || needs.changes.outputs.nightly == 'true'
+      needs.changes.outputs.app == 'true' || needs.changes.outputs.tools == 'true' || needs.changes.outputs.nightly == 'true' || needs.changes.outputs.image == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

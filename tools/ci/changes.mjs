@@ -173,7 +173,10 @@ export function expectedJobs(f) {
     'e2e-web': f.api || f.web || f.services,
     'feature-smoke': f.generator || f.tools || f.services,
     'template-without-notes': f.manual,
-    security: f.app || f.tools || f.nightly,
+    // The repository scans (secrets, Dockerfile misconfigurations) also run
+    // whenever an image is rebuilt and rescanned: a Dockerfile or a change to
+    // .trivyignore.yaml, which both scans read, never skips them.
+    security: f.app || f.tools || f.nightly || f.image,
     image: f.image,
     'backup-image': f.backup,
     'caddy-image': f.caddy,
