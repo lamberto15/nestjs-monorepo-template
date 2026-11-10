@@ -22,6 +22,19 @@ overrides:
   # GHSA-3f7j-7jwc-fxfj (high, fixed in 5.33.16), through
   # @opentelemetry/instrumentation-host-metrics and the CLI's dependency.
   'systeminformation@<5.33.16': 5.33.18
+  # Dependabot alerts on transitive versions (2026-11). Drop each once the
+  # parent asks for the fixed version itself.
+  # GHSA-9wx9-5pv9-3349, GHSA-f86p-h4j2-7qgj (@tanstack/router-core, solid-js).
+  'seroval@<1.6.11': 1.6.11
+  'seroval-plugins@<1.6.11': 1.6.11
+  # GHSA-6pq8-jhm2-2vcw (express 4, body-parser 1, superagent).
+  'qs@<6.16.1': 6.17.1
+  # GHSA-3g3m-2fjr-6pw4 (rimraf 5, workbox-build, the Sentry and Storybook
+  # build plugins) and GHSA-g3hv-75wg-m249 (those globs, @ts-morph/common).
+  'glob@>=9.0.0 <14.0.2': 14.0.4
+  'minimatch@>=7.0.0 <11.0.1': 11.0.5
+  # GHSA-67mh-4wv8-2f99 (esbuild's development server; drizzle-kit's loader).
+  '@esbuild-kit/core-utils>esbuild': 0.25.12
 allowBuilds:
   '@scarf/scarf': false
   # OpenTelemetry's OTLP transformer: the postinstall only prints a notice.
