@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.2](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.4.1...v0.4.2) (2026-11-10)
+
+
+### Bug Fixes
+
+* **deps:** raise transitive dependencies with open advisories ([#1101](https://github.com/lamberto15/nestjs-monorepo-template/issues/1101)) ([8d0fdfa](https://github.com/lamberto15/nestjs-monorepo-template/commit/8d0fdfa3a3b4c5772f001538f4b7baad6cbe1792))
+
 ## [0.4.1](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.4.0...v0.4.1) (2026-11-09)
 
 
