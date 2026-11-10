@@ -10,8 +10,8 @@
 # - workflow_dispatch: a run now; `record_only` accepts a change in the
 #   numbers (a slower route by design, e.g. row-level security), so that run
 #   becomes the new anchor instead of failing (only when dispatched on main).
-# - pull_request (load-test files only): the same run, compared with main's
-#   latest baseline but report-only; never a baseline.
+# - Not on pull requests: dispatch it on the branch to try a change to the
+#   load-test files (compared with main's baseline; never a baseline itself).
 # - No schedule for now. To run it weekly again, add under `on:`
 #     schedule: [{ cron: '37 2 * * 1' }]   # Mondays 02:37 UTC
 #   (scheduled runs on main count as references like dispatched ones).
@@ -26,11 +26,6 @@ on:
         description: Record this run as the new baseline without comparing (accepts a change in the numbers)
         type: boolean
         default: false
-  pull_request:
-    paths:
-      - loadtest/**
-      - compose.loadtest.yaml
-      - .github/workflows/load-test.yml
 
 permissions:
   contents: read
@@ -39,7 +34,7 @@ permissions:
 
 concurrency:
   group: load-test-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   load-test:
@@ -118,7 +113,7 @@ jobs:
 
       - name: Compare (fails at twice the previous run or the anchor)
         env:
-          REPORT_ONLY: ${{ (github.event_name == 'pull_request' || inputs.record_only) && '--report-only' || '' }}
+          REPORT_ONLY: ${{ (github.ref != 'refs/heads/main' || inputs.record_only) && '--report-only' || '' }}
         run: |
           # shellcheck disable=SC2086 # REPORT_ONLY is one flag or nothing
           node loadtest/compare.mjs --current "$LOADTEST_OUT/baseline.json" \
@@ -130,7 +125,7 @@ jobs:
       # the first one when there is none (or it expired after 90 days).
       - name: Keep it as the anchor
         if: >-
-          github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+          github.ref == 'refs/heads/main'
           && (inputs.record_only || steps.references.outputs.anchor != 'found')
         uses: actions/upload-artifact@v7
         with:

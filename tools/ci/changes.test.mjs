@@ -42,7 +42,6 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
   assert.ok(route('packages/api-client/src/client.ts').web);
   assert.ok(route('packages/api-client/src/client.ts').api);
   assert.ok(route('apps/api/drizzle/0001.sql').api);
-  assert.ok(route('apps/api/src/platform/records/record.ts').generator);
   const infra = route('compose.yaml');
   assert.ok(infra.stack && infra.services && infra.image);
   assert.ok(!infra.api && !infra.web);
@@ -50,7 +49,13 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
   assert.ok(route('gotenberg/smoke.html').gotenberg);
   assert.ok(route('compose.prod.yaml').gotenberg);
   assert.ok(route('caddy/Dockerfile').caddy);
-  assert.ok(route('tools/feature/add.mjs').generator);
+  // The generator smoke is for comprehensive runs: a pull request to the
+  // generator runs its tests in tooling-lint instead.
+  assert.deepEqual(expectedJobs(route('tools/feature/add.mjs')), [
+    'changes',
+    'tooling-lint',
+    'security',
+  ]);
   assert.ok(route('tools/deploy/rolling.mjs').stack);
   for (const file of ['.github/workflows/ci.yml', 'tools/ci/changes.mjs'])
     assert.deepEqual(selected(route(file)), ['ci']);

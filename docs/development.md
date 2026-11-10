@@ -556,14 +556,15 @@ writes a table for each to the job summary:
   compares nothing and, if it passes, becomes both the previous run and the
   anchor the next run compares with. Dispatched on another branch it
   counts for neither: only runs on `main` are references.
-- **Pull requests** that change `loadtest/`, `compose.loadtest.yaml` or the
-  workflow run it too, report-only and never as a baseline.
+- **Not on pull requests.** To try a change to `loadtest/`,
+  `compose.loadtest.yaml` or the workflow, dispatch it on the branch:
+  report-only and never a baseline.
 - **No self-hosted runner.** The numbers come from GitHub's runners only. A
   self-hosted runner would only ever run behind `workflow_dispatch`, never on
   a schedule or a pull request: a pull
   request's code must never run on it.
 - **k6's version** (`K6_IMAGE` in `loadtest/run.sh`, tag and digest) is raised
-  by hand, as oasdiff's and squawk's are; a new version may move the numbers,
+  by hand, as squawk's is; a new version may move the numbers,
   so raise it with a `record_only` run.
 
 ## Typed client
@@ -586,30 +587,16 @@ pages, ETags. Usage, the bell-icon recipe included:
 - `pnpm client:check` regenerates both in a temporary directory and fails
   when the committed ones differ; `apps/api/test/api-client.e2e-spec.ts` also fails
   when the committed document isn't what the app serves.
-- **Breaking changes:** on a pull request with API changes, a step of CI's
-  `check` job ("Breaking changes in the OpenAPI document") compares the
-  committed `openapi.json` with the base branch's using
-  [oasdiff](https://github.com/oasdiff/oasdiff). `client:check` only catches
-  drift; this catches what breaks a client: removed endpoints, fields and
-  enum values, a new required parameter, a tightened request. The step's
-  summary lists the breaking changes (errors and warnings) and the full
-  changelog. A pull request without a base document (the first one) passes.
-- **Report-only for now:** breaking changes are accepted while the template
-  has no adopters, so the step never fails on them. Once the first project is
-  built on the template, make it blocking: set `OASDIFF_FAIL_ON: ERR` in
-  `.github/workflows/ci.yml` (`WARN` also fails on warnings). A deliberate
-  break then ships as a new version (`/v2` next to `/v1`,
-  [conventions](api-conventions.md)). Locally, against `main`:
+- **Breaking changes** are not detected by CI: `client:check` only catches
+  drift. Review the diff of `openapi.json` in the pull request; a deliberate
+  break ships as a new version (`/v2` next to `/v1`,
+  [conventions](api-conventions.md)). To list them locally against `main`
+  with [oasdiff](https://github.com/oasdiff/oasdiff):
 
   ```bash
   git show origin/main:packages/api-client/openapi.json > old.json
   docker run --rm --network none -v "$PWD:/specs:ro" -w /specs tufin/oasdiff:v1.33.0 breaking old.json packages/api-client/openapi.json
   ```
-- **Its version:** a change to the client (a route change too: it changes
-  `openapi.json`) comes with a changeset, `pnpm changeset`; a version pull
-  request on `main` turns them into its version and `CHANGELOG.md`. CI
-  reports a client change without one ([releases](releases.md), "The typed
-  client").
 - **The record panels' shared shapes are named components.** Every feature's
   `…/{id}/comments`, `/attachments`, `/tags` and `/revisions` answer the same
   shapes, so the document has them once, as `components.schemas`, and each
@@ -673,7 +660,8 @@ pages, ETags. Usage, the bell-icon recipe included:
 - **A new feature:** `pnpm feature:add <plural> --fields "…"`
   (`tools/feature/`, [adding a feature](adding-a-feature.md)); its tests:
   `node --test tools/feature/add.test.mjs`. CI's `feature-smoke` job
-  generates two features with every option and runs their generated tests.
+  generates three features with every option and runs their generated tests
+  (comprehensive runs only: Sunday's, manual ones and tags).
 - Entity keys are `uuid` with `DEFAULT uuidv7()` (PostgreSQL 18): time-ordered,
   so they index well and serve as pagination cursors. Use `uuidPk()`.
 - Services read the database through the transaction host and write with

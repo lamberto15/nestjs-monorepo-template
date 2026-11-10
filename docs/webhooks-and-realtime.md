@@ -480,8 +480,8 @@ Every event the API pushes is declared once in `platform/realtime/realtime-event
 (`REALTIME_EVENTS`: name, description, a Zod payload schema). `Realtime.toPrincipal()`
 types its payload from it (an undeclared name still compiles, untyped, and is not in the
 client). The OpenAPI document publishes the manifest as `x-realtime-events` (each payload
-a `Realtime…Event` component), so `client:check` diffs it and oasdiff reports a removed
-event or a changed payload like a changed response. The typed client's
+a `Realtime…Event` component), so `client:check` diffs it: a removed
+event or a changed payload shows like a changed response. The typed client's
 `src/realtime-events.ts` (`RealtimeEventPayloads`) is generated from it by `pnpm
 client:generate`; `RealtimeEvents` in `realtime.ts` is built on that map. Add an event:
 declare it in the manifest, push it, run `pnpm client:generate`.

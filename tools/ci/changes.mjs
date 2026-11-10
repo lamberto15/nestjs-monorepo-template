@@ -19,7 +19,6 @@ export const keys = [
   'gotenberg',
   'caddy',
   'ci',
-  'generator',
   'image',
   'api_image',
   'full',
@@ -27,7 +26,7 @@ export const keys = [
 const roots =
   /^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|turbo\.json|tsconfig[^/]*\.json|\.oxlintrc\.json|\.npmrc|\.nvmrc)$/;
 const inert =
-  /^(docs\/|\.claude\/|\.changeset\/[^/]*\.md$|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
+  /^(docs\/|\.claude\/|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
 
 // Release Please's own files. A release commit (these, the changelog and the
 // root package.json's version) changes no code and no image: it runs no tests,
@@ -77,17 +76,12 @@ export function classify({
     if (/^(tools\/|knip\.jsonc$)/.test(file)) {
       flags.lint = true;
       flags.tools ||= file.startsWith('tools/');
-      flags.generator ||= /^tools\/(feature|setup)\//.test(file);
       flags.stack ||= file.startsWith('tools/deploy/');
       flags.image ||= file.startsWith('tools/deploy/');
       continue;
     }
     if (/^(apps\/api\/|packages\/api-client\/|\.dockerignore$)/.test(file)) {
       flags.app = flags.api = flags.image = flags.api_image = true;
-      flags.generator ||=
-        /^(apps\/api\/(src\/(platform|core|iam)\/|src\/app.module\.ts$|test\/fixtures\/)|packages\/api-client\/)/.test(
-          file,
-        );
       if (file.startsWith('packages/') || file === 'apps/api/package.json')
         flags.web = flags.caddy = true;
     } else if (/^(apps\/web\/|apps\/web-e2e\/|packages\/ui\/)/.test(file)) {
@@ -108,7 +102,7 @@ export function classify({
       flags.caddy ||= file.startsWith('caddy/');
       flags.web ||= file === 'caddy/Caddyfile';
     } else if (/^(env\.example|\.prettierrc|\.prettierignore)$/.test(file)) {
-      flags.tools = flags.lint = flags.generator = true;
+      flags.tools = flags.lint = true;
     } else if (file === '.trivyignore.yaml') {
       flags.image =
         flags.api_image =
@@ -156,7 +150,7 @@ export function comparisonFiles(data, { pr = false, expected } = {}) {
 }
 
 // The jobs a run must pass (ci.yml's ci-gate), by the classified paths. A
-// check folded into a job (the OpenAPI diff in check, the hardened stack in
+// check folded into a job (the bundle budget in check, the hardened stack in
 // image) runs as one of its steps, under the same flags.
 // The weekday scheduled run that only scans for advisories (ci.yml's `on:`).
 export const NIGHTLY_CRON = '17 3 * * 1-6';
@@ -166,12 +160,14 @@ export function expectedJobs(f) {
     changes: true,
     'ci-validate': f.ci,
     'stack-config': f.stack,
-    'tooling-lint': f.lint && !f.app && !f.tools,
+    'tooling-lint': f.lint && !f.app,
     check: f.app,
     'unit-web': f.web,
     e2e: f.api || f.services,
     'e2e-web': f.api || f.web || f.services,
-    'feature-smoke': f.generator || f.tools || f.services,
+    // The generator smoke is slow: comprehensive runs only (Sunday, manual,
+    // tags and changes that classify as full), not ordinary pull requests.
+    'feature-smoke': f.full,
     'template-without-notes': f.manual,
     // The repository scans (secrets, Dockerfile misconfigurations) also run
     // whenever an image is rebuilt and rescanned: a Dockerfile or a change to

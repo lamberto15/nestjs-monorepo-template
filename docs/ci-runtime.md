@@ -13,11 +13,11 @@ guesses, decide the layout. The audit behind it: issue
 - **A job of its own only when it needs one:** services (PostgreSQL, Redis),
   a browser, Docker, or minutes that would lengthen the critical path. Quick
   checks run as steps of a job that has already installed the workspace:
-  `check` runs the API's and the packages' unit tests, the OpenAPI diff, the
-  bundle budget, Storybook, `packages/ui`'s typecheck, the Prettier check
+  `check` runs the API's and the packages' unit tests, the bundle budget,
+  the tools' tests, `packages/ui`'s typecheck, the Prettier check
   (`pnpm format:check`), the check that the router's generator leaves the
   committed `routeTree.gen.ts` unchanged, and the notes-removal guard. `e2e-web` runs the
-  Chromium browser tests and the instrumented e2e sixth. `image` runs the
+  browser tests and the built app's trace check. `image` runs the
   hardened stack. `stack-config` runs the Compose and Swarm renders.
 - **No artifact between jobs that could share a runner:** `image` used to
   hand its tarball to `hardened-stack`, and the download alone took up to
@@ -37,10 +37,14 @@ guesses, decide the layout. The audit behind it: issue
 - **Comprehensive where it costs no pull request:** weekday nights scan the
   images and the dependencies only (new advisories); Sunday's scheduled run,
   tags, manual runs and changes that classify as `full` run everything else.
-  `template-without-notes` (two shards) runs only on a manual run
+  `feature-smoke` runs on those comprehensive runs only.
+  `template-without-notes` (one job) runs only on a manual run
   (Actions > CI / CD > Run workflow): before a release, or after a change to
   the generator or the core. `web.yml` runs Lighthouse for each release and
-  by hand.
+  by hand. The stack
+  workflows (`load-test`, `pgbouncer`, `monitoring`) are manual only;
+  `restore-drill` is weekly and manual, `clamav` on `main` and manual: none
+  runs on a pull request (#1100).
 - **A release reruns nothing:** Release Please's pull request and its merge
   change only the changelog, `.release-please-manifest.json` and the root
   version, so they run `changes` alone; on `main` the merge keeps a release
@@ -59,7 +63,7 @@ guesses, decide the layout. The audit behind it: issue
 
 | Pull request touches | CI / CD jobs (runners) | Other workflows |
 | --- | --- | --- |
-| the API (`apps/api/src`) | `changes`, then `check`, `e2e` ×2, `e2e-web`, `security`, `image` | Typed client, commit messages |
+| the API (`apps/api/src`) | `changes`, then `check`, `e2e` ×2, `e2e-web`, `security`, `image` | commit messages |
 | the web app (`apps/web/src`) | `changes`, then `check`, `unit-web`, `e2e-web`, `security`, `caddy-image` | commit messages |
 | documentation only | `changes` | Documentation, commit messages |
 

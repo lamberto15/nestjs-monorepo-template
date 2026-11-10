@@ -148,8 +148,9 @@ host (staging's spare capacity) and scrape production's `/metrics` over the
 tailnet (the api's port 3000 must be reachable there: Caddy never proxies
 `/metrics`; `METRICS_TOKEN` is the scrape's credential), or ship to a hosted
 service (Grafana Cloud's free tier or similar) with Alloy alone on the
-production host. Until one of those is set up, production has the uptime
-probe (`uptime-probe.yml`, `UPTIME_PROBE_URL`) and the API's `/health`.
+production host. Until one of those is set up, production has only the
+API's `/health`: point an uptime service at it ([deployment](deployment.md),
+"The outside probe").
 
 ## The heavy worker and the optional overlays
 

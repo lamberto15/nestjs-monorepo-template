@@ -1,11 +1,12 @@
 # Releases
 
-Two things are released, each with its own version:
-
-| What                                         | Version                                                                                  | Who takes it                                                                                                                 | How                                                                                                                                   |
-| -------------------------------------------- | ---------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| **The template**                             | `v*` tags on `main`, GitHub releases with notes; the images on GHCR by the same version  | Projects built on it (they merge the tag: [upgrading](upgrading.md)) and our environments (production deploys only releases) | Release Please keeps a release pull request open; merging it tags the release, and `release.yml` promotes the images CI already built |
-| **The typed client** (`packages/api-client`) | its `package.json` version and `CHANGELOG.md`, from [Changesets](https://changesets.dev) | Frontends, mobile apps and scripts that install it                                                                           | Changesets in pull requests; a version pull request on `main`; publishing to npm is off until the owner turns it on                   |
+One thing is released: **the template**, as `v*` tags on `main` with GitHub
+releases and notes, and the images on GHCR by the same version. Projects built
+on it merge the tag ([upgrading](upgrading.md)); our environments deploy only
+releases. Release Please keeps a release pull request open; merging it tags
+the release, and `release.yml` promotes the images CI already built. The typed
+client (`packages/api-client`) has no release of its own
+([The typed client](#the-typed-client)).
 
 ## Template releases
 
@@ -16,15 +17,14 @@ from an adopter's side:
 
 - **major**: an update needs more than the merge: a contract step (a
   migration that drops or renames what an earlier release stopped using), a
-  removed or renamed variable, a breaking change to the API (CI's
-  OpenAPI diff in `check`), a new required service, a Node.js major;
+  removed or renamed variable, a breaking change to the API, a new required service, a Node.js major;
 - **minor**: features and modules, new optional variables;
 - **patch**: fixes.
 
 While the template has no adopters ([roadmap](roadmap.md), "Early stage"),
 versions stay below 1.0: a minor release may break, and its notes say how.
-1.0.0 goes with the first project built on the template, when `oasdiff` and
-the migration lint become blocking.
+1.0.0 goes with the first project built on the template, when the migration
+lint becomes blocking.
 
 Release Please computes the next version from the Conventional Commit titles
 merged since the last release (`fix:` → patch, `feat:` → minor, `!` or
@@ -80,9 +80,6 @@ pull request open, `chore(main): release x.y.z`, with the next version in
   needs the click above.
 - **A tag never moves and is never deleted:** projects may have merged it,
   deployments may run its images. A bad release is followed by a fixed one.
-- **The typed client first:** if its version pull request is open, merge it
-  before the release pull request, so the release names the client's new
-  version.
 
 ### Production takes releases only
 
@@ -158,82 +155,18 @@ too.
 
 ## The typed client
 
-`packages/api-client` is versioned on its own: its consumers care about its
-types and calls, not about the template's other changes.
-`.changeset/config.json` versions it even though it is private
-(`privatePackages.version`), leaves the API out (`ignore`), and counts only
-changes to its `src/`, `openapi.json` and `package.json`
-(`changedFilePatterns`).
+`packages/api-client` is a private workspace package: the web app takes it
+from the workspace, and it ships with the template's releases. It has no
+version, changelog or release flow of its own (Changesets was removed in
+#1100: a second release system for a package nobody installs from npm), and
+the `version` in its `package.json` is not maintained. A change to the client
+is named in the template's notes like any other, from its pull request's
+title; what breaks a consumer (a removed endpoint, field or enum value, a new
+required parameter) takes `!` or a `BREAKING CHANGE:` footer.
 
-### A change to the client
-
-A pull request that changes the client (a route change regenerates
-`openapi.json` and `src/schema.ts`, so it does too) adds a changeset:
-
-```bash
-pnpm changeset            # pick the bump, describe the change for the client's users
-```
-
-Commit the new `.changeset/*.md` with the change.
-
-- **The bump:** major for what breaks a consumer (a removed endpoint, field or
-  enum value, a new required parameter: the OpenAPI diff in CI's `check` lists them),
-  minor for additions, patch for fixes.
-- `pnpm changeset --empty` records that a change needs no release (a
-  refactor, a test).
-- CI's `changeset` job (`.github/workflows/api-client.yml`) reports a client
-  change without a changeset in its summary. Report-only, like the other
-  checks while the template has no adopters; `CHANGESET_REQUIRED: on` in the
-  workflow makes it blocking.
-
-### The version pull request
-
-On every push to `main` with changesets pending, the `version` job
-(changesets/action) opens or updates one pull request,
-`chore(api-client): release`, that consumes them: it raises the version and
-writes `packages/api-client/CHANGELOG.md`. Merging it releases that version.
-
-Owner actions it needs:
-
-- **Allow GitHub Actions to create pull requests** (Settings, Actions,
-  General, "Allow GitHub Actions to create and approve pull requests"; on
-  today), or a token in the **`API_CLIENT_RELEASE_TOKEN`** secret instead (a
-  fine-grained token for this repository with Contents and Pull requests
-  read and write, or a GitHub App's token). Without either, the job fails
-  when the first changeset reaches `main`, and says so.
-- **CI on that pull request:** GitHub starts no workflow for a pull request
-  opened with `GITHUB_TOKEN`, and `main`'s ruleset wants CodeQL's results
-  before merging. Close and reopen the pull request (as a person) to run the
-  checks; with `API_CLIENT_RELEASE_TOKEN` they run by themselves.
-
-### Publishing the client
-
-Off: the package is `"private": true`, and the `publish` job runs only when
-the repository variable `API_CLIENT_PUBLISH` is `on`. Turning it on is the
-owner's decision:
-
-1. **The name.** `@nestjs-monorepo-template/api-client` needs the npm
-   organization `nestjs-monorepo-template`; otherwise rename it to a scope
-   you own (in `package.json` and wherever it is imported). Projects built on
-   the template rename it to theirs.
-2. **The package.** Remove `"private": true`, check its license (`package.json`
-   says `PolyForm-Noncommercial-1.0.0` today) is the one you want to publish
-   under, and give it a `repository` (`url`, `directory: packages/api-client`)
-   matching this repository, which npm's provenance checks. `access` is
-   `public` (`.changeset/config.json`).
-3. **npm's trusted publishing** (no npm token in GitHub): on npmjs.com, the
-   package's settings, Trusted publishing, GitHub Actions: this repository
-   and the workflow `api-client.yml`. npm sets it up on an existing package,
-   so the first version is published by hand (`npm login`, then `pnpm
-client:publish`).
-4. **The variable:** Settings, Secrets and variables, Actions, Variables:
-   `API_CLIENT_PUBLISH` = `on`.
-
-Then, once a version pull request is merged, `publish` builds the client,
-runs `changeset publish` (a version already on npm is skipped) and pushes
-the tag `@nestjs-monorepo-template/api-client@<version>`. No GitHub release
-per client version: the Releases page stays the template's, and the
-client's notes are its changelog.
+A project that offers its client on npm adds its own release for it: remove
+`"private": true`, give the package a scope you own and a `repository`, and
+use npm's trusted publishing from a workflow of your own.
 
 ## Repository settings (owner)
 

@@ -3,8 +3,9 @@
 # user `clamav`, without capabilities, through clamav/entrypoint.sh
 # ("Container hardening"). ci.yml's "Every service is hardened" reads the
 # keys; only a start shows that the image runs under them and that the
-# entrypoint's configuration reaches clamd. One image and one container, and
-# only when the overlay, its entrypoint or this file change.
+# entrypoint's configuration reaches clamd. One image and one container: on
+# main when the overlay, its entrypoint or this file change, and on demand
+# (run it on a branch before merging a change to them).
 name: ClamAV
 
 on:
@@ -15,18 +16,13 @@ on:
       - compose.clamav.yaml
       - clamav/**
       - .github/workflows/clamav.yml
-  pull_request:
-    paths:
-      - compose.clamav.yaml
-      - clamav/**
-      - .github/workflows/clamav.yml
 
 permissions:
   contents: read
 
 concurrency:
   group: clamav-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   clamav:

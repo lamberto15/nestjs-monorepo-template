@@ -37,7 +37,6 @@ package.json           the root scripts (pnpm build, pnpm test…), tooling only
 pnpm-workspace.yaml    the workspace: apps/*, packages/*
 turbo.json             the tasks (build, lint, test, test:e2e, dev) and their cache
 tools/                 scripts: setup (first-run wizard), feature (generator), deploy (rolling, Swarm), migration lint, release notes
-.changeset/            the typed client's pending changes (pnpm changeset)
 ```
 
 Commands run from the root: its scripts hand each one to the package it

@@ -1,5 +1,0 @@
----
-'@nestjs-monorepo-template/api-client': minor
----
-
-Webhook deliveries (#187). **Breaking for the delivery time fields:** `createdAt`, `nextAttemptAt`, `lastAttemptAt` and `completedAt` of a delivery (`GET /v1/webhook-deliveries`, `…/{id}`, `POST …/webhook-endpoints/{id}/test`, and the `/v1/access/clients/{clientId}/…` twins), the message's `createdAt`, each attempt's `at` and `lastRequest.sentAt` are now ISO 8601 strings (`2026-10-20T08:30:00.000Z`), no longer epoch milliseconds, like the rest of the API; an endpoint's `createdAt`, `updatedAt` and `failingSince` are still epoch milliseconds. New: `GET /v1/lists/WebhookDelivery` describes the delivery log's filters, sorts and limits (for an API client, or a user with `Access.manageClients`; the client stays in the path); `GET /v1/access/clients` and `GET /v1/access/clients/{id}` carry `webhookEndpoints`, the client's number of endpoints (absent with `WEBHOOKS=off`); `lastRequest.signedWith` on one delivery lists the secrets that signed the latest attempt (`{ createdAt, expiresAt }` each, newest first: two during the 24 hours after a rotation; null for deliveries from before), never the secrets.

@@ -10,29 +10,21 @@
 #
 # - schedule: Mondays 03:17 UTC, on main.
 # - workflow_dispatch: a run now.
-# - pull_request (the drill's own files only): the same run, to prove a change
-#   to the scripts still restores.
+# - Not on pull requests: dispatch it on the branch to prove a change to the
+#   scripts still restores.
 name: Restore drill
 
 on:
   schedule:
     - cron: '17 3 * * 1'
   workflow_dispatch:
-  pull_request:
-    paths:
-      - backup/**
-      - scripts/restore-drill.sh
-      - loadtest/run.sh
-      - compose.loadtest.yaml
-      - compose.prod.yaml
-      - .github/workflows/restore-drill.yml
 
 permissions:
   contents: read
 
 concurrency:
   group: restore-drill-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: false
 
 jobs:
   restore-drill:
