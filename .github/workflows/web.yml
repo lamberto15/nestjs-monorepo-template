@@ -1,5 +1,5 @@
 # The web app's Lighthouse CI run (a report, never a failure), by hand and
-# for each release (release.yml starts it on the tag). The bundle budget, Storybook and the browser
+# for each release (release.yml starts it on the tag). The bundle budget and the browser
 # tests run in ci.yml (check, e2e-web) on every web change.
 #
 # Third-party actions are pinned by commit SHA (the comment names the

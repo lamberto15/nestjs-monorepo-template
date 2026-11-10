@@ -325,7 +325,8 @@ pnpm client:generate   # when it says the routes change
   deployment's mode, `off` has no header); sync fails on a controller that
   still codes `@Idempotent` by hand.
 - `pnpm feature:sync --check` fails when anything is out of line (CI's
-  feature-smoke job runs it after changing a feature this way).
+  feature-smoke job runs it after changing a feature this way, on
+  comprehensive runs).
 
 - **Approvals and settings:** see the section below; both are generated
   from the declaration.

@@ -24,7 +24,7 @@ its work to the packages:
 | `pnpm dev`, `pnpm dev:api`, `pnpm dev:web`                                                                                         | `turbo run dev --env-mode=loose` in every app, or `--filter` one: the API's `nest start --watch` and the web's `vite` (the client builds first) |
 | `pnpm start:dev`, `pnpm start:debug`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump`                                             | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api`                                                                           |
 | `pnpm client:generate`, `pnpm client:check`                                                                                        | the API's dump, then the client's generator                                                                                                     |
-| `pnpm changeset`, `pnpm client:publish`, `pnpm release:notes`                                                                      | the client's changesets and its publish (CI's), a template release's notes ([releases](releases.md))                                            |
+| `pnpm release:notes`                                                                                                               | a template release's notes ([releases](releases.md))                                                                                            |
 | `pnpm services:up` / `services:down`, `pnpm format`, `pnpm format:check` | at the root                                                                                                                                     |
 | `pnpm run setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys)                                               |
 
@@ -774,7 +774,7 @@ CI runs the bundle budget and the Storybook build in `check`
 - **Storybook** (`packages/ui`, Vite + React, set up with `storybook init`):
   `pnpm --filter @nestjs-monorepo-template/ui storybook` serves it on
   http://localhost:6006; `build-storybook` writes `storybook-static/`
-  (a Turborepo task; CI publishes it as the `storybook` workflow artifact).
+  (a Turborepo task; CI does not build it).
   `.storybook/preview.tsx` loads `globals.css`, so the stories wear the app's
   Tailwind theme, and adds toolbar switches for light/dark (the `.dark` class)
   and LTR/RTL (`dir` plus `DirectionProvider`); the a11y addon checks each
@@ -788,9 +788,8 @@ CI runs the bundle budget and the Storybook build in `check`
   scripts of the first page load (`dist/index.html`), which the budgets alone
   cannot see. The limits sit about 10% above the measured sizes
   (entry 64.6 kB, styles 19.6 kB, all scripts but the languages 0.97 MB, the four language chunks 147 kB at the time, 162 kB when merging (#576) needed the language limit raised); over a limit, the
-  `check` job fails the pull request, and its summary lists every size
-  against its limit (the bundle analysis is the `web-bundle-analysis`
-  artifact). Raise a limit in the same pull request that justifies it, never to
+  `check` job fails the pull request, and its log lists every size against
+  its limit. Raise a limit in the same pull request that justifies it, never to
   get past a check.
 - **Lighthouse CI** (`apps/web/lighthouserc.json`, `@lhci/cli`):
   `pnpm --filter @nestjs-monorepo-template/web lighthouse` audits the built

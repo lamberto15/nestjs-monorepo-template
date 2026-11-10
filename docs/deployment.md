@@ -628,14 +628,15 @@ What each one may write, and the capabilities it gets back:
   the stock Caddy image on plain HTTP, with the `caddy_data` and
   `caddy_config` volumes `compose.loadtest.yaml` names: the
   stock image has no `VOLUME` there, so under `read_only` they would be
-  read-only) and Gotenberg. The overlays are started where they change:
+  read-only) and Gotenberg. The overlays have workflows of their own:
   `.github/workflows/monitoring.yml` starts every service of
   `compose.monitoring.yaml` (Loki, Alloy and Grafana included) and checks
   that none restarts, logs `Read-only file system`, and that Alloy's lines
   reach Loki; `.github/workflows/clamav.yml` starts `clamav`, checks its
   user, capabilities and read-only image, and scans the EICAR test file and a
-  stream over `StreamMaxLength`. Both run only on pull requests and pushes
-  that touch the overlay or its files.
+  stream over `StreamMaxLength`. Neither runs on pull requests: `clamav.yml`
+  on pushes to `main` that touch the overlay and on demand, `monitoring.yml`
+  on demand only (run it on the branch before merging a change to them).
 
 ## Staging
 
@@ -1065,8 +1066,8 @@ PGBOUNCER_MAINTENANCE_POOL_SIZE + migrate/backup/exporter < POSTGRES_MAX_CONNECT
   statements fail with "cached plan must not change result type"; the
   app prepares nothing by name, so it does not apply today. If you add a
   driver that does, `RECONNECT` on the admin console clears it.
-- **Tested once, in CI** (`.github/workflows/pgbouncer.yml`, on changes to
-  these files and the database code, and on demand): the load test's
+- **Tested in CI on demand** (`.github/workflows/pgbouncer.yml`, manual
+  only: run it after changing these files or the database code): the load test's
   stack with the overlay on, the k6 scenarios (sign-in, tenant-scoped list,
   create, export) through PgBouncer, then `pgbouncer/check.sh`: the server
   connections stay inside the pool, the two limits take effect, a tenant
@@ -1162,7 +1163,8 @@ docker compose up -d
   raise both with `ATTACHMENT_MAX_MB`, or the scan of a large upload fails
   for lack of space and the file stays `pending`. An existing `clamav_db`
   volume is used as it is. `.github/workflows/clamav.yml` starts
-  the container and scans the EICAR test file whenever the overlay changes.
+  the container and scans the EICAR test file when the overlay changes on
+  `main`, and on demand.
 - **Off:** leave the file out of `COMPOSE_FILE` (`MALWARE_SCANNER=off`, the
   default): no scan and no `pending` state, as without this feature. Turning
   it on later leaves existing attachments `clean` (unscanned); turning it
@@ -1338,21 +1340,15 @@ the dead man's switch and the outside probe say so.
 
 **The outside probe:** the whole host down, DNS, the firewall: nothing on
 the host can report those, so the check comes from outside. Two ways, both
-without a paid key, both off until you set them up:
+without a paid key:
 
-1. **A scheduled GitHub Actions workflow** (`.github/workflows/uptime-probe.yml`):
-   set the repository **variable** `UPTIME_PROBE_URL` (Settings, Secrets and
-   variables, Actions, Variables), e.g. `https://api.example.com/health/live`.
-   Hourly, three tries, `curl --fail` over HTTPS. Unset or empty: the job is
-   skipped, not failed, and costs nothing. A failed run is the alert (GitHub
-   mails the watchers; Settings, Notifications). Limits: hourly (to spare
-   Actions minutes; scheduled runs can be late), disabled after 60 days
-   without repository activity, and the URL must resolve publicly. A host
-   name known only to a local hosts file cannot be probed from GitHub.
+1. **An uptime service's free tier** (UptimeRobot, healthchecks.io's own HTTP
+   checks) against `https://<your API>/health/live`. The URL must resolve
+   publicly. (The hourly GitHub Actions probe was removed in #1100: scheduled
+   runs can be late or dropped, and are disabled after 60 days without
+   repository activity.)
 2. **The dead man's switch** (below) already alarms when the host stops
-   sending: that covers a dead host without a public name. For a faster
-   check, an uptime service's free tier (UptimeRobot, healthchecks.io's
-   own HTTP checks) against the same URL.
+   sending: that covers a dead host without a public name.
 
 **The HTTPS probe:** `blackbox-exporter` fetches
 `https://caddy:443/health/live` every 15 s, by Caddy's Compose name, and
@@ -1456,7 +1452,8 @@ docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093
 adjust its test in `monitoring/prometheus/tests/`, then reload with
 `docker compose kill -s HUP prometheus`. `.github/workflows/monitoring.yml`
 runs `promtool check config`, `promtool check rules`, `promtool test rules`
-and `amtool check-config` on every change. Locally:
+and `amtool check-config` when you run it (manual only: Actions > Monitoring
+> Run workflow, on the branch). Locally:
 
 ```bash
 docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
@@ -1539,8 +1536,8 @@ Without Grafana the UI is missing, not the data: it stays in Loki, and
 `logcli` works against an SSH tunnel to a port you publish yourself.
 
 **Checks.** `.github/workflows/monitoring.yml` verifies `loki.yml`
-(`loki -verify-config`) and parses `config.alloy` (`alloy fmt`) on every
-change, with the images `compose.monitoring.yaml` pins, then starts every
+(`loki -verify-config`) and parses `config.alloy` (`alloy fmt`) on a manual
+run, with the images `compose.monitoring.yaml` pins, then starts every
 service of the file under its hardening and checks that Alloy's lines reach
 Loki.
 
@@ -1661,11 +1658,11 @@ by the validation, which stops the app.
 - **Compatibility with the instrumentation.** Observe's proxies broke the
   mail transports and lock-decorated jobs (`skipObserve`, above).
   OpenTelemetry and Sentry patch module functions, not provider instances,
-  so they need no such exclusion, and CI proves it: `e2e-web` runs a sixth
-  of the e2e suite with `OTEL_EXPORTER_OTLP_ENDPOINT` and
-  `SENTRY_DSN` pointing at a stub collector
-  (`apps/api/test/telemetry-stub.mjs`) and fails if no span of a request the
-  app served reached it. `apps/api/test/setup-env.ts` starts the SDKs when
+  so they need no such exclusion. To prove it locally, run e2e specs with
+  `OTEL_EXPORTER_OTLP_ENDPOINT` and `SENTRY_DSN` pointing at a stub collector
+  (`node apps/api/test/telemetry-stub.mjs serve`, then `check`): it fails if
+  no span of a request the app served reached it (CI no longer runs this:
+  it repeated the e2e jobs' tests). `apps/api/test/setup-env.ts` starts the SDKs when
   either variable is set, before it loads the app: the order that works, so
   the suite alone cannot show a wrong one in `main.ts`. The last step of
   `e2e-web` starts the built API (`node dist/main`) against a collector of its
@@ -2084,8 +2081,8 @@ project (`loadtest-<name>` only: it removes the project's volumes),
 It needs Docker: `scripts/restore-drill.sh` locally, from the repository root.
 
 **In CI** (`.github/workflows/restore-drill.yml`): weekly (Mondays 03:17 UTC),
-on demand (`workflow_dispatch`), and on pull requests that touch `backup/`,
-the drill or the load test's stack. The durations are in the job summary. A
+and on demand (`workflow_dispatch`; dispatch it on the branch after a change
+to `backup/`, the drill or the load test's stack). The durations are in the job summary. A
 failed run is the alert: GitHub mails the repository's watchers and the run
 shows red.
 
@@ -2108,8 +2105,8 @@ single-node Docker Swarm hosts: staging after every merge to `main` when
 ([deploy-swarm.md](deploy-swarm.md), "Environments and CI deploys").
 
 Application validation stays centralized here. Workflows with different path
-triggers, permissions or schedules (monitoring, migrations, the typed
-client, docs, restore drills) remain separate. PR concurrency groups include the
+triggers, permissions or schedules (monitoring, migrations, docs, restore
+drills) remain separate. PR concurrency groups include the
 workflow and PR ref, cancelling superseded runs without cancelling other PRs.
 Publication and production deployment keep their serialization.
 
@@ -2128,11 +2125,11 @@ the dependencies for new advisories.
 
 | Change | Validation |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API | lint/build, API unit coverage, API E2E (a sixth again, instrumented), browser/accessibility tests, migrations, security, API image and hardened runtime |
+| API | lint/build, API unit coverage, API E2E, browser/accessibility tests, migrations, security, API image and hardened runtime |
 | Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks |
 | Typed client/shared roots | dependent packages; shared root dependencies run comprehensive validation |
-| Generator/platform contracts | generator smoke checks in addition to affected application checks |
-| Compose service images | database/browser E2E and generator smoke on those images |
+| Tooling (`tools/`) | lint, Knip and the tools' own tests; the generator smoke runs on comprehensive runs only |
+| Compose service images | database/browser E2E on those images |
 | Stack/images | stack config (secrets, hardening, Swarm render) and image checks, with the hardened runtime |
 | CI orchestration | routing, gate, manifest and workflow syntax tests |
 | Docs                         | the corresponding companion workflow                                                                                                                    |
@@ -2146,10 +2143,11 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | Job | Purpose |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `changes` | classification, expected jobs and cumulative image rebuild plan |
-| `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, OpenAPI breaking-change report, bundle budget and Storybook, leftover-notes guard |
+| `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, bundle budget, the tools' tests, leftover-notes guard |
 | `unit-web` | web unit coverage, whole, thresholds enforced directly |
-| `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs a few e2e specs instrumented and the built app's trace check |
-| `feature-smoke` | generated features, schema/client generation and their E2E tests |
+| `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs the built app's trace check |
+| `feature-smoke` | generated features, schema/client generation and their E2E tests; comprehensive runs only |
+| `tooling-lint` | lint, Knip and the tools' tests for a change to tooling alone |
 | `template-without-notes` | exhaustive generated-template variant; manual runs only |
 | `stack-config` | shellcheck over the tracked shell scripts; Compose secrets, hardening and settings, then the Swarm stack render |
 | `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |

@@ -34,11 +34,8 @@ serves.
 
 ## Versions
 
-The client has its own version and `CHANGELOG.md`, apart from the
-template's releases: a change to it comes with a changeset (`pnpm
-changeset` at the root), and a version pull request on `main` turns them
-into the next version ([releases](../../docs/releases.md), "The typed
-client"). It isn't published to npm yet.
+The client ships with the template's releases and has no version of its
+own ([releases](../../docs/releases.md), "The typed client"). It isn't published to npm yet.
 
 ## What the client does for you
 

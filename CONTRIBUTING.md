@@ -81,8 +81,7 @@ or force-push a branch that is under review.
 ## Releases
 
 Template releases are `v*` tags pushed by the maintainer; their notes are generated
-(see [docs/releases.md](docs/releases.md) and [CHANGELOG.md](CHANGELOG.md)). The typed
-client's changes need a changeset: run `pnpm changeset` in your branch.
+(see [docs/releases.md](docs/releases.md) and [CHANGELOG.md](CHANGELOG.md)).
 
 ## Security and conduct
 
