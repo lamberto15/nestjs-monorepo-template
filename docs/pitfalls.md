@@ -15,6 +15,16 @@
   row: 10k rows/s at the start, 1k/s at 600k. Moments are now stored to the
   millisecond (`at()`), and lists sort and index the plain column
   (docs/adding-a-feature.md, "Sort index").
+- **A dashboard count took 11 s in production**
+  (`GET /v1/notes/dashboard/weekly-counts`): the query left out
+  `deleted_at is null`, so PostgreSQL could not use the partial index made
+  for it (`notes_tenant_created_at_idx … where deleted_at is null`) and read
+  every note of the tenant; it also counted notes in the recycle bin. A
+  partial index serves a query only when the query repeats the index's
+  predicate. Every read of a soft-deleted table says which rows it wants
+  (`isNull(table.deletedAt)`), aggregates and reports included, and a new
+  query on a large table is checked with `explain` against the index it is
+  meant to use (docs/adding-a-feature.md, "Sort index").
 - **Raw SQL crept in** (#779): whole statements through
   `db.execute(sql`…`)` with literal table and column names (`update notes
 set …`, `organizational_unit_closure`, `deleted_at is null`), which no type check sees and

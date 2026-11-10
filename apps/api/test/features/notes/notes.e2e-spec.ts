@@ -35,6 +35,16 @@ describe('the example feature: notes (e2e)', () => {
       title: 'Dashboard count',
       body: 'Visible to this client.',
     }).expect(201);
+    // A deleted note is not counted.
+    const deleted = await writeNote(node, client.auth, {
+      title: 'Dashboard count, deleted',
+      body: 'In the recycle bin.',
+    }).expect(201);
+    await node
+      .http()
+      .delete(`/v1/notes/${deleted.body.id}`)
+      .set('Authorization', client.auth)
+      .expect(204);
 
     const now = new Date();
     const monday = new Date(

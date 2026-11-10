@@ -403,6 +403,9 @@ export class NotesService {
     await this.access.assertQueryFields(user, 'Note', filters);
     const where = and(
       await this.access.sqlFilter(user, 'Note', 'read'),
+      // Live notes only, spelled as notes_tenant_created_at_idx's predicate:
+      // without it the partial index can't serve the week range.
+      isNull(notes.deletedAt),
       list.where(filters),
     );
     const week = sql<string>`to_char(
