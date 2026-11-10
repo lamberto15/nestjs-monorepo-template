@@ -6,30 +6,20 @@
 # exporter's module, Loki's and Alloy's (log shipping) and the Compose file,
 # then every service of it started under its hardening (docs/deployment.md,
 # "Container hardening"). The images are the ones compose.monitoring.yaml pins,
-# so a version bump is checked here too.
+# so a version bump is checked here too. Manual only (Actions > Monitoring >
+# Run workflow, on the branch): run it before merging a change to monitoring/
+# or compose.monitoring.yaml.
 name: Monitoring
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - monitoring/**
-      - compose.monitoring.yaml
-      - .github/workflows/monitoring.yml
-      - .github/workflows/uptime-probe.yml
-  pull_request:
-    paths:
-      - monitoring/**
-      - compose.monitoring.yaml
-      - .github/workflows/monitoring.yml
-      - .github/workflows/uptime-probe.yml
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 concurrency:
   group: monitoring-${{ github.ref }}
-  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+  cancel-in-progress: true
 
 jobs:
   check:

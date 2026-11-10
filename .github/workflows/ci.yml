@@ -75,7 +75,6 @@ jobs:
       gotenberg: ${{ steps.paths.outputs.gotenberg }}
       caddy: ${{ steps.paths.outputs.caddy }}
       ci: ${{ steps.paths.outputs.ci }}
-      generator: ${{ steps.paths.outputs.generator }}
       image: ${{ steps.paths.outputs.image }}
       api_image: ${{ steps.paths.outputs.api_image }}
       full: ${{ steps.paths.outputs.full }}
@@ -440,15 +439,12 @@ jobs:
             | $steady <= 2.75 and $steady + $surge <= 3.25 and $cpu + $surgeCpu <= 2 and $reserved + $surgeReserved <= 3.25
           ' small.json
 
-  # A Knip-only pull request needs lint/Knip validation, but does not
-  # need PostgreSQL, application builds or a generator-smoke runner.
-  # Mixed app+tooling changes run the full check below (which includes lint).
+  # A tooling-only pull request (tools/, knip.jsonc, the env templates) needs
+  # lint, Knip and the tools' own tests, but no PostgreSQL and no application
+  # build. Mixed app+tooling changes run the full check below instead.
   tooling-lint:
     needs: changes
-    # Generator smoke already installs dependencies and can run lint there.
-    # This separate runner is only needed when Knip changed without tools.
-    if: >-
-      needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true' && needs.changes.outputs.tools != 'true'
+    if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
@@ -462,15 +458,24 @@ jobs:
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
       - name: Lint the workspace and check unused dependencies
         run: pnpm lint
+      # The full app check usually runs these guards: kept for a change to
+      # the scripts alone.
+      - name: Release, i18n and environment tooling invariants
+        run: |
+          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
+          pnpm env:check --templates
+      - name: The generator's, the setup wizard's and the deploy scripts' tests
+        if: needs.changes.outputs.tools == 'true'
+        run: node --test 'tools/feature/*.test.mjs' 'tools/setup/*.test.mjs' 'tools/deploy/*.test.mjs'
 
   # Lint, build, the typed client, migrations and the unit tests that take a
   # minute or two (the API's and the packages'), then the quick checks of the
-  # same installed workspace: the OpenAPI diff, the web app's bundle budget
-  # and Storybook. The web app's unit tests (the unit-web job) and the e2e
+  # same installed workspace: the web app's bundle budget and the tools'
+  # tests. The web app's unit tests (the unit-web job) and the e2e
   # tests (the e2e jobs) run beside it, not after it.
   check:
     needs: changes
-    # Tooling-only edits already get lint and relevant generator smoke checks.
+    # Tooling-only edits get tooling-lint instead.
     if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -490,8 +495,7 @@ jobs:
       TURBO_SCM_BASE: ${{ needs.changes.outputs.base }}
       TURBO_SCM_HEAD: ${{ needs.changes.outputs.head }}
     steps:
-      # The full history: Turborepo's affected filter and, on a pull request
-      # (its merge commit), the OpenAPI diff against HEAD^1.
+      # The full history: Turborepo's affected filter.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
@@ -547,132 +551,11 @@ jobs:
       - name: The packages' unit tests (the typed client, the components)
         if: needs.changes.outputs.web == 'true'
         run: pnpm turbo run test:cov --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
-      - name: Breaking changes in the OpenAPI document
-        if: github.event_name == 'pull_request' && needs.changes.outputs.api == 'true'
-        env:
-          # '' reports only; ERR fails on breaking changes, WARN also on warnings.
-          OASDIFF_FAIL_ON: ''
-          # oasdiff's own release (github.com/oasdiff/oasdiff), tag and digest:
-          # Dependabot doesn't raise it.
-          OASDIFF_IMAGE: tufin/oasdiff:v1.33.0@sha256:6263a96dd2ef0726c54e21fea9b8e1607eac4841add0079324b424c1f52b819c
-        run: |
-          set -o pipefail
-          spec=packages/api-client/openapi.json
-          dir="$RUNNER_TEMP/oasdiff"
-          mkdir -p "$dir/$(dirname "$spec")"
-          summary() { cat >> "$GITHUB_STEP_SUMMARY"; }
-          # The summary takes 1 MiB per step: a longer report is left out.
-          section() {
-            if [ "$(wc -c < "$2")" -gt 400000 ]; then
-              printf '%s: too long for the summary.\n\n' "$1" | summary
-            else
-              { printf '<details><summary>%s</summary>\n\n' "$1"; sed '/^# API Changelog/d' "$2" | cat -s; printf '\n</details>\n\n'; } | summary
-            fi
-          }
-          printf '## OpenAPI changes\n\n' | summary
-          if [ -z "$(git rev-parse --verify --quiet HEAD^2)" ]; then
-            echo '::error::HEAD is not a merge commit: the job expects the one a pull request checks out'
-            exit 1
-          fi
-          base=$(git rev-parse HEAD^1)
-          if [ -z "$(git ls-tree --name-only "$base" -- "$spec")" ]; then
-            echo "No \`$spec\` on the base branch: nothing to compare." | summary
-            exit 0
-          fi
-          if [ ! -f "$spec" ]; then
-            echo "::warning file=$spec::The pull request removes the OpenAPI document"
-            echo "The pull request removes \`$spec\`." | summary
-            [ -z "$OASDIFF_FAIL_ON" ] || exit 1
-            exit 0
-          fi
-          if git diff --quiet "$base" HEAD -- "$spec"; then
-            echo "\`$spec\` is unchanged." | summary
-            exit 0
-          fi
-          git show "$base:$spec" > "$dir/base.json"
-          # The revision keeps its path, so annotations name the real file.
-          cp "$spec" "$dir/$spec"
-          # Only the two documents are mounted (no .oasdiff.* config), with no
-          # network, and external $refs are refused: the document is untrusted.
-          oasdiff() {
-            docker run --rm --network none -v "$dir:/specs:ro" -w /specs "$OASDIFF_IMAGE" \
-              "$1" base.json "$spec" --allow-external-refs=false "${@:2}"
-          }
-          # The reports hold the pull request's text (paths, names): they go to
-          # files and the summary, never to the log, where a line starting
-          # with :: would run as a workflow command. An error message from
-          # oasdiff can quote the document too, so commands are off meanwhile.
-          token=$(openssl rand -hex 16)
-          echo "::stop-commands::$token"
-          oasdiff breaking --format json > "$dir/breaking.json"
-          oasdiff breaking --format markdown > "$dir/breaking.md"
-          oasdiff changelog --format markdown > "$dir/changelog.md"
-          echo "::$token::"
-          errors=$(jq '[.[] | select(.level == 3)] | length' "$dir/breaking.json")
-          warnings=$(jq '[.[] | select(.level == 2)] | length' "$dir/breaking.json")
-          if [ "$errors" -eq 0 ] && [ "$warnings" -eq 0 ]; then
-            printf 'No breaking changes.\n\n' | summary
-          else
-            mode=${OASDIFF_FAIL_ON:+blocking at $OASDIFF_FAIL_ON}
-            printf '**Breaking changes: %s errors, %s warnings** (%s).\n\n' \
-              "$errors" "$warnings" "${mode:-report-only}" | summary
-            section 'Breaking changes' "$dir/breaking.md"
-            echo "::warning file=$spec,title=OpenAPI breaking changes::$errors errors, $warnings warnings (see the job summary)"
-          fi
-          section 'Full changelog' "$dir/changelog.md"
-          # Blocking: oasdiff's annotations (it escapes the text) and its exit
-          # code. A removal is reported against the base document: same file.
-          if [ -n "$OASDIFF_FAIL_ON" ]; then
-            oasdiff breaking --format githubactions --fail-on "$OASDIFF_FAIL_ON" |
-              sed "s|,file=base\.json::|,file=$spec::|"
-          fi
       # The web app's bundle budget (size-limit; fails over its limits) on the
-      # build above, and Storybook for packages/ui, published as an artifact.
+      # build above.
       - name: Bundle budget
-        id: size
         if: needs.changes.outputs.web == 'true'
         run: pnpm turbo run size --filter=@nestjs-monorepo-template/web
-      - name: Sizes in the job summary
-        if: ${{ !cancelled() && (steps.size.outcome == 'success' || steps.size.outcome == 'failure') }}
-        working-directory: apps/web
-        run: |
-          {
-            echo '### Bundle size (brotli) against the budget'
-            echo
-            echo '| Entry | Size | Limit | |'
-            echo '| --- | --- | --- | --- |'
-            pnpm exec size-limit --json | jq -r '.[] | "| \(.name) | \(.size) B | \(.sizeLimit) B | \(if .passed then "ok" else "over" end) |"'
-            echo
-            echo '### Largest JavaScript chunks'
-            echo
-            echo '| Chunk | Raw | gzip | brotli |'
-            echo '| --- | ---: | ---: | ---: |'
-            jq -r '.chunks[:10][] | "| \(.file) | \(.bytes) B | \(.gzipBytes) B | \(.brotliBytes) B |"' .bundle-analysis/bundle.json
-            echo
-            echo '### Largest modules in the biggest chunk'
-            echo
-            echo '| Module | Rendered |'
-            echo '| --- | ---: |'
-            jq -r '.chunks[0].modules[:15][] | "| `\(.id)` | \(.renderedBytes) B |"' .bundle-analysis/bundle.json
-          } >> "$GITHUB_STEP_SUMMARY"
-      - name: Bundle analysis
-        if: ${{ !cancelled() && (steps.size.outcome == 'success' || steps.size.outcome == 'failure') }}
-        uses: actions/upload-artifact@v7
-        with:
-          name: web-bundle-analysis
-          path: apps/web/.bundle-analysis/bundle.json
-          include-hidden-files: true
-          retention-days: 14
-      - name: Storybook
-        if: needs.changes.outputs.web == 'true'
-        run: pnpm turbo run build-storybook --filter=@nestjs-monorepo-template/ui
-      - name: Storybook (artifact)
-        if: needs.changes.outputs.web == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: storybook
-          path: packages/ui/storybook-static/
-          retention-days: 14
       # The release notes' generator (tools/release/, docs/releases.md): git only.
       - name: The release notes' tests
         run: node --test tools/release/notes.test.mjs
@@ -688,6 +571,9 @@ jobs:
       # the REQUIRED ones named. The wizard's tests run in feature-smoke.
       - name: The env templates
         run: pnpm env:check --templates
+      - name: The generator's, the setup wizard's and the deploy scripts' tests
+        if: needs.changes.outputs.tools == 'true'
+        run: node --test 'tools/feature/*.test.mjs' 'tools/setup/*.test.mjs' 'tools/deploy/*.test.mjs'
       # A new project's first step (`pnpm feature:remove notes`) must leave no
       # reference to the example behind: seconds here, where the nightly
       # template-without-notes run found them a day late. Last: it deletes
@@ -726,8 +612,7 @@ jobs:
   # The e2e tests in two shards, each on its own runner with its own Redis
   # and PostgreSQL: the slowest step of CI. Vitest's --shard, split by file
   # size (apps/api/test/size-sequencer.ts). They run the sources (no build
-  # needed). Raise the list and --shard's total together. A sixth of the
-  # suite runs again with the instrumentation on, in e2e-web.
+  # needed). Raise the list and --shard's total together.
   e2e:
     needs: changes
     if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
@@ -777,22 +662,12 @@ jobs:
   # job's PostgreSQL and Redis. Apart from the API's e2e shards: a browser
   # to install, and a different failure to read (the HTML report and traces
   # are uploaded when it fails). Accessibility findings (axe) go to the job
-  # summary; serious and critical ones fail the tests. Then, on the same
-  # build and services: the instrumentation (below).
-  #
-  # The instrumentation: a few e2e specs with OpenTelemetry
-  # (OTEL_EXPORTER_OTLP_ENDPOINT) and Sentry (SENTRY_DSN) pointing at a stub
-  # collector on loopback (apps/api/test/telemetry-stub.mjs). test/setup-env.ts
-  # starts the SDKs when either is set, as main.ts does, so http, pg
-  # and ioredis are patched while the tests run: the instrumentation must not
-  # break the app (as NestJS Observe's proxies broke the mail transports and
-  # the lock-decorated jobs, issue #392), and the collector must have received
-  # the spans of requests the app served (docs/deployment.md, "Telemetry").
-  # A few specs, not more: they repeat the e2e jobs' tests, and a sixth of the
-  # suite cost ~150 s here. HTTP, pg, ioredis, mail, the outbox and webhooks.
-  # Then the built app started as production starts it. Hosted vendors need
-  # credentials CI doesn't have, so NestJS Observe's own path is covered by
-  # observe.spec.ts.
+  # summary; serious and critical ones fail the tests. Then the built app
+  # started as production starts it, with OpenTelemetry pointing at a stub
+  # collector (apps/api/test/telemetry-stub.mjs boot): the collector must
+  # receive the span of a request served (docs/deployment.md, "Telemetry").
+  # Hosted vendors need credentials CI doesn't have, so NestJS Observe's own
+  # path is covered by observe.spec.ts.
   e2e-web:
     needs: changes
     if: >-
@@ -849,27 +724,6 @@ jobs:
         run: pnpm test:e2e:web
         env:
           CI: 'true'
-      - name: The stub collector (OTLP/HTTP and Sentry's envelope endpoint)
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
-        run: |
-          nohup node apps/api/test/telemetry-stub.mjs serve 4318 > "$RUNNER_TEMP/stub.log" 2>&1 &
-          for _ in $(seq 1 20); do
-            curl -fs http://127.0.0.1:4318/stats && break
-            sleep 0.5
-          done
-      - name: A few e2e specs with OpenTelemetry and Sentry on
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
-        run: pnpm test:e2e test/auth.e2e-spec.ts test/metrics-outbox.e2e-spec.ts test/outbox-retention.e2e-spec.ts test/webhooks-admin.e2e-spec.ts
-        env:
-          # Its own databases on this server (a template, then a copy per app).
-          TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
-          OTEL_EXPORTER_OTLP_ENDPOINT: http://127.0.0.1:4318
-          # Spans leave the process every second, not every five.
-          OTEL_BSP_SCHEDULE_DELAY: '1000'
-          SENTRY_DSN: http://public@127.0.0.1:4318/1
-      - name: The collector received the spans of requests served
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.services == 'true'
-        run: node apps/api/test/telemetry-stub.mjs check 4318
       # The start-up order, which the suite (it starts the SDKs itself) cannot
       # show: the built API (the browser tests built it), with the credentials
       # as `_FILE` secrets and its own collector, on this job's services.
@@ -894,13 +748,13 @@ jobs:
   # The feature generator (tools/feature, `pnpm feature:add`): its tests, then
   # two features generated with every field type and option, which must
   # build, lint, migrate and pass their own generated e2e tests on today's
-  # core. Nothing generated is committed: the checkout is thrown away. On a
-  # pull request, for the API and tools/ (the generator writes into the API
-  # only; the web app's build and lint are check's).
+  # core. Nothing generated is committed: the checkout is thrown away. Slow
+  # (about 3 min), so comprehensive runs only: Sunday's, manual ones, tags and
+  # changes that classify as full. A pull request to tools/ runs the
+  # generator's tests in tooling-lint or check.
   feature-smoke:
     needs: changes
-    if: >-
-      needs.changes.outputs.generator == 'true' || needs.changes.outputs.tools == 'true' || needs.changes.outputs.services == 'true'
+    if: needs.changes.outputs.full == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     services:
@@ -925,18 +779,6 @@ jobs:
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
-      # Reuse this already-installed workspace for tooling-only lint, avoiding
-      # a second GitHub runner (and do it before generators modify the tree).
-      - name: Lint tooling and unused dependencies
-        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
-        run: pnpm lint
-      # The full app check usually runs these guards. Keep them when only
-      # scripts change, so moving lint to this job does not lose coverage.
-      - name: Release, i18n and environment tooling invariants
-        if: needs.changes.outputs.lint == 'true' && needs.changes.outputs.app != 'true'
-        run: |
-          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
-          pnpm env:check --templates
       - name: The generator's tests
         run: node --test 'tools/feature/*.test.mjs'
       - name: The setup wizard's tests (tools/setup, `pnpm run setup`)
@@ -994,17 +836,11 @@ jobs:
     needs: changes
     if: needs.changes.outputs.manual == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    # Manual runs only (Actions > CI / CD > Run workflow): in two shards, each with half of the e2e suite and
-    # half of the API's and the web app's unit tests. The suites are the e2e and unit
-    # jobs' with a feature fewer; `check`'s last step looks for references left
-    # behind on every pull request. Raise the list and the totals together.
-    strategy:
-      fail-fast: false
-      matrix:
-        # Matrix expressions: the job-level `if` can't read the matrix.
-        shard: [1, 2]
-    name: template-without-notes (${{ matrix.shard }}/2)
+    # Manual runs only (Actions > CI / CD > Run workflow), whole on one
+    # runner: nobody waits for it. The suites are the e2e and unit jobs' with
+    # a feature fewer; `check`'s last step looks for references left behind
+    # on every pull request.
+    timeout-minutes: 45
     services:
       redis:
         image: ${{ needs.changes.outputs.redis }}
@@ -1031,28 +867,18 @@ jobs:
         run: pnpm feature:remove notes
       - name: 'Its table dropped (a generated migration: drizzle-kit asks nothing)'
         run: pnpm db:generate
-      - name: 'Lint (once: shard 1)'
-        if: matrix.shard == 1
-        run: pnpm lint:code
+      - run: pnpm lint:code
       - run: pnpm build
       - run: pnpm db:check
       - run: pnpm turbo run client:generate
       # The web app types its calls with the client: built again on the one
       # without notes (Turborepo rebuilds the client and the web app only).
-      - name: 'Build on the regenerated client (once: shard 1)'
-        if: matrix.shard == 1
+      - name: Build on the regenerated client
         run: pnpm build
-      # The small packages' tests ride on shard 1.
-      - name: Unit and web tests (a share per shard)
-        run: |
-          shard=${{ matrix.shard }}
-          pnpm turbo run test --filter=@nestjs-monorepo-template/api -- --shard="$shard/2"
-          pnpm turbo run test --filter=@nestjs-monorepo-template/web -- --shard="$shard/2"
-          if [ "$shard" -eq 1 ]; then
-            pnpm turbo run test --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
-          fi
-      - name: Every e2e test (this shard's half)
-        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts --shard=${{ matrix.shard }}/2
+      - name: Unit and web tests
+        run: pnpm test
+      - name: Every e2e test
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts
         env:
           REDIS_URL: redis://localhost:6379
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres

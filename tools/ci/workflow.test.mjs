@@ -107,12 +107,8 @@ test('a hidden path without include-hidden-files, and a glob, are reported', () 
   ]);
 });
 
-test('client and migration workflows do not run on unrelated pull requests', () => {
+test('the migration workflow does not run on unrelated pull requests', () => {
   const cases = [
-    [
-      'api-client.yml',
-      ['packages/api-client/**', 'apps/api/**', '.changeset/**'],
-    ],
     ['migrations.yml', ['apps/api/drizzle/**', 'tools/migration-lint/**']],
   ];
   for (const [name, relevantPaths] of cases) {

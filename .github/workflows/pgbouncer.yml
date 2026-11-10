@@ -1,5 +1,5 @@
 # PgBouncer in front of PostgreSQL (docs/deployment.md, "PgBouncer"): the
-# optional compose.pgbouncer.yaml, tested once per change. The load test's
+# optional compose.pgbouncer.yaml, tested on demand (manual only). The load test's
 # stack with the overlay on (api and worker connect through PgBouncer in
 # transaction mode), the k6 scenarios for a short phase each (sign-in, a
 # tenant-scoped list, create, export), then pgbouncer/check.sh: the server
@@ -11,14 +11,6 @@ name: PgBouncer
 
 on:
   workflow_dispatch:
-  pull_request:
-    paths:
-      - compose.pgbouncer.yaml
-      - pgbouncer/**
-      - apps/api/src/core/database/**
-      - apps/api/src/core/tenancy/**
-      - loadtest/run.sh
-      - .github/workflows/pgbouncer.yml
 
 permissions:
   contents: read

@@ -33,8 +33,6 @@
     "openapi:dump": "pnpm --filter @nestjs-monorepo-template/api openapi:dump",
     "client:generate": "pnpm openapi:dump && pnpm --filter @nestjs-monorepo-template/api-client generate",
     "client:check": "turbo run build --filter=@nestjs-monorepo-template/api && pnpm --filter @nestjs-monorepo-template/api-client generate --check",
-    "changeset": "changeset",
-    "client:publish": "turbo run build --filter=@nestjs-monorepo-template/api-client && changeset publish",
     "release:notes": "node tools/release/notes.mjs",
     "setup": "node tools/setup/setup.mjs",
     "env:check": "node tools/setup/envcheck.mjs",
@@ -50,7 +48,6 @@
     "docs:preview": "pnpm dlx vitepress@1.6.4 preview docs"
   },
   "devDependencies": {
-    "@changesets/cli": "3.0.3",
     "@commitlint/cli": "21.2.4",
     "@commitlint/config-conventional": "21.2.4",
     "knip": "6.44.1",
