@@ -64,7 +64,7 @@ services:
   # page it is given and nothing else). Unlike production it has a way out
   # (the default network, for the published port): the flags hold alone here.
   gotenberg:
-    image: gotenberg/gotenberg:9.2.0-chromium@sha256:1b37aa0a4407b204ee810c64a4daf8c36c9a7c12115f2680c363530c3dd27d6c
+    image: gotenberg/gotenberg:9.3.0-chromium@sha256:7c8ca2673ee404947569dd4494802584ac3992a86296a2c35f97970afb5f8efb
     restart: unless-stopped
     logging: *logging
     command:
