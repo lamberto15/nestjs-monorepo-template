@@ -6,7 +6,7 @@
 # repository root (compose.prod.yaml: context `.`, dockerfile
 # apps/api/Dockerfile; the root's .dockerignore applies).
 
-FROM ghcr.io/pnpm/pnpm:12.18.0 AS base
+FROM ghcr.io/pnpm/pnpm:12.20.0 AS base
 WORKDIR /app
 
 FROM base AS build
