@@ -81,7 +81,17 @@ const SKIP = new Set([
   'playwright-report',
   'test-results',
 ]);
-const MARKED = ['.ts', '.tsx', '.mjs', '.js', '.yaml', '.yml', '.example'];
+const MARKED = [
+  '.ts',
+  '.tsx',
+  '.mjs',
+  '.js',
+  '.yaml',
+  '.yml',
+  '.example',
+  '.dockerignore',
+  'Dockerfile',
+];
 
 /** The files under `dir` that may hold markers, as absolute paths. */
 function markable(dir) {
