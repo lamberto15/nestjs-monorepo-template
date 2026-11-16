@@ -53,8 +53,8 @@
     "@commitlint/config-conventional": "21.2.4",
     "knip": "6.44.1",
     "lefthook": "2.2.2",
-    "oxlint": "1.88.0",
-    "oxlint-tsgolint": "7.0.2005",
+    "oxlint": "1.93.0",
+    "oxlint-tsgolint": "7.0.2007",
     "prettier": "3.9.10",
     "turbo": "2.11.9"
   },
