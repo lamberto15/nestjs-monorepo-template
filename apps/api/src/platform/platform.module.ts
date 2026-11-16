@@ -6,6 +6,7 @@ import {
   type Provider,
   type Type,
 } from '@nestjs/common';
+import { AiModule } from '@nestjs/ai';
 import { BullModule } from '@nestjs/bullmq';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
@@ -42,7 +43,7 @@ import { ACTOR_NAMES } from '../iam/audit/actor-names.js';
 import { AUTH_POLICY } from '../iam/auth/auth-policy.js';
 import { AiController } from './ai/ai.controller.js';
 import { AiProcessor } from './ai/ai.processor.js';
-import { AiProvider, DisabledAiProvider } from './ai/ai-provider.js';
+import { aiModuleOptions } from './ai/ai-models.js';
 import { AiRegistry } from './ai/ai.registry.js';
 import { AiService } from './ai/ai.service.js';
 import { AI_SETTINGS } from './ai/ai-settings.js';
@@ -58,7 +59,6 @@ import {
 import { FormPublicLinksService } from './forms/form-public-links.service.js';
 import { FormSubmissionsController } from './forms/form-submissions.controller.js';
 import { FormSubmissionsService } from './forms/form-submissions.service.js';
-import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
 import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
@@ -479,6 +479,11 @@ export class PlatformModule {
           retry: false,
           redirect: 'error',
         }),
+        // The models of the AI helper (platform/ai): Anthropic, through @nestjs/ai.
+        AiModule.forRootAsync({
+          inject: [ConfigService],
+          useFactory: aiModuleOptions,
+        }),
         WorkflowsModule.forRootAsync({
           inject: [ConfigService],
           useFactory: (config: ConfigService<PlatformEnv, true>) => ({
@@ -856,21 +861,8 @@ export class PlatformModule {
         PdfRenderer,
         DocumentsService,
         DocumentsProcessor,
-        // The AI helper: features register an AiSource; Anthropic unless another AiProvider is provided.
+        // The AI helper: features register an AiSource.
         AiRegistry,
-        {
-          provide: AiProvider,
-          inject: [ConfigService],
-          useFactory: (config: ConfigService<PlatformEnv, true>) => {
-            const apiKey = config.get('ANTHROPIC_API_KEY', { infer: true });
-            return apiKey
-              ? new AnthropicProvider({
-                  apiKey,
-                  baseURL: config.get('AI_BASE_URL', { infer: true }),
-                })
-              : new DisabledAiProvider();
-          },
-        },
         AiService,
         AiProcessor,
         // Comments and mentions: features register a CommentTarget and call CommentsService.

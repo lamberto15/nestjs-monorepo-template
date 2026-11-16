@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { IamEnv } from '../../iam/iam.env.js';
 import type { PlatformEnv } from '../platform.env.js';
-import { AiProvider } from '../ai/ai-provider.js';
+import { aiEnabled } from '../ai/ai-models.js';
 import { PdfRenderer } from '../documents/pdf-renderer.js';
 import { ModeService } from '../mode/mode.service.js';
 import { presignedUploads } from '../attachments/attachment-limits.js';
@@ -15,7 +15,7 @@ import type { Features } from './features.schemas.js';
  * off. Every value is read the way the module it names reads it (the
  * platform switches through `switchedOn()`, the IAM ones through
  * ConfigService, documents through `PdfRenderer.enabled`, the AI helper through
- * `AiProvider.enabled`, the exchange rates through ConfigService as the money
+ * `aiEnabled()`, the exchange rates through ConfigService as the money
  * module reads them), so this can't
  * disagree with the routes. Custom code: no @nestjs package reports an
  * app's own switches.
@@ -28,7 +28,6 @@ export class FeaturesService {
       true
     >,
     private readonly pdf: PdfRenderer,
-    private readonly ai: AiProvider,
     private readonly mode: ModeService,
   ) {}
 
@@ -48,7 +47,7 @@ export class FeaturesService {
       magicLink: get('AUTH_MAGIC_LINK'),
       documents: this.pdf.enabled,
       presignedUploads: presignedUploads(get('STORAGE_DRIVER')),
-      ai: this.ai.enabled,
+      ai: aiEnabled(this.config),
       exchangeRates: get('EXCHANGE_RATES_FETCH'),
       tenancy: get('TENANCY'),
       mode: this.mode.current(),
