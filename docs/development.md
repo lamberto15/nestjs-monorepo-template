@@ -639,7 +639,14 @@ pages, ETags. Usage, the bell-icon recipe included:
   **Never write migrations or DDL by hand.** The one exception: what
   drizzle-kit can't emit (`CREATE EXTENSION`) goes in an empty migration from
   `drizzle-kit generate --custom --name=<what>`, a statement or two with a
-  comment saying why (as `00NN_pg_trgm.sql`).
+  comment saying why (as `20261027221810_pg_trgm/migration.sql`).
+- **The folder** (drizzle-kit 1.0): one `<timestamp>_<name>/` per migration,
+  holding `migration.sql` and `snapshot.json` (the schema's change; the first
+  holds the whole schema). There is no journal: the migrator applies every
+  migration a database doesn't have, by name, in folder order. `pnpm
+  db:check` (`drizzle-kit check`, in CI) fails on snapshots that disagree
+  and on migrations of two branches that touch the same tables (merge
+  `main`, delete your migration and `pnpm db:generate` again).
 - **Expand/contract:** a migration must leave the previous release working
   (that release runs on the new schema during a deploy, and again after a
   rollback): drop, rename or retype a column or table only a release after
@@ -647,10 +654,10 @@ pages, ETags. Usage, the bell-icon recipe included:
   expand/contract"). On a pull request, CI's `migration-lint` lists the
   destructive statements of the new migrations in its summary and fails on
   them (a reviewed contract step takes the `destructive-migration` label),
-  as when a merged migration or journal entry is edited or deleted. Locally, with Docker: `node tools/migration-lint/lint.mjs --base
-  origin/main` (after `git fetch`; a branch behind `main` is compared with
-  their merge base, and its new journal entries must still come after
-  `main`'s), or `node tools/migration-lint/lint.mjs apps/api/drizzle/*.sql` for
+  as when a merged migration is edited or deleted. Locally, with Docker:
+  `node tools/migration-lint/lint.mjs --base origin/main` (after `git
+  fetch`; a branch behind `main` is compared with their merge base), or
+  `node tools/migration-lint/lint.mjs apps/api/drizzle/*/migration.sql` for
   given files; its tests: `node --test tools/migration-lint/lint.test.mjs`.
 - **The Caddyfile:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs`
   runs the real Caddyfile (its TLS block and Docker names edited out, every
