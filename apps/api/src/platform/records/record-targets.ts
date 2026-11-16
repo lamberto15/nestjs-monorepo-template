@@ -55,11 +55,13 @@ import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
 // capability:shares begin
 import { type ShareTarget, SharesRegistry } from '../shares/shares.registry.js';
 // capability:shares end
+// capability:automations begin
 import {
   type AutomationRecord,
   type AutomationTarget,
   AutomationsRegistry,
 } from '../automations/automations.registry.js';
+// capability:automations end
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
 import { TagsService } from '../tags/tags.service.js';
@@ -335,6 +337,7 @@ export class RecordShares implements ShareTarget {
 }
 // capability:shares end
 
+// capability:automations begin
 /** The field kinds a rule's `setField` may set: plain values, never a reference, money or JSON. */
 const SETTABLE_KINDS = new Set([
   'string',
@@ -394,6 +397,7 @@ export class RecordAutomation implements AutomationTarget {
     await this.c.service.update(principal, row, dto);
   }
 }
+// capability:automations end
 
 /** Who may read a record may watch it (platform/subscriptions). */
 @Injectable()

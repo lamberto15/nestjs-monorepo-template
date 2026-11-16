@@ -286,4 +286,44 @@ export const REMOVABLE = {
       ['docs/api-conventions.md', '`share`, ', ''],
     ],
   },
+  automations: {
+    about:
+      'tenant automation rules: triggers, conditions and actions on records (/v1/automation-rules)',
+    files: ['apps/api/src/features/notes/note-automation.ts'],
+    texts: [
+      {
+        app: 'api',
+        file: 'permissions.json',
+        key: ['systemJobs', 'automations'],
+      },
+      { app: 'api', file: 'permissions.json', key: ['automation-rule'] },
+      { app: 'api', file: 'notifications.json', key: ['automation'] },
+    ],
+    edits: [
+      ['README.md', ', automation rules (built and simulated)', ''],
+      [
+        'AGENTS.md',
+        '  `automations` (tenant rules: triggers, conditions, actions, simulation),\n',
+        '',
+      ],
+      ['docs/api-conventions.md', '`automation`, ', ''],
+      ['docs/computed-fields.md', ' (automation conditions)', ''],
+      [
+        'docs/permissions.md',
+        '`record-schedules`, `automations`,',
+        '`record-schedules`,',
+      ],
+      [
+        'docs/permissions.md',
+        "| Automation rules | `system:automations` | the rule's (the outbox message's) | `automation-rule.disabled` when it disables a rule; the actions run, and are audited, as the rule's owner |\n",
+        '',
+      ],
+      [
+        'docs/monorepo.md',
+        ", `/automations` (`AutomationRule.read`, changes with `AutomationRule.manage`: the rules, a builder of trigger, conditions and actions with its simulation, activate, disable, delete, a rule's runs; automations)",
+        '',
+      ],
+      ['docs/monorepo.md', ', `features/automations`', ''],
+    ],
+  },
 };

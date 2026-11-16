@@ -106,6 +106,7 @@ export const RECORD_SCHEDULE_JOB = defineSystemJob({
   permissions: [],
 });
 
+// capability:automations begin
 /**
  * AutomationRunHandler: runs a rule on a record's change, from the outbox
  * (the actions run as the rule's owner, with the owner's permissions);
@@ -118,6 +119,7 @@ export const AUTOMATIONS_JOB = defineSystemJob({
     "Runs the tenant's automation rules on the records' changes (their actions as the rule's owner), and disables a rule whose owner left, that runs too often or keeps failing.",
   permissions: [],
 });
+// capability:automations end
 
 /**
  * ApprovalWorkflow's steps: starting stages, reminders, escalations,
@@ -294,7 +296,9 @@ export const PLATFORM_SYSTEM_JOBS = [
   NOTIFICATION_DELIVERY_JOB,
   REPORT_RUNNER_JOB,
   RECORD_SCHEDULE_JOB,
+  // capability:automations begin
   AUTOMATIONS_JOB,
+  // capability:automations end
   APPROVALS_JOB,
   EXCHANGE_RATES_JOB,
   MAIL_INTAKE_JOB,

@@ -4,7 +4,9 @@ import { definePermissions } from '../../iam/access/permissions.js';
 import { userOnly } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { APPROVAL_SUBJECT } from '../approvals/approval.policy.js';
+// capability:automations begin
 import { AUTOMATION_RULE_SUBJECT } from '../automations/automation.policy.js';
+// capability:automations end
 // capability:data-quality begin
 import { DATA_QUALITY_SUBJECT } from '../data-quality/data-quality.policy.js';
 // capability:data-quality end
@@ -18,7 +20,9 @@ import { PLATFORM_SYSTEM_JOBS } from '../platform.jobs.js';
 export const PLATFORM_PERMISSIONS = definePermissions({
   subjects: {
     Approval: APPROVAL_SUBJECT,
+    // capability:automations begin
     AutomationRule: AUTOMATION_RULE_SUBJECT,
+    // capability:automations end
     Ops: {
       label: 'Operations',
       conditions: {},

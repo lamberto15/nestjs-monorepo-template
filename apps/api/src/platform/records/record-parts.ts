@@ -37,7 +37,9 @@ import {
   recordKey,
   RecordAccessFinder,
   RecordAttachments,
+  // capability:automations begin
   RecordAutomation,
+  // capability:automations end
   RecordBulk,
   RecordComments,
   // capability:data-quality begin
@@ -71,7 +73,9 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   // capability:shares begin
   share: RecordShares,
   // capability:shares end
+  // capability:automations begin
   automation: RecordAutomation,
+  // capability:automations end
   merge: RecordMerge,
 };
 

@@ -158,7 +158,9 @@ describe('PermissionCatalog', () => {
       'Access',
       'Platform',
       'Approval',
+      // capability:automations begin
       'AutomationRule',
+      // capability:automations end
       'Ops',
       'MailSuppression',
       // capability:data-quality begin

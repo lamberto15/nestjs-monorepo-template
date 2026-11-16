@@ -268,6 +268,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/auth/token/exchange',
         '/v1/auth/token/refresh',
         '/v1/auth/token/revoke',
+        // capability:automations begin
         '/v1/automation-rules',
         '/v1/automation-rules/simulate',
         '/v1/automation-rules/subjects',
@@ -275,6 +276,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/automation-rules/{id}/activate',
         '/v1/automation-rules/{id}/disable',
         '/v1/automation-rules/{id}/runs',
+        // capability:automations end
         '/v1/branding',
         '/v1/branding/domains',
         '/v1/branding/domains/{id}',

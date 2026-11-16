@@ -35,7 +35,9 @@ export const NOTE_CAPABILITIES: readonly Capability[] = [
   // capability:shares begin
   'share',
   // capability:shares end
+  // capability:automations begin
   'automation',
+  // capability:automations end
   'merge',
 ];
 

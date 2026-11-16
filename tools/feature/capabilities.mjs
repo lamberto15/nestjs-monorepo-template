@@ -22,7 +22,9 @@ export const CAPABILITIES = [
   // capability:shares begin
   'share',
   // capability:shares end
+  // capability:automations begin
   'automation',
+  // capability:automations end
   'merge',
 ];
 
