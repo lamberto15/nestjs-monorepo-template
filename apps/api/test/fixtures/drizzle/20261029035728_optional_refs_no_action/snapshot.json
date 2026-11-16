@@ -1,0 +1,79 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "61368038-8cd9-4dfe-ba95-9bdbf1afcc19",
+  "prevIds": [
+    "c4447d19-b891-46ed-9c29-97837d3852f6"
+  ],
+  "footprints": [
+    {
+      "statementType": "recreate_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|fk|public.test_items.test_items_parent_id_fk",
+        "n|fk|public.test_items.test_items_parent_id_fk",
+        "e|fk|public.test_items.test_items_parent_id_fk",
+        "n|con|public.test_items.test_items_parent_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.test_items.parent_id",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.test_items.id",
+        "e|uniqueness|public.test_items.id.tenant_id"
+      ],
+      "sqlHash": "52f75a873fea7ed9"
+    },
+    {
+      "statementType": "recreate_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "test_items"
+      ],
+      "writes": [
+        "s|fk|public.test_items.test_items_linked_id_fk",
+        "n|fk|public.test_items.test_items_linked_id_fk",
+        "e|fk|public.test_items.test_items_linked_id_fk",
+        "n|con|public.test_items.test_items_linked_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.test_items.linked_id",
+        "n|col|public.test_items.tenant_id",
+        "n|col|public.test_items.id",
+        "e|uniqueness|public.test_items.id.tenant_id"
+      ],
+      "sqlHash": "bd00787090c0660d"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "fks\u0000[\"public\",\"test_items\",\"test_items_parent_id_fk\"]",
+      "set": {
+        "onDelete": "NO ACTION"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "fks\u0000[\"public\",\"test_items\",\"test_items_linked_id_fk\"]",
+      "set": {
+        "onDelete": "NO ACTION"
+      }
+    }
+  ]
+}

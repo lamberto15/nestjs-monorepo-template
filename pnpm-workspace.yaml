@@ -33,13 +33,11 @@ overrides:
   # build plugins) and GHSA-g3hv-75wg-m249 (those globs, @ts-morph/common).
   'glob@>=9.0.0 <14.0.2': 14.0.4
   'minimatch@>=7.0.0 <11.0.1': 11.0.5
-  # GHSA-67mh-4wv8-2f99 (esbuild's development server; drizzle-kit's loader).
-  '@esbuild-kit/core-utils>esbuild': 0.25.12
 allowBuilds:
   '@scarf/scarf': false
   # OpenTelemetry's OTLP transformer: the postinstall only prints a notice.
   protobufjs: false
-  # drizzle-kit's bundler: its script checks the platform binary.
+  # esbuild (Vite, tsx, Storybook): its script checks the platform binary.
   esbuild: true
   # Its postinstall runs `lefthook install`, the git hooks (lefthook.yml);
   # skipped where CI=true (CI, the image build).

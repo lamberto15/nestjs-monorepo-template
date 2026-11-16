@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "fafd1bf5-b09a-43ec-8d5a-76c27be92a00",
+  "prevIds": [
+    "d99944c2-89bc-436e-992d-2240f66367d3"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "role_permissions",
+        "fields"
+      ],
+      "writes": [
+        "s|col|public.role_permissions.fields",
+        "n|col|public.role_permissions.fields",
+        "e|col|public.role_permissions.fields"
+      ],
+      "reads": [
+        "n|tbl|public.role_permissions",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "role_permissions",
+        "name": "fields",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

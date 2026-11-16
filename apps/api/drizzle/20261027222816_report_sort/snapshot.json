@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "4acfa7b5-90b3-4055-81ef-08694813425f",
+  "prevIds": [
+    "c5b26c87-ee15-40f4-9658-ace77cf8477f"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "report_schedules",
+        "sort"
+      ],
+      "writes": [
+        "s|col|public.report_schedules.sort",
+        "n|col|public.report_schedules.sort",
+        "e|col|public.report_schedules.sort"
+      ],
+      "reads": [
+        "n|tbl|public.report_schedules",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "report_schedules",
+        "name": "sort",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

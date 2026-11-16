@@ -1,0 +1,428 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "2c3e2866-ea34-4b20-be42-76fce6b6175e",
+  "prevIds": [
+    "40add506-8821-46a4-81af-ec17e26295db"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "webhook_client_scopes"
+      ],
+      "writes": [
+        "s|tbl|public.webhook_client_scopes",
+        "n|tbl|public.webhook_client_scopes",
+        "e|tbl|public.webhook_client_scopes",
+        "n|rel|public.webhook_client_scopes",
+        "n|type|public.webhook_client_scopes",
+        "n|rel|public.webhook_client_scopes_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "webhook_client_scopes",
+        "webhook_client_scopes_client_idx"
+      ],
+      "writes": [
+        "s|idx|public.webhook_client_scopes_client_idx",
+        "n|idx|public.webhook_client_scopes_client_idx",
+        "e|idx|public.webhook_client_scopes_client_idx",
+        "n|rel|public.webhook_client_scopes_client_idx"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_client_scopes",
+        "n|sch|public",
+        "n|col|public.webhook_client_scopes.tenant_id",
+        "n|col|public.webhook_client_scopes.client_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "webhook_client_scopes"
+      ],
+      "writes": [
+        "s|fk|public.webhook_client_scopes.webhook_client_scopes_tenant_id_tenants_id_fk",
+        "n|fk|public.webhook_client_scopes.webhook_client_scopes_tenant_id_tenants_id_fk",
+        "e|fk|public.webhook_client_scopes.webhook_client_scopes_tenant_id_tenants_id_fk",
+        "n|con|public.webhook_client_scopes.webhook_client_scopes_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_client_scopes",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.webhook_client_scopes.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "webhook_client_scopes"
+      ],
+      "writes": [
+        "s|fk|public.webhook_client_scopes.webhook_client_scopes_client_fk",
+        "n|fk|public.webhook_client_scopes.webhook_client_scopes_client_fk",
+        "e|fk|public.webhook_client_scopes.webhook_client_scopes_client_fk",
+        "n|con|public.webhook_client_scopes.webhook_client_scopes_client_fk"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_client_scopes",
+        "n|sch|public",
+        "n|tbl|public.api_clients",
+        "n|sch|public",
+        "n|col|public.webhook_client_scopes.tenant_id",
+        "n|col|public.webhook_client_scopes.client_id",
+        "n|col|public.api_clients.tenant_id",
+        "n|col|public.api_clients.id",
+        "e|uniqueness|public.api_clients.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "webhook_client_scopes"
+      ],
+      "writes": [
+        "s|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_select",
+        "n|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_select",
+        "e|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_client_scopes",
+        "n|sch|public",
+        "e|rls|public.webhook_client_scopes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "webhook_client_scopes"
+      ],
+      "writes": [
+        "s|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_insert",
+        "n|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_insert",
+        "e|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_client_scopes",
+        "n|sch|public",
+        "e|rls|public.webhook_client_scopes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "webhook_client_scopes"
+      ],
+      "writes": [
+        "s|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_update",
+        "n|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_update",
+        "e|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_client_scopes",
+        "n|sch|public",
+        "e|rls|public.webhook_client_scopes"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "webhook_client_scopes"
+      ],
+      "writes": [
+        "s|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_delete",
+        "n|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_delete",
+        "e|pol|public.webhook_client_scopes.webhook_client_scopes_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.webhook_client_scopes",
+        "n|sch|public",
+        "e|rls|public.webhook_client_scopes"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "webhook_client_scopes",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "client_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "scope",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_client_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "client_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_client_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "client_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "api_clients",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "webhook_client_scopes",
+        "name": "webhook_client_scopes_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"webhook_client_scopes\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

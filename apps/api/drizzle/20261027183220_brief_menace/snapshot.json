@@ -1,0 +1,275 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "f5e996af-cd2f-4ca3-a77d-44a808a4c9a7",
+  "prevIds": [
+    "6442ced9-d4f5-4190-9efb-00239ec14fa6"
+  ],
+  "footprints": [
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_created_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_created_at_idx",
+        "n|idx|public.notes_tenant_created_at_idx",
+        "e|idx|public.notes_tenant_created_at_idx",
+        "n|rel|public.notes_tenant_created_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.created_at",
+        "n|col|public.notes.id"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "dfeea2b935965c09"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_updated_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_updated_at_idx",
+        "n|idx|public.notes_tenant_updated_at_idx",
+        "e|idx|public.notes_tenant_updated_at_idx",
+        "n|rel|public.notes_tenant_updated_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.updated_at",
+        "n|col|public.notes.id"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "b18360fa37f29335"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_tenant_at_ms_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_tenant_at_ms_id_idx",
+        "n|idx|public.audit_log_tenant_at_ms_id_idx",
+        "e|idx|public.audit_log_tenant_at_ms_id_idx",
+        "n|rel|public.audit_log_tenant_at_ms_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.tenant_id",
+        "n|col|public.audit_log.id"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "68599bf72c75030b"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_created_ms_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_created_ms_idx",
+        "n|idx|public.notes_tenant_created_ms_idx",
+        "e|idx|public.notes_tenant_created_ms_idx",
+        "n|rel|public.notes_tenant_created_ms_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.id"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "3d464c43795a0a95"
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_updated_ms_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_updated_ms_idx",
+        "n|idx|public.notes_tenant_updated_ms_idx",
+        "e|idx|public.notes_tenant_updated_ms_idx",
+        "n|rel|public.notes_tenant_updated_ms_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.id"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "cb8a7e6a92059aa8"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"notes_tenant_created_at_idx\"]",
+      "set": {
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          }
+        ]
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"notes_tenant_updated_at_idx\"]",
+      "set": {
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "updated_at",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          }
+        ]
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"audit_log_tenant_at_ms_id_idx\"]",
+      "set": {
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          }
+        ]
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"notes_tenant_created_ms_idx\"]",
+      "set": {
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"created_at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          }
+        ]
+      }
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"notes_tenant_updated_ms_idx\"]",
+      "set": {
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"updated_at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": true,
+            "opclass": null
+          }
+        ]
+      }
+    }
+  ]
+}

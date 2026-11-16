@@ -1,0 +1,1032 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "621080b9-9a06-4401-9b61-fa82f0452be8",
+  "prevIds": [
+    "fdec8111-b4b7-449b-ba5d-217af7e0201b"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_rules"
+      ],
+      "writes": [
+        "s|tbl|public.automation_rules",
+        "n|tbl|public.automation_rules",
+        "e|tbl|public.automation_rules",
+        "n|rel|public.automation_rules",
+        "n|type|public.automation_rules",
+        "n|rel|public.automation_rules_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_runs"
+      ],
+      "writes": [
+        "s|tbl|public.automation_runs",
+        "n|tbl|public.automation_runs",
+        "e|tbl|public.automation_runs",
+        "n|rel|public.automation_runs",
+        "n|type|public.automation_runs",
+        "n|rel|public.automation_runs_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "automation_rules",
+        "automation_rules_active_idx"
+      ],
+      "writes": [
+        "s|idx|public.automation_rules_active_idx",
+        "n|idx|public.automation_rules_active_idx",
+        "e|idx|public.automation_rules_active_idx",
+        "n|rel|public.automation_rules_active_idx"
+      ],
+      "reads": [
+        "n|tbl|public.automation_rules",
+        "n|sch|public",
+        "n|col|public.automation_rules.tenant_id",
+        "n|col|public.automation_rules.subject"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "automation_runs",
+        "automation_runs_rule_idx"
+      ],
+      "writes": [
+        "s|idx|public.automation_runs_rule_idx",
+        "n|idx|public.automation_runs_rule_idx",
+        "e|idx|public.automation_runs_rule_idx",
+        "n|rel|public.automation_runs_rule_idx"
+      ],
+      "reads": [
+        "n|tbl|public.automation_runs",
+        "n|sch|public",
+        "n|col|public.automation_runs.rule_id",
+        "n|col|public.automation_runs.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_rules"
+      ],
+      "writes": [
+        "s|fk|public.automation_rules.automation_rules_tenant_id_tenants_id_fk",
+        "n|fk|public.automation_rules.automation_rules_tenant_id_tenants_id_fk",
+        "e|fk|public.automation_rules.automation_rules_tenant_id_tenants_id_fk",
+        "n|con|public.automation_rules.automation_rules_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.automation_rules",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.automation_rules.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_runs"
+      ],
+      "writes": [
+        "s|fk|public.automation_runs.automation_runs_tenant_id_tenants_id_fk",
+        "n|fk|public.automation_runs.automation_runs_tenant_id_tenants_id_fk",
+        "e|fk|public.automation_runs.automation_runs_tenant_id_tenants_id_fk",
+        "n|con|public.automation_runs.automation_runs_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.automation_runs",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.automation_runs.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_runs"
+      ],
+      "writes": [
+        "s|fk|public.automation_runs.automation_runs_rule_id_automation_rules_id_fk",
+        "n|fk|public.automation_runs.automation_runs_rule_id_automation_rules_id_fk",
+        "e|fk|public.automation_runs.automation_runs_rule_id_automation_rules_id_fk",
+        "n|con|public.automation_runs.automation_runs_rule_id_automation_rules_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.automation_runs",
+        "n|sch|public",
+        "n|tbl|public.automation_rules",
+        "n|sch|public",
+        "n|col|public.automation_runs.rule_id",
+        "n|col|public.automation_rules.id",
+        "e|uniqueness|public.automation_rules.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_rules"
+      ],
+      "writes": [
+        "s|pol|public.automation_rules.automation_rules_tenant_select",
+        "n|pol|public.automation_rules.automation_rules_tenant_select",
+        "e|pol|public.automation_rules.automation_rules_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.automation_rules",
+        "n|sch|public",
+        "e|rls|public.automation_rules"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_rules"
+      ],
+      "writes": [
+        "s|pol|public.automation_rules.automation_rules_tenant_insert",
+        "n|pol|public.automation_rules.automation_rules_tenant_insert",
+        "e|pol|public.automation_rules.automation_rules_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.automation_rules",
+        "n|sch|public",
+        "e|rls|public.automation_rules"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_rules"
+      ],
+      "writes": [
+        "s|pol|public.automation_rules.automation_rules_tenant_update",
+        "n|pol|public.automation_rules.automation_rules_tenant_update",
+        "e|pol|public.automation_rules.automation_rules_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.automation_rules",
+        "n|sch|public",
+        "e|rls|public.automation_rules"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_rules"
+      ],
+      "writes": [
+        "s|pol|public.automation_rules.automation_rules_tenant_delete",
+        "n|pol|public.automation_rules.automation_rules_tenant_delete",
+        "e|pol|public.automation_rules.automation_rules_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.automation_rules",
+        "n|sch|public",
+        "e|rls|public.automation_rules"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_runs"
+      ],
+      "writes": [
+        "s|pol|public.automation_runs.automation_runs_tenant_select",
+        "n|pol|public.automation_runs.automation_runs_tenant_select",
+        "e|pol|public.automation_runs.automation_runs_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.automation_runs",
+        "n|sch|public",
+        "e|rls|public.automation_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_runs"
+      ],
+      "writes": [
+        "s|pol|public.automation_runs.automation_runs_tenant_insert",
+        "n|pol|public.automation_runs.automation_runs_tenant_insert",
+        "e|pol|public.automation_runs.automation_runs_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.automation_runs",
+        "n|sch|public",
+        "e|rls|public.automation_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_runs"
+      ],
+      "writes": [
+        "s|pol|public.automation_runs.automation_runs_tenant_update",
+        "n|pol|public.automation_runs.automation_runs_tenant_update",
+        "e|pol|public.automation_runs.automation_runs_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.automation_runs",
+        "n|sch|public",
+        "e|rls|public.automation_runs"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "automation_runs"
+      ],
+      "writes": [
+        "s|pol|public.automation_runs.automation_runs_tenant_delete",
+        "n|pol|public.automation_runs.automation_runs_tenant_delete",
+        "e|pol|public.automation_runs.automation_runs_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.automation_runs",
+        "n|sch|public",
+        "e|rls|public.automation_runs"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "automation_rules",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "automation_runs",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "trigger",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "field",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "filters",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "actions",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'draft'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "1",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "owner",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "activated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "disabled_reason",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "failures",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "last_run_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "last_status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "rule_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "rule_version",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "record_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "actions",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "automation_rules_active_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "status = 'active'",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_rule_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "rule_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "automation_rules_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_rule_id_automation_rules_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "rule_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "automation_rules",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "automation_rules_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "automation_rules_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "automation_rules_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "automation_rules_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_rules",
+        "name": "automation_rules_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"automation_rules\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "automation_runs",
+        "name": "automation_runs_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"automation_runs\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}
