@@ -148,11 +148,11 @@
       "checkConstraints": {
         "tenant_closure_depth": {
           "name": "tenant_closure_depth",
-          "value": "\"tenant_closure\".\"depth\" >= 1"
+          "value": "\"depth\" >= 1"
         },
         "tenant_closure_not_self": {
           "name": "tenant_closure_not_self",
-          "value": "\"tenant_closure\".\"ancestor_id\" <> \"tenant_closure\".\"descendant_id\""
+          "value": "\"ancestor_id\" <> \"descendant_id\""
         }
       },
       "isRLSEnabled": false
@@ -299,7 +299,7 @@
       "checkConstraints": {
         "tenants_parent_not_self": {
           "name": "tenants_parent_not_self",
-          "value": "\"tenants\".\"parent_id\" <> \"tenants\".\"id\""
+          "value": "\"parent_id\" <> \"id\""
         }
       },
       "isRLSEnabled": false
@@ -5759,7 +5759,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"notifications\".\"read_at\" is null",
+          "where": "\"read_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5775,7 +5775,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"notifications\".\"delivered_at\" is null",
+          "where": "\"delivered_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7045,7 +7045,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"naming_series\".\"is_default\"",
+          "where": "\"is_default\"",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7588,7 +7588,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"attachments\".\"scan_status\" = 'pending'",
+          "where": "\"scan_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7604,7 +7604,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"attachments\".\"rendition_status\" = 'pending'",
+          "where": "\"rendition_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7870,7 +7870,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"documents\".\"status\" in ('queued', 'rendering')",
+          "where": "\"status\" in ('queued', 'rendering')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8129,7 +8129,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"ai_runs\".\"status\" in ('queued', 'running')",
+          "where": "\"status\" in ('queued', 'running')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9277,11 +9277,11 @@
       "checkConstraints": {
         "saved_views_team_check": {
           "name": "saved_views_team_check",
-          "value": "(\"saved_views\".\"visibility\" = 'team') = (\"saved_views\".\"team_id\" is not null)"
+          "value": "(\"visibility\" = 'team') = (\"team_id\" is not null)"
         },
         "saved_views_visibility_check": {
           "name": "saved_views_visibility_check",
-          "value": "\"saved_views\".\"visibility\" in ('private', 'team', 'tenant')"
+          "value": "\"visibility\" in ('private', 'team', 'tenant')"
         }
       },
       "isRLSEnabled": true

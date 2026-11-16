@@ -4562,7 +4562,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"documents\".\"status\" in ('queued', 'rendering')",
+          "where": "\"status\" in ('queued', 'rendering')",
           "concurrently": false,
           "method": "btree",
           "with": {}

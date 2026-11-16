@@ -47,7 +47,7 @@
         },
         "published_at": {
           "name": "published_at",
-          "type": "timestamp (3) with time zone",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -84,21 +84,21 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp (3) with time zone",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp (3) with time zone",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "deleted_at": {
           "name": "deleted_at",
-          "type": "timestamp (3) with time zone",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": false
         },
@@ -422,14 +422,14 @@
         },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp (3) with time zone",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp (3) with time zone",
+          "type": "timestamp(3) with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"

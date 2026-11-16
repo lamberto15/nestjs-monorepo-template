@@ -2026,7 +2026,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"organizational_unit_memberships\".\"valid_to\" is null",
+          "where": "\"valid_to\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -2157,11 +2157,11 @@
       "checkConstraints": {
         "organizational_unit_memberships_role_check": {
           "name": "organizational_unit_memberships_role_check",
-          "value": "\"organizational_unit_memberships\".\"role\" in ('member', 'lead')"
+          "value": "\"role\" in ('member', 'lead')"
         },
         "organizational_unit_memberships_period_check": {
           "name": "organizational_unit_memberships_period_check",
-          "value": "\"organizational_unit_memberships\".\"valid_to\" is null or \"organizational_unit_memberships\".\"valid_to\" > \"organizational_unit_memberships\".\"valid_from\""
+          "value": "\"valid_to\" is null or \"valid_to\" > \"valid_from\""
         }
       },
       "isRLSEnabled": true
@@ -2344,7 +2344,7 @@
       "checkConstraints": {
         "organizational_units_type_check": {
           "name": "organizational_units_type_check",
-          "value": "\"organizational_units\".\"type\" in ('division', 'department', 'team')"
+          "value": "\"type\" in ('division', 'department', 'team')"
         }
       },
       "isRLSEnabled": true
@@ -5846,7 +5846,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"notifications\".\"read_at\" is null",
+          "where": "\"read_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5862,7 +5862,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"notifications\".\"delivered_at\" is null",
+          "where": "\"delivered_at\" is null",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -7132,7 +7132,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"naming_series\".\"is_default\"",
+          "where": "\"is_default\"",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8093,7 +8093,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"attachments\".\"scan_status\" = 'pending'",
+          "where": "\"scan_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8109,7 +8109,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"attachments\".\"rendition_status\" = 'pending'",
+          "where": "\"rendition_status\" = 'pending'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8375,7 +8375,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"documents\".\"status\" in ('queued', 'rendering')",
+          "where": "\"status\" in ('queued', 'rendering')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -8634,7 +8634,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"ai_runs\".\"status\" in ('queued', 'running')",
+          "where": "\"status\" in ('queued', 'running')",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -9930,7 +9930,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"record_schedules\".\"status\" = 'active'",
+          "where": "\"status\" = 'active'",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -10411,11 +10411,11 @@
       "checkConstraints": {
         "saved_views_unit_check": {
           "name": "saved_views_unit_check",
-          "value": "(\"saved_views\".\"visibility\" = 'unit') = (\"saved_views\".\"unit_id\" is not null)"
+          "value": "(\"visibility\" = 'unit') = (\"unit_id\" is not null)"
         },
         "saved_views_visibility_check": {
           "name": "saved_views_visibility_check",
-          "value": "\"saved_views\".\"visibility\" in ('private', 'unit', 'tenant')"
+          "value": "\"visibility\" in ('private', 'unit', 'tenant')"
         }
       },
       "isRLSEnabled": true
@@ -10640,11 +10640,11 @@
       "checkConstraints": {
         "record_templates_unit_check": {
           "name": "record_templates_unit_check",
-          "value": "(\"record_templates\".\"visibility\" = 'unit') = (\"record_templates\".\"unit_id\" is not null)"
+          "value": "(\"visibility\" = 'unit') = (\"unit_id\" is not null)"
         },
         "record_templates_visibility_check": {
           "name": "record_templates_visibility_check",
-          "value": "\"record_templates\".\"visibility\" in ('private', 'unit', 'tenant')"
+          "value": "\"visibility\" in ('private', 'unit', 'tenant')"
         }
       },
       "isRLSEnabled": true
