@@ -31,7 +31,9 @@ import { AttachmentsRegistry } from '../attachments/attachments.registry.js';
 import { BulkRegistry } from '../bulk/bulk.registry.js';
 import type { BulkSelection } from '../bulk/bulk.types.js';
 import { CommentsRegistry } from '../comments/comments.registry.js';
+// capability:data-quality begin
 import { DataQualityRegistry } from '../data-quality/data-quality.registry.js';
+// capability:data-quality end
 import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
 import { columnsOf } from '../data-transfer/import-columns.js';
 import type {
@@ -114,6 +116,7 @@ async function find(c: RecordContract, id: string, visibleTo?: Principal) {
   }
 }
 
+// capability:data-quality begin
 /**
  * The data-quality checks of a record with `quality` (platform/data-quality):
  * its recommended and duplicate fields as declared, and every `ref` field
@@ -157,6 +160,7 @@ export class RecordDataQuality {
     });
   }
 }
+// capability:data-quality end
 
 /** Its records, for the permission explanation (GET /v1/access/users/{id}/explanation). */
 @Injectable()

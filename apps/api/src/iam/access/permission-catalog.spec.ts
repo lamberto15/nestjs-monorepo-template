@@ -161,7 +161,9 @@ describe('PermissionCatalog', () => {
       'AutomationRule',
       'Ops',
       'MailSuppression',
+      // capability:data-quality begin
       'DataQuality',
+      // capability:data-quality end
       // capability:forms begin
       'Form',
       // capability:forms end

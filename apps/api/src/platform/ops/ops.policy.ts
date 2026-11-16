@@ -5,7 +5,9 @@ import { userOnly } from '../../iam/access/policies.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { APPROVAL_SUBJECT } from '../approvals/approval.policy.js';
 import { AUTOMATION_RULE_SUBJECT } from '../automations/automation.policy.js';
+// capability:data-quality begin
 import { DATA_QUALITY_SUBJECT } from '../data-quality/data-quality.policy.js';
+// capability:data-quality end
 import { MAIL_SUPPRESSION_SUBJECT } from '../deliverability/suppression.policy.js';
 // capability:forms begin
 import { FORM_SUBJECT } from '../forms/form.policy.js';
@@ -30,8 +32,10 @@ export const PLATFORM_PERMISSIONS = definePermissions({
     },
     // The suppression list (platform/deliverability): the addresses mail is not sent to.
     MailSuppression: MAIL_SUPPRESSION_SUBJECT,
+    // capability:data-quality begin
     // Data-quality findings and scans (platform/data-quality).
     DataQuality: DATA_QUALITY_SUBJECT,
+    // capability:data-quality end
     // capability:forms begin
     // Runtime forms (platform/forms).
     Form: FORM_SUBJECT,

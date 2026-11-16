@@ -131,4 +131,27 @@ export const REMOVABLE = {
       ],
     ],
   },
+  'data-quality': {
+    about: 'data-quality checks, scans and findings (docs/data-quality.md)',
+    files: ['apps/api/src/features/notes/note-quality.ts'],
+    texts: [{ app: 'api', file: 'permissions.json', key: ['data-quality'] }],
+    edits: [
+      [
+        'AGENTS.md',
+        '  (exports, imports), `import-limits`, `reports`, `data-quality` (checks,\n  scans, findings).\n',
+        '  (exports, imports), `import-limits`, `reports`.\n',
+      ],
+      ['docs/monorepo.md', ' `/branding`, `/data-quality`, ', ' `/branding`, '],
+      [
+        'docs/merging.md',
+        '`MERGES` next to `mergeRoutes(NOTE_ROUTES, …)`). Background scans for duplicates\nbelong to data quality, not here: this finds them when a record is created\nor changed, or on demand.\n',
+        '`MERGES` next to `mergeRoutes(NOTE_ROUTES, …)`). It finds duplicates when a\nrecord is created or changed, or on demand.\n',
+      ],
+      [
+        'docs/adding-a-feature.md',
+        "\nA record's references are also what the data-quality scan checks (one to a\nrecord in the recycle bin is an error); `quality: { recommended, duplicates }`\nin the declaration adds empty fields and duplicate candidates\n(data-quality).\n",
+        '',
+      ],
+    ],
+  },
 };

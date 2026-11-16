@@ -954,7 +954,9 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       'retention',
       'messaging',
       'custom-domains',
+      // capability:data-quality begin
       'data-quality',
+      // capability:data-quality end
     ]);
   });
 });

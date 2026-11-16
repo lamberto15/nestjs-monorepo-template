@@ -35,7 +35,9 @@ import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js
 import { shareRoutes } from '../../platform/shares/share.routes.js';
 import { NoteShares } from './note-shares.js';
 import { NoteAutomation } from './note-automation.js';
+// capability:data-quality begin
 import { NoteQuality } from './note-quality.js';
+// capability:data-quality end
 import { mergeRoutes } from '../../platform/merge/merge.routes.js';
 import { MERGES } from '../../platform/merge/record-merge.js';
 import { NoteMerge } from './note-merge.js';
@@ -98,7 +100,9 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     NoteSubscriptions,
     NoteShares,
     NoteAutomation,
+    // capability:data-quality begin
     NoteQuality,
+    // capability:data-quality end
     NoteMerge,
     { provide: MERGES, useExisting: NoteMerge },
     NoteTags,
