@@ -3,7 +3,7 @@ import { PlatformAnalyticsJob } from './platform-analytics.job.js';
 
 /**
  * The analytics capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
+ * core and the features inject. Imported by PlatformModule
  * (platform.module.ts).
  */
 @Module({

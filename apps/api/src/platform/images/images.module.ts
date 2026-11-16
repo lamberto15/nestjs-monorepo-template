@@ -5,7 +5,7 @@ import { imageProcessor } from './image-processor.factory.js';
 
 /**
  * The images capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
+ * core and the features inject. Imported by PlatformModule
  * (platform.module.ts).
  */
 @Module({

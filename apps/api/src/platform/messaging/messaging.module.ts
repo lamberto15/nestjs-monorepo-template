@@ -15,11 +15,13 @@ import { SMS_PROVIDER } from './providers/sms-provider.js';
 import { PlatformKernelModule } from '../platform-kernel.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { AccountModule } from '../account/account.module.js';
+import { MessagingController } from './messaging.controller.js';
+import { SmsInboundController } from './sms-inbound.controller.js';
 
 /**
- * The messaging capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The messaging capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [
@@ -28,6 +30,11 @@ import { AccountModule } from '../account/account.module.js';
     AccountModule,
     // Twilio and FCM (the messaging providers' HTTP calls).
     ...messagingClients(),
+  ],
+  controllers: [
+    // Push devices and the SMS number; the provider's inbound STOP/START webhook.
+    MessagingController,
+    SmsInboundController,
   ],
   providers: [
     // Push and SMS (docs/notifications.md): channels that queue, a worker that sends within the caps.

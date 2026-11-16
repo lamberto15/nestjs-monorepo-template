@@ -20,11 +20,13 @@ import { HttpClientModule } from '@nestjs/http-client';
 import { SettingsModule } from '../settings/settings.module.js';
 import { AccountModule } from '../account/account.module.js';
 import { ListsModule } from '../lists/lists.module.js';
+import { MailEventsController } from './mail-events.controller.js';
+import { SuppressionsController } from './suppressions.controller.js';
 
 /**
- * The deliverability capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The deliverability capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [
@@ -40,6 +42,11 @@ import { ListsModule } from '../lists/lists.module.js';
     SettingsModule,
     AccountModule,
     ListsModule,
+  ],
+  controllers: [
+    // Email deliverability: the providers' bounces and complaints, the suppression list.
+    MailEventsController,
+    SuppressionsController,
   ],
   providers: [
     // The suppression list (GET /v1/lists/MailSuppression), for the operators.

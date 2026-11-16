@@ -26,14 +26,16 @@ import { PlatformKernelModule } from '../platform-kernel.module.js';
 import { AccountModule } from '../account/account.module.js';
 import { SearchModule } from '../search/search.module.js';
 import { ImagesModule } from '../images/images.module.js';
+import { AttachmentsController } from './attachments.controller.js';
 
 /**
- * The attachments capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The attachments capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [PlatformKernelModule, AccountModule, SearchModule, ImagesModule],
+  controllers: [AttachmentsController],
   providers: [
     // Files attached to records: features register an AttachmentTarget.
     AttachmentsRegistry,

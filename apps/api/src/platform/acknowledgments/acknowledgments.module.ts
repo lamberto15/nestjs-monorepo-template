@@ -4,11 +4,15 @@ import { PlatformKernelModule } from '../platform-kernel.module.js';
 import { PeopleModule } from '../people/people.module.js';
 import { AccountModule } from '../account/account.module.js';
 import { AttachmentsModule } from '../attachments/attachments.module.js';
+import {
+  AttachmentAcknowledgmentsController,
+  MyAcknowledgmentsController,
+} from './acknowledgments.controller.js';
 
 /**
- * The acknowledgments capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The acknowledgments capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [
@@ -16,6 +20,10 @@ import { AttachmentsModule } from '../attachments/attachments.module.js';
     PeopleModule,
     AccountModule,
     AttachmentsModule,
+  ],
+  controllers: [
+    AttachmentAcknowledgmentsController,
+    MyAcknowledgmentsController,
   ],
   providers: [
     // Acknowledgments of an attachment's version.

@@ -5,14 +5,16 @@ import { ReportRunnerJob } from './report-runner.job.js';
 import { ReportReadyMail, ReportFailedMail } from './report.mails.js';
 import { PlatformKernelModule } from '../platform-kernel.module.js';
 import { AccountModule } from '../account/account.module.js';
+import { ReportsController } from './reports.controller.js';
 
 /**
- * The reports capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The reports capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [PlatformKernelModule, AccountModule],
+  controllers: [...whenOn('REPORTS', ReportsController)],
   providers: [
     // Scheduled reports: exports run on a schedule, mailed to their recipients.
     ...whenOn<Provider>(

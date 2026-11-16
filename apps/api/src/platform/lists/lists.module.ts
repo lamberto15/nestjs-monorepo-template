@@ -7,14 +7,16 @@ import { TenantListSource } from './tenant-lists.js';
 import { CustomFieldsModule } from '../custom-fields/custom-fields.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
 import { ApprovalsModule } from '../approvals/approvals.module.js';
+import { ListsController } from './lists.controller.js';
 
 /**
- * The lists capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The lists capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [CustomFieldsModule, DocumentsModule, ApprovalsModule],
+  controllers: [ListsController],
   providers: [
     // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
     ListsRegistry,

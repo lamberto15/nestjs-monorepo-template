@@ -84,8 +84,8 @@ importing it:
 - the packages' modules (idempotency, storage, http-client and resilience,
   workflows, outbox, webhooks), then `MoneyModule`, then one module per
   capability folder, `<folder>/<folder>.module.ts`, holding that folder's
-  providers and exporting what others inject. A capability module imports the
-  capability modules it injects from, never `forwardRef`: realtime,
+  routes and providers and exporting what others inject. A capability module
+  imports the capability modules it injects from, never `forwardRef`: realtime,
   notifications, subscriptions and data-transfer need one another and share
   `PlatformKernelModule` (`platform/platform-kernel.module.ts`).
   PlatformModule re-exports the modules whose providers the features, IAM and
@@ -93,14 +93,15 @@ importing it:
 - The options (`PLATFORM_OPTIONS`) and the queues (`@InjectQueue`, the
   platform's and the features') come from one small global module built in
   `forRoot()`, the only global module of the platform's own.
-- The routes stay in PlatformModule's `controllers`: the OpenAPI document
-  lists routes module by module, so that list's order is the document's.
-  So do its global enhancers (`ModeGuard`, `UsageInterceptor` while USAGE
-  is on): Nest orders global enhancers by module, a module's own before its
+- Each capability module declares its folder's controllers, so the OpenAPI
+  document lists the paths in module order. Matching does not depend on that
+  order ("The HTTP server" below). The platform's global enhancers
+  (`ModeGuard`, `UsageInterceptor` while USAGE is on) stay in PlatformModule:
+  Nest orders global enhancers by module, a module's own before its
   imports', and the capability modules register none.
-- A new platform provider goes into its folder's module (a new folder gets
-  one, imported last in `forRoot()`), and into its `exports` when another
-  module or a controller injects it.
+- A new platform provider or controller goes into its folder's module (a new
+  folder gets one, imported last in `forRoot()`), and a provider into its
+  `exports` when another module injects it.
 
 ### The HTTP server
 

@@ -8,11 +8,12 @@ import { AiProcessor } from './ai.processor.js';
 import { PlatformKernelModule } from '../platform-kernel.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { AccountModule } from '../account/account.module.js';
+import { AiController } from './ai.controller.js';
 
 /**
- * The ai capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts). Named apart from @nestjs/ai's AiModule, which it imports.
+ * The ai capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts). Named apart from @nestjs/ai's AiModule, which it imports.
  */
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { AccountModule } from '../account/account.module.js';
       useFactory: aiModuleOptions,
     }),
   ],
+  controllers: [AiController],
   providers: [
     // The AI helper: features register an AiSource.
     AiRegistry,

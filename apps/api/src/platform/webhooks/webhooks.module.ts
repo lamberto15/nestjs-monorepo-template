@@ -8,14 +8,37 @@ import { whenOn } from '../switches.js';
 import { WebhookListSource } from './webhook-lists.js';
 import { WebhookDeliveryRetentionJob } from './webhook-delivery-retention.job.js';
 import { ListsModule } from '../lists/lists.module.js';
+import { WebhookEndpointsController } from './webhook-endpoints.controller.js';
+import { WebhookDeliveriesController } from './webhook-deliveries.controller.js';
+import { WebhookEventTypesController } from './webhook-event-types.controller.js';
+import { ClientWebhooksController } from './client-webhooks.controller.js';
+import { IncomingSendersController } from './incoming-senders.controller.js';
+import { IncomingEventTypesController } from './incoming-event-types.controller.js';
+import { TenantWebhookReceiverController } from './tenant-webhook-receiver.controller.js';
 
 /**
- * The webhooks capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The webhooks capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [ListsModule],
+  controllers: [
+    // WEBHOOKS=off: no endpoint or delivery API (the module itself stays: the
+    // notifications, approvals and incoming receivers inject it).
+    ...whenOn(
+      'WEBHOOKS',
+      WebhookEndpointsController,
+      WebhookDeliveriesController,
+      WebhookEventTypesController,
+      // An administrator managing a client's webhooks on its behalf.
+      ClientWebhooksController,
+    ),
+    // Incoming webhooks of a tenant's own senders: not behind WEBHOOKS (that switch is for the outgoing ones).
+    IncomingSendersController,
+    IncomingEventTypesController,
+    TenantWebhookReceiverController,
+  ],
   providers: [
     // Both doors to a client's webhooks: its own routes and an administrator's.
     WebhookManagementService,

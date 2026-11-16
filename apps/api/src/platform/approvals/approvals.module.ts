@@ -13,14 +13,25 @@ import { PlatformKernelModule } from '../platform-kernel.module.js';
 import { SettingsModule } from '../settings/settings.module.js';
 import { AccountModule } from '../account/account.module.js';
 import { InboxModule } from '../inbox/inbox.module.js';
+import {
+  ApprovalDelegationsController,
+  ApprovalPoliciesController,
+} from './approval-admin.controllers.js';
+import { ApprovalsController } from './approvals.controller.js';
 
 /**
- * The approvals capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The approvals capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [PlatformKernelModule, SettingsModule, AccountModule, InboxModule],
+  controllers: [
+    // Before ApprovalsController: its /approvals/{id} would read `delegations` as an id.
+    ApprovalDelegationsController,
+    ApprovalPoliciesController,
+    ApprovalsController,
+  ],
   providers: [
     ApprovalInboxSource,
     // Approvals: features declare actions (options.approvals) and register their

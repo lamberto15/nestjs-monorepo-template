@@ -2,13 +2,15 @@ import { Module, type Provider } from '@nestjs/common';
 import { whenOn } from '../switches.js';
 import { UsageService } from './usage.service.js';
 import { UsageRollupJob } from './usage-rollup.job.js';
+import { UsageController } from './usage.controller.js';
 
 /**
- * The usage capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The usage capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
+  controllers: [...whenOn('USAGE', UsageController)],
   providers: [
     // API clients' usage: counted per day and route, daily quotas, the nightly roll-up.
     // USAGE=off: no metering, no quota enforcement, no roll-up.

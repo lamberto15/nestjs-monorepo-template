@@ -8,14 +8,16 @@ import { OutboxMetricsReader } from './outbox-metrics.reader.js';
 import { OpsPolicy } from './ops.policy.js';
 import { OutboxRetentionJob } from './outbox-retention.job.js';
 import { PlatformKernelModule } from '../platform-kernel.module.js';
+import { OpsController } from './ops.controller.js';
 
 /**
- * The ops capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The ops capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [PlatformKernelModule],
+  controllers: [OpsController],
   providers: [
     OpsQueues,
     OpsBacklog,

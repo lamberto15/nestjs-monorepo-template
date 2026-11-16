@@ -8,14 +8,27 @@ import { AccountTransfer } from './account.transfer.js';
 import { AccountDeletionJob } from './account-deletion.job.js';
 import { AccountDeletionMail } from './account.mails.js';
 import { PlatformKernelModule } from '../platform-kernel.module.js';
+import {
+  AccountController,
+  AccountDeletionLinkController,
+  ConsentKindsController,
+} from './account.controller.js';
+import { AvatarController } from './avatar.controller.js';
 
 /**
- * The account capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The account capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [PlatformKernelModule],
+  controllers: [
+    AccountController,
+    // The user's picture (PUT, DELETE /v1/account/avatar).
+    AvatarController,
+    AccountDeletionLinkController,
+    ConsentKindsController,
+  ],
   providers: [
     // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
     PersonalDataRegistry,

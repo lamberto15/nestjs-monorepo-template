@@ -9,11 +9,12 @@ import { PeopleModule } from '../people/people.module.js';
 import { AccountModule } from '../account/account.module.js';
 import { AttachmentsModule } from '../attachments/attachments.module.js';
 import { BrandingModule } from '../branding/branding.module.js';
+import { DocumentsController } from './documents.controller.js';
 
 /**
- * The documents capability's providers, exporting what the rest of the platform, IAM,
- * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * The documents capability's routes and providers, exporting what the rest of
+ * the platform, IAM, core and the features inject. Imported by
+ * PlatformModule (platform.module.ts).
  */
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { BrandingModule } from '../branding/branding.module.js';
     AttachmentsModule,
     BrandingModule,
   ],
+  controllers: [DocumentsController],
   providers: [
     // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
     DocumentsRegistry,
