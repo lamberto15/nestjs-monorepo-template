@@ -74,7 +74,7 @@ export const INVOICE = defineRecord({
   unique per tenant (a duplicate is a 409 `<item>_taken`). In the declaration:
   `.optional()`, `.unique()`, `.default(v)`, `.searchable()`, `.readOnly()` (set by the
   service, never by a body: in the table and the response, out of the create, update and
-  bulk-update bodies, so out of imports and templates too; the service gives a new row its
+  bulk-update bodies, so out of imports, templates and merges too; the service gives a new row its
   value, and a new required column needs `.default(v)` as any).
 - **Options:** `--unit` (records carry their creator's organizational unit: `unit: true`),
   `--no-soft-delete` (deleted for good, no recycle bin: `softDelete: false`),

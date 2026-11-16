@@ -14,6 +14,7 @@ import {
   fieldSchemas,
   fieldValues,
   fieldView,
+  writableFields,
 } from './fields.js';
 import { fieldList } from './fields.list.js';
 import { defineRecord, recordTable } from '../records/record.js';
@@ -191,6 +192,7 @@ describe('fields', () => {
     });
     type Create = ReturnType<typeof create.parse>;
     expectTypeOf<keyof Create>().toEqualTypeOf<'title'>();
+    expect(Object.keys(writableFields(fields))).toEqual(['title']);
     // Still a NOT NULL column.
     const table = pgTable('test_read_only', {
       id: uuidPk(),

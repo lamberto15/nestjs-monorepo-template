@@ -385,6 +385,12 @@ export function fieldSamples(fields: Fields) {
   };
 }
 
+/** The fields a body may set: the declaration's, without the read-only ones. */
+export const writableFields = (fields: Fields) =>
+  Object.fromEntries(
+    Object.entries(fields).filter(([, f]) => !f.options.readOnly),
+  );
+
 /** The fields part of the text a full-text search reads (`.searchable()`). */
 export const searchableFields = (fields: Fields) =>
   Object.entries(fields)
