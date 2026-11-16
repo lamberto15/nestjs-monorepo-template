@@ -242,7 +242,7 @@ export async function removeCapability(root, options) {
     const text = readFileSync(file, 'utf8');
     if (!text.includes(`${tag} begin`)) continue;
     const { out, count } = stripBlocks(text, tag);
-    change(file, out, `${count} ${tag} block(s)`);
+    if (count) change(file, out, `${count} ${tag} block(s)`);
   }
   for (const relative of COMPOSITION) {
     const file = inside(repo, relative);
