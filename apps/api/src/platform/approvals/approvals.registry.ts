@@ -129,6 +129,13 @@ export class ApprovalsRegistry implements OnApplicationBootstrap {
     this.add(this.conditions, condition, 'condition');
   }
 
+  /** Whether any action of `subject` needs approval: declared with its record or written by hand in its feature. */
+  declares(subject: string) {
+    return [...this.declarations.values()].some(
+      (declaration) => declaration.subject === subject,
+    );
+  }
+
   /** The feature's handler of a declared action. */
   handle(handler: ApprovalHandler) {
     const key = approvalKey(handler.approval);
