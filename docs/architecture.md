@@ -95,10 +95,11 @@ importing it:
   `forRoot()`, the only global module of the platform's own.
 - Each capability module declares its folder's controllers, so the OpenAPI
   document lists the paths in module order. Matching does not depend on that
-  order ("The HTTP server" below). The platform's global enhancers
-  (`ModeGuard`, `UsageInterceptor` while USAGE is on) stay in PlatformModule:
-  Nest orders global enhancers by module, a module's own before its
-  imports', and the capability modules register none.
+  order ("The HTTP server" below). Nest orders global enhancers by module, a
+  module's own before its imports': `ModeGuard` stays in PlatformModule, and
+  `UsageInterceptor` (while USAGE is on) is UsageModule's, imported right
+  after the idempotency module so the meter runs inside it. The other
+  capability modules register none.
 - A new platform provider or controller goes into its folder's module (a new
   folder gets one, imported last in `forRoot()`), and a provider into its
   `exports` when another module injects it.
@@ -172,8 +173,8 @@ the API uses (`req.ip`, `req.get()`, `res.cookie()`, `res.redirect()`,
   table behind row-level security; a request, job, workflow step or cron
   run acts in one tenant, and per-principal keys carry it.
 - **Module order** in `app.module.ts` matters: `PlatformModule` first (the
-  idempotency interceptor is outermost of the rest; with USAGE on, the usage
-  meter wraps it, so a replay is still metered), then `CoreModule` (the rate
+  idempotency interceptor is outermost; the usage meter runs inside it, so a
+  replay is not metered), then `CoreModule` (the rate
   limit guards before authentication), then `IamModule`. It orders the
   global guards, interceptors, pipes and filters, and
   `test/global-enhancers.e2e-spec.ts` checks that order: moving an import

@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { coverage } from './vitest.coverage.js';
 
 export default defineConfig({
   // Resolves the path aliases declared in tsconfig.json, including the ones
@@ -8,14 +9,13 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['**/*.spec.ts'],
-    // Coverage runs only with --coverage (CI's unit shards; `pnpm test:cov`).
-    // The thresholds sit at the measured levels (docs/development.md,
-    // "Coverage"): raise them when a change lifts the numbers, never lower.
+    // Coverage runs only with --coverage (CI's unit step; `pnpm test:cov`).
+    // These thresholds gate the unit tests alone; the gate that counts is the
+    // merged one, unit and e2e together (vitest.config.merge.ts). They sit at
+    // the measured levels (docs/development.md, "Coverage"): raise them when
+    // a change lifts the numbers, never lower.
     coverage: {
-      provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.spec.ts', 'src/**/*.d.ts'],
-      reporter: ['text-summary', 'json-summary'],
+      ...coverage,
       thresholds: { statements: 30, branches: 27, functions: 26, lines: 30 },
     },
   },

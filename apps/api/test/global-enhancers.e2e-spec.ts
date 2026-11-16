@@ -56,13 +56,13 @@ describe('global enhancers (e2e)', () => {
 
   it('runs the interceptors in order', () => {
     expect(names(config.getGlobalInterceptors())).toEqual([
-      // USAGE=on (the tests' default): PlatformModule's own, before its
-      // imports'. It meters every client call, a replay included; the
-      // principal it meters is the guards', which all ran before it.
-      'UsageInterceptor',
-      // Outermost of the rest (IdempotencyModule, PlatformModule's first
-      // import): a replay doesn't pass through the interceptors below again.
+      // Outermost (IdempotencyModule, PlatformModule's first import): a
+      // replay doesn't pass through the interceptors below again.
       'IdempotencyInterceptor',
+      // USAGE=on (the tests' default): UsageModule's, PlatformModule's second
+      // import. It meters a client call the handler runs for, not a replay;
+      // the principal it meters is the guards', which all ran before it.
+      'UsageInterceptor',
       // ResilienceModule (integrations() in PlatformModule): a route's retries
       // and timeouts, outside the authentication scope below, which each
       // attempt opens again.
