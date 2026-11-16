@@ -1,4 +1,5 @@
 import { createHmac } from 'node:crypto';
+import { HttpClient } from '@nestjs/http-client';
 import { InboundSignatureError, SmsSendError } from './sms-provider.js';
 import { TwilioSmsProvider } from './twilio-sms.provider.js';
 
@@ -6,7 +7,6 @@ const options = {
   accountSid: 'ACtest',
   authToken: 'secret-token',
   from: '+15005550006',
-  apiUrl: 'https://twilio.test',
   webhookUrl: 'https://app.test/v1/webhooks/sms/twilio',
 };
 
@@ -37,7 +37,7 @@ describe('TwilioSmsProvider', () => {
       MessageSid: 'SM1',
       To: '+15005550006',
     };
-    const provider = new TwilioSmsProvider(options);
+    const provider = new TwilioSmsProvider(options, new HttpClient());
 
     it('reads a signed message', () => {
       expect(
@@ -77,57 +77,67 @@ describe('TwilioSmsProvider', () => {
   });
 
   describe('send', () => {
+    const input = { to: '+4915112345678', body: 'hi', idempotencyKey: 'k' };
+    /** A client like the platform's (messagingClients()), over a stubbed fetch. */
+    const client = (
+      answer: (request: Request) => Response | Promise<Response>,
+      requests: Request[] = [],
+    ) =>
+      new HttpClient({
+        baseUrl: 'https://twilio.test',
+        retry: {
+          attempts: 2,
+          methods: ['POST'],
+          statusCodes: [429],
+          backoff: { delay: 1 },
+        },
+        fetch: async (url, init) => {
+          const request = new Request(url, init);
+          requests.push(request.clone());
+          return answer(request);
+        },
+      });
     const respond = (status: number, json: unknown) =>
-      new TwilioSmsProvider(options, (async () =>
-        Response.json(json, { status })) as typeof fetch);
+      new TwilioSmsProvider(
+        options,
+        client(() => Response.json(json, { status })),
+      );
 
     it('posts the message with the account credentials', async () => {
-      let seen: { url: string; init: RequestInit } | undefined;
-      const provider = new TwilioSmsProvider(options, (async (
-        url: string,
-        init: RequestInit,
-      ) => {
-        seen = { url, init };
-        return Response.json({ sid: 'SM9' }, { status: 201 });
-      }) as unknown as typeof fetch);
+      const requests: Request[] = [];
+      const provider = new TwilioSmsProvider(
+        options,
+        client(() => Response.json({ sid: 'SM9' }, { status: 201 }), requests),
+      );
       await expect(
-        provider.send({
-          to: '+4915112345678',
-          body: 'hi',
-          idempotencyKey: 'k1',
-        }),
+        provider.send({ ...input, idempotencyKey: 'k1' }),
       ).resolves.toEqual({ id: 'SM9' });
-      expect(seen!.url).toBe(
+      const [request] = requests;
+      expect(request!.url).toBe(
         'https://twilio.test/2010-04-01/Accounts/ACtest/Messages.json',
       );
-      const form = seen!.init.body as URLSearchParams;
+      const form = new URLSearchParams(await request!.text());
       expect(form.get('To')).toBe('+4915112345678');
       expect(form.get('From')).toBe('+15005550006');
-      expect((seen!.init.headers as Record<string, string>).authorization).toBe(
+      expect(request!.headers.get('authorization')).toBe(
         `Basic ${Buffer.from('ACtest:secret-token').toString('base64')}`,
       );
+      expect(request!.headers.get('i-twilio-idempotency-token')).toBe('k1');
     });
 
     it('sends a Messaging Service SID as such', async () => {
-      let form: URLSearchParams | undefined;
+      const requests: Request[] = [];
       const provider = new TwilioSmsProvider(
         { ...options, from: 'MGabc' },
-        (async (_url: string, init: RequestInit) => {
-          form = init.body as URLSearchParams;
-          return Response.json({ sid: 'SM1' }, { status: 201 });
-        }) as unknown as typeof fetch,
+        client(() => Response.json({ sid: 'SM1' }, { status: 201 }), requests),
       );
-      await provider.send({
-        to: '+4915112345678',
-        body: 'hi',
-        idempotencyKey: 'k',
-      });
-      expect(form!.get('MessagingServiceSid')).toBe('MGabc');
-      expect(form!.has('From')).toBe(false);
+      await provider.send(input);
+      const form = new URLSearchParams(await requests[0]!.text());
+      expect(form.get('MessagingServiceSid')).toBe('MGabc');
+      expect(form.has('From')).toBe(false);
     });
 
     it('treats 5xx and 429 as transient, other 4xx as permanent, 21610 as an opt-out', async () => {
-      const input = { to: '+4915112345678', body: 'hi', idempotencyKey: 'k' };
       await expect(respond(503, {}).send(input)).rejects.toMatchObject({
         permanent: false,
       });
@@ -143,6 +153,45 @@ describe('TwilioSmsProvider', () => {
       await expect(respond(400, {}).send(input)).rejects.toBeInstanceOf(
         SmsSendError,
       );
+    });
+
+    it('retries a 429 (not taken) once, but never a 503 (the queue decides)', async () => {
+      const limited: Request[] = [];
+      let first = true;
+      const provider = new TwilioSmsProvider(
+        options,
+        client(() => {
+          const wasFirst = first;
+          first = false;
+          return wasFirst
+            ? new Response('', { status: 429, headers: { 'retry-after': '0' } })
+            : Response.json({ sid: 'SM2' }, { status: 201 });
+        }, limited),
+      );
+      await expect(provider.send(input)).resolves.toEqual({ id: 'SM2' });
+      expect(limited).toHaveLength(2);
+
+      const unavailable: Request[] = [];
+      await expect(
+        new TwilioSmsProvider(
+          options,
+          client(() => new Response('', { status: 503 }), unavailable),
+        ).send(input),
+      ).rejects.toMatchObject({ permanent: false });
+      expect(unavailable).toHaveLength(1);
+    });
+
+    it('reports a network failure as transient', async () => {
+      const provider = new TwilioSmsProvider(
+        options,
+        client(() => {
+          throw new TypeError('fetch failed');
+        }),
+      );
+      await expect(provider.send(input)).rejects.toMatchObject({
+        permanent: false,
+        message: expect.stringContaining('Twilio unreachable'),
+      });
     });
   });
 });

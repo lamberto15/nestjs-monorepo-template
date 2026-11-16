@@ -1,9 +1,8 @@
 import { Module } from '@nestjs/common';
-import { AiRegistry } from './ai.registry.js';
-import { AiProvider, DisabledAiProvider } from './ai-provider.js';
+import { AiModule } from '@nestjs/ai';
 import { ConfigService } from '@nestjs/config';
-import { type PlatformEnv } from '../platform.env.js';
-import { AnthropicProvider } from './anthropic.provider.js';
+import { AiRegistry } from './ai.registry.js';
+import { aiModuleOptions } from './ai-models.js';
 import { AiService } from './ai.service.js';
 import { AiProcessor } from './ai.processor.js';
 import { PlatformKernelModule } from '../platform-kernel.module.js';
@@ -13,29 +12,25 @@ import { AccountModule } from '../account/account.module.js';
 /**
  * The ai capability's providers, exporting what the rest of the platform, IAM,
  * core and the features inject. Imported by PlatformModule, which keeps the routes
- * (platform.module.ts).
+ * (platform.module.ts). Named apart from @nestjs/ai's AiModule, which it imports.
  */
 @Module({
-  imports: [PlatformKernelModule, SettingsModule, AccountModule],
-  providers: [
-    // The AI helper: features register an AiSource; Anthropic unless another AiProvider is provided.
-    AiRegistry,
-    {
-      provide: AiProvider,
+  imports: [
+    PlatformKernelModule,
+    SettingsModule,
+    AccountModule,
+    // The models of the AI helper: Anthropic, through @nestjs/ai.
+    AiModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (config: ConfigService<PlatformEnv, true>) => {
-        const apiKey = config.get('ANTHROPIC_API_KEY', { infer: true });
-        return apiKey
-          ? new AnthropicProvider({
-              apiKey,
-              baseURL: config.get('AI_BASE_URL', { infer: true }),
-            })
-          : new DisabledAiProvider();
-      },
-    },
+      useFactory: aiModuleOptions,
+    }),
+  ],
+  providers: [
+    // The AI helper: features register an AiSource.
+    AiRegistry,
     AiService,
     AiProcessor,
   ],
-  exports: [AiRegistry, AiProvider, AiService],
+  exports: [AiRegistry, AiService],
 })
-export class AiModule {}
+export class PlatformAiModule {}

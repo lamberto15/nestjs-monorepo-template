@@ -132,7 +132,8 @@ the API uses (`req.ip`, `req.get()`, `res.cookie()`, `res.redirect()`,
 
 ## Rules
 
-- **Dependency direction:** core ← iam ← platform ← features. A group never
+- **Dependency direction:** core ← iam ← platform ← features, enforced by
+  oxlint (`no-restricted-imports` in `.oxlintrc.json`; specs are exempt). A group never
   imports a feature; only `features/index.ts`, `features/tables.ts` and
   `features/env.ts` list them all, and `app.module.ts`, `schema.ts`, `env.ts`
   and `openapi.ts` read those lists.
@@ -141,7 +142,7 @@ the API uses (`req.ip`, `req.get()`, `res.cookie()`, `res.redirect()`,
   and everything below, and `features/index.ts` lists it:
   - permissions: `definePermissions()` → `IamModule.forRoot({ permissions })`;
   - webhook event types and incoming senders → `PlatformModule.forRoot({ eventTypes, incomingWebhooks })`;
-  - queues and resilience presets → `PlatformModule.forRoot({ queues, resiliencePresets })`;
+  - queues → `PlatformModule.forRoot({ queues })`;
   - custom fields (`defineCustomFields()`) → `PlatformModule.forRoot({ customFields })`;
   - notification types (`defineNotifications()`) → `PlatformModule.forRoot({ notifications })`;
   - settings and flags (`defineSettings()`) → `PlatformModule.forRoot({ settings })`;

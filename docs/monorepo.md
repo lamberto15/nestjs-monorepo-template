@@ -832,8 +832,11 @@ the server). It is not active under `pnpm dev`.
 
 ### Adding a page for a feature
 
-`pnpm feature:add` writes the API side only; the web side is written by
-hand, after `pnpm client:generate` (the client then types the new routes):
+`pnpm feature:add` writes these files too (tools/feature/web-templates.mjs),
+then regenerates the route tree; run `pnpm client:generate` before building
+them (the client types the new routes). They are a starting point, not
+synced: a field added later, or an add-on's buttons, are edited by hand
+(`features/notes` shows them). What it writes:
 
 1. `features/<feature>/`: its queries (`api.ts`, as `features/notes/api.ts`:
    `?include=can`, the keys of `lib/records.ts`; a detail query that a

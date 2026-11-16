@@ -8,6 +8,8 @@ app".
   it with `shadcn add` (components, blocks, `@diceui/*`), then edit only what
   the task needs.
 - **Generated, never hand-written:** the scaffold (`pnpm create vite`),
+  a feature's pages (`pnpm feature:add` writes `features/<name>/`,
+  `routes/_app/<name>/` and its locale texts; then edit what the task needs),
   shadcn components, the router's route tree (`src/routeTree.gen.ts`) and
   the typed client (`pnpm client:generate`).
 - **Tests:** `*.test.tsx` next to the code, with `renderApp()`, the msw

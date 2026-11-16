@@ -27,8 +27,8 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
    - a link to another feature's record → `ref(<feature>)?` (optional for
      now; the other feature must exist and be referenceable);
    - `?` optional, `!unique` unique per tenant (string, int).
-   Don't add `id`, `ownerId`, `unitId`, timestamps or `deletedAt`: every
-   feature has them.
+     Don't add `id`, `ownerId`, `unitId`, timestamps or `deletedAt`: every
+     feature has them.
 3. **Who sees what.** By default the creator owns a record (`mine`); editors
    change their own, viewers read all. Ask if records belong to the creator's
    organizational unit (`--unit`, the `inMyUnits` conditions and the unit lead's grant) and
@@ -36,14 +36,14 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
    (`--no-soft-delete`). Both can change later (`unit`, `softDelete` in the
    declaration).
 4. **Access beyond people.** Two more questions, with their defaults:
-   - *May API keys use it?* Default **no**: an API client reaches the
+   - _May API keys use it?_ Default **no**: an API client reaches the
      feature only through a role an administrator grants it. Yes →
      `--client-access own` (every client creates, reads, changes and deletes
      the records it created).
-   - *Who gets access by default?* Default the standard roles (editors write
+   - _Who gets access by default?_ Default the standard roles (editors write
      their own, unit leads read their units' (and below), viewers read all). "Only
      administrators until someone grants it" → `--grants none`.
-   - *Idempotency-Key*: don't ask unless they mention payments, money
+   - _Idempotency-Key_: don't ask unless they mention payments, money
      movement or clients retrying; then `--idempotency required` (a retry
      replays; a missing key is a 400), `optional` (honoured when sent) or
      `off`. Otherwise the deployment's `IDEMPOTENCY` rules (nothing to pass).
@@ -70,7 +70,7 @@ Ask with AskUserQuestion where it fits, in at most two rounds:
      it is approved** (`apply`).
    - **"Anything administrators should change at runtime without a deploy?"**
      (a limit, a delay, a mode, a feature switch) → `--settings
-     "paymentDays:int=30,autoSend:flag,tone:enum(formal|casual)=formal"`
+"paymentDays:int=30,autoSend:flag,tone:enum(formal|casual)=formal"`
      (kinds `flag`, `int` with its default, `string`, `enum(a|b)`); read it
      with `settings.get(recordSettings(INVOICE).paymentDays)`.
 7. **Business rules.** What must be true on create and update, what happens
@@ -100,8 +100,12 @@ pnpm db:generate               # its migration: review the SQL, commit apps/api/
 pnpm client:generate           # the typed client
 ```
 
-The generator prints the texts it added in English to other locales: tell
-the user they are to translate.
+The generator prints the texts it added in English to other locales (the API's
+and the web pages'): tell the user they are to translate. With `apps/web` it
+also writes the feature's pages (list, form, detail, nav entry, a test, texts);
+run `pnpm client:generate` before building them, and adapt them as the task
+needs. The generated shape is the reference; `features/notes` is the showcase of
+add-ons, not a template to copy.
 
 ## 4. Write the business logic, and only that
 
@@ -157,6 +161,8 @@ declares its fields, capabilities, recycle bin (`softDelete`) and organizational
    force past it.
 4. `pnpm db:generate` and `pnpm client:generate` when it says so; review the
    SQL.
+   `feature:sync` leaves the web pages alone: add the field to the form
+   (`<item>-form.tsx`), the list columns, the detail and the locale texts by hand.
 5. Business rules for the new field or capability go in the service as in
    step 4 below; the capability's tests come with it
    (`describeCapabilities` in the feature's e2e spec).

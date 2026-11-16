@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
-import { smsProvider, pushProvider } from './messaging.providers.js';
+import {
+  messagingClients,
+  pushProvider,
+  smsProvider,
+} from './messaging.providers.js';
 import { MessagingService } from './messaging.service.js';
 import { MessagingLimits } from './messaging-limits.service.js';
 import { MessagingProcessor } from './messaging.processor.js';
@@ -18,7 +22,13 @@ import { AccountModule } from '../account/account.module.js';
  * (platform.module.ts).
  */
 @Module({
-  imports: [PlatformKernelModule, SettingsModule, AccountModule],
+  imports: [
+    PlatformKernelModule,
+    SettingsModule,
+    AccountModule,
+    // Twilio and FCM (the messaging providers' HTTP calls).
+    ...messagingClients(),
+  ],
   providers: [
     // Push and SMS (docs/notifications.md): channels that queue, a worker that sends within the caps.
     smsProvider,

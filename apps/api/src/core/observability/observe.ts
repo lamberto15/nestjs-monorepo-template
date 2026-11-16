@@ -11,6 +11,10 @@ import { logRedaction } from '../logging/redaction.js';
  * OBSERVE_APP_SECRET are set (your project's API keys page), and the app runs
  * the same without it.
  *
+ * With `OTEL_EXPORTER_OTLP_ENDPOINT` set as well, Observe joins the
+ * OpenTelemetry setup instead of running beside a second SDK: see
+ * `observeOtlpOptions` and telemetry.ts.
+ *
  * `x-request-id` from Caddy or the client becomes the trace id (the SDK's
  * default), so one id follows a request through the proxy, the logs and the
  * traces.
@@ -84,6 +88,17 @@ export const { ObserveModule, ObserveInstrument } = createObserveModule({
 export const observeEnabled = (env: NodeJS.ProcessEnv = process.env) =>
   Boolean(env.OBSERVE_APP_KEY && env.OBSERVE_APP_SECRET);
 
+/**
+ * What Observe does about OpenTelemetry. With the OTLP endpoint set, Observe
+ * reads and sends W3C `traceparent` (`openTelemetry`) and exports its spans
+ * to that collector (`otlp: true` reads the endpoint, headers, protocol and
+ * service name from the standard `OTEL_*` variables), and the standalone SDK
+ * is not started (telemetry.ts), so http and pg are instrumented once and each
+ * trace is exported once. Without the endpoint, Observe runs as before.
+ */
+export const observeOtlpOptions = (endpoint: string | undefined) =>
+  endpoint?.trim() ? { openTelemetry: true, otlp: true } : {};
+
 /** The Observe module when it's configured, nothing otherwise. */
 export const observability = () =>
   ConditionalModule.registerWhen(
@@ -95,6 +110,9 @@ export const observability = () =>
         serviceId: config.get('SERVICE_NAME', { infer: true }),
         // Set by the image's GIT_SHA build argument; empty in a local build.
         serviceVersion: process.env.GIT_SHA || undefined,
+        ...observeOtlpOptions(
+          config.get('OTEL_EXPORTER_OTLP_ENDPOINT', { infer: true }),
+        ),
         http: {
           tags: { env: appEnv(config) },
           getUserId: (req: { user?: { kind?: string; id?: string } | null }) =>

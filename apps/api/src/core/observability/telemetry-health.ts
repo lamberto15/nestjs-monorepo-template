@@ -83,6 +83,24 @@ export function observeRefusalStatus(message: unknown): number | undefined {
   return status ? Number(status) : undefined;
 }
 
+/**
+ * A refusal of Observe's own OTLP export (`otlp: true`, observe.ts), which
+ * the standalone SDK's exporters (telemetry.ts) do not make in that setup. It
+ * logs "OTLP export to <url> failed: it answered 429 ..." and repeats a line
+ * only when the reason changes, so this counts each change. Custom code, as
+ * above: the exporter has no hook or metric.
+ */
+const OBSERVE_OTLP_REFUSAL =
+  /\bOTLP export to \S+ failed: it answered (\d{3})\b/;
+
+export function observeOtlpRefusalStatus(message: unknown) {
+  if (typeof message !== 'string') {
+    return undefined;
+  }
+  const status = OBSERVE_OTLP_REFUSAL.exec(message)?.[1];
+  return status ? Number(status) : undefined;
+}
+
 /** Forgets everything: tests only. */
 export function resetTelemetryHealth() {
   counts.clear();

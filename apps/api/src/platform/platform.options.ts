@@ -1,4 +1,3 @@
-import type { ResiliencePreset } from '@nestjs/resilience';
 import type { ConsentKindDeclaration } from './account/consent-kinds.js';
 import type { ApprovalDeclaration } from './approvals/approval.types.js';
 import type { CustomFieldsDeclaration } from './custom-fields/custom-field.types.js';
@@ -50,11 +49,6 @@ export interface PlatformOptions {
    * `@Processor(name)` class consumes them.
    */
   queues?: readonly string[];
-  /**
-   * Named resilience policies, usually one per external dependency:
-   * `@Resilience(name)` on a route, `resilience.preset(name)` in a service.
-   */
-  resiliencePresets?: Record<string, ResiliencePreset>;
   /**
    * The subjects whose records take custom fields, and where their values
    * live (`defineCustomFields()`): managed at /custom-fields.

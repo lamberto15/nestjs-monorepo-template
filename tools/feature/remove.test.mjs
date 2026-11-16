@@ -10,6 +10,7 @@ import {
   existsSync,
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   symlinkSync,
@@ -309,6 +310,66 @@ describe('removeFeature on the web app', () => {
       () => removeFeature(root, { name: 'invoices' }),
       /no features\/invoices/,
     );
+  });
+});
+
+describe('add then remove', () => {
+  it('leaves the tree as it was, the web app and the API alike', async () => {
+    const root = mkdtempSync(path.join(tmpdir(), 'feature-symmetry-'));
+    try {
+      copyFileSync(
+        path.join(REPO, '.prettierrc'),
+        path.join(root, '.prettierrc'),
+      );
+      const copy = (file) => {
+        mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
+        copyFileSync(path.join(REPO, file), path.join(root, file));
+      };
+      for (const file of [
+        'src/features/index.ts',
+        'src/features/tables.ts',
+        'test/openapi.e2e-spec.ts',
+        ...LOCALES.flatMap((lng) => [
+          `src/i18n/${lng}/notifications.json`,
+          `src/i18n/${lng}/documents.json`,
+        ]),
+      ]) {
+        copy(`apps/api/${file}`);
+      }
+      mkdirSync(path.join(root, 'apps/web/src/routes/_app'), {
+        recursive: true,
+      });
+      for (const lng of LOCALES) {
+        mkdirSync(path.join(root, 'apps/web/src/locales', lng), {
+          recursive: true,
+        });
+      }
+      /** Every file under the root with its text. */
+      const snapshot = () => {
+        const found = {};
+        const walk = (dir) => {
+          for (const entry of readdirSync(dir, { withFileTypes: true })) {
+            const file = path.join(dir, entry.name);
+            if (entry.isDirectory()) walk(file);
+            else found[path.relative(root, file)] = readFileSync(file, 'utf8');
+          }
+        };
+        walk(root);
+        return found;
+      };
+      const before = snapshot();
+      await addFeature(root, {
+        name: 'invoice-lines',
+        fields: 'title:string,total:money',
+        with: 'comments,numbered',
+      });
+      assert.notDeepEqual(snapshot(), before);
+      await removeFeature(root, { name: 'invoice-lines' });
+      // Directories the remove empties are not files: the snapshots compare files only.
+      assert.deepEqual(snapshot(), before);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
 

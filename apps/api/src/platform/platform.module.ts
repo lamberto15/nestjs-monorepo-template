@@ -164,7 +164,7 @@ import { SequencesModule } from './sequences/sequences.module.js';
 import { AttachmentsModule } from './attachments/attachments.module.js';
 import { ImagesModule } from './images/images.module.js';
 import { DocumentsModule } from './documents/documents.module.js';
-import { AiModule } from './ai/ai.module.js';
+import { PlatformAiModule } from './ai/ai.module.js';
 import { CommentsModule } from './comments/comments.module.js';
 import { AcknowledgmentsModule } from './acknowledgments/acknowledgments.module.js';
 import { TagsModule } from './tags/tags.module.js';
@@ -340,7 +340,7 @@ export class PlatformModule {
         storage(),
         // The options and the queues, for every module below (global).
         optionsModule,
-        ...integrations(options.resiliencePresets ?? {}),
+        ...integrations(),
         WorkflowsModule.forRootAsync({
           inject: [ConfigService],
           useFactory: (config: ConfigService<PlatformEnv, true>) => ({
@@ -406,7 +406,7 @@ export class PlatformModule {
         AttachmentsModule,
         ImagesModule,
         DocumentsModule,
-        AiModule,
+        PlatformAiModule,
         CommentsModule,
         AcknowledgmentsModule,
         TagsModule,
@@ -590,7 +590,7 @@ export class PlatformModule {
         // A record's templates register here (record-parts.ts).
         TemplatesModule,
         DocumentsModule,
-        AiModule,
+        PlatformAiModule,
         CommentsModule,
         TagsModule,
         RetentionModule,

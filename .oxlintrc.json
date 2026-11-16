@@ -99,6 +99,137 @@
       }
     },
     {
+      "files": ["apps/api/src/core/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(\\.\\./)+(iam|platform|features)/",
+                "message": "Layering is core ← iam ← platform ← features: core/ must not import iam/ or platform/ or features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/api/src/core/**/*.controller.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["drizzle-orm", "drizzle-orm/*"],
+                "message": "Controllers do HTTP only: a service composes its query predicates (docs/architecture.md, 'Code style')."
+              },
+              {
+                "regex": "^(\\.\\./)+(iam|platform|features)/",
+                "message": "Layering is core ← iam ← platform ← features: core/ must not import iam/ or platform/ or features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/api/src/iam/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(\\.\\./)+(platform|features)/",
+                "message": "Layering is core ← iam ← platform ← features: iam/ must not import platform/ or features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/api/src/iam/**/*.controller.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["drizzle-orm", "drizzle-orm/*"],
+                "message": "Controllers do HTTP only: a service composes its query predicates (docs/architecture.md, 'Code style')."
+              },
+              {
+                "regex": "^(\\.\\./)+(platform|features)/",
+                "message": "Layering is core ← iam ← platform ← features: iam/ must not import platform/ or features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/api/src/platform/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(\\.\\./){2,}(features)/",
+                "message": "Layering is core ← iam ← platform ← features: platform/ must not import features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "files": ["apps/api/src/platform/**/*.controller.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["drizzle-orm", "drizzle-orm/*"],
+                "message": "Controllers do HTTP only: a service composes its query predicates (docs/architecture.md, 'Code style')."
+              },
+              {
+                "regex": "^(\\.\\./){2,}(features)/",
+                "message": "Layering is core ← iam ← platform ← features: platform/ must not import features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Directly in platform/, one `../` already leaves the group
+      // (`./features/` is platform's own folder and does not match).
+      "files": ["apps/api/src/platform/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(\\.\\./)+(features)/",
+                "message": "Layering is core ← iam ← platform ← features: platform/ must not import features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      // Specs may reach across layers to check a registry or a table.
+      "files": ["apps/api/src/{core,iam,platform}/**/*.spec.ts"],
+      "rules": { "no-restricted-imports": "off" }
+    },
+    {
       "files": ["apps/web/src/lib/zod.ts"],
       "rules": {
         "no-restricted-imports": "off"
