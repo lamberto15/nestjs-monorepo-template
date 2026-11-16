@@ -16,7 +16,7 @@ import type { SettingScope } from './setting.types.js';
  * for the declared settings: one row per setting and scope. Declarations
  * and defaults live in code; a row only holds what differs.
  */
-export const settingOverrides = pgTable(
+export const settingOverrides = pgTable.withRLS(
   'setting_overrides',
   {
     id: uuidPk(),
@@ -45,7 +45,7 @@ export const settingOverrides = pgTable(
     ),
     ...tenantTable('setting_overrides', table),
   ],
-).enableRLS();
+);
 
 /**
  * What the deployment's operators set for every tenant

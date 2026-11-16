@@ -1,0 +1,169 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "028fe85b-1e44-4cda-9427-e36966985e85",
+  "prevIds": [
+    "61368038-8cd9-4dfe-ba95-9bdbf1afcc19"
+  ],
+  "footprints": [
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "test_items",
+        "published_at"
+      ],
+      "writes": [
+        "s|colprop|public.test_items.published_at.type",
+        "s|colprop|public.test_items.published_at.default"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.published_at"
+      ],
+      "sqlHash": "05e4c981fb5ddd08"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "test_items",
+        "created_at"
+      ],
+      "writes": [
+        "s|colprop|public.test_items.created_at.type",
+        "s|colprop|public.test_items.created_at.default"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.created_at"
+      ],
+      "sqlHash": "0d65053542c21a70"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "test_items",
+        "updated_at"
+      ],
+      "writes": [
+        "s|colprop|public.test_items.updated_at.type",
+        "s|colprop|public.test_items.updated_at.default"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.updated_at"
+      ],
+      "sqlHash": "1d01241e87c4f315"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "test_items",
+        "deleted_at"
+      ],
+      "writes": [
+        "s|colprop|public.test_items.deleted_at.type",
+        "s|colprop|public.test_items.deleted_at.default"
+      ],
+      "reads": [
+        "n|tbl|public.test_items",
+        "n|sch|public",
+        "n|col|public.test_items.deleted_at"
+      ],
+      "sqlHash": "c11d093090b0bc55"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "test_encrypted_records",
+        "created_at"
+      ],
+      "writes": [
+        "s|colprop|public.test_encrypted_records.created_at.type",
+        "s|colprop|public.test_encrypted_records.created_at.default"
+      ],
+      "reads": [
+        "n|tbl|public.test_encrypted_records",
+        "n|sch|public",
+        "n|col|public.test_encrypted_records.created_at"
+      ],
+      "sqlHash": "85d5e00034c6c64f"
+    },
+    {
+      "statementType": "alter_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "test_encrypted_records",
+        "updated_at"
+      ],
+      "writes": [
+        "s|colprop|public.test_encrypted_records.updated_at.type",
+        "s|colprop|public.test_encrypted_records.updated_at.default"
+      ],
+      "reads": [
+        "n|tbl|public.test_encrypted_records",
+        "n|sch|public",
+        "n|col|public.test_encrypted_records.updated_at"
+      ],
+      "sqlHash": "112007ab404d7f9f"
+    }
+  ],
+  "deltas": [
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"test_items\",\"published_at\"]",
+      "set": {
+        "type": "timestamp(3) with time zone"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"test_items\",\"created_at\"]",
+      "set": {
+        "type": "timestamp(3) with time zone"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"test_items\",\"updated_at\"]",
+      "set": {
+        "type": "timestamp(3) with time zone"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"test_items\",\"deleted_at\"]",
+      "set": {
+        "type": "timestamp(3) with time zone"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"test_encrypted_records\",\"created_at\"]",
+      "set": {
+        "type": "timestamp(3) with time zone"
+      }
+    },
+    {
+      "op": "alter",
+      "key": "columns\u0000[\"public\",\"test_encrypted_records\",\"updated_at\"]",
+      "set": {
+        "type": "timestamp(3) with time zone"
+      }
+    }
+  ]
+}

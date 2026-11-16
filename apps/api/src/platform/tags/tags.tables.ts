@@ -18,7 +18,7 @@ import {
  * Tags (labels) administrators define per subject (`Note`): a name unique
  * per subject whatever its case, a colour, a description.
  */
-export const tags = pgTable(
+export const tags = pgTable.withRLS(
   'tags',
   {
     id: uuidPk(),
@@ -39,13 +39,13 @@ export const tags = pgTable(
     ),
     ...tenantTable('tags', table, { referenced: true }),
   ],
-).enableRLS();
+);
 
 /**
  * Which record carries which tag: a link row, added and removed, never
  * edited. Deleting a tag removes its links (cascade).
  */
-export const recordTags = pgTable(
+export const recordTags = pgTable.withRLS(
   'record_tags',
   {
     tenantId: tenantColumn(),
@@ -65,4 +65,4 @@ export const recordTags = pgTable(
       [tags.tenantId, tags.id],
     ),
   ],
-).enableRLS();
+);

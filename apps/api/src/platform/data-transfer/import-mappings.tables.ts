@@ -11,7 +11,7 @@ import type { ImportMapping } from './import-mapping.js';
  * again against the importer's schema and the caller's field permissions
  * whenever one is used.
  */
-export const importMappings = pgTable(
+export const importMappings = pgTable.withRLS(
   'import_mappings',
   {
     id: uuidPk(),
@@ -31,6 +31,6 @@ export const importMappings = pgTable(
     ),
     ...tenantTable('import_mappings', table),
   ],
-).enableRLS();
+);
 
 export type ImportMappingRow = typeof importMappings.$inferSelect;

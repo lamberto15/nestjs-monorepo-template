@@ -27,7 +27,7 @@ export type AiRunStatus = (typeof AI_RUN_STATUSES)[number];
  * on the worker. The model id and the prompt-template version are stored so
  * a change of either can be traced to the runs it affects.
  */
-export const aiRuns = pgTable(
+export const aiRuns = pgTable.withRLS(
   'ai_runs',
   {
     id: uuidPk(),
@@ -67,6 +67,6 @@ export const aiRuns = pgTable(
       .where(sql`${table.status} in ('queued', 'running')`),
     ...tenantTable('ai_runs', table),
   ],
-).enableRLS();
+);
 
 export type AiRunRow = typeof aiRuns.$inferSelect;

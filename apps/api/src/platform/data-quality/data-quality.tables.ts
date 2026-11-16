@@ -23,7 +23,7 @@ export type QualitySeverity = (typeof QUALITY_SEVERITIES)[number];
  * dismissed by someone who decided it is right as it is (and stays so while
  * it holds). Nothing here ever changes the record.
  */
-export const dataQualityFindings = pgTable(
+export const dataQualityFindings = pgTable.withRLS(
   'data_quality_findings',
   {
     id: uuidPk(),
@@ -54,12 +54,12 @@ export const dataQualityFindings = pgTable(
       table.field,
     ),
   ],
-).enableRLS();
+);
 
 export type DataQualityFindingRow = typeof dataQualityFindings.$inferSelect;
 
 /** A scan of the tenant's records, its progress and how it ended. */
-export const dataQualityScans = pgTable(
+export const dataQualityScans = pgTable.withRLS(
   'data_quality_scans',
   {
     id: uuidPk(),
@@ -82,6 +82,6 @@ export const dataQualityScans = pgTable(
     ...tenantTable('data_quality_scans', table),
     index('data_quality_scans_tenant_idx').on(table.tenantId, table.createdAt),
   ],
-).enableRLS();
+);
 
 export type DataQualityScanRow = typeof dataQualityScans.$inferSelect;

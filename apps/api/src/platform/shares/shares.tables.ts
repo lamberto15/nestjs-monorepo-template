@@ -19,7 +19,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * its maker. A tenant table: the link names its tenant, so it is looked up
  * in that tenant's scope, as an invitation is.
  */
-export const recordShares = pgTable(
+export const recordShares = pgTable.withRLS(
   'record_shares',
   {
     id: uuidPk(),
@@ -62,4 +62,4 @@ export const recordShares = pgTable(
       table.recordId,
     ),
   ],
-).enableRLS();
+);

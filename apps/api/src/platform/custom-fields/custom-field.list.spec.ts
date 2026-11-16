@@ -87,7 +87,7 @@ describe('customFilterFields', () => {
     expect(eq.params).toEqual(['eu']);
     const any = render(fields['custom.region'].conditions!.in!(['eu', 'us']));
     expect(any.sql).toBe(
-      `("invoices"."custom" @> jsonb_build_object('region', $1::text) or "invoices"."custom" @> jsonb_build_object('region', $2::text))`,
+      `(("invoices"."custom" @> jsonb_build_object('region', $1::text)) or ("invoices"."custom" @> jsonb_build_object('region', $2::text)))`,
     );
     expect(render(fields['custom.amount'].conditions!.eq!(5)).sql).toContain(
       `jsonb_build_object('amount', $1::numeric)`,
@@ -103,7 +103,7 @@ describe('customFilterFields', () => {
   it('gives a multiSelect "holds any of" as containment of a one-element array', () => {
     const any = render(fields['custom.tags'].conditions!.in!(['a', 'b']));
     expect(any.sql).toBe(
-      `("invoices"."custom" @> jsonb_build_object('tags', jsonb_build_array($1::text)) or "invoices"."custom" @> jsonb_build_object('tags', jsonb_build_array($2::text)))`,
+      `(("invoices"."custom" @> jsonb_build_object('tags', jsonb_build_array($1::text))) or ("invoices"."custom" @> jsonb_build_object('tags', jsonb_build_array($2::text))))`,
     );
     expect(any.sql).not.toContain('?|');
     expect(any.params).toEqual(['a', 'b']);

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { I18nService } from '@nestjs/i18n';
-import { and, eq, getTableColumns } from 'drizzle-orm';
+import { and, eq, getColumns } from 'drizzle-orm';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { walkList } from '../../core/http/pagination.js';
 import {
@@ -78,7 +78,7 @@ export class NotificationTransfer implements DataExporter<
       list,
       ({ after, orderBy, limit }) =>
         this.db
-          .select({ ...getTableColumns(notifications), ...extra })
+          .select({ ...getColumns(notifications), ...extra })
           .from(notifications)
           .where(and(where, after))
           .orderBy(...orderBy)

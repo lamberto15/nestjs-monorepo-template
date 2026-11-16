@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, getTableColumns } from 'drizzle-orm';
+import { and, desc, getColumns } from 'drizzle-orm';
 import {
   headline,
   matches,
@@ -59,7 +59,7 @@ export class NoteSearch implements SearchSource {
       db
         // The whole row: the permission conditions (`mine`) read it.
         .select({
-          ...getTableColumns(notes),
+          ...getColumns(notes),
           score,
           titleSnippet: headline(notes.title, q),
           bodySnippet: headline(notes.body, q),

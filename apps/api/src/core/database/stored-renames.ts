@@ -1,7 +1,8 @@
 import {
   count,
   eq,
-  getTableColumns,
+  getColumnTable,
+  getColumns,
   getTableName,
   like,
   sql,
@@ -53,7 +54,7 @@ export async function applyStoredRenames(
         await scopeToTenant(tx, id);
         for (const rename of renames) {
           const { column } = rename;
-          const table = column.table as PgTable;
+          const table = getColumnTable<PgTable>(column);
           const key = keyOf(table, column);
           // A JSON column: the quoted name, wherever it sits in the document.
           const result = rename.json
@@ -85,7 +86,7 @@ export async function applyStoredRenames(
       const changed = counts.get(rename) ?? 0;
       if (changed > 0) {
         log(
-          `Stored names: ${getTableName(rename.column.table)}.${rename.column.name} ${rename.from} → ${rename.to} in ${changed} rows.`,
+          `Stored names: ${getTableName(getColumnTable(rename.column))}.${rename.column.name} ${rename.from} → ${rename.to} in ${changed} rows.`,
         );
       }
     }
@@ -130,7 +131,7 @@ export async function assertNoRetiredNames(
         for (const { column, name, json, prefix } of retired) {
           const [row] = await tx
             .select({ rows: count() })
-            .from(column.table as PgTable)
+            .from(getColumnTable<PgTable>(column))
             .where(
               json
                 ? like(sql`${column}::text`, `%"${name}"%`)
@@ -140,7 +141,7 @@ export async function assertNoRetiredNames(
             );
           if (row && row.rows > 0) {
             found.push(
-              `${getTableName(column.table)}.${column.name} holds ${prefix ? 'a value starting with ' : ''}"${name}" in ${row.rows} rows (tenant ${id})`,
+              `${getTableName(getColumnTable(column))}.${column.name} holds ${prefix ? 'a value starting with ' : ''}"${name}" in ${row.rows} rows (tenant ${id})`,
             );
           }
         }
@@ -169,7 +170,7 @@ async function scopeToTenant(
 
 /** The property a column has in its table (`set()` takes properties, not column names). */
 function keyOf(table: PgTable, column: PgColumn) {
-  const entry = Object.entries(getTableColumns(table)).find(
+  const entry = Object.entries(getColumns(table)).find(
     ([, candidate]) => candidate === column,
   );
   if (!entry) {

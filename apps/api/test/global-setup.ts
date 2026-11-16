@@ -306,8 +306,8 @@ export default async function setup(project: TestProject) {
       maintenanceUrl: databaseUrl(maintenanceUrl, template),
     };
     await migrateAll(urls);
-    // Then the test-only features' tables (test/fixtures), in a journal of
-    // their own, and the app role granted them as it is the app's.
+    // Then the test-only features' tables (test/fixtures), in a migrations
+    // table of their own, and the app role granted them as it is the app's.
     const fixtures = drizzle({ connection: urls.ownerUrl });
     try {
       await migrate(fixtures, {

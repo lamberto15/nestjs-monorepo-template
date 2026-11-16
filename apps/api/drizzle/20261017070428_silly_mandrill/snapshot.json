@@ -1,0 +1,77 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "8433c11b-ef08-4bb7-afeb-2875d89b5e4b",
+  "prevIds": [
+    "c365d647-c43e-4acc-8a45-3a22b0e4eb3a"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_unique",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|uq|public.teams.org_units_tenant_id_id_key",
+        "n|uq|public.teams.org_units_tenant_id_id_key",
+        "e|uq|public.teams.org_units_tenant_id_id_key",
+        "n|con|public.teams.org_units_tenant_id_id_key",
+        "n|rel|public.org_units_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "e|col|public.teams.tenant_id",
+        "e|col|public.teams.id"
+      ],
+      "sharedWrites": [
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "add_unique",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|uq|public.teams.teams_tenant_id_id_key",
+        "n|uq|public.teams.teams_tenant_id_id_key",
+        "e|uq|public.teams.teams_tenant_id_id_key",
+        "n|con|public.teams.teams_tenant_id_id_key",
+        "n|rel|public.teams_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "uniques\u0000[\"public\",\"teams\",\"org_units_tenant_id_id_key\"]"
+    }
+  ]
+}

@@ -1039,7 +1039,7 @@ export function scramSha256Verifier(password: string, salt = randomBytes(16)) {
   return `SCRAM-SHA-256$${iterations}:${salt.toString('base64')}$${storedKey.toString('base64')}:${serverKey.toString('base64')}`;
 }
 
-/** The tables of the schema that declare row-level security (`.enableRLS()`): the tenant tables. */
+/** The tables of the schema that declare row-level security (`pgTable.withRLS()`): the tenant tables. */
 function rowSecuredTables(extraTables: Record<string, unknown> = {}) {
   return [...Object.values(schema), ...Object.values(extraTables)]
     .filter((value) => is(value, PgTable))
@@ -1054,7 +1054,7 @@ function rowSecuredTables(extraTables: Record<string, unknown> = {}) {
 /**
  * `FORCE ROW LEVEL SECURITY` on every tenant table, so the policies bind
  * the tables' owner too (a migration, a fixture run as the owner): what
- * drizzle-kit can't emit (it writes `ENABLE`, from `.enableRLS()` and the
+ * drizzle-kit can't emit (it writes `ENABLE`, from `pgTable.withRLS()` and the
  * policies), done here as code, idempotently: only a table not forced yet
  * is altered (an ALTER TABLE takes its strongest lock).
  */
@@ -1088,7 +1088,7 @@ async function forceRowLevelSecurity(
  * no other permissive policy (docs/tenancy.md). Except the few global
  * tables that only record which tenant a row belongs to
  * (GLOBAL_TABLES_WITH_TENANT: memberships, API keys). A table someone added
- * without `tenantTable()` and `.enableRLS()`, or a policy edited by hand
+ * without `tenantTable()` and `pgTable.withRLS()`, or a policy edited by hand
  * (`ALTER POLICY … USING (true)`), stops the deploy here.
  *
  * The expressions are compared in PostgreSQL's own normalized form, not as
@@ -1162,7 +1162,7 @@ async function assertTenantWall(
   });
   if (problems.length > 0) {
     throw new Error(
-      `Tenant tables without their wall: ${problems.join('; ')}. Declare them with tenantTable() and .enableRLS(), and change a policy only there (pnpm db:generate), never by hand (docs/tenancy.md).`,
+      `Tenant tables without their wall: ${problems.join('; ')}. Declare them with pgTable.withRLS() and tenantTable(), and change a policy only there (pnpm db:generate), never by hand (docs/tenancy.md).`,
     );
   }
 }

@@ -1,0 +1,404 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "31dab1ae-e468-4a2b-b174-acc89a1f1b41",
+  "prevIds": [
+    "52646638-ec46-4212-9c1b-e8edb22bb1ef"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "import_mappings"
+      ],
+      "writes": [
+        "s|tbl|public.import_mappings",
+        "n|tbl|public.import_mappings",
+        "e|tbl|public.import_mappings",
+        "n|rel|public.import_mappings",
+        "n|type|public.import_mappings",
+        "n|rel|public.import_mappings_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "import_mappings",
+        "import_mappings_name_idx"
+      ],
+      "writes": [
+        "s|idx|public.import_mappings_name_idx",
+        "n|idx|public.import_mappings_name_idx",
+        "e|idx|public.import_mappings_name_idx",
+        "n|rel|public.import_mappings_name_idx"
+      ],
+      "reads": [
+        "n|tbl|public.import_mappings",
+        "n|sch|public",
+        "n|col|public.import_mappings.tenant_id",
+        "n|col|public.import_mappings.importer"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "import_mappings"
+      ],
+      "writes": [
+        "s|fk|public.import_mappings.import_mappings_tenant_id_tenants_id_fk",
+        "n|fk|public.import_mappings.import_mappings_tenant_id_tenants_id_fk",
+        "e|fk|public.import_mappings.import_mappings_tenant_id_tenants_id_fk",
+        "n|con|public.import_mappings.import_mappings_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.import_mappings",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.import_mappings.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "import_mappings"
+      ],
+      "writes": [
+        "s|pol|public.import_mappings.import_mappings_tenant_select",
+        "n|pol|public.import_mappings.import_mappings_tenant_select",
+        "e|pol|public.import_mappings.import_mappings_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.import_mappings",
+        "n|sch|public",
+        "e|rls|public.import_mappings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "import_mappings"
+      ],
+      "writes": [
+        "s|pol|public.import_mappings.import_mappings_tenant_insert",
+        "n|pol|public.import_mappings.import_mappings_tenant_insert",
+        "e|pol|public.import_mappings.import_mappings_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.import_mappings",
+        "n|sch|public",
+        "e|rls|public.import_mappings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "import_mappings"
+      ],
+      "writes": [
+        "s|pol|public.import_mappings.import_mappings_tenant_update",
+        "n|pol|public.import_mappings.import_mappings_tenant_update",
+        "e|pol|public.import_mappings.import_mappings_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.import_mappings",
+        "n|sch|public",
+        "e|rls|public.import_mappings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "import_mappings"
+      ],
+      "writes": [
+        "s|pol|public.import_mappings.import_mappings_tenant_delete",
+        "n|pol|public.import_mappings.import_mappings_tenant_delete",
+        "e|pol|public.import_mappings.import_mappings_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.import_mappings",
+        "n|sch|public",
+        "e|rls|public.import_mappings"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "import_mappings",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "importer",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "mapping",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "import_mappings_name_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "importer",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "lower(\"name\")",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "import_mappings_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "import_mappings_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "import_mappings_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"import_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "import_mappings_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"import_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "import_mappings_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"import_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"import_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "import_mappings",
+        "name": "import_mappings_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"import_mappings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}
