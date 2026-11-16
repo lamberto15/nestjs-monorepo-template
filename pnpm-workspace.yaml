@@ -50,11 +50,11 @@ allowBuilds:
   # addon for the platform (verified against the hashes pinned in the
   # package), or builds it with node-gyp when none matches.
   re2: true
-patchedDependencies:
-  '@nestjs/authentication@0.1.1': patches/@nestjs__authentication@0.1.1.patch
 # Exempt from pnpm's minimum release age (a new version waits before install).
 # turbosheet: the owner's own library (data-transfer's Excel), published from
 # its CI with npm provenance.
 minimumReleaseAgeExclude:
   - systeminformation@5.33.18
   - turbosheet@0.3.0
+patchedDependencies:
+  '@nestjs/authentication@0.1.6': patches/@nestjs__authentication@0.1.6.patch

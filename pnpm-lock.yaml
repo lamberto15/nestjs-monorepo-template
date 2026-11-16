@@ -177,7 +177,7 @@ overrides:
   '@esbuild-kit/core-utils>esbuild': 0.25.12
 
 patchedDependencies:
-  '@nestjs/authentication@0.1.1': de2398ad2367928334ff9bdc5b06dcff369aa2951b31bdd4680e5e6cc80457c7
+  '@nestjs/authentication@0.1.6': bac8fd6e2106803c13a841381e96b451691e618460911fa12d537ca6a867dd1f
 
 importers:
 
@@ -232,11 +232,11 @@ importers:
         specifier: 0.0.2
         version: 0.0.2(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/resilience@0.0.3(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/testing@12.4.0(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/platform-express@12.3.2))(@nestjs/workflows@0.0.5(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.9)(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(reflect-metadata@0.2.2)(rxjs@7.8.2))(ai@7.0.173(zod@4.6.7))(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/authentication':
-        specifier: 0.1.1
-        version: 0.1.1(patch_hash=de2398ad2367928334ff9bdc5b06dcff369aa2951b31bdd4680e5e6cc80457c7)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        specifier: 0.1.6
+        version: 0.1.6(patch_hash=bac8fd6e2106803c13a841381e96b451691e618460911fa12d537ca6a867dd1f)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/authorization':
-        specifier: 0.1.3
-        version: 0.1.3(@nestjs/authentication@0.1.1(patch_hash=de2398ad2367928334ff9bdc5b06dcff369aa2951b31bdd4680e5e6cc80457c7)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+        specifier: 0.1.4
+        version: 0.1.4(@nestjs/authentication@0.1.6(patch_hash=bac8fd6e2106803c13a841381e96b451691e618460911fa12d537ca6a867dd1f)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/bullmq':
         specifier: 12.0.1
         version: 12.0.1(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(bullmq@6.5.0(ioredis@6.0.0(supports-color@10.2.2))(pg@8.23.1))
@@ -2751,8 +2751,8 @@ packages:
       '@nestjs/workflows':
         optional: true
 
-  '@nestjs/authentication@0.1.1':
-    resolution: {integrity: sha512-WHwFJ31+5rnL8iSMgptzrfGDC84b4neLK32laI486M+LrMyxWorYDx5/gBAmPlop1fI+ZKkyb2Flz+D4VxfxNg==}
+  '@nestjs/authentication@0.1.6':
+    resolution: {integrity: sha512-yn059mWgcV8GWz1JfFVmMoGBCQuiYaBXaXTBl39pvm98p/Jhhl8s+K5Wb9KeCJN52/gJNdD968EVL9Aqq07GvQ==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       '@nestjs/common': ^12.0.0
@@ -2767,8 +2767,8 @@ packages:
       '@nestjs/websockets':
         optional: true
 
-  '@nestjs/authorization@0.1.3':
-    resolution: {integrity: sha512-Ho3r3FfGvf/L7a5PmxDi26cz1MJdKU4jcR0KwaEqmFMttz3l48YBJ2Jz7ow9mwTCn7JuZQjDi1xuA0FmhvyE3Q==}
+  '@nestjs/authorization@0.1.4':
+    resolution: {integrity: sha512-rA79qYNut3PoS8/+fQkMXhN/o0HApNIw3MyhPDqRoBOUqbKfoDNM2QjLMSeuuLFKPpx92/NIlS3aKab9zgXgNA==}
     engines: {node: '>=20.19.0'}
     peerDependencies:
       '@nestjs/authentication': '>=0.1.0'
@@ -12615,7 +12615,7 @@ snapshots:
       '@nestjs/testing': 12.4.0(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/platform-express@12.3.2)
       '@nestjs/workflows': 0.0.5(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(drizzle-orm@0.45.4(@electric-sql/pglite@0.5.9)(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(reflect-metadata@0.2.2)(rxjs@7.8.2)
 
-  '@nestjs/authentication@0.1.1(patch_hash=de2398ad2367928334ff9bdc5b06dcff369aa2951b31bdd4680e5e6cc80457c7)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/authentication@0.1.6(patch_hash=bac8fd6e2106803c13a841381e96b451691e618460911fa12d537ca6a867dd1f)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
       '@nestjs/common': 12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core': 12.4.0(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/platform-express@12.3.2)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -12624,14 +12624,14 @@ snapshots:
     optionalDependencies:
       '@nestjs/websockets': 12.4.0(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/platform-socket.io@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
 
-  '@nestjs/authorization@0.1.3(@nestjs/authentication@0.1.1(patch_hash=de2398ad2367928334ff9bdc5b06dcff369aa2951b31bdd4680e5e6cc80457c7)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
+  '@nestjs/authorization@0.1.4(@nestjs/authentication@0.1.6(patch_hash=bac8fd6e2106803c13a841381e96b451691e618460911fa12d537ca6a867dd1f)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2))(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)':
     dependencies:
       '@nestjs/common': 12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2)
       '@nestjs/core': 12.4.0(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/platform-express@12.3.2)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       reflect-metadata: 0.2.2
       rxjs: 7.8.2
     optionalDependencies:
-      '@nestjs/authentication': 0.1.1(patch_hash=de2398ad2367928334ff9bdc5b06dcff369aa2951b31bdd4680e5e6cc80457c7)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
+      '@nestjs/authentication': 0.1.6(patch_hash=bac8fd6e2106803c13a841381e96b451691e618460911fa12d537ca6a867dd1f)(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/websockets@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
       '@nestjs/websockets': 12.4.0(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)(@nestjs/platform-socket.io@12.4.0)(reflect-metadata@0.2.2)(rxjs@7.8.2)
 
   '@nestjs/bull-shared@12.0.1(@nestjs/common@12.4.0(reflect-metadata@0.2.2)(rxjs@7.8.2)(supports-color@10.2.2))(@nestjs/core@12.4.0)':
