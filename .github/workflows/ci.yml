@@ -1383,7 +1383,8 @@ jobs:
       # its threshold (apps/api/vitest.config.merge.ts). Here rather than in a
       # job of its own: the gate already waits for check and e2e, and a pull
       # request takes no further runner. Reached only once the step above found
-      # every expected job green, so every blob exists.
+      # every expected job green, so every blob exists. The blobs are named
+      # blob.json (unit), blob-1-2.json and blob-2-2.json: no two collide.
       - name: Install pnpm, Node.js and the dependencies
         if: needs.changes.outputs.api == 'true'
         uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
@@ -1615,7 +1616,14 @@ jobs:
     name: Verify release manifest
     if: >-
       !cancelled() && needs.ci-gate.result == 'success' && needs.changes.outputs.publish == 'true'
-    needs: [changes, ci-gate, publish, publish-caddy, publish-backup]
+    needs:
+      [
+        changes,
+        ci-gate,
+        publish,
+        publish-caddy,
+        publish-backup,
+      ]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
