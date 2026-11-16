@@ -38,7 +38,8 @@ on:
         default: false
   # Weekday nights scan for new advisories only: the images and the
   # dependencies (security). Sunday's run validates everything else a pull
-  # request skips (template-without-notes runs only on a manual run).
+  # request skips (template-without-notes and template-without-capabilities
+  # run only on a manual run).
   # tools/ci/changes.mjs reads which cron this is.
   schedule:
     - cron: '17 3 * * 1-6'
@@ -885,6 +886,47 @@ jobs:
           REDIS_URL: redis://localhost:6379
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
 
+  # Each platform capability `pnpm capability:remove` supports, removed on a
+  # runner of its own: what is left builds, lints (knip: nothing orphaned) and
+  # type-checks on the regenerated client. Manual runs only, like
+  # template-without-notes. The matrix is the manifest's list
+  # (tools/feature/removable.mjs; tools/ci/workflow.test.mjs compares them).
+  template-without-capabilities:
+    needs: changes
+    if: needs.changes.outputs.manual == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        capability: [ai, forms]
+    name: template-without-capabilities (${{ matrix.capability }})
+    env:
+      CAPABILITY: ${{ matrix.capability }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install pnpm, Node.js and the dependencies
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          runtime: node@26
+          cache: true
+      - name: Turborepo cache (GitHub Actions cache service)
+        uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
+      - name: Remove the capability
+        run: pnpm capability:remove "$CAPABILITY"
+      - name: 'Its tables dropped (a generated migration: drizzle-kit asks nothing)'
+        run: pnpm db:generate
+      - name: The packages only it used, as the command's next steps say
+        run: |
+          node --input-type=module -e "const { REMOVABLE } = await import('./tools/feature/removable.mjs'); for (const [pkg, deps] of Object.entries(REMOVABLE[process.env.CAPABILITY].dependencies ?? {})) console.log(pkg, deps.join(' '));" |
+            while read -r pkg line; do read -ra deps <<< "$line"; pnpm --filter "$pkg" remove "${deps[@]}"; done
+      - run: pnpm build
+      - run: pnpm turbo run client:generate
+      - name: Build on the regenerated client
+        run: pnpm build
+      - run: pnpm turbo run typecheck
+      - run: pnpm lint
+
   # Fails on: a high or critical advisory in a production dependency, any
   # secret in the repository, a high or critical misconfiguration in a
   # Dockerfile. GitHub code scanning (CodeQL, SARIF) isn't available to a
@@ -1345,6 +1387,7 @@ jobs:
         e2e-web,
         feature-smoke,
         template-without-notes,
+        template-without-capabilities,
         security,
         image,
         backup-image,

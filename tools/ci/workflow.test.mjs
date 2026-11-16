@@ -4,6 +4,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
+import { REMOVABLE } from '../feature/removable.mjs';
 
 const WORKFLOW = new URL('../../.github/workflows/ci.yml', import.meta.url);
 const WEB_WORKFLOW = new URL(
@@ -154,4 +155,15 @@ test('the check job typechecks packages/ui, checks formatting and the committed 
     s.some((l) => l.includes('routeTree.gen.ts')),
   );
   assert.equal(field(treeStep, 'if'), "needs.changes.outputs.web == 'true'");
+});
+
+test('template-without-capabilities removes every capability the manifest supports', () => {
+  const text = readFileSync(WORKFLOW, 'utf8');
+  const job = text.slice(text.indexOf('\n  template-without-capabilities:'));
+  const matrix = /^ {8}capability: \[([^\]]*)\]$/m.exec(job);
+  assert.ok(matrix, 'the job has no capability matrix');
+  assert.deepEqual(
+    matrix[1].split(',').map((name) => name.trim()),
+    Object.keys(REMOVABLE),
+  );
 });
