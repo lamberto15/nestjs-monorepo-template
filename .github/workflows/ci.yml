@@ -819,9 +819,10 @@ jobs:
       # Without knip: it checks this repository's own code (knip.jsonc), not a
       # generated one.
       - run: pnpm lint:code
+      # Before the build: the generated web pages are typed by the client's paths.
+      - run: pnpm turbo run client:generate
       - run: pnpm build
       - run: pnpm db:check
-      - run: pnpm turbo run client:generate
       - name: Their generated e2e tests, and the OpenAPI document's paths
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest run --config ./vitest.config.e2e.ts test/smoke-widgets.e2e-spec.ts test/smoke-parts.e2e-spec.ts test/smoke-entries.e2e-spec.ts test/openapi.e2e-spec.ts
         env:
