@@ -62,10 +62,12 @@ export function createAppModule(list: readonly FeatureDefinition[]): Type {
     exports: [APP_FEATURES],
     imports: [
       CONFIG,
-      // First of the groups: the idempotency interceptor must be outermost, so
-      // a replay doesn't pass through the other interceptors (i18n, resilience,
-      // authentication) again. Module order only orders global enhancers; the
-      // providers resolve whatever the order.
+      // First of the groups. With USAGE on, the usage meter is the outermost
+      // global interceptor and wraps the idempotency interceptor, which is
+      // outermost of the rest, so a replay doesn't pass through the other
+      // interceptors (i18n, resilience, authentication) again but is still
+      // metered. Module order only orders global enhancers; the providers
+      // resolve whatever the order. test/global-enhancers.e2e-spec.ts checks it.
       PlatformModule.forRoot({
         eventTypes: features.eventTypes,
         incomingWebhooks: features.incomingWebhooks,
