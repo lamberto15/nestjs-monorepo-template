@@ -246,18 +246,31 @@ only the images: when its pull request arrives, raise `devEngines` in it too.
 Each package that has unit tests sets coverage thresholds in its
 `vitest.config.ts` (`test.coverage.thresholds`): `apps/api`, `apps/web` and
 `packages/api-client`. They sit at the levels measured when they were added
-(the API's is low because its unit tests are the small share; the e2e suite
-carries the rest and isn't measured), so main never fails on day one. They
-only ratchet: when a change lifts the numbers, raise the thresholds with it;
-a drop fails CI.
+(the API's unit-only ones are low because its unit tests are the small
+share), so main never fails on day one. They only ratchet: when a change lifts
+the numbers, raise the thresholds with it; a drop fails CI.
+
+The API's gate that counts is the **merged** one, unit and e2e together
+(`apps/api/vitest.config.merge.ts`; the settings its three Vitest configs
+share are in `vitest.coverage.ts`). Measured on 2026-11-17: statements
+91.69%, branches 81.65%, functions 93.12%, lines 92.25%; the thresholds are
+90/80/92/91. The unit-only 30/27/26/30 stay for `test:cov`.
 
 - **Locally:** `pnpm --filter @nestjs-monorepo-template/web test:cov` (or
   `api`, `api-client`); `pnpm test` stays without coverage.
+- **The API's merged coverage, locally:** run the unit tests and the e2e suite
+  with `--coverage --reporter=default --reporter=blob` (the e2e one with
+  `--outputFile.blob=.vitest/blob/e2e.json`, so the names don't collide), then
+  `pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage --config vitest.config.merge.ts`.
+  The full e2e suite takes about 15 minutes on two workers.
 - **In CI:** the API's and the packages' unit tests run as steps of `check`,
   and the web app's in the `unit-web` job (check name "unit (web)"). Each runs
   a whole `test:cov` task, not shards, and enforces the package's thresholds
   directly. Three-run benchmarks selected this layout for lower runner
   consumption. Coverage outputs are cached; database and browser E2E are not.
+  The API's unit run and each e2e shard also upload a blob report
+  (`coverage-api-*`); the **CI gate** job merges them and enforces the merged
+  thresholds. The e2e shards run with coverage, which adds some time to each.
   See [CI measurements](ci-runtime.md).
 - **Measure again** before raising: run `test:cov` and read the summary; set
   each threshold to the figure rounded down.

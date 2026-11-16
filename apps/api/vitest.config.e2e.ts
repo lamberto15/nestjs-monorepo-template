@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import { coverage } from './vitest.coverage.js';
 import { SizeSequencer } from './test/size-sequencer.js';
 
 export default defineConfig({
@@ -23,6 +24,10 @@ export default defineConfig({
     // Each app holds a pool of 10 test connections: CI's PostgreSQL allows
     // 100 (the local one 1000), so raise its max_connections before this.
     maxWorkers: 4,
+    // Coverage with --coverage, no thresholds: a shard sees part of the suite.
+    // CI merges the shards' and the unit run's blobs and gates there
+    // (vitest.config.merge.ts).
+    coverage,
     // CI's shards by file size, not count (test/size-sequencer.ts).
     sequence: { sequencer: SizeSequencer },
   },
