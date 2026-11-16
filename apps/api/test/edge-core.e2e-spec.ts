@@ -426,10 +426,10 @@ describe('listQuery: filters and pagination', () => {
 
   it('reads isNull=true as IS NULL and isNull=false as IS NOT NULL, nothing else', () => {
     expect(toSql({ 'name.isNull': 'true' })!.sql).toBe(
-      '"things"."name" is null',
+      '("things"."name" is null)',
     );
     expect(toSql({ 'name.isNull': 'false' })!.sql).toBe(
-      '"things"."name" is not null',
+      '("things"."name" is not null)',
     );
     for (const value of ['1', '0', 'yes', 'TRUE', '']) {
       expect(parse({ 'name.isNull': value }).success, value).toBe(false);
