@@ -20,7 +20,7 @@ NestJS's own building blocks, one job each, and no extra layers:
 - Rows are plain data (`typeof table.$inferSelect`), no methods. A domain
   class only for real invariants (pricing, a stock ledger, a state machine),
   with a comment saying why.
-- Grouping: core ← iam ← platform ← features; groups never import features.
+- Grouping: core ← iam ← platform ← features; groups never import features (oxlint enforces it).
 - Heavy or slow work goes to a queue worker, never in the request.
 - REST only, no HTML: the API's only page is Swagger UI at `/api`.
 - Generic naming: `user` (people), `client` (systems); "staff" and the like
