@@ -2170,7 +2170,7 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 | `template-without-notes` | exhaustive generated-template variant; manual runs only |
 | `stack-config` | shellcheck over the tracked shell scripts; Compose secrets, hardening and settings, then the Swarm stack render |
 | `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
-| `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips |
+| `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips; for API changes then merges the unit and e2e coverage blobs and enforces the merged thresholds |
 | `publish`, `publish-caddy`, `publish-backup` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |
 | `release-manifest` | verify reuse evidence and preserve the complete immutable release image set |
 | `release` | version-tag notes and the existing complete image set |
