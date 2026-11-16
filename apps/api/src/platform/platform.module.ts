@@ -21,7 +21,6 @@ import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
 import { principalScope } from './idempotency/idempotency.scopes.js';
 import { OpsController } from './ops/ops.controller.js';
 import { FeaturesController } from './features/features.controller.js';
-import { FeaturesService } from './features/features.service.js';
 import { ConfigBundlesController } from './config-bundles/config-bundles.controller.js';
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
@@ -36,48 +35,20 @@ import {
 import { FormSubmissionsController } from './forms/form-submissions.controller.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
-import { WebhookDeliveryRetentionJob } from './webhooks/webhook-delivery-retention.job.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
 import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
 import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
 import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
-import { WebhookManagementService } from './webhooks/webhook-management.service.js';
-import { RecordWebhooks } from './webhooks/record-webhooks.service.js';
-import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
 import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
 import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
-import { IncomingSendersService } from './webhooks/incoming-senders.service.js';
-import { TenantSenderGuard } from './webhooks/tenant-sender.guard.js';
 import { TenantWebhookReceiverController } from './webhooks/tenant-webhook-receiver.controller.js';
-import { WebhookListSource } from './webhooks/webhook-lists.js';
 import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
 import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
-import { HttpClientModule } from '@nestjs/http-client';
-import { MAIL_DELIVERY } from '../core/mail/mail-delivery.js';
-import { MAIL_SUPPRESSION } from '../core/mail/mail-suppression.js';
 import { ClientErrorsController } from './client-errors/client-errors.controller.js';
 import { MailEventsController } from './deliverability/mail-events.controller.js';
-import { MailEventsProcessor } from './deliverability/mail-events.processor.js';
-import { MailEventsRetentionJob } from './deliverability/mail-events-retention.job.js';
-import {
-  MailEventIntakeRegistry,
-  MailEventsService,
-} from './deliverability/mail-events.service.js';
-import { SesIntake } from './deliverability/sns/ses-intake.js';
-import { ResendIntake } from './deliverability/resend/resend-intake.js';
-import { PostmarkIntake } from './deliverability/postmark/postmark-intake.js';
-import { SendGridIntake } from './deliverability/sendgrid/sendgrid-intake.js';
-import {
-  HttpSnsGateway,
-  SNS_HTTP,
-  SnsGateway,
-} from './deliverability/sns/sns-gateway.js';
-import { MailSuppressionListSource } from './deliverability/suppression.list-source.js';
-import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
 import { SuppressionsController } from './deliverability/suppressions.controller.js';
-import { SuppressionsService } from './deliverability/suppressions.service.js';
 import {
   PeopleController,
   UnitDirectoryController,
@@ -115,10 +86,7 @@ import {
   HostBrandingController,
 } from './branding/branding-domains.controller.js';
 import { BRANDING_SETTINGS } from './branding/branding.settings.js';
-import {
-  DELIVERABILITY_SETTINGS,
-  MailDeliverySettings,
-} from './deliverability/mail-delivery.settings.js';
+import { DELIVERABILITY_SETTINGS } from './deliverability/mail-delivery.settings.js';
 import { QUOTA_SETTINGS } from './quotas/quota.settings.js';
 import {
   OwnQuotasController,
@@ -128,18 +96,12 @@ import { TenantExportController } from './tenants/tenant-export.controller.js';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
 import { SearchController } from './search/search.controller.js';
 import { ListsController } from './lists/lists.controller.js';
-import { AccessListSources } from './lists/access-lists.js';
-import { TenantListSource } from './lists/tenant-lists.js';
-import { ListPolicy } from './lists/list.policy.js';
-import { ListsRegistry } from './lists/lists.registry.js';
-import { ListsService } from './lists/lists.service.js';
 import { NamingSeriesController } from './sequences/naming-series.controller.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
 import {
   AttachmentAcknowledgmentsController,
   MyAcknowledgmentsController,
 } from './acknowledgments/acknowledgments.controller.js';
-import { AcknowledgmentsService } from './acknowledgments/acknowledgments.service.js';
 import { ACKNOWLEDGMENT_NOTIFICATIONS } from './acknowledgments/acknowledgment-notifications.js';
 import { ATTACHMENT_NOTIFICATIONS } from './attachments/attachment-scan.queue.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
@@ -147,7 +109,6 @@ import { COMMENT_NOTIFICATIONS } from './comments/comment-notifications.js';
 import { TagsController } from './tags/tags.controller.js';
 import { ImportMappingsController } from './data-transfer/import-mappings.controller.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
-import { FavoritesService } from './favorites/favorites.service.js';
 import { InboxController } from './inbox/inbox.controller.js';
 import { PresenceController } from './presence/presence.controller.js';
 import { RecentsController } from './recents/recents.controller.js';
@@ -155,13 +116,9 @@ import { SharedController } from './shares/shared.controller.js';
 import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
 import { AutomationsController } from './automations/automations.controller.js';
 import { DataQualityController } from './data-quality/data-quality.controller.js';
-import { ShareCodeMail } from './shares/share.mails.js';
-import { SharesRegistry } from './shares/shares.registry.js';
-import { SharesService } from './shares/shares.service.js';
 import { ChoicesController } from './choices/choices.controller.js';
 import { TemplatesController } from './templates/templates.controller.js';
 import { ViewsController } from './views/views.controller.js';
-import { ViewsService } from './views/views.service.js';
 import { CalendarsController } from './calendars/calendars.controller.js';
 import { RecordSchedulesController } from './recurrence/record-schedules.controller.js';
 import { ReportsController } from './reports/reports.controller.js';
@@ -180,17 +137,14 @@ import { MessagingController } from './messaging/messaging.controller.js';
 import { SmsInboundController } from './messaging/sms-inbound.controller.js';
 import { MESSAGING_SETTINGS } from './messaging/messaging.settings.js';
 import { RetentionController } from './retention/retention.controller.js';
-import { DocumentTemplates } from './documents/document-templates.js';
 import { DocumentsController } from './documents/documents.controller.js';
-import { DocumentsProcessor } from './documents/documents.processor.js';
-import { DocumentsRegistry } from './documents/documents.registry.js';
-import { DocumentsService } from './documents/documents.service.js';
-import { gotenbergClient, PdfRenderer } from './documents/pdf-renderer.js';
 import { MoneyModule } from './money/money.module.js';
 
 import { PlatformOpsModule } from './ops/ops.module.js';
 import { ConfigBundlesModule } from './config-bundles/config-bundles.module.js';
+import { PlatformWebhooksModule } from './webhooks/webhooks.module.js';
 import { PlatformIdempotencyModule } from './idempotency/idempotency.module.js';
+import { PlatformFeaturesModule } from './features/features.module.js';
 import { ModeModule } from './mode/mode.module.js';
 import { PlatformKernelModule } from './platform-kernel.module.js';
 import { PeopleModule } from './people/people.module.js';
@@ -204,14 +158,20 @@ import { AccountModule } from './account/account.module.js';
 import { TenantsModule } from './tenants/tenants.module.js';
 import { QuotasModule } from './quotas/quotas.module.js';
 import { SearchModule } from './search/search.module.js';
+import { ListsModule } from './lists/lists.module.js';
+import { DeliverabilityModule } from './deliverability/deliverability.module.js';
 import { SequencesModule } from './sequences/sequences.module.js';
 import { AttachmentsModule } from './attachments/attachments.module.js';
 import { ImagesModule } from './images/images.module.js';
+import { DocumentsModule } from './documents/documents.module.js';
 import { AiModule } from './ai/ai.module.js';
 import { CommentsModule } from './comments/comments.module.js';
+import { AcknowledgmentsModule } from './acknowledgments/acknowledgments.module.js';
 import { TagsModule } from './tags/tags.module.js';
+import { ViewsModule } from './views/views.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
 import { ChoicesModule } from './choices/choices.module.js';
+import { FavoritesModule } from './favorites/favorites.module.js';
 import { RecentsModule } from './recents/recents.module.js';
 import { PresenceModule } from './presence/presence.module.js';
 import { InboxModule } from './inbox/inbox.module.js';
@@ -219,6 +179,7 @@ import { ApprovalsModule } from './approvals/approvals.module.js';
 import { FormsModule } from './forms/forms.module.js';
 import { CalendarsModule } from './calendars/calendars.module.js';
 import { RecurrenceModule } from './recurrence/recurrence.module.js';
+import { SharesModule } from './shares/shares.module.js';
 import { DataQualityModule } from './data-quality/data-quality.module.js';
 import { AutomationsModule } from './automations/automations.module.js';
 import { ReportsModule } from './reports/reports.module.js';
@@ -379,18 +340,7 @@ export class PlatformModule {
         storage(),
         // The options and the queues, for every module below (global).
         optionsModule,
-        // Gotenberg, which renders the PDF documents (GOTENBERG_URL).
-        gotenbergClient(),
         ...integrations(options.resiliencePresets ?? {}),
-        // SNS (the mail intake): signing certificates and subscription
-        // confirmations, at URLs the intake has checked are SNS's own. No
-        // base URL (the region is the message's); one short attempt, SNS retries.
-        HttpClientModule.register({
-          name: SNS_HTTP,
-          timeout: '5s',
-          retry: false,
-          redirect: 'error',
-        }),
         WorkflowsModule.forRootAsync({
           inject: [ConfigService],
           useFactory: (config: ConfigService<PlatformEnv, true>) => ({
@@ -434,7 +384,9 @@ export class PlatformModule {
         // ones that need one another). Last: they register no global enhancer.
         PlatformOpsModule,
         ConfigBundlesModule,
+        PlatformWebhooksModule,
         PlatformIdempotencyModule,
+        PlatformFeaturesModule,
         ModeModule,
         PlatformKernelModule,
         PeopleModule,
@@ -448,14 +400,20 @@ export class PlatformModule {
         TenantsModule,
         QuotasModule,
         SearchModule,
+        ListsModule,
+        DeliverabilityModule,
         SequencesModule,
         AttachmentsModule,
         ImagesModule,
+        DocumentsModule,
         AiModule,
         CommentsModule,
+        AcknowledgmentsModule,
         TagsModule,
+        ViewsModule,
         TemplatesModule,
         ChoicesModule,
+        FavoritesModule,
         RecentsModule,
         PresenceModule,
         InboxModule,
@@ -463,6 +421,7 @@ export class PlatformModule {
         FormsModule,
         CalendarsModule,
         RecurrenceModule,
+        SharesModule,
         DataQualityModule,
         AutomationsModule,
         ReportsModule,
@@ -603,74 +562,15 @@ export class PlatformModule {
               webhooksStorage,
             ),
         },
-        // Both doors to a client's webhooks: its own routes and an administrator's.
-        WebhookManagementService,
-        // Who receives a record's webhook (its owner, the tenant-scope clients that may read it).
-        RecordWebhooks,
-        // A tenant's incoming webhook senders; features register the events they handle.
-        IncomingSendersService,
-        IncomingEventHandlers,
-        TenantSenderGuard,
-        // Which switches are on, for clients (GET /v1/features).
-        FeaturesService,
         // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md);
         // ModeService is ModeModule's. A global guard: here, in this module's order.
         { provide: APP_GUARD, useClass: ModeGuard },
-        // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
-        ListsRegistry,
-        ListsService,
-        ListPolicy,
-        // The access API's users and audit lists (GET /v1/lists/User, /Audit).
-        AccessListSources,
-        // The delivery log's list (GET /v1/lists/WebhookDelivery), while WEBHOOKS is on.
-        ...whenOn('WEBHOOKS', WebhookListSource),
-        // The operators' tenants list (GET /v1/lists/Tenant).
-        TenantListSource,
-        // The suppression list (GET /v1/lists/MailSuppression), for the operators.
-        MailSuppressionListSource,
-        // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
-        DocumentsRegistry,
-        DocumentTemplates,
-        PdfRenderer,
-        DocumentsService,
-        DocumentsProcessor,
-        // Acknowledgments of an attachment's version.
-        AcknowledgmentsService,
-        // Saved views: a list's filters, sort and columns under a name (private, unit, tenant).
-        ViewsService,
-        // Favorites: a person's pinned records, pages and saved views, in their order.
-        FavoritesService,
-        // Read-only links to records: features register a ShareTarget (the `share` capability).
-        SharesRegistry,
-        SharesService,
-        ShareCodeMail,
         // USAGE=on: the metering interceptor (UsageService: UsageModule's), here among the
         // platform's global enhancers, whose order is this module's (app.module.ts).
         ...whenOn<Provider>('USAGE', {
           provide: APP_INTERCEPTOR,
           useClass: UsageInterceptor,
         }),
-        // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
-        ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
-        // Email deliverability (docs/deliverability.md): intakes register
-        // themselves (SES through SNS); the queue applies their events to
-        // the suppression list, which the core's mail queue asks through
-        // MAIL_SUPPRESSION before every send.
-        MailEventIntakeRegistry,
-        MailEventsService,
-        MailEventsProcessor,
-        MailEventsRetentionJob,
-        { provide: SnsGateway, useClass: HttpSnsGateway },
-        SesIntake,
-        PostmarkIntake,
-        ResendIntake,
-        SendGridIntake,
-        SuppressionsService,
-        { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
-        // Which mail leaves (mail.delivery), asked by the core's mail queue.
-        MailDeliverySettings,
-        { provide: MAIL_DELIVERY, useExisting: MailDeliverySettings },
-        MailSuppressionPolicy,
       ],
       exports: [
         PlatformKernelModule,
@@ -681,18 +581,16 @@ export class PlatformModule {
         SettingsModule,
         AccountModule,
         DataQualityModule,
-        SharesRegistry,
-        SharesService,
+        SharesModule,
         AutomationsModule,
         SearchModule,
-        ListsRegistry,
+        ListsModule,
         SequencesModule,
         AttachmentsModule,
-        AcknowledgmentsService,
+        AcknowledgmentsModule,
         // A record's templates register here (record-parts.ts).
         TemplatesModule,
-        DocumentsRegistry,
-        DocumentsService,
+        DocumentsModule,
         AiModule,
         CommentsModule,
         TagsModule,
@@ -701,12 +599,9 @@ export class PlatformModule {
         ApprovalsModule,
         // ExchangeRatesService, to the features.
         MoneyModule,
-        MAIL_SUPPRESSION,
-        MAIL_DELIVERY,
+        DeliverabilityModule,
         BrandingModule,
-        MailEventIntakeRegistry,
-        IncomingEventHandlers,
-        RecordWebhooks,
+        PlatformWebhooksModule,
       ],
     };
   }
