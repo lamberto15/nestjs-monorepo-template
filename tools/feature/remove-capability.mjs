@@ -253,6 +253,8 @@ export async function removeCapability(root, options) {
   const offenders = sources
     .flatMap((dir) => walk(dir, '.ts', '.tsx'))
     .filter((file) => !isDeleted(file, deletions))
+    // Generated from the routes left: regenerated after the removal.
+    .filter((file) => path.basename(file) !== 'routeTree.gen.ts')
     .filter((file) =>
       importsOf(file, current(file), webSrc).some((target) =>
         isDeleted(target, deletions),
@@ -272,7 +274,9 @@ export async function removeCapability(root, options) {
       app === 'api' ? 'apps/api/src/i18n' : 'apps/web/src/locales',
     );
     if (!existsSync(locales)) continue;
-    for (const lng of readdirSync(locales)) {
+    for (const lng of readdirSync(locales, { withFileTypes: true })
+      .filter((entry) => entry.isDirectory())
+      .map((entry) => entry.name)) {
       const json = inside(locales, lng, file);
       if (!existsSync(json)) continue;
       const data = JSON.parse(current(json));

@@ -7,7 +7,9 @@ import { APPROVAL_SUBJECT } from '../approvals/approval.policy.js';
 import { AUTOMATION_RULE_SUBJECT } from '../automations/automation.policy.js';
 import { DATA_QUALITY_SUBJECT } from '../data-quality/data-quality.policy.js';
 import { MAIL_SUPPRESSION_SUBJECT } from '../deliverability/suppression.policy.js';
+// capability:forms begin
 import { FORM_SUBJECT } from '../forms/form.policy.js';
+// capability:forms end
 import { PLATFORM_SYSTEM_JOBS } from '../platform.jobs.js';
 
 /** The platform's permissions: the operations API (/ops), approvals, the suppression list; its system jobs. */
@@ -30,8 +32,10 @@ export const PLATFORM_PERMISSIONS = definePermissions({
     MailSuppression: MAIL_SUPPRESSION_SUBJECT,
     // Data-quality findings and scans (platform/data-quality).
     DataQuality: DATA_QUALITY_SUBJECT,
+    // capability:forms begin
     // Runtime forms (platform/forms).
     Form: FORM_SUBJECT,
+    // capability:forms end
   },
   // Its cron jobs, the notification delivery and the approvals workflow (platform.jobs.ts).
   systemJobs: PLATFORM_SYSTEM_JOBS,

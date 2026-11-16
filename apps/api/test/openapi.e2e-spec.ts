@@ -320,6 +320,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/favorites/order',
         '/v1/favorites/{id}',
         '/v1/features',
+        // capability:forms begin
         '/v1/forms',
         '/v1/forms/option-sources',
         '/v1/forms/{formId}/submissions',
@@ -335,6 +336,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/forms/{id}/unarchive',
         '/v1/forms/{id}/versions',
         '/v1/forms/{id}/versions/{version}',
+        // capability:forms end
         '/v1/inbox',
         '/v1/inbox/dismiss',
         '/v1/legal-holds',
@@ -380,8 +382,10 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/people',
         '/v1/people/{id}/avatar',
         '/v1/presence/{subject}/{recordId}',
+        // capability:forms begin
         '/v1/public/forms/open',
         '/v1/public/forms/submit',
+        // capability:forms end
         '/v1/recents',
         '/v1/recents/{id}',
         '/v1/record-schedules',

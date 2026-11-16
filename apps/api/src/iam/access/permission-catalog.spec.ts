@@ -162,7 +162,9 @@ describe('PermissionCatalog', () => {
       'Ops',
       'MailSuppression',
       'DataQuality',
+      // capability:forms begin
       'Form',
+      // capability:forms end
       'Note',
     ]);
     expect(catalog.seedRoles.map((role) => role.key)).toEqual([

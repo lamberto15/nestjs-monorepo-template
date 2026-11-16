@@ -210,6 +210,7 @@ describe('bot protection, always (e2e)', () => {
     }
   });
 
+  // capability:forms begin
   it('guards the sending of a public form, with its own action', async () => {
     const admin = node.admin();
     await admin
@@ -259,6 +260,7 @@ describe('bot protection, always (e2e)', () => {
       .send(body)
       .expect(201);
   });
+  // capability:forms end
 
   it("guards the token sign-in of native apps like the browser's (a web view renders the widget)", async () => {
     const credentials = {

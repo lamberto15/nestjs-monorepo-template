@@ -66,4 +66,19 @@ export const REMOVABLE = {
       ],
     ],
   },
+  forms: {
+    about: 'runtime forms and their submissions (docs/forms.md)',
+    files: [
+      'apps/web/src/routes/public-form.tsx',
+      'apps/web-e2e/test/forms.spec.ts',
+    ],
+    texts: [{ app: 'api', file: 'permissions.json', key: ['form'] }],
+    edits: [
+      [
+        'AGENTS.md',
+        '  `forms` (runtime forms and submissions), `bulk-operations`',
+        '  `bulk-operations`',
+      ],
+    ],
+  },
 };
