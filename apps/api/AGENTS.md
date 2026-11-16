@@ -61,6 +61,8 @@ NestJS's own building blocks, one job each, and no extra layers:
 
 ## Pitfalls
 
-- Module order in `app.module.ts`: Platform, then Core, then Iam.
+- Module order in `app.module.ts`: Platform, then Core, then Iam. It orders
+  the global guards, interceptors, pipes and filters, and
+  `test/global-enhancers.e2e-spec.ts` checks that order.
 - Abstract base classes of injectables need `@Injectable()`; inject
   `ConfigService<Env, true>` with a value import.

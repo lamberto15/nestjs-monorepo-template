@@ -173,7 +173,10 @@ the API uses (`req.ip`, `req.get()`, `res.cookie()`, `res.redirect()`,
   run acts in one tenant, and per-principal keys carry it.
 - **Module order** in `app.module.ts` matters: `PlatformModule` first (the
   idempotency interceptor must be outermost), then `CoreModule` (the rate
-  limit guards before authentication), then `IamModule`.
+  limit guards before authentication), then `IamModule`. It orders the
+  global guards, interceptors, pipes and filters, and
+  `test/global-enhancers.e2e-spec.ts` checks that order: moving an import
+  or an `APP_*` provider fails it.
 
 ## Code style: who does what
 
