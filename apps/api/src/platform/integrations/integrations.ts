@@ -1,16 +1,16 @@
 import { ConfigService } from '@nestjs/config';
 import { HttpClientModule } from '@nestjs/http-client';
-import { ResilienceModule, type ResiliencePreset } from '@nestjs/resilience';
+import { ResilienceModule } from '@nestjs/resilience';
 import type { Config, CoreEnv } from '../../core/config/core.env.js';
 
 /**
  * Calling other services. @nestjs/http-client: every client a feature
  * registers (`HttpClientModule.register({ name, baseUrl })`) gets these
  * defaults: a user-agent, a 10s timeout, retries of idempotent requests.
- * @nestjs/resilience: timeouts, retries, circuit breakers and bulkheads by
- * name, from the presets the features declare in PlatformModule.forRoot().
+ * @nestjs/resilience: its defaults, and the policies the services create
+ * (`ResilienceService.create()`).
  */
-export const integrations = (presets: Record<string, ResiliencePreset>) => [
+export const integrations = () => [
   HttpClientModule.forRootAsync({
     inject: [ConfigService],
     useFactory: (config: Config<CoreEnv>) => ({
@@ -28,6 +28,5 @@ export const integrations = (presets: Record<string, ResiliencePreset>) => [
         openDuration: '30s',
       },
     },
-    presets,
   }),
 ];

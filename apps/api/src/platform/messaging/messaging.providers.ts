@@ -1,5 +1,11 @@
 import type { Provider } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import {
+  getHttpClientToken,
+  type HttpClient,
+  HttpClientModule,
+  type HttpRetryOptions,
+} from '@nestjs/http-client';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { PlatformEnv } from '../platform.env.js';
 
@@ -14,6 +20,66 @@ import { FcmPushProvider } from './providers/fcm-push.provider.js';
 import { TwilioSmsProvider } from './providers/twilio-sms.provider.js';
 import { WebPushProvider } from './providers/web-push.provider.js';
 
+/** The @nestjs/http-client clients of the providers (the platform registers them). */
+export const TWILIO_HTTP = 'twilio';
+export const FCM_HTTP = 'fcm';
+export const FCM_TOKEN_HTTP = 'fcm-token';
+
+/** The token URL split for @nestjs/http-client: its origin, and the path to post to. */
+export const tokenEndpoint = (url: string) => {
+  const parsed = new URL(url);
+  return { baseUrl: parsed.origin, path: parsed.pathname };
+};
+
+/**
+ * Twilio's and FCM's clients: the base URLs come from TWILIO_API_URL,
+ * FCM_API_URL and FCM_TOKEN_URL; a 10 s limit per attempt, as before. A send
+ * is never retried blindly (a POST is not, by default): the queue retries a
+ * transient failure with its backoff, and Twilio's idempotency token dedupes
+ * it. The one retry here is a 429, a request the provider did not take, which
+ * waits out its `Retry-After` (up to 5 s; a longer one goes to the queue). The
+ * token exchange has no side effect: it may be retried on any transient failure.
+ * APNs is not here: it needs HTTP/2 (apns-push.provider.ts).
+ */
+export const messagingClients = () => {
+  const rateLimited: HttpRetryOptions = {
+    attempts: 2,
+    methods: ['POST'],
+    statusCodes: [429],
+    backoff: { delay: '1s', maxDelay: '5s' },
+  };
+  return [
+    HttpClientModule.registerAsync({
+      name: TWILIO_HTTP,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        baseUrl: config.get('TWILIO_API_URL', { infer: true }),
+        timeout: '10s',
+        retry: rateLimited,
+      }),
+    }),
+    HttpClientModule.registerAsync({
+      name: FCM_HTTP,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        baseUrl: config.get('FCM_API_URL', { infer: true }),
+        timeout: '10s',
+        retry: rateLimited,
+      }),
+    }),
+    HttpClientModule.registerAsync({
+      name: FCM_TOKEN_HTTP,
+      inject: [ConfigService],
+      useFactory: (config: ConfigService<Env, true>) => ({
+        baseUrl: tokenEndpoint(config.get('FCM_TOKEN_URL', { infer: true }))
+          .baseUrl,
+        timeout: '10s',
+        retry: { attempts: 3, methods: ['POST'] },
+      }),
+    }),
+  ];
+};
+
 const missing = (provider: string, names: string[]) =>
   new Error(`${provider} needs ${names.join(', ')} (docs/configuration.md).`);
 
@@ -24,8 +90,11 @@ const missing = (provider: string, names: string[]) =>
  */
 export const smsProvider: Provider = {
   provide: SMS_PROVIDER,
-  inject: [ConfigService],
-  useFactory: (config: ConfigService<Env, true>): SmsProvider | null => {
+  inject: [ConfigService, getHttpClientToken(TWILIO_HTTP)],
+  useFactory: (
+    config: ConfigService<Env, true>,
+    http: HttpClient,
+  ): SmsProvider | null => {
     const get = <K extends keyof Env>(key: K) =>
       config.get(key, { infer: true });
     switch (get('SMS_PROVIDER')) {
@@ -42,15 +111,17 @@ export const smsProvider: Provider = {
             'TWILIO_FROM',
           ]);
         }
-        return new TwilioSmsProvider({
-          accountSid,
-          authToken,
-          from,
-          apiUrl: get('TWILIO_API_URL') ?? 'https://api.twilio.com',
-          webhookUrl:
-            get('TWILIO_WEBHOOK_URL') ??
-            `${get('APP_URL')}/v1/webhooks/sms/twilio`,
-        });
+        return new TwilioSmsProvider(
+          {
+            accountSid,
+            authToken,
+            from,
+            webhookUrl:
+              get('TWILIO_WEBHOOK_URL') ??
+              `${get('APP_URL')}/v1/webhooks/sms/twilio`,
+          },
+          http,
+        );
       }
       default:
         return null;
@@ -68,8 +139,16 @@ const pem = (value: string) => value.replace(/\\n/g, '\n');
  */
 export const pushProvider: Provider = {
   provide: PUSH_PROVIDER,
-  inject: [ConfigService],
-  useFactory: (config: ConfigService<Env, true>): PushProvider | null => {
+  inject: [
+    ConfigService,
+    getHttpClientToken(FCM_HTTP),
+    getHttpClientToken(FCM_TOKEN_HTTP),
+  ],
+  useFactory: (
+    config: ConfigService<Env, true>,
+    fcmHttp: HttpClient,
+    tokenHttp: HttpClient,
+  ): PushProvider | null => {
     const get = <K extends keyof Env>(key: K) =>
       config.get(key, { infer: true });
     const need = <K extends keyof Env>(provider: string, names: K[]) => {
@@ -112,14 +191,19 @@ export const pushProvider: Provider = {
             'FCM_CLIENT_EMAIL',
             'FCM_PRIVATE_KEY',
           ]) as [string, string, string];
-          return new FcmPushProvider({
-            projectId,
-            clientEmail,
-            privateKey: pem(privateKey),
-            apiUrl: get('FCM_API_URL') ?? 'https://fcm.googleapis.com',
-            tokenUrl:
-              get('FCM_TOKEN_URL') ?? 'https://oauth2.googleapis.com/token',
-          });
+          const tokenUrl =
+            get('FCM_TOKEN_URL') ?? 'https://oauth2.googleapis.com/token';
+          return new FcmPushProvider(
+            {
+              projectId,
+              clientEmail,
+              privateKey: pem(privateKey),
+              tokenUrl,
+              tokenPath: tokenEndpoint(tokenUrl).path,
+            },
+            fcmHttp,
+            tokenHttp,
+          );
         }
       }
     });

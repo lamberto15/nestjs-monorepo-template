@@ -387,8 +387,11 @@ opt-out row and its audit entry.
 
 **Providers** are interfaces (`SmsProvider`, `PushProvider` in
 `messaging/providers/`) chosen by the environment; `memory` keeps what it would send
-(tests; never receives inbound). Twilio is written over `fetch` and `node:crypto`
-(two calls, as the SendGrid intake does for its signature), Web Push uses the pinned
+(tests; never receives inbound). Twilio and FCM are written over `@nestjs/http-client` (clients registered by
+`messagingClients()`: a 10 s limit per attempt; a send is never retried blindly, the
+queue retries it, and only a 429 is retried in place, after its `Retry-After` up to
+5 s; the FCM token exchange, which has no side effect, is retried on any transient
+failure) and `node:crypto` (two calls, as the SendGrid intake does for its signature), Web Push uses the pinned
 `web-push` library (VAPID, payload encryption). `PUSH_PROVIDER` takes several,
 comma-separated (`web-push,apns,fcm`): each device goes to the provider of its
 platform (`web`, `ios`, `android`), and a device whose platform nobody serves is skipped.
@@ -397,7 +400,10 @@ platform (`web`, `ios`, `android`), and a device whose platform nobody serves is
   `APNS_KEY_ID`, `iss` = `APNS_TEAM_ID`), signed with the `.p8` key
   (`APNS_PRIVATE_KEY`, PEM; write the newlines as `\n` in an env file) and reused for
   40 minutes, goes in `authorization: bearer`; `apns-topic` is `APNS_BUNDLE_ID`.
-  APNs needs HTTP/2, which `fetch` does not speak, so the adapter keeps one
+  APNs needs HTTP/2, which `fetch` does not speak by default (undici can with
+  an `Agent` and `allowH2`, but its idle-connection handling and the plaintext stub
+  the tests use are not what Apple advises for a long-lived session, and it cannot
+  be checked against Apple here), so the adapter keeps one
   `node:http2` session open and reopens it when it drops. `APNS_API_URL` is production
   (`https://api.push.apple.com`); use `https://api.sandbox.push.apple.com` for
   development builds. A 410 or a `BadDeviceToken`, `DeviceTokenNotForTopic` or

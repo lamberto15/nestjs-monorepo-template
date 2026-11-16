@@ -211,10 +211,9 @@ deleted anything is audited as `outbox.dead-letters-purged` by
 ## Calling other services
 
 `HttpClientModule.register({ name, baseUrl })` in a feature (defaults: a
-user-agent, 10 s timeout, retries of idempotent requests), and a resilience
-preset per dependency (`PlatformModule.forRoot({ resiliencePresets })`):
-`@Resilience('carrier')` on a route, `resilience.preset('carrier')` in a
-service: timeouts, retries, circuit breakers, bulkheads.
+user-agent, 10 s timeout, retries of idempotent requests). For a circuit breaker
+or a timeout around a call, a service creates its policy with
+`ResilienceService.create()` (the captcha check does).
 
 ## Observing
 
