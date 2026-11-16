@@ -74,8 +74,10 @@ export const NOTE_PERMISSIONS = definePermissions({
           label: 'See deleted notes and restore them',
           conditions: UNIT_READ,
         },
+        // capability:shares begin
         // In no example role: an administrator chooses who may show notes outside the tenant.
         share: { label: 'Share notes by link', conditions: UNIT_READ },
+        // capability:shares end
       },
     },
   },
@@ -177,8 +179,10 @@ export class NotePolicy {
     return this.access.can(user, 'restore', 'Note', noteFields(note));
   }
 
+  // capability:shares begin
   /** A read-only link to it (POST /v1/notes/{id}/shares). */
   share(user: Principal | null, note: NoteFields) {
     return this.access.can(user, 'share', 'Note', noteFields(note));
   }
+  // capability:shares end
 }

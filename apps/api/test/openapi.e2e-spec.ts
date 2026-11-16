@@ -34,9 +34,11 @@ const PANEL_COMPONENTS = [
   'RevisionDiff',
   'RecordDocument',
   'RecordDocumentPage',
+  // capability:shares begin
   'Share',
   'ShareList',
   'CreatedShare',
+  // capability:shares end
   'Duplicate',
   'DuplicateList',
   'MergePreview',
@@ -419,9 +421,11 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/settings/{key}/mine',
         '/v1/settings/{key}/overrides',
         '/v1/settings/{key}/platform',
+        // capability:shares begin
         '/v1/shared/code',
         '/v1/shared/files/{attachmentId}',
         '/v1/shared/open',
+        // capability:shares end
         '/v1/sso/connections',
         '/v1/sso/connections/{id}',
         '/v1/sso/connections/{id}/refresh',

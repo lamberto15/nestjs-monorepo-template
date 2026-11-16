@@ -367,9 +367,11 @@ export function recordPaths(record) {
       : []),
     ...(has('tags') ? [`${base}/{id}/tags`] : []),
     ...(has('watch') ? [`${base}/{id}/watch`] : []),
+    // capability:shares begin
     ...(has('share')
       ? [`${base}/{id}/shares`, `${base}/{id}/shares/{shareId}`]
       : []),
+    // capability:shares end
     ...(has('merge')
       ? [
           `${base}/duplicates`,

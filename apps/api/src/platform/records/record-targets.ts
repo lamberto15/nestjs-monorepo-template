@@ -52,7 +52,9 @@ import {
   RevisionsRegistry,
 } from '../revisions/revisions.registry.js';
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
+// capability:shares begin
 import { type ShareTarget, SharesRegistry } from '../shares/shares.registry.js';
+// capability:shares end
 import {
   type AutomationRecord,
   type AutomationTarget,
@@ -276,6 +278,7 @@ export class RecordAttachments {
   }
 }
 
+// capability:shares begin
 /**
  * Who may read a record and share it (its subject's `share` action) makes
  * read-only links to it (platform/shares); a link shows the declared
@@ -330,6 +333,7 @@ export class RecordShares implements ShareTarget {
     );
   }
 }
+// capability:shares end
 
 /** The field kinds a rule's `setField` may set: plain values, never a reference, money or JSON. */
 const SETTABLE_KINDS = new Set([

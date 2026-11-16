@@ -7,7 +7,9 @@ import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
 import { mergeRoutes } from '../merge/merge.routes.js';
 import { MERGES, RecordMerge } from '../merge/record-merge.js';
+// capability:shares begin
 import { shareRoutes } from '../shares/share.routes.js';
+// capability:shares end
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
 import { listSource } from '../lists/lists.registry.js';
 import { templateSource } from '../templates/templates.registry.js';
@@ -44,7 +46,9 @@ import {
   RecordDocuments,
   RecordRevisions,
   RecordSearch,
+  // capability:shares begin
   RecordShares,
+  // capability:shares end
   RecordSubscriptions,
   RecordTags,
   RecordTransfer,
@@ -64,7 +68,9 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   watch: RecordSubscriptions,
   search: RecordSearch,
   transfer: RecordTransfer,
+  // capability:shares begin
   share: RecordShares,
+  // capability:shares end
   automation: RecordAutomation,
   merge: RecordMerge,
 };
@@ -134,7 +140,9 @@ export function recordParts(
         ]
       : []),
     ...(has('watch') ? [watchRoutes(declaration)] : []),
+    // capability:shares begin
     ...(has('share') ? [shareRoutes(declaration)] : []),
+    // capability:shares end
     ...(has('merge')
       ? [mergeRoutes(declaration, { response: options.schemas.response })]
       : []),

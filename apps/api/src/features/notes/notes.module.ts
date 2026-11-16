@@ -32,8 +32,10 @@ import { NoteRevisions } from './note-revisions.js';
 import { revisionRoutes } from '../../platform/revisions/revision.routes.js';
 import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
 import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
+// capability:shares begin
 import { shareRoutes } from '../../platform/shares/share.routes.js';
 import { NoteShares } from './note-shares.js';
+// capability:shares end
 import { NoteAutomation } from './note-automation.js';
 // capability:data-quality begin
 import { NoteQuality } from './note-quality.js';
@@ -81,7 +83,9 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
       docs: NOTE_BULK_DOCS,
     }),
     watchRoutes(NOTE_ROUTES, { docs: NOTE_WATCH_DOCS }),
+    // capability:shares begin
     shareRoutes(NOTE_ROUTES),
+    // capability:shares end
     mergeRoutes(NOTE_ROUTES, { response: noteSchema }),
   ],
   providers: [
@@ -98,7 +102,9 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     NoteComments,
     NoteAccess,
     NoteSubscriptions,
+    // capability:shares begin
     NoteShares,
+    // capability:shares end
     NoteAutomation,
     // capability:data-quality begin
     NoteQuality,

@@ -61,8 +61,10 @@ describe('notes in the OpenAPI document (e2e)', () => {
       '/v1/notes/{id}/revisions/{a}/diff/{b}',
       '/v1/notes/{id}/revisions/{number}',
       '/v1/notes/{id}/revisions/{number}/restore',
+      // capability:shares begin
       '/v1/notes/{id}/shares',
       '/v1/notes/{id}/shares/{shareId}',
+      // capability:shares end
       '/v1/notes/{id}/tags',
       '/v1/notes/{id}/watch',
       '/v1/webhooks/example-sender',

@@ -74,7 +74,9 @@ export const CAPABILITIES = [
   'custom',
   'events',
   'numbered',
+  // capability:shares begin
   'share',
+  // capability:shares end
   'automation',
   'merge',
 ] as const;

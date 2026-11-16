@@ -258,4 +258,32 @@ export const REMOVABLE = {
       ],
     ],
   },
+  shares: {
+    about:
+      'read-only links to a record, opened without a sign-in (POST /v1/shared/open)',
+    files: [
+      'apps/api/src/features/notes/note-shares.ts',
+      'apps/api/src/mail/templates/share-code.html',
+      'apps/api/src/mail/templates/share-code.ar.html',
+      'apps/api/src/mail/templates/share-code.de.html',
+      'apps/api/src/mail/templates/share-code.ms.html',
+      'apps/api/src/mail/templates/share-code.zh.html',
+    ],
+    texts: [
+      {
+        app: 'api',
+        file: 'permissions.json',
+        key: ['note', 'actions', 'share'],
+      },
+      { app: 'api', file: 'mail.json', key: ['shareCode'] },
+    ],
+    edits: [
+      [
+        'docs/adding-a-feature.md',
+        '  | `share`       | time-limited read-only links, `/<x>/{id}/shares`, opened without sign-in (`POST /v1/shared/open`)                                                                                                                                                                                |\n',
+        '',
+      ],
+      ['docs/api-conventions.md', '`share`, ', ''],
+    ],
+  },
 };
