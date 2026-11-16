@@ -85,6 +85,16 @@ describe('recordPermissions: clientAccess and grants', () => {
 });
 
 describe('recordPermissions: names', () => {
+  it('labels a subject by its path, or as the feature says', () => {
+    expect(recordPermissions(declare(), table).subjects.Widget!.label).toBe(
+      'Widgets',
+    );
+    expect(
+      recordPermissions(declare(), table, { label: 'Widgets (example)' })
+        .subjects.Widget!.label,
+    ).toBe('Widgets (example)');
+  });
+
   it('names one record by its noun and several by its path', () => {
     const permissions = recordPermissions(declare(), table);
     expect(permissions.subjects.Widget!.names).toEqual({
