@@ -82,7 +82,7 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
 - **Generate, never hand-write what a command produces** (extensions:
   docs/development.md, "Database"). Use the official
   CLI or generator, then edit only what the task needs: `pnpm add`,
-  `pnpm feature:add`/`feature:sync`, `pnpm db:generate`,
+  `pnpm feature:add`/`feature:sync`/`feature:remove`, `pnpm capability:remove`, `pnpm db:generate`,
   `pnpm client:generate`, and the folders' own generators (their AGENTS.md).
 - **Features come from the generator.** A new one starts from
   `pnpm feature:add` (the `/add-feature` skill in `.claude/skills/`), never

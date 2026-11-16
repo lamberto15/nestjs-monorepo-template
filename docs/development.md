@@ -175,6 +175,7 @@ only the images: when its pull request arrives, raise `devEngines` in it too.
 | `pnpm feature:add <plural> --fields "…" [--with …]` | a new feature from its declaration ([adding a feature](adding-a-feature.md)) |
 | `pnpm feature:sync [<plural>]` | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it |
 | `pnpm feature:remove <plural>` | a feature, its tests and texts, e.g. the example `notes` |
+| `pnpm capability:remove <name>` | an optional platform capability nothing else uses (`ai`, `forms`): its folder, module, tables, variables, tests, pages and docs ([adding a feature](adding-a-feature.md), "Removing a platform capability") |
 | `pnpm deploy:rolling` / `deploy:swarm`                  | zero-downtime deploys ([deployment](deployment.md), "Zero-downtime deploys: two ways")                                                                                                                                                                                                                                                                        |
 | `pnpm db:mark-dev` | mark the development services' database as a development one, once, for a volume made before the marker |
 | `pnpm services:up` / `services:down` | the development services |
