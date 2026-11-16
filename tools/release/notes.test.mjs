@@ -45,18 +45,8 @@ const write = (file, text) => {
   mkdirSync(path.join(cwd, path.dirname(file)), { recursive: true });
   writeFileSync(path.join(cwd, file), text);
 };
-const journal = (...tags) =>
-  JSON.stringify({
-    version: '7',
-    dialect: 'postgresql',
-    entries: tags.map((tag, idx) => ({
-      idx,
-      version: '7',
-      when: 1000 + idx,
-      tag,
-      breakpoints: true,
-    })),
-  });
+// A migration as drizzle-kit writes it: its folder, migration.sql in it.
+const migration = (name) => `apps/api/drizzle/${name}/migration.sql`;
 const commit = (message) => {
   git('add', '-A');
   git('commit', '--quiet', '--no-verify', '--allow-empty', '-m', message);
@@ -72,14 +62,13 @@ before(() => {
 
   // v0.1.0: two migrations, a variable, the client at 0.0.1.
   write(
-    'apps/api/drizzle/0000_init.sql',
+    migration('20260101000000_init'),
     'CREATE TABLE "a" ("id" uuid PRIMARY KEY);\n',
   );
   write(
-    'apps/api/drizzle/0001_b.sql',
+    migration('20260102000000_b'),
     'CREATE TABLE "b" ("id" uuid PRIMARY KEY);\n',
   );
-  write('apps/api/drizzle/meta/_journal.json', journal('0000_init', '0001_b'));
   write(
     'env.example',
     '# A comment: NOT_A_VARIABLE here\nAPP_DOMAIN=api.example.com\n# OLD_FLAG=on\nKEPT=1\n',
@@ -91,12 +80,8 @@ before(() => {
 
   // v0.2.0-rc.1, then v0.2.0: a migration, a breaking change, variables, Compose, the client.
   write(
-    'apps/api/drizzle/0002_c.sql',
+    migration('20260103000000_c'),
     'ALTER TABLE "a" ADD COLUMN "c" text;\n',
-  );
-  write(
-    'apps/api/drizzle/meta/_journal.json',
-    journal('0000_init', '0001_b', '0002_c'),
   );
   commit('feat(notes)!: a breaking subject (#12)');
   git('tag', 'v0.2.0-rc.1');
@@ -112,7 +97,7 @@ before(() => {
 
   // v0.3.0: an edited merged migration, nothing else.
   write(
-    'apps/api/drizzle/0001_b.sql',
+    migration('20260102000000_b'),
     'CREATE TABLE "b" ("id" uuid PRIMARY KEY, "x" int);\n',
   );
   commit('fix: edit a merged migration');
@@ -147,13 +132,13 @@ it('isPrerelease', () => {
 describe('migrationChanges', () => {
   it('lists every migration for the first release', () => {
     assert.deepEqual(migrationChanges(null, 'v0.1.0', { cwd }), {
-      added: ['apps/api/drizzle/0000_init.sql', 'apps/api/drizzle/0001_b.sql'],
+      added: [migration('20260101000000_init'), migration('20260102000000_b')],
       history: [],
     });
   });
   it('lists the migrations added since the previous release', () => {
     assert.deepEqual(migrationChanges('v0.1.0', 'v0.2.0', { cwd }), {
-      added: ['apps/api/drizzle/0002_c.sql'],
+      added: [migration('20260103000000_c')],
       history: [],
     });
   });
@@ -162,10 +147,46 @@ describe('migrationChanges', () => {
     assert.deepEqual(added, []);
     assert.deepEqual(history, [
       {
-        file: 'apps/api/drizzle/0001_b.sql',
+        file: migration('20260102000000_b'),
         message: 'edited since the previous release',
       },
     ]);
+  });
+  it("takes drizzle-kit up's moves (NNNN_name.sql to <timestamp>_name/) for what they are", () => {
+    const repo = cwd;
+    cwd = mkdtempSync(path.join(tmpdir(), 'release-notes-up-'));
+    try {
+      git('init', '--quiet', '--initial-branch=main');
+      git('config', 'commit.gpgsign', 'false');
+      git('config', 'tag.gpgsign', 'false');
+      const a = 'CREATE TABLE "a" ("id" uuid PRIMARY KEY);\n';
+      const b = 'CREATE TABLE "b" ("id" uuid PRIMARY KEY);\n';
+      write('apps/api/drizzle/0000_init.sql', a);
+      write('apps/api/drizzle/0001_b.sql', b);
+      write('apps/api/drizzle/meta/_journal.json', '{"entries":[]}\n');
+      write('apps/api/drizzle/meta/0001_snapshot.json', '{}\n');
+      commit('the 0.x layout');
+      git('tag', 'v1.0.0');
+      git('rm', '-q', '-r', 'apps/api/drizzle');
+      write(migration('20260101000000_init'), a);
+      write(migration('20260102000000_b'), b.replace(';', ' ;'));
+      write(migration('20260103000000_c'), 'ALTER TABLE "a" ADD "c" text;\n');
+      commit('drizzle-kit up, an edit and a new migration');
+      git('tag', 'v1.1.0');
+      // init moved unchanged: nothing. b's text changed: reported. c: new.
+      assert.deepEqual(migrationChanges('v1.0.0', 'v1.1.0', { cwd }), {
+        added: [migration('20260102000000_b'), migration('20260103000000_c')],
+        history: [
+          {
+            file: 'apps/api/drizzle/0001_b.sql',
+            message: 'deleted (or renamed) since the previous release',
+          },
+        ],
+      });
+    } finally {
+      rmSync(cwd, { recursive: true, force: true });
+      cwd = repo;
+    }
   });
 });
 
@@ -222,7 +243,7 @@ describe('render', () => {
     previous: 'v0.1.0',
     version: '0.2.0',
     commit: 'abc123',
-    migrations: { added: ['apps/api/drizzle/0002_c.sql'], history: [] },
+    migrations: { added: [migration('20260103000000_c')], history: [] },
     findings: [],
   };
 
@@ -257,7 +278,7 @@ describe('render', () => {
     const notes = render(base);
     assert.match(
       notes,
-      /\[`0002_c\.sql`\]\(https:\/\/github\.com\/Owner\/Repo\/blob\/v0\.2\.0\/apps\/api\/drizzle\/0002_c\.sql\)/,
+      /\[`20260103000000_c\/migration\.sql`\]\(https:\/\/github\.com\/Owner\/Repo\/blob\/v0\.2\.0\/apps\/api\/drizzle\/20260103000000_c\/migration\.sql\)/,
     );
     assert.match(
       notes,
@@ -273,7 +294,7 @@ describe('render', () => {
       ...base,
       findings: [
         {
-          file: 'apps/api/drizzle/0002_c.sql',
+          file: migration('20260103000000_c'),
           line: 1,
           rule: 'ban-drop-column',
           statement: 'x',
@@ -283,7 +304,7 @@ describe('render', () => {
     assert.match(notes, /\*\*Destructive statements: 1\.\*\*/);
     assert.match(
       notes,
-      /\| `0002_c\.sql:1` \| `ban-drop-column` \| Drops a column/,
+      /\| `20260103000000_c\/migration\.sql:1` \| `ban-drop-column` \| Drops a column/,
     );
     assert.match(
       notes,
@@ -298,7 +319,7 @@ describe('render', () => {
         added: [],
         history: [
           {
-            file: 'apps/api/drizzle/0001_b.sql',
+            file: migration('20260102000000_b'),
             message: 'edited since the previous release',
           },
         ],

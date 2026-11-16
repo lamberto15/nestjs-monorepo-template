@@ -38,10 +38,13 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { fileRoots, outputFile, tempRoots, within } from '../cli-paths.mjs';
 import {
-  JOURNAL,
   MIGRATIONS,
   RULES,
+  isMigration,
+  isOldMigration,
   lintFiles,
+  migrationName,
+  movedByUp,
 } from '../migration-lint/lint.mjs';
 
 export const ENV_EXAMPLE = 'env.example';
@@ -118,15 +121,11 @@ export function previousTag(tag, { cwd = process.cwd() } = {}) {
   throw new Error(`git describe failed: ${result.stderr.trim()}`);
 }
 
-const isMigration = (p) =>
-  path.posix.dirname(p) === MIGRATIONS && p.endsWith('.sql');
-
 /**
  * The migrations `tag` adds since `previous` (all of them for the first
  * release), and what it changes in the ones `previous` had: edited or
- * deleted files, changed or removed journal entries. Those never happen
- * under the policy (the migration lint fails a pull request on them), so the
- * notes call them out.
+ * deleted files. Those never happen under the policy (the migration lint
+ * fails a pull request on them), so the notes call them out.
  */
 export function migrationChanges(previous, tag, { cwd = process.cwd() } = {}) {
   const added = [];
@@ -144,10 +143,11 @@ export function migrationChanges(previous, tag, { cwd = process.cwd() } = {}) {
     ]).split('\0');
     return { added: files.filter(isMigration).sort(), history };
   }
+  // Renames only when the text is the same (R100): drizzle-kit up's moves.
   const diff = git(cwd, [
     'diff',
     '--name-status',
-    '--no-renames',
+    '--find-renames=100%',
     '-z',
     '--end-of-options',
     previous,
@@ -156,8 +156,16 @@ export function migrationChanges(previous, tag, { cwd = process.cwd() } = {}) {
     `${MIGRATIONS}/`,
   ]).split('\0');
   for (let i = 0; i + 1 < diff.length; i += 2) {
-    const [status, file] = [diff[i], diff[i + 1]];
-    if (!isMigration(file)) continue;
+    let [status, file] = [diff[i], diff[i + 1]];
+    if (status.startsWith('R')) {
+      const to = diff[i + 2];
+      i++;
+      if (movedByUp(file, to)) continue;
+      if (isMigration(to)) added.push(to);
+      status = 'D';
+    }
+    if (!isMigration(file) && !(status === 'D' && isOldMigration(file)))
+      continue;
     if (status === 'A') added.push(file);
     else
       history.push({
@@ -167,32 +175,6 @@ export function migrationChanges(previous, tag, { cwd = process.cwd() } = {}) {
             ? 'deleted (or renamed) since the previous release'
             : 'edited since the previous release',
       });
-  }
-  const entries = (ref) => {
-    const text = show(cwd, ref, JOURNAL);
-    if (text === null) return null;
-    try {
-      const parsed = JSON.parse(text);
-      return Array.isArray(parsed?.entries) ? parsed.entries : null;
-    } catch {
-      return null;
-    }
-  };
-  const before = entries(previous);
-  const after = entries(tag);
-  if (before && !after) {
-    history.push({
-      file: JOURNAL,
-      message: 'missing or unreadable at this release',
-    });
-  } else if (before && after) {
-    before.forEach((entry, i) => {
-      if (JSON.stringify(entry) !== JSON.stringify(after[i]))
-        history.push({
-          file: JOURNAL,
-          message: `entry ${i} (${String(entry?.tag)}) ${after[i] === undefined ? 'removed' : 'changed'}`,
-        });
-    });
   }
   return { added: added.sort(), history };
 }
@@ -378,7 +360,7 @@ export function render({
       );
       for (const file of migrations.added)
         out.push(
-          `- [\`${path.posix.basename(file)}\`](${fileUrl(repository, tag, file)})`,
+          `- [\`${migrationName(file)}\`](${fileUrl(repository, tag, file)})`,
         );
       out.push('');
     }
@@ -408,7 +390,7 @@ export function render({
       );
       for (const f of findings)
         out.push(
-          `| \`${path.posix.basename(f.file)}:${f.line}\` | \`${f.rule}\` | ${RULES[f.rule] ?? ''} |`,
+          `| \`${migrationName(f.file)}:${f.line}\` | \`${f.rule}\` | ${RULES[f.rule] ?? ''} |`,
         );
       out.push('');
     }

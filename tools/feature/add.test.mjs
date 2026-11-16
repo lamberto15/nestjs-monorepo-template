@@ -606,6 +606,39 @@ describe('feature:sync', () => {
     assert.ok(text.includes(from), from);
     writeFileSync(record(), text.replace(from, to));
   };
+  // The orders table as its migration's snapshot has it (column -> NOT
+  // NULL): drizzle-kit's format, a first snapshot holding the whole schema.
+  let migratedColumns;
+  const migrated = (columns) => {
+    migratedColumns = columns;
+    const folder = api('drizzle/20260101000000_orders');
+    mkdirSync(folder, { recursive: true });
+    const column = ([name, notNull]) => ({
+      ...{ schema: 'public', table: 'orders', name, type: 'text' },
+      ...{ typeSchema: null, notNull, dimensions: 0, default: null },
+      ...{ generated: null, identity: null, entityType: 'columns' },
+    });
+    writeFileSync(
+      path.join(folder, 'snapshot.json'),
+      JSON.stringify({
+        type: 'base',
+        version: '9',
+        dialect: 'postgres',
+        id: '11111111-1111-4111-8111-111111111111',
+        prevIds: ['00000000-0000-0000-0000-000000000000'],
+        footprints: [],
+        ddl: [
+          {
+            entityType: 'tables',
+            schema: 'public',
+            name: 'orders',
+            isRlsEnabled: false,
+          },
+          ...Object.entries(columns).map(column),
+        ],
+      }),
+    );
+  };
 
   before(async () => {
     root = scratchCheckout('feature-sync-');
@@ -614,33 +647,18 @@ describe('feature:sync', () => {
       fields: 'title:string,total:money',
     });
     // The table as a migration made it: what the guard compares with.
-    mkdirSync(api('drizzle/meta'), { recursive: true });
-    writeFileSync(
-      api('drizzle/meta/_journal.json'),
-      JSON.stringify({ entries: [{ idx: 0 }] }),
-    );
-    const column = (notNull) => ({ notNull });
-    writeFileSync(
-      api('drizzle/meta/0000_snapshot.json'),
-      JSON.stringify({
-        tables: {
-          'public.orders': {
-            columns: {
-              id: column(true),
-              tenant_id: column(true),
-              owner_id: column(true),
-              title: column(true),
-              total_minor: column(true),
-              total_currency: column(true),
-              created_at: column(true),
-              updated_at: column(true),
-              deleted_at: column(false),
-              deleted_by: column(false),
-            },
-          },
-        },
-      }),
-    );
+    migrated({
+      id: true,
+      tenant_id: true,
+      owner_id: true,
+      title: true,
+      total_minor: true,
+      total_currency: true,
+      created_at: true,
+      updated_at: true,
+      deleted_at: false,
+      deleted_by: false,
+    });
   });
   after(() => rmSync(root, { recursive: true, force: true }));
 
@@ -701,18 +719,15 @@ describe('feature:sync', () => {
   });
 
   it('refuses unit turned off once migrated: dropping unit_id loses data', async () => {
-    const snapshot = api('drizzle/meta/0000_snapshot.json');
-    const before = readFileSync(snapshot, 'utf8');
-    const migrated = JSON.parse(before);
-    migrated.tables['public.orders'].columns.unit_id = { notNull: false };
-    writeFileSync(snapshot, JSON.stringify(migrated));
+    const before = migratedColumns;
+    migrated({ ...before, unit_id: false });
     assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
     edit('  unit: true,', '  unit: false,');
     assert.match(
       (await syncFeature(api(), 'orders')).errors.join('\n'),
       /unit turned off drops unit_id; which organizational unit each record belongs to is lost/,
     );
-    writeFileSync(snapshot, before);
+    migrated(before);
     assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
   });
 
@@ -790,10 +805,7 @@ describe('feature:sync', () => {
     const added = await syncFeature(api(), 'orders');
     assert.equal(added.generate, true);
     assert.deepEqual(added.errors, []);
-    const file = api('drizzle/meta/0000_snapshot.json');
-    const snapshot = JSON.parse(readFileSync(file, 'utf8'));
-    snapshot.tables['public.orders'].columns.custom = { notNull: true };
-    writeFileSync(file, JSON.stringify(snapshot));
+    migrated({ ...migratedColumns, custom: true });
     assert.deepEqual((await syncFeature(api(), 'orders')).errors, []);
     edit("  capabilities: ['watch', 'custom'],", "  capabilities: ['watch'],");
     assert.match(
