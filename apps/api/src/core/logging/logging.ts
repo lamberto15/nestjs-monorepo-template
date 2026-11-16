@@ -15,6 +15,7 @@ import type {
   NodeResponse as Response,
 } from '@nestjs/platform-node';
 import {
+  observeOtlpRefusalStatus,
   observeRefusalStatus,
   recordTelemetryFailure,
 } from '../observability/telemetry-health.js';
@@ -65,10 +66,11 @@ export class RedactingConsoleLogger extends ConsoleLogger {
 
   /**
    * NestJS Observe's agent reports a refused upload ("Telemetry rate-limited
-   * (429)") only as an error line: count it (telemetry-health.ts).
+   * (429)") only as an error line, as does its OTLP export: count it (telemetry-health.ts).
    */
   private countRefusal(message: unknown) {
     recordTelemetryFailure('observe', observeRefusalStatus(message));
+    recordTelemetryFailure('otlp', observeOtlpRefusalStatus(message));
   }
 
   override error(message: unknown, ...optionalParams: unknown[]) {
