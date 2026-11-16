@@ -34,17 +34,16 @@ describe('money columns', () => {
 
   it('reads minor units as JS bigints and rates as strings (the drivers’ values mapped as the rows are)', () => {
     // Runtime checks on the column config: vitest doesn't type-check specs.
+    // Drizzle 1.0 maps the driver's values in its codecs, by data type (the
+    // round trip: test/money.e2e-spec.ts).
     const columns = getTableColumns(invoices);
-    expect(columns.totalMinor.dataType).toBe('bigint');
+    expect(columns.totalMinor.dataType).toBe('bigint int64');
     expect(columns.totalMinor.columnType).toBe('PgBigInt64');
-    expect(columns.totalMinor.mapFromDriverValue('9223372036854775807')).toBe(
-      9223372036854775807n,
-    );
-    expect(columns.unitDiscountMinor.dataType).toBe('bigint');
+    expect(columns.unitDiscountMinor.dataType).toBe('bigint int64');
     expect(columns.totalCurrency.dataType).toBe('string');
-    expect(columns.totalEurRate.dataType).toBe('string');
+    expect(columns.totalEurRate.dataType).toBe('string numeric');
     expect(columns.totalEurRate.notNull).toBe(false);
-    expect(columns.totalEurRateDate.dataType).toBe('string');
+    expect(columns.totalEurRateDate.dataType).toBe('string date');
   });
 
   it('writes and reads an amount and a conversion', () => {
