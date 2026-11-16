@@ -66,6 +66,11 @@ export const REMOVABLE = {
         "  note-ai.ts                            the AI helper's source\n",
         '',
       ],
+      [
+        'docs/adding-a-feature.md',
+        '    The AI helper on its records: an `AiSource` (`<item>-ai.ts`) registered into\n    `AiRegistry` (ai.md). Rules',
+        '    Rules',
+      ],
     ],
   },
   forms: {
@@ -80,6 +85,11 @@ export const REMOVABLE = {
         'AGENTS.md',
         '  `forms` (runtime forms and submissions), `bulk-operations`',
         '  `bulk-operations`',
+      ],
+      [
+        'docs/auth.md',
+        ", and a public form's\n`POST /v1/public/forms/submit`, action `public-form`: forms) can ask",
+        ') can ask',
       ],
     ],
   },
