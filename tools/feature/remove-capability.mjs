@@ -199,6 +199,28 @@ function stripDocLinks(file, text, pages) {
 }
 
 /**
+ * Markdown without the section under `heading` (`## Record presence`): the
+ * heading line up to the next heading of its level or above, outside code
+ * fences. Null when the heading isn't there.
+ */
+function stripSection(text, heading) {
+  const lines = text.split('\n');
+  const start = lines.indexOf(heading);
+  if (start === -1) return null;
+  const level = heading.match(/^#+/)?.[0].length ?? 0;
+  let end = start + 1;
+  let fence = '';
+  for (; end < lines.length; end++) {
+    const marker = /^\s*(\`{3,}|~{3,})/.exec(lines[end]);
+    if (marker)
+      fence = fence ? (fence === marker[1][0] ? '' : fence) : marker[1][0];
+    const next = !fence && /^(#+) /.exec(lines[end]);
+    if (next && next[1].length <= level) break;
+  }
+  return [...lines.slice(0, start), ...lines.slice(end)].join('\n');
+}
+
+/**
  * Removes the capability `options.name` under `root`. Returns what was
  * (or, with `dryRun`, would be) removed, relative to `root`, and what to
  * run next; `nothing` when it is gone already. Throws before changing
@@ -322,6 +344,19 @@ export async function removeCapability(root, options) {
       change(file, out, 'its links');
       for (const line of lines)
         unlinked.push(`${path.relative(repo, file)}:${line}`);
+    }
+  }
+
+  // Its sections in shared docs pages: a heading and what is under it.
+  for (const [relative, heading] of spec.sections ?? []) {
+    const file = inside(repo, relative);
+    const before = existsSync(file) ? current(file) : '';
+    const out = stripSection(before, heading);
+    if (out !== null) change(file, out, `"${heading}"`);
+    else if (deletions.includes(folder)) {
+      throw new Error(
+        `${relative} has no "${heading}" heading (tools/feature/removable.mjs, ${name}.sections): update the manifest.`,
+      );
     }
   }
 

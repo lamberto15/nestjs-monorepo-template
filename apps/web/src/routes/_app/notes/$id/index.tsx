@@ -25,7 +25,9 @@ import { RecordState } from '@/components/records/record-state';
 import { WatchButton } from '@/components/records/watch-button';
 import { FavoriteButton } from '@/features/favorites/favorite-button';
 import { useRecordRecent } from '@/features/work/api';
+// capability:presence begin
 import { PresenceIndicator } from '@/features/work/presence-indicator';
+// capability:presence end
 import { noteQuery, setNoteWatching, type Note } from '@/features/notes/api';
 import { useNoteDelete } from '@/features/notes/use-note-delete';
 import { useRichText } from '@/features/notes/use-rich-text';
@@ -87,7 +89,9 @@ function NoteView({ note }: { note: Note }) {
 
   return (
     <>
+      {/* capability:presence begin */}
       <PresenceIndicator subject="Note" recordId={note.id} mode="viewing" />
+      {/* capability:presence end */}
       <PageHeader
         title={note.title}
         description={note.number}

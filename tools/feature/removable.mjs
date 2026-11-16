@@ -15,6 +15,8 @@
 //   texts:        keys in shared locale files ({ app: 'web' | 'api', file, key })
 //   dependencies: packages only it uses, by workspace package: the command
 //                 prints the `pnpm remove` for them (never edits package.json)
+//   sections:     [file, heading]: a docs page's section (the heading and
+//                 what is under it, up to the next heading of its level)
 //   edits:        [file, text, replacement]: prose a marker can't hold (a
 //                 name inside a line, a Markdown table's row); the command
 //                 fails unless each text is there once
@@ -78,6 +80,44 @@ export const REMOVABLE = {
         'AGENTS.md',
         '  `forms` (runtime forms and submissions), `bulk-operations`',
         '  `bulk-operations`',
+      ],
+    ],
+  },
+  presence: {
+    about: 'who else is on a record (docs/work-surfaces.md, "Record presence")',
+    files: ['apps/web/src/features/work/presence-indicator.tsx'],
+    texts: [{ app: 'web', file: 'work.json', key: ['presence'] }],
+    sections: [['docs/work-surfaces.md', '## Record presence']],
+    edits: [
+      [
+        'AGENTS.md',
+        '(inbox, recent records, presence)',
+        '(inbox, recent records)',
+      ],
+      [
+        'README.md',
+        'the work inbox, recent records, record presence',
+        'the work inbox, recent records',
+      ],
+      [
+        'docs/work-surfaces.md',
+        'Three small surfaces that help a person get back to and finish their work: a\n**work inbox** (what waits on me), **recent records** (what I opened lately)\nand **record presence** (who else is on this record).',
+        'Two small surfaces that help a person get back to and finish their work: a\n**work inbox** (what waits on me) and **recent records** (what I opened\nlately).',
+      ],
+      [
+        'docs/work-surfaces.md',
+        '`platform/recents`, `platform/presence`;',
+        '`platform/recents`;',
+      ],
+      [
+        'docs/work-surfaces.md',
+        '- **Presence:** `PresenceIndicator` on a record page shows the other people\n  there (and a warning when someone is editing); `usePresence()` beats while\n  the page is open.\n',
+        '',
+      ],
+      [
+        'docs/webhooks-and-realtime.md',
+        '| `record.presence`            | someone arrived on, left or changed mode on a record you are on (docs/work-surfaces.md) | `{ subject, recordId }` (ids only; `GET /v1/presence/{subject}/{recordId}`) |\n',
+        '',
       ],
     ],
   },

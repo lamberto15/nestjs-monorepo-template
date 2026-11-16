@@ -381,7 +381,9 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/organizational-units',
         '/v1/people',
         '/v1/people/{id}/avatar',
+        // capability:presence begin
         '/v1/presence/{subject}/{recordId}',
+        // capability:presence end
         // capability:forms begin
         '/v1/public/forms/open',
         '/v1/public/forms/submit',

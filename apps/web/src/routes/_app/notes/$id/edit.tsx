@@ -12,7 +12,9 @@ import { Page, PageHeader } from '@/components/page-header';
 import { RecordState } from '@/components/records/record-state';
 import { noteQuery } from '@/features/notes/api';
 import { NoteForm } from '@/features/notes/note-form';
+// capability:presence begin
 import { PresenceIndicator } from '@/features/work/presence-indicator';
+// capability:presence end
 import { useRecordCan } from '@/lib/records';
 
 export const Route = createFileRoute('/_app/notes/$id/edit')({
@@ -60,11 +62,13 @@ function EditNote() {
             // would remount under the user's typing. A change by someone else
             // (the reload after a 412) moves `updatedAt`, so it still remounts.
             <>
+              {/* capability:presence begin */}
               <PresenceIndicator
                 subject="Note"
                 recordId={note.id}
                 mode="editing"
               />
+              {/* capability:presence end */}
               <NoteForm key={note.updatedAt} note={note} etag={etag} />
             </>
           ) : (
