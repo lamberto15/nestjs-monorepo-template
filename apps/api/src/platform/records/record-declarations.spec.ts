@@ -1,6 +1,13 @@
 import { RequestMethod } from '@nestjs/common';
 import { field } from '../fields/field.js';
-import { defineRecord, duplicateRules } from './record.js';
+import { pgTable, text } from 'drizzle-orm/pg-core';
+import { uuidPk } from '../../core/database/columns.js';
+import {
+  defineRecord,
+  duplicateRules,
+  handWrittenTable,
+  recordTableOf,
+} from './record.js';
 import { actionPath, recordApprovalActions } from './record-approvals.js';
 import { recordApprovalRoutes } from './record-approval-routes.js';
 import { recordSetting, recordSettings } from './record-settings.js';
@@ -266,5 +273,18 @@ describe('a record declaration', () => {
         computed: { a: computed.int('process.exit()') },
       }),
     ).toThrow(/Unexpected "\."/);
+  });
+
+  it("takes a table written by hand as the record's, if it has its fields' columns", () => {
+    const table = pgTable('invoice_lines', {
+      id: uuidPk(),
+      title: text('title').notNull(),
+    });
+    expect(handWrittenTable(INVOICE, table)).toBe(table);
+    expect(recordTableOf(INVOICE)).toBe(table);
+    const bare = pgTable('invoice_lines', { id: uuidPk() });
+    expect(() => handWrittenTable(INVOICE, bare)).toThrow(
+      /lacks the column of title/,
+    );
   });
 });
