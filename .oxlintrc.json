@@ -207,6 +207,24 @@
       }
     },
     {
+      // Directly in platform/, one `../` already leaves the group
+      // (`./features/` is platform's own folder and does not match).
+      "files": ["apps/api/src/platform/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^(\\.\\./)+(features)/",
+                "message": "Layering is core ← iam ← platform ← features: platform/ must not import features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       // Specs may reach across layers to check a registry or a table.
       "files": ["apps/api/src/{core,iam,platform}/**/*.spec.ts"],
       "rules": { "no-restricted-imports": "off" }
