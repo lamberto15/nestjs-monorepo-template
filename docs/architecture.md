@@ -75,6 +75,33 @@ src/
 | `platform/` | idempotency, outbox, webhooks (out and in), workflows, feature queues, storage, http-client and resilience, realtime (socket.io), exports and imports, bulk operations, PDF documents (Gotenberg), custom fields, tags, comments, attachments, list descriptions (`GET /v1/lists/{subject}`), saved views (`/v1/views`), the people directory and units lookup (`GET /v1/people`, `GET /v1/organizational-units`), notifications, record subscriptions, global search, sequences and naming series, scheduled reports, record revisions, settings and feature flags, API clients' usage and quotas, email deliverability, retention rules (`retention/`), the AI helper (`ai/`), push and SMS channels (`messaging/`), the encrypted columns' re-encryption job (`encryption/`), platform analytics (`analytics/`), domain events (`events/`), approvals (multi-stage, on durable workflows), money (minor-unit amounts, rounding, allocation, formatting, ECB exchange rates), a person's own account, the ops API, the switches report (`GET /v1/features`) |
 | `features/` | one folder and module per feature |
 
+### The platform's modules
+
+`PlatformModule.forRoot(options)` (`platform/platform.module.ts`) is a thin
+composition root, global so features, IAM and core inject the platform without
+importing it:
+
+- the packages' modules (idempotency, storage, http-client and resilience,
+  workflows, outbox, webhooks), then `MoneyModule`, then one module per
+  capability folder, `<folder>/<folder>.module.ts`, holding that folder's
+  providers and exporting what others inject. A capability module imports the
+  capability modules it injects from, never `forwardRef`: realtime,
+  notifications, subscriptions and data-transfer need one another and share
+  `PlatformKernelModule` (`platform/platform-kernel.module.ts`).
+  PlatformModule re-exports the modules whose providers the features, IAM and
+  core inject.
+- The options (`PLATFORM_OPTIONS`) and the queues (`@InjectQueue`, the
+  platform's and the features') come from one small global module built in
+  `forRoot()`, the only global module of the platform's own.
+- The routes stay in PlatformModule's `controllers`: the OpenAPI document
+  lists routes module by module, so that list's order is the document's.
+  So do its global enhancers (`ModeGuard`, `UsageInterceptor` while USAGE
+  is on): Nest orders global enhancers by module, a module's own before its
+  imports', and the capability modules register none.
+- A new platform provider goes into its folder's module (a new folder gets
+  one, imported last in `forRoot()`), and into its `exports` when another
+  module or a controller injects it.
+
 ### The HTTP server
 
 The API runs on Nest's native `node:http` adapter (`@nestjs/platform-node`,

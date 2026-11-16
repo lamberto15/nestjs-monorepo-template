@@ -434,9 +434,8 @@ export class PlatformModule {
         RetentionModule,
       ],
       // Every route of the platform, here rather than in its capability's module:
-      // Nest registers routes, and the OpenAPI document lists them, module by
-      // module, so this list's order is the order of the routes (some must
-      // come before others, see below) and of the document (packages/api-client).
+      // the OpenAPI document lists the routes module by module, so this list's
+      // order is the order of its paths (and of packages/api-client's types).
       controllers: [
         // WEBHOOKS=off: no endpoint or delivery API (the module itself stays: the
         // notifications, approvals and incoming receivers inject it).
