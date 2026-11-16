@@ -741,8 +741,9 @@ pnpm client:generate
 
 Supported: `ai` (the AI helper, [ai](ai.md)), `forms` (runtime forms,
 [forms](forms.md)), `presence` (who else is on a record,
-[work surfaces](work-surfaces.md#record-presence)) and `data-quality` (checks,
-scans and findings, [data quality](data-quality.md)). The list, and what the command must know of each beyond
+[work surfaces](work-surfaces.md#record-presence)), `data-quality` (checks,
+scans and findings, [data quality](data-quality.md)) and `messaging` (push
+and SMS, [notifications](notifications.md#push-and-sms)). The list, and what the command must know of each beyond
 the conventions, is `tools/feature/removable.mjs`. It deletes
 `apps/api/src/platform/<name>/` and `test/<name>.e2e-spec.ts`, takes its
 module, queue, settings and notifications out of `platform.module.ts` and
