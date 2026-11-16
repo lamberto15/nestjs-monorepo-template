@@ -36,8 +36,7 @@ export const CUSTOMER = defineRecord({
 ```
 
 `recordParts()` registers it (`RecordDataQuality`); no other code. A
-hand-written feature registers its own target in `DataQualityRegistry` (notes:
-`note-quality.ts`): its table, id and recycle-bin column, and the columns of
+hand-written feature registers its own target in `DataQualityRegistry`: its table, id and recycle-bin column, and the columns of
 each check. The checks are the platform's.
 
 ## Scans

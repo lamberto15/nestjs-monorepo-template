@@ -92,17 +92,22 @@ export const INVOICE = defineRecord({
   | `--idempotency required\|optional\|off` | `idempotency: '…'`: the create route and the record's platform write routes (bulk, PDF)                               | unset (no line): follow the deployment's `IDEMPOTENCY`                                                            |
 
   `clientAccess` and `grants` are always written (`false`, `'standard'`);
-  `idempotency` only when chosen. The notes example is hand-written and
-  keeps granting its clients.
+  `idempotency` only when chosen. The notes example declares `grants: 'none'` and
+  `clientAccess: false`, and writes its draft rules itself (`note-roles.ts`).
 
 - **Computed fields (`computed` in the declaration):** values derived from
   the fields on read, never stored: `total: computed.money('quantity * unitPrice')`
   ([computed fields](computed-fields.md)). No column, so no migration and
   nothing for sync to do.
+- **A table tuned by hand:** `recordTable()` derives indexes and a search
+  vector; a table with partial or covering indexes of its own is written by
+  hand in `<x>.tables.ts` and handed to the declaration with
+  `handWrittenTable(INVOICE, invoices)` (notes does). `pnpm db:generate`
+  follows the table as written.
 - **Capabilities (`--with a,b,…`, or `capabilities` in the declaration):** each
   is a platform module, wired by `recordParts` with a generic target;
   `recordParts(…, { override: { revisions: MyRevisions } })` replaces one
-  (notes does, for its hand-written custom fields).
+  (notes does, for its import and its PDF).
 
   | Capability    | Routes and more                                                                                                                                                                                                                                                                  |
   | ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -341,9 +346,10 @@ pnpm client:generate   # when it says the routes change
 
 **Which one to follow.** The generated shape (`pnpm feature:add`'s output,
 exercised by `apps/api/test/fixtures/test-items`) is the reference for a new
-feature. `features/notes` is the hand-written showcase of every add-on, business
-logic included: read it to see how an add-on is done, but do not copy it as a
-template. The sections below are the standard both follow.
+feature. `features/notes` is a generated record with the business logic of every add-on
+written around it (a publication workflow, a batch import, approvals and
+settings by hand): read it to see where logic goes, but start a new feature
+from `pnpm feature:add`. The sections below are the standard both follow.
 
 ### The web app's part
 
@@ -364,14 +370,17 @@ skipped.
 features/notes/
   notes.feature.ts                      what the groups take (defineFeature): listed in features/index.ts
   notes.module.ts                       the module
-  notes.tables.ts                       tables
+  notes.tables.ts                       the table, written by hand for its indexes (handWrittenTable)
+  note.record.ts                        the declaration: fields, capabilities, views
   notes.env.ts                          environment
-  note.schemas.ts                       Zod bodies and responses
+  note.schemas.ts                       Zod bodies and responses (from the record)
   note.policy.ts                        permissions and the @Policy() class
-  note.resource.ts                      the resource declaration (audit, custom fields)
+  note.resource.ts                      the resource declaration (audit)
   note.list.ts                          the list's filters, sorts and fields
   note.transfer.ts                      exporter and importer
-  note.bulk.ts                          bulk delete, restore, change
+  note-batch.ts                         an import group's writes in one transaction
+  note-roles.ts                         the example roles and client grants (drafts only)
+  note-documents.ts                     the PDF's own page
   notes.service.ts                      writes and reads
   notes.controller.ts                   /v1/notes
   note-events.ts                        domain events (webhook, notification, realtime), the workflow signal

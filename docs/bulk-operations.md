@@ -4,7 +4,7 @@ Act on many records of a feature at once: delete, restore, change. Each
 item goes through the feature's own service call, as its route does it
 (record and field-level checks, its transaction, its audit entry, its
 webhooks); an item that fails does not stop the others. The capability is
-`apps/api/src/platform/bulk/`; notes are the example (`features/notes/note.bulk.ts`).
+`apps/api/src/platform/bulk/`; notes are the example (`features/notes/note.record.ts`).
 
 ## For clients
 

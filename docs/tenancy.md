@@ -448,8 +448,7 @@ transaction, before the insert: a member joining (`UsersRepository.joinTenant()`
 SSO and the single-tenant sign-in all pass there; an invitation is sent
 freely, the seat is taken when it is accepted), a new API client, an upload
 or an issued document (`AttachmentsService`, by the file's size), a new record
-(`RecordStore.owner()`, which every generated service calls on create; the
-hand-written notes call it themselves). Past the limit: **422** `quota_exceeded`
+(`RecordStore.owner()`, which every generated service calls on create). Past the limit: **422** `quota_exceeded`
 with `quota: { resource, limit, used }`; an upload's file is deleted again.
 Lowering a limit under the current use deletes nothing; it refuses what is
 made next. The groups that own a resource say how it is counted
