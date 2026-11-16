@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, count, desc, eq, gt, inArray } from 'drizzle-orm';
+import { and, count, desc, eq, gt, inArray, sql } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
   database,
@@ -113,7 +113,10 @@ export class RecentsService implements PersonalDataSource {
             recentRecords.subject,
             recentRecords.recordId,
           ],
-          set: { label: dto.label, viewedAt: new Date() },
+          // The database's clock, as the insert's default: with the app's, a
+          // re-opened record sorted below one opened a moment earlier whenever
+          // the two clocks differed.
+          set: { label: dto.label, viewedAt: sql`now()` },
         })
         .returning();
       // Past the bound: the oldest go.
