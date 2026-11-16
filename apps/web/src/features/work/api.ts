@@ -3,7 +3,9 @@ import {
   infiniteQueryOptions,
   queryOptions,
   useMutation,
+  // capability:presence begin
   useQuery,
+  // capability:presence end
   useQueryClient,
 } from '@tanstack/react-query';
 import { useEffect } from 'react';

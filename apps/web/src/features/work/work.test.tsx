@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
+// capability:presence begin
 import { renderComponent } from '@/test/render-component';
+// capability:presence end
 import { server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
 // capability:presence begin
