@@ -135,10 +135,9 @@ perYear: true, width: 5 }` (default: the subject's initials, per year, 5
   English in every language: translate the `de`, `ar`, `zh` and `ms` values by
   hand, keeping keys, `{{placeholders}}` and plural suffixes
   (`apps/api/src/i18n/catalogs.spec.ts` checks them), and have a native
-  speaker review the result. The command writes the API's catalogs only: the
-  web app's `locales/<lng>/<name>.json` are part of the web page you write by
-  hand (docs/monorepo.md, "Adding a page for a feature"), checked by
-  `apps/web/src/locales.test.ts`.
+  speaker review the result. The web app's `locales/<lng>/<name>.json` are
+  written the same way (English in every language, to translate), checked by
+  `apps/web/src/locales.test.ts` and `pnpm i18n:check`.
 
 - **Approvals (`--approvals publish,markPaid`, or `approvals` in the
   declaration)** and **settings (`--settings "paymentDays:int=30,autoSend:flag"`,
@@ -337,9 +336,26 @@ pnpm client:generate   # when it says the routes change
   tenant is made; an existing tenant's administrators grant the new
   permissions through the access API.
 
-`apps/api/src/features/notes/` is the hand-written example of everything
-this page describes, business logic included; the sections below are the
-standard both follow.
+**Which one to follow.** The generated shape (`pnpm feature:add`'s output,
+exercised by `apps/api/test/fixtures/test-items`) is the reference for a new
+feature. `features/notes` is the hand-written showcase of every add-on, business
+logic included: read it to see how an add-on is done, but do not copy it as a
+template. The sections below are the standard both follow.
+
+### The web app's part
+
+With `apps/web` present, `feature:add` also writes the feature's pages, at the
+paths `feature:remove` takes away (docs/monorepo.md, "Adding a page for a
+feature"): `features/<name>/` (`api.ts` on the typed client, a form of the
+fields, the delete hook, `nav.ts`, a test with msw), `routes/_app/<name>/`
+(a `ListPage`, `new`, the detail with `RecordPanels`, `edit`) and
+`locales/<lng>/<name>.json`, then regenerates `routeTree.gen.ts`. Permissions
+are checked with `Can`, `beforeLoad` and each record's `can`. The pages type-check
+against the typed client, so run `pnpm client:generate` before building them.
+`feature:sync` does not touch them: a field added to the record is added to
+the form, the list and the detail by hand; bulk actions, import, watching and
+the other add-ons' buttons are added from notes. Without `apps/web` the web part is
+skipped.
 
 ```
 features/notes/
@@ -687,7 +703,7 @@ pnpm client:generate
 `pnpm feature:remove <name>` removes any feature the same way: its folder,
 its tests (`test/<name>.e2e-spec.ts`, `test/features/<name>/`), its lines in
 `features/index.ts`, `tables.ts` and `env.ts`, its texts (the `<item>` key of
-each locale's files), its PDF template, and its variables (the
+each locale's files), its paths in the OpenAPI test, its PDF template, and its variables (the
 `feature:<name> begin … end` blocks in `env.example`,
 `apps/api/env.development.example` and `test/setup-env.ts`). In the web app
 it takes the paths every feature's pages use (docs/monorepo.md, "Adding a page

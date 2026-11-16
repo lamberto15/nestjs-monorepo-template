@@ -8,6 +8,12 @@
 // features/tables.ts and the OpenAPI test's path list, and edits nothing
 // else: the groups read those lists.
 //
+// With apps/web present it also writes the web app's part, from
+// web-templates.mjs: features/<name>/ (queries, form, delete hook, nav entry,
+// test), routes/_app/<name>/ (list, new, detail, edit) and the texts in every
+// locale, then regenerates the route tree. `pnpm feature:remove` takes
+// exactly these away again.
+//
 //   pnpm feature:add invoices --fields "title:string,amount:money,dueOn:date?,status:enum(draft|sent|paid)"
 //   pnpm feature:add invoices --fields "…" --unit --no-soft-delete --description "Invoices to customers"
 //   pnpm feature:add payments --fields "…" --idempotency required --client-access own --grants none
@@ -20,7 +26,13 @@
 // enum(a|b), json, ref(<feature>)?; `?` optional, `!unique` unique per tenant.
 // Then: pnpm db:generate (new tables: drizzle-kit asks nothing),
 // pnpm client:generate, then a draft PR: CI runs the checks (AGENTS.md).
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  writeFileSync,
+} from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -37,7 +49,9 @@ import { parseFields } from './fields.mjs';
 import { names } from './names.mjs';
 import { checkout, inside } from './paths.mjs';
 import * as templates from './templates.mjs';
+import { regenerateRouteTree } from './remove.mjs';
 import { syncFeature } from './sync.mjs';
+import * as web from './web-templates.mjs';
 
 const REPO = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -121,6 +135,20 @@ export async function addFeature(root, options) {
       '--with merge: the feature needs a string field to find duplicates by (or declare duplicates in its record.ts).',
     );
   }
+  // The web app's part, when the checkout has one: its paths are checked here, before anything is written.
+  const webSrc = existsSync(inside(repo, 'apps/web/src/routes/_app'))
+    ? inside(repo, 'apps/web/src')
+    : null;
+  for (const taken of webSrc
+    ? [
+        inside(webSrc, 'features', t.plural),
+        inside(webSrc, 'routes/_app', t.plural),
+      ]
+    : []) {
+    if (existsSync(taken)) {
+      throw new Error(`${path.relative(repo, taken)} exists already.`);
+    }
+  }
   const context = {
     t,
     fields,
@@ -166,12 +194,57 @@ export async function addFeature(root, options) {
   );
   // Its texts and OpenAPI paths, as `pnpm feature:sync` keeps them.
   const synced = await syncFeature(api, t.plural);
+  const translate = [...synced.translate];
+  if (webSrc) {
+    const added = await addWeb(repo, webSrc, context);
+    written.push(...added.written);
+    translate.push(...added.translate);
+  }
   return {
     written,
     changed: [...changed, ...synced.changes],
     names: t,
-    translate: synced.translate,
+    translate,
+    web: webSrc !== null,
   };
+}
+
+/**
+ * The web app's files of the feature (web-templates.mjs), and its texts in
+ * every locale the app ships (English in all, to translate: the i18n parity
+ * check wants the same keys). Returns the paths written, relative to `repo`.
+ */
+async function addWeb(repo, webSrc, context) {
+  const { t } = context;
+  const paths = web.webPaths(t);
+  const files = {
+    [paths.api]: web.api(context),
+    [paths.form]: web.form(context),
+    [paths.remove]: web.remove(context),
+    [paths.nav]: web.nav(context),
+    [paths.test]: web.test(context),
+    [paths.list]: web.listPage(context),
+    [paths.new]: web.newPage(context),
+    [paths.detail]: web.detailPage(context),
+    [paths.edit]: web.editPage(context),
+  };
+  const written = [];
+  for (const [name, text] of Object.entries(files)) {
+    const file = inside(webSrc, name);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(file, await format(file, text));
+    written.push(path.relative(repo, file));
+  }
+  const translate = [];
+  const locales = inside(webSrc, 'locales');
+  const json = `${JSON.stringify(web.texts(context), null, 2)}\n`;
+  for (const lng of existsSync(locales) ? readdirSync(locales).sort() : []) {
+    const file = inside(locales, lng, `${t.plural}.json`);
+    writeFileSync(file, json);
+    written.push(path.relative(repo, file));
+    if (lng !== 'en') translate.push(path.relative(repo, file));
+  }
+  return { written, translate };
 }
 
 /** features/index.ts: the import and the list entry, at the markers. */
@@ -258,10 +331,13 @@ async function main() {
     console.log(`\nTo translate (English for now):`);
     for (const key of result.translate) console.log(`  ${key}`);
   }
+  if (result.web && (await regenerateRouteTree(values.root ?? REPO))) {
+    console.log('  ~ apps/web/src/routeTree.gen.ts (regenerated)');
+  }
   console.log(`
 Next:
   pnpm db:generate        # the ${t.table} table's migration (review it, commit apps/api/drizzle/)
-  pnpm client:generate    # the typed client
+  pnpm client:generate    # the typed client (the web pages type-check against it)
   Business logic: ${t.plural}.service.ts, where it says "Business logic".
   Record routes (tags, comments, attachments…): docs/adding-a-feature.md.
   Then a draft PR: CI runs the checks (AGENTS.md, "Validation in CI").`);
