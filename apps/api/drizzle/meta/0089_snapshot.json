@@ -2028,7 +2028,7 @@
           "isUnique": true,
           "with": {},
           "method": "btree",
-          "where": "\"valid_to\" is null",
+          "where": "(\"valid_to\" is null)",
           "concurrently": false
         },
         "organizational_unit_memberships_user_idx": {
@@ -5848,7 +5848,7 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
-          "where": "\"read_at\" is null",
+          "where": "(\"read_at\" is null)",
           "concurrently": false
         },
         "notifications_undelivered_idx": {
@@ -5864,7 +5864,7 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
-          "where": "\"delivered_at\" is null",
+          "where": "(\"delivered_at\" is null)",
           "concurrently": false
         },
         "notifications_recipient_key_idx": {

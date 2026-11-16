@@ -5761,7 +5761,7 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
-          "where": "\"read_at\" is null",
+          "where": "(\"read_at\" is null)",
           "concurrently": false
         },
         "notifications_undelivered_idx": {
@@ -5777,7 +5777,7 @@
           "isUnique": false,
           "with": {},
           "method": "btree",
-          "where": "\"delivered_at\" is null",
+          "where": "(\"delivered_at\" is null)",
           "concurrently": false
         },
         "notifications_recipient_key_idx": {

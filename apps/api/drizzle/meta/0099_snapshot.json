@@ -2099,7 +2099,7 @@
             }
           ],
           "isUnique": true,
-          "where": "\"valid_to\" is null",
+          "where": "(\"valid_to\" is null)",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5919,7 +5919,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"read_at\" is null",
+          "where": "(\"read_at\" is null)",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5935,7 +5935,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"delivered_at\" is null",
+          "where": "(\"delivered_at\" is null)",
           "concurrently": false,
           "method": "btree",
           "with": {}

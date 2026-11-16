@@ -5759,7 +5759,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"read_at\" is null",
+          "where": "(\"read_at\" is null)",
           "concurrently": false,
           "method": "btree",
           "with": {}
@@ -5775,7 +5775,7 @@
             }
           ],
           "isUnique": false,
-          "where": "\"delivered_at\" is null",
+          "where": "(\"delivered_at\" is null)",
           "concurrently": false,
           "method": "btree",
           "with": {}
