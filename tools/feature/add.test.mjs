@@ -597,6 +597,131 @@ describe('addFeature', () => {
   });
 });
 
+describe('addFeature on the web app', () => {
+  let root;
+  const web = (...parts) => path.join(root, 'apps/web/src', ...parts);
+  const LOCALES = ['ar', 'de', 'en', 'ms', 'zh'];
+
+  before(() => {
+    root = scratchCheckout('feature-add-web-');
+    mkdirSync(web('routes/_app'), { recursive: true });
+    for (const lng of LOCALES)
+      mkdirSync(web('locales', lng), { recursive: true });
+  });
+  after(() => rmSync(root, { recursive: true, force: true }));
+
+  it('writes the queries, form, routes, nav entry, test and texts in every locale', async () => {
+    const result = await addFeature(root, {
+      name: 'invoice-lines',
+      fields:
+        'title:string,total:money,paid:bool,status:enum(draft|paid),meta:json?',
+    });
+    assert.equal(result.web, true);
+    for (const file of [
+      'features/invoice-lines/api.ts',
+      'features/invoice-lines/invoice-line-form.tsx',
+      'features/invoice-lines/use-invoice-line-delete.tsx',
+      'features/invoice-lines/nav.ts',
+      'features/invoice-lines/invoice-lines.test.tsx',
+      'routes/_app/invoice-lines/index.tsx',
+      'routes/_app/invoice-lines/new.tsx',
+      'routes/_app/invoice-lines/$id/index.tsx',
+      'routes/_app/invoice-lines/$id/edit.tsx',
+      ...LOCALES.map((lng) => `locales/${lng}/invoice-lines.json`),
+    ]) {
+      assert.ok(existsSync(web(file)), file);
+      assert.ok(result.written.includes(`apps/web/src/${file}`), file);
+    }
+    const read = (file) => readFileSync(web(file), 'utf8');
+    // The queries call the typed client; the form has an input per field (money has two).
+    assert.match(
+      read('features/invoice-lines/api.ts'),
+      /api\.PATCH\('\/v1\/invoice-lines\/\{id\}'/,
+    );
+    assert.match(read('features/invoice-lines/api.ts'), /restoreInvoiceLine/);
+    const form = read('features/invoice-lines/invoice-line-form.tsx');
+    for (const name of [
+      'title',
+      'totalAmount',
+      'totalCurrency',
+      'paid',
+      'status',
+      'meta',
+    ]) {
+      assert.match(form, new RegExp(`name="${name}"`));
+    }
+    // The permission checks and the nav entry.
+    assert.match(
+      read('routes/_app/invoice-lines/index.tsx'),
+      /<Can permission="InvoiceLine\.create">/,
+    );
+    assert.match(
+      read('routes/_app/invoice-lines/new.tsx'),
+      /InvoiceLine\.create/,
+    );
+    assert.match(
+      read('features/invoice-lines/nav.ts'),
+      /permission: 'InvoiceLine\.read'/,
+    );
+    // The same texts, with the same keys, in every locale.
+    const en = read('locales/en/invoice-lines.json');
+    for (const lng of LOCALES) {
+      assert.equal(read(`locales/${lng}/invoice-lines.json`), en);
+    }
+    assert.equal(JSON.parse(en).enums.status.paid, 'Paid');
+    assert.ok(
+      result.translate.includes('apps/web/src/locales/de/invoice-lines.json'),
+    );
+  });
+
+  it('refuses a feature the web app has already, before writing anything', async () => {
+    mkdirSync(web('features/taken-things'), { recursive: true });
+    await assert.rejects(
+      () => addFeature(root, { name: 'taken-things', fields: 'title:string' }),
+      /features\/taken-things exists already/,
+    );
+    assert.ok(
+      !existsSync(path.join(root, 'apps/api/src/features/taken-things')),
+    );
+  });
+
+  it('writes a plain confirmation, not a recycle bin, without softDelete', async () => {
+    await addFeature(root, {
+      name: 'entries',
+      fields: 'title:string',
+      softDelete: false,
+    });
+    const hook = readFileSync(
+      web('features/entries/use-entry-delete.tsx'),
+      'utf8',
+    );
+    assert.match(hook, /ConfirmDialog/);
+    assert.doesNotMatch(hook, /restore/);
+    assert.doesNotMatch(
+      readFileSync(web('routes/_app/entries/index.tsx'), 'utf8'),
+      /RecycleBinToggle/,
+    );
+    assert.doesNotMatch(
+      readFileSync(web('locales/en/entries.json'), 'utf8'),
+      /"bin"/,
+    );
+  });
+
+  it('skips the web app when the checkout has none', async () => {
+    const bare = scratchCheckout('feature-add-bare-');
+    try {
+      const result = await addFeature(bare, {
+        name: 'things',
+        fields: 'title:string',
+      });
+      assert.equal(result.web, false);
+      assert.ok(!existsSync(path.join(bare, 'apps/web')));
+    } finally {
+      rmSync(bare, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('feature:sync', () => {
   let root;
   const api = (...parts) => path.join(root, 'apps/api', ...parts);
