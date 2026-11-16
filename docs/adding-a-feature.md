@@ -740,8 +740,9 @@ pnpm client:generate
 ```
 
 Supported: `ai` (the AI helper, [ai](ai.md)), `forms` (runtime forms,
-[forms](forms.md)) and `presence` (who else is on a record,
-[work surfaces](work-surfaces.md#record-presence)). The list, and what the command must know of each beyond
+[forms](forms.md)), `presence` (who else is on a record,
+[work surfaces](work-surfaces.md#record-presence)) and `data-quality` (checks,
+scans and findings, [data quality](data-quality.md)). The list, and what the command must know of each beyond
 the conventions, is `tools/feature/removable.mjs`. It deletes
 `apps/api/src/platform/<name>/` and `test/<name>.e2e-spec.ts`, takes its
 module, queue, settings and notifications out of `platform.module.ts` and
@@ -764,8 +765,8 @@ Then run the steps it prints, `pnpm build`, `pnpm lint` (knip finds what is
 left orphaned) and the tests. CI's `template-without-capabilities` job
 (manual runs) removes each supported capability in turn and builds, lints
 and type-checks what is left. Not supported yet, because other platform
-code builds on them: `automations`, `data-quality` and `shares` (the
-records' generic routes and contract, `platform/records`, call them).
+code builds on them: `automations` and `shares` (the records' generic
+routes and contract, `platform/records`, call them).
 
 ### A feature's demo data
 
