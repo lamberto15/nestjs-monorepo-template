@@ -211,6 +211,7 @@ export const REALTIME_EVENTS = {
       error: z.string(),
     }),
   ),
+  // capability:ai begin
   'ai.ready': event(
     'RealtimeAiReadyEvent',
     'An AI run you asked for (`POST /v1/ai/runs`) finished: read the answer at `GET /v1/ai/runs/{id}`.',
@@ -229,6 +230,7 @@ export const REALTIME_EVENTS = {
       error: z.string(),
     }),
   ),
+  // capability:ai end
   'record.commented': event(
     'RealtimeRecordCommentedEvent',
     'A comment on a record you watch (or one you wrote, for your other tabs) was added, edited or removed: ids only, fetch the thread.',

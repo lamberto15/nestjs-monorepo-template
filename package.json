@@ -39,6 +39,7 @@
     "deploy:rolling": "node tools/deploy/rolling.mjs",
     "feature:add": "node tools/feature/add.mjs",
     "feature:remove": "node tools/feature/remove.mjs",
+    "capability:remove": "node tools/feature/remove-capability.mjs",
     "feature:sync": "node tools/feature/sync.mjs",
     "deploy:swarm": "node tools/deploy/swarm.mjs",
     "knip": "knip",

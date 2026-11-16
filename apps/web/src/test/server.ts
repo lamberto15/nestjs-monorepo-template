@@ -59,7 +59,9 @@ export const allFeatures: Features = {
   magicLink: true,
   documents: true,
   presignedUploads: false,
+  // capability:ai begin
   ai: true,
+  // capability:ai end
   exchangeRates: true,
   mode: 'normal',
   tenancy: 'multi',

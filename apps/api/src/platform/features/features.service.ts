@@ -3,7 +3,9 @@ import { ConfigService } from '@nestjs/config';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { IamEnv } from '../../iam/iam.env.js';
 import type { PlatformEnv } from '../platform.env.js';
+// capability:ai begin
 import { aiEnabled } from '../ai/ai-models.js';
+// capability:ai end
 import { PdfRenderer } from '../documents/pdf-renderer.js';
 import { ModeService } from '../mode/mode.service.js';
 import { presignedUploads } from '../attachments/attachment-limits.js';
@@ -14,8 +16,8 @@ import type { Features } from './features.schemas.js';
  * Which switches this deployment has on, for a frontend that hides what is
  * off. Every value is read the way the module it names reads it (the
  * platform switches through `switchedOn()`, the IAM ones through
- * ConfigService, documents through `PdfRenderer.enabled`, the AI helper through
- * `aiEnabled()`, the exchange rates through ConfigService as the money
+ * ConfigService, documents through `PdfRenderer.enabled`, the
+ * exchange rates through ConfigService as the money
  * module reads them), so this can't
  * disagree with the routes. Custom code: no @nestjs package reports an
  * app's own switches.
@@ -47,7 +49,9 @@ export class FeaturesService {
       magicLink: get('AUTH_MAGIC_LINK'),
       documents: this.pdf.enabled,
       presignedUploads: presignedUploads(get('STORAGE_DRIVER')),
+      // capability:ai begin
       ai: aiEnabled(this.config),
+      // capability:ai end
       exchangeRates: get('EXCHANGE_RATES_FETCH'),
       tenancy: get('TENANCY'),
       mode: this.mode.current(),

@@ -335,7 +335,9 @@ describe('the environment (env.ts)', () => {
     expect(core.sort()).toEqual(
       [
         'ADMIN_PASSWORD',
+        // capability:ai begin
         'ANTHROPIC_API_KEY',
+        // capability:ai end
         'APNS_PRIVATE_KEY',
         'AWS_SECRET_ACCESS_KEY',
         'AWS_SESSION_TOKEN',

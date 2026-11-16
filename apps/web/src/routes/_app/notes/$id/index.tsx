@@ -14,7 +14,9 @@ import { ArrowLeftIcon, EllipsisIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { Page, PageHeader } from '@/components/page-header';
 import { MarkdownText } from '@/components/markdown/lazy';
+// capability:ai begin
 import { AiPanel } from '@/features/ai/ai-panel';
+// capability:ai end
 import { ApprovalBanner } from '@/features/approvals/record-banner';
 import { CustomFieldValues } from '@/components/records/custom-field-values';
 import { DetailItem, DetailList } from '@/components/records/detail-list';
@@ -183,7 +185,9 @@ function NoteView({ note }: { note: Note }) {
           value={date(note.publishedAt)}
         />
       </DetailList>
+      {/* capability:ai begin */}
       <AiPanel source="note" recordId={note.id} />
+      {/* capability:ai end */}
       <RecordPanels
         subject="Note"
         path="/v1/notes/{id}"

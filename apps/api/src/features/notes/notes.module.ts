@@ -41,7 +41,9 @@ import { MERGES } from '../../platform/merge/record-merge.js';
 import { NoteMerge } from './note-merge.js';
 import { noteBulkSchema, noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
+// capability:ai begin
 import { NoteAi } from './note-ai.js';
+// capability:ai end
 import { NoteDocuments } from './note-documents.js';
 import { documentRoutes } from '../../platform/documents/document.routes.js';
 import { listSource } from '../../platform/lists/lists.registry.js';
@@ -102,7 +104,9 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     NoteTags,
     NoteRevisions,
     NotePublishApproval,
+    // capability:ai begin
     NoteAi,
+    // capability:ai end
     NoteDocuments,
     // GET /v1/lists/Note: the list described, and what notes take (a generated record's comes from recordParts).
     listSource('Note', NOTE_LIST, NOTE_CAPABILITIES, NOTE_VIEWS),

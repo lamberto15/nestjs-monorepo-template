@@ -70,7 +70,9 @@ export const platformEnv = z.object({
   QUEUE_CONCURRENCY_DATA_TRANSFERS: z.coerce.number().int().min(1).default(2),
   QUEUE_CONCURRENCY_BULK: z.coerce.number().int().min(1).default(2),
   QUEUE_CONCURRENCY_DOCUMENTS: z.coerce.number().int().min(1).default(2),
+  // capability:ai begin
   QUEUE_CONCURRENCY_AI: z.coerce.number().int().min(1).default(2),
+  // capability:ai end
   QUEUE_CONCURRENCY_MAIL_EVENTS: z.coerce.number().int().min(1).default(2),
   QUEUE_CONCURRENCY_RETENTION: z.coerce.number().int().min(1).default(1),
   QUEUE_CONCURRENCY_REENCRYPTION: z.coerce.number().int().min(1).default(1),
@@ -373,6 +375,7 @@ export const platformEnv = z.object({
   /** Tries per document, the first included (exponential backoff from 1 s), before it fails. */
   DOCUMENTS_RENDER_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
 
+  // capability:ai begin
   /**
    * The AI helper (platform/ai): an Anthropic API key. Unset: the helper is
    * off and asking for it answers 503 `ai_unavailable`; nothing is sent
@@ -395,6 +398,7 @@ export const platformEnv = z.object({
   AI_TENANT_DAILY_TOKENS: z.coerce.number().int().min(0).default(500_000),
   /** How long an answer to the same prompt (same tenant, model and prompt version) is reused; 0 is never. */
   AI_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).default(3600),
+  // capability:ai end
 
   /** Where files go: `local` (STORAGE_ROOT), `s3` (any S3-compatible store), `memory` (tests). */
   STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).default('local'),

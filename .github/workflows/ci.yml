@@ -321,6 +321,7 @@ jobs:
           test "$(api JWT_SECRET_FILE)" = /run/secrets/jwt_secret
           test "$(api REDIS_PASSWORD_FILE)" = /run/secrets/redis_password
           test "$(api SMTP_URL_FILE)" = /run/secrets/smtp_url
+          # capability:ai begin
           # The AI helper's key (docs/ai.md): api and worker read it; migrate never needs it.
           test "$(api ANTHROPIC_API_KEY_FILE)" = /run/secrets/anthropic_api_key
           test "$(api ANTHROPIC_API_KEY)" = ''
@@ -328,6 +329,7 @@ jobs:
           test "$(jq -r '.services.worker.secrets | map(.source) | index("anthropic_api_key") != null' files.json)" = true
           test "$(jq -r '.services.migrate.secrets | map(.source) | index("anthropic_api_key")' files.json)" = null
           test "$(jq -r .secrets.anthropic_api_key.file files.json)" = "$dir/ANTHROPIC_API_KEY"
+          # capability:ai end
           test "$(api MAIL_API_KEY_FILE)" = ''
           test "$(jq -r .secrets.jwt_secret.file files.json)" = "$dir/JWT_SECRET"
           test "$(jq -r .secrets.mail_api_key.file files.json)" = "$PWD/secret.empty"

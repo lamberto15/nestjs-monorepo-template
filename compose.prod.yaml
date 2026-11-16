@@ -193,6 +193,7 @@ x-app: &app
     GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
     GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}
     DOCUMENTS_RENDER_ATTEMPTS: ${DOCUMENTS_RENDER_ATTEMPTS:-3}
+    # capability:ai begin
     # AI helper (docs/ai.md): off unless the key is set (in .env, or in the file ANTHROPIC_API_KEY_FILE names below).
     ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     AI_BASE_URL: ${AI_BASE_URL:-}
@@ -203,6 +204,7 @@ x-app: &app
     AI_ATTEMPTS: ${AI_ATTEMPTS:-2}
     AI_TENANT_DAILY_TOKENS: ${AI_TENANT_DAILY_TOKENS:-500000}
     AI_CACHE_TTL_SECONDS: ${AI_CACHE_TTL_SECONDS:-3600}
+    # capability:ai end
     # Observability (NestJS Observe, when both are set)
     OBSERVE_APP_KEY: ${OBSERVE_APP_KEY:-}
     OBSERVE_APP_SECRET: ${OBSERVE_APP_SECRET:-}
@@ -310,7 +312,9 @@ x-app: &app
     BLIND_INDEX_KEYS_FILE: ${BLIND_INDEX_KEYS_FILE:+/run/secrets/blind_index_keys}
     OBSERVE_APP_SECRET_FILE: ${OBSERVE_APP_SECRET_FILE:+/run/secrets/observe_app_secret}
     EXAMPLE_SENDER_WEBHOOK_SECRET_FILE: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:+/run/secrets/example_sender_webhook_secret}
+    # capability:ai begin
     ANTHROPIC_API_KEY_FILE: ${ANTHROPIC_API_KEY_FILE:+/run/secrets/anthropic_api_key}
+    # capability:ai end
     POSTMARK_WEBHOOK_SECRET_FILE: ${POSTMARK_WEBHOOK_SECRET_FILE:+/run/secrets/postmark_webhook_secret}
     RESEND_WEBHOOK_SECRET_FILE: ${RESEND_WEBHOOK_SECRET_FILE:+/run/secrets/resend_webhook_secret}
     TWILIO_AUTH_TOKEN_FILE: ${TWILIO_AUTH_TOKEN_FILE:+/run/secrets/twilio_auth_token}
@@ -343,7 +347,9 @@ x-app: &app
     - blind_index_keys
     - observe_app_secret
     - example_sender_webhook_secret
+    # capability:ai begin
     - anthropic_api_key
+    # capability:ai end
     - postmark_webhook_secret
     - resend_webhook_secret
     - twilio_auth_token
@@ -473,7 +479,9 @@ services:
       QUEUE_CONCURRENCY_DATA_TRANSFERS: ${QUEUE_CONCURRENCY_DATA_TRANSFERS:-2}
       QUEUE_CONCURRENCY_BULK: ${QUEUE_CONCURRENCY_BULK:-2}
       QUEUE_CONCURRENCY_DOCUMENTS: ${QUEUE_CONCURRENCY_DOCUMENTS:-2}
+      # capability:ai begin
       QUEUE_CONCURRENCY_AI: ${QUEUE_CONCURRENCY_AI:-2}
+      # capability:ai end
       QUEUE_CONCURRENCY_MAIL_EVENTS: ${QUEUE_CONCURRENCY_MAIL_EVENTS:-2}
       QUEUE_CONCURRENCY_RETENTION: ${QUEUE_CONCURRENCY_RETENTION:-1}
       QUEUE_CONCURRENCY_REENCRYPTION: ${QUEUE_CONCURRENCY_REENCRYPTION:-1}
@@ -506,7 +514,9 @@ services:
       - blind_index_keys
       - observe_app_secret
       - example_sender_webhook_secret
+      # capability:ai begin
       - anthropic_api_key
+      # capability:ai end
       - postmark_webhook_secret
       - resend_webhook_secret
       - twilio_auth_token
@@ -894,8 +904,10 @@ secrets:
     file: ${OBSERVE_APP_SECRET_FILE:-./secret.empty}
   example_sender_webhook_secret:
     file: ${EXAMPLE_SENDER_WEBHOOK_SECRET_FILE:-./secret.empty}
+  # capability:ai begin
   anthropic_api_key:
     file: ${ANTHROPIC_API_KEY_FILE:-./secret.empty}
+  # capability:ai end
   postmark_webhook_secret:
     file: ${POSTMARK_WEBHOOK_SECRET_FILE:-./secret.empty}
   resend_webhook_secret:

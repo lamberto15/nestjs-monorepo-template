@@ -614,6 +614,7 @@ export const QUESTIONS = [
     validate: optionalUrl,
     write: (v) => ({ SENTRY_DSN: v || null }),
   },
+  // capability:ai begin
   {
     id: 'anthropicApiKey',
     label: 'Anthropic API key for the AI helper (empty: off; docs/ai.md)',
@@ -625,6 +626,7 @@ export const QUESTIONS = [
     read: (env) => env.ANTHROPIC_API_KEY,
     write: (v) => ({ ANTHROPIC_API_KEY: v || null }),
   },
+  // capability:ai end
   {
     id: 'push',
     label: 'Web Push (browser notifications; the VAPID keys are generated)?',

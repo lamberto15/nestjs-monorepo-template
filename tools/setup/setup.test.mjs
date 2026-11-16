@@ -1187,7 +1187,9 @@ describe('questions for observability, the AI key, push and SMS', () => {
       'OBSERVE_APP_SECRET',
       'OTEL_EXPORTER_OTLP_ENDPOINT',
       'SENTRY_DSN',
+      // capability:ai begin
       'ANTHROPIC_API_KEY',
+      // capability:ai end
       'WEB_PUSH_VAPID_PUBLIC_KEY',
       'TWILIO_ACCOUNT_SID',
     ]) {
@@ -1219,8 +1221,10 @@ describe('questions for observability, the AI key, push and SMS', () => {
         'x-honeycomb-team=hc-secret',
         '--sentry-dsn',
         'https://pub@o1.ingest.sentry.io/2',
+        // capability:ai begin
         '--anthropic-api-key',
         'sk-ant-test',
+        // capability:ai end
         '--push',
         '--sms',
         '--twilio-account-sid',
@@ -1247,7 +1251,9 @@ describe('questions for observability, the AI key, push and SMS', () => {
       'x-honeycomb-team=hc-secret',
     );
     assert.equal(env.get('SENTRY_DSN'), 'https://pub@o1.ingest.sentry.io/2');
+    // capability:ai begin
     assert.equal(env.get('ANTHROPIC_API_KEY'), 'sk-ant-test');
+    // capability:ai end
     assert.equal(env.get('PUSH_PROVIDER'), 'web-push');
     assert.equal(env.get('WEB_PUSH_SUBJECT'), 'mailto:ops@acme.io');
     assert.equal(env.get('SMS_PROVIDER'), 'twilio');
@@ -1556,7 +1562,9 @@ describe('questions for observability, the AI key, push and SMS', () => {
       MAIL_API_KEY: 'mail-key-value',
       AWS_SECRET_ACCESS_KEY: 'aws-secret-value',
       TURNSTILE_SECRET_KEY: 'turnstile-secret-value',
+      // capability:ai begin
       ANTHROPIC_API_KEY: 'sk-ant-value',
+      // capability:ai end
       OTEL_EXPORTER_OTLP_HEADERS: 'x-team=key-value',
       SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
     };
@@ -1582,8 +1590,10 @@ describe('questions for observability, the AI key, push and SMS', () => {
       'site-key',
       '--turnstile-secret-key',
       kept.TURNSTILE_SECRET_KEY,
+      // capability:ai begin
       '--anthropic-api-key',
       kept.ANTHROPIC_API_KEY,
+      // capability:ai end
       '--otel-endpoint',
       'https://otel.example.com',
       '--otel-headers',
@@ -1659,7 +1669,9 @@ describe('questions for observability, the AI key, push and SMS', () => {
         'OTEL_EXPORTER_OTLP_HEADERS',
       ],
       ['sentryDsn', {}, 'SENTRY_DSN'],
+      // capability:ai begin
       ['anthropicApiKey', {}, 'ANTHROPIC_API_KEY'],
+      // capability:ai end
       ['twilioAuthToken', { sms: true }, 'TWILIO_AUTH_TOKEN'],
     ];
     // A secret question added later must be listed here.
@@ -1722,9 +1734,11 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.match(pair.privateKey, /^[A-Za-z0-9_-]{43}$/);
   });
 
+  // capability:ai begin
   test('env.example: the AI key is an active empty line, with its _FILE named', () => {
     const text = readFileSync(path.join(REPO, 'env.example'), 'utf8');
     assert.equal(parseEnv(text).get('ANTHROPIC_API_KEY'), '');
     assert.match(text, /^ANTHROPIC_API_KEY_FILE=$/m);
   });
+  // capability:ai end
 });

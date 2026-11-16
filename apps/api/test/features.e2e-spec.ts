@@ -35,7 +35,9 @@ describe('GET /v1/features (e2e)', () => {
       magicLink: true,
       documents: false,
       presignedUploads: false,
+      // capability:ai begin
       ai: false,
+      // capability:ai end
       exchangeRates: false,
       tenancy: 'single',
       locales: ['en', 'de', 'ar', 'zh', 'ms'],
