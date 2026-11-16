@@ -343,7 +343,11 @@ import { MessagingLimits } from './messaging/messaging-limits.service.js';
 import { MessagingProcessor } from './messaging/messaging.processor.js';
 import { MessagingRetentionJob } from './messaging/messaging.retention.job.js';
 import { MessagingMetrics } from './messaging/messaging.metrics.js';
-import { pushProvider, smsProvider } from './messaging/messaging.providers.js';
+import {
+  messagingClients,
+  pushProvider,
+  smsProvider,
+} from './messaging/messaging.providers.js';
 import { MESSAGING_SETTINGS } from './messaging/messaging.settings.js';
 import { SmsChannel } from './messaging/channels/sms.channel.js';
 import { PushChannel } from './messaging/channels/push.channel.js';
@@ -463,7 +467,9 @@ export class PlatformModule {
         ...queues(platformQueues(options.queues)),
         // Gotenberg, which renders the PDF documents (GOTENBERG_URL).
         gotenbergClient(),
-        ...integrations(options.resiliencePresets ?? {}),
+        ...integrations(),
+        // Twilio and FCM (the messaging providers' HTTP calls).
+        ...messagingClients(),
         // SNS (the mail intake): signing certificates and subscription
         // confirmations, at URLs the intake has checked are SNS's own. No
         // base URL (the region is the message's); one short attempt, SNS retries.

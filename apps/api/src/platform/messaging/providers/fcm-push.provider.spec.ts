@@ -1,6 +1,7 @@
 import { createVerify, generateKeyPairSync } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
+import { HttpClient } from '@nestjs/http-client';
 import { FcmPushProvider } from './fcm-push.provider.js';
 
 const { privateKey, publicKey } = generateKeyPairSync('rsa', {
@@ -48,13 +49,17 @@ describe('FcmPushProvider', () => {
       server.listen(0, '127.0.0.1', resolve),
     );
     base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    provider = new FcmPushProvider({
-      projectId: 'my-project',
-      clientEmail: 'sa@my-project.iam.gserviceaccount.com',
-      privateKey: pem,
-      apiUrl: base,
-      tokenUrl: `${base}/token`,
-    });
+    provider = new FcmPushProvider(
+      {
+        projectId: 'my-project',
+        clientEmail: 'sa@my-project.iam.gserviceaccount.com',
+        privateKey: pem,
+        tokenUrl: `${base}/token`,
+        tokenPath: '/token',
+      },
+      new HttpClient({ baseUrl: base, retry: false }),
+      new HttpClient({ baseUrl: base, retry: false }),
+    );
   });
   afterEach(async () => {
     server.closeAllConnections();

@@ -1,4 +1,10 @@
 import { createSign } from 'node:crypto';
+import {
+  type HttpClient,
+  HttpNetworkError,
+  HttpResponseError,
+  HttpTimeoutError,
+} from '@nestjs/http-client';
 import type { DevicePlatform } from '../messaging.tables.js';
 import {
   PushSendError,
@@ -12,14 +18,13 @@ export interface FcmOptions {
   /** The service account's `client_email` and `private_key`. */
   clientEmail: string;
   privateKey: string;
-  /** `https://fcm.googleapis.com` (a stub on loopback in tests). */
-  apiUrl: string;
-  /** Google's OAuth2 token endpoint (a stub on loopback in tests). */
+  /** Google's OAuth2 token URL: the JWT's audience. */
   tokenUrl: string;
+  /** Its path, on the token client's base URL. */
+  tokenPath: string;
 }
 
 const SCOPE = 'https://www.googleapis.com/auth/firebase.messaging';
-const TIMEOUT_MS = 10_000;
 const base64url = (input: string | Buffer) =>
   Buffer.from(input).toString('base64url');
 
@@ -28,8 +33,9 @@ const base64url = (input: string | Buffer) =>
  * authorised with a service account: a self-signed RS256 JWT is exchanged
  * at Google's token endpoint for a one-hour access token (cached until a
  * minute before it ends), as Google's "Using OAuth 2.0 to authorize Google
- * APIs" describes. Written over `fetch` and `node:crypto`, like the Twilio
- * adapter (two calls; no Google SDK in the worker).
+ * APIs" describes. Written over @nestjs/http-client (the clients on FCM_API_URL and
+ * FCM_TOKEN_URL, registered by messagingClients()) and `node:crypto`, like the
+ * Twilio adapter (two calls; no Google SDK in the worker).
  */
 export class FcmPushProvider implements PushProvider {
   readonly name = 'fcm';
@@ -37,72 +43,69 @@ export class FcmPushProvider implements PushProvider {
 
   private access: { token: string; expiresAt: number } | null = null;
 
-  constructor(private readonly options: FcmOptions) {}
+  constructor(
+    private readonly options: FcmOptions,
+    private readonly http: HttpClient,
+    private readonly tokenHttp: HttpClient,
+  ) {}
 
   async send(token: string, payload: PushPayload) {
-    const response = await this.post(
-      `${this.options.apiUrl}/v1/projects/${encodeURIComponent(this.options.projectId)}/messages:send`,
-      {
-        message: {
-          token,
-          notification: { title: payload.title, body: payload.body },
-          // `data` values are strings only.
-          data: {
-            id: payload.id,
-            ...(payload.link ? { link: payload.link } : {}),
+    const bearer = await this.accessToken();
+    try {
+      await this.http.post(
+        `/v1/projects/${encodeURIComponent(this.options.projectId)}/messages:send`,
+        {
+          json: {
+            message: {
+              token,
+              notification: { title: payload.title, body: payload.body },
+              // `data` values are strings only.
+              data: {
+                id: payload.id,
+                ...(payload.link ? { link: payload.link } : {}),
+              },
+              android: { priority: 'HIGH' },
+            },
           },
-          android: { priority: 'HIGH' },
+          headers: { authorization: `Bearer ${bearer}` },
+          responseType: 'text',
         },
-      },
-      await this.accessToken(),
-    );
-    if (response.ok) {
+      );
       return 'sent' as const;
+    } catch (error) {
+      if (!(error instanceof HttpResponseError)) throw this.unreachable(error);
+      const body = (
+        typeof error.body === 'object' && error.body ? error.body : {}
+      ) as { error?: { status?: string; message?: string } };
+      const code = body.error?.status;
+      // UNREGISTERED: the app was uninstalled or the token expired. A malformed
+      // token is INVALID_ARGUMENT on `message.token`: dead as well.
+      if (
+        error.status === 404 ||
+        code === 'UNREGISTERED' ||
+        (code === 'INVALID_ARGUMENT' &&
+          /registration token/i.test(body.error?.message ?? ''))
+      ) {
+        return 'gone' as const;
+      }
+      if (error.status === 401) {
+        this.access = null; // the cached token was refused: get a new one on the retry
+      }
+      const transient =
+        error.status === 401 || error.status === 429 || error.status >= 500;
+      throw new PushSendError(
+        `FCM refused the push (${error.status}${code ? ` ${code}` : ''})`,
+        !transient,
+      );
     }
-    const error = (await response.json().catch(() => ({}))) as {
-      error?: { status?: string; message?: string };
-    };
-    const code = error.error?.status;
-    // UNREGISTERED: the app was uninstalled or the token expired. A malformed
-    // token is INVALID_ARGUMENT on `message.token`: dead as well.
-    if (
-      response.status === 404 ||
-      code === 'UNREGISTERED' ||
-      (code === 'INVALID_ARGUMENT' &&
-        /registration token/i.test(error.error?.message ?? ''))
-    ) {
-      return 'gone' as const;
-    }
-    if (response.status === 401) {
-      this.access = null; // the cached token was refused: get a new one on the retry
-    }
-    const transient =
-      response.status === 401 ||
-      response.status === 429 ||
-      response.status >= 500;
-    throw new PushSendError(
-      `FCM refused the push (${response.status}${code ? ` ${code}` : ''})`,
-      !transient,
-    );
   }
 
-  private async post(url: string, body: unknown, bearer?: string) {
-    try {
-      return await fetch(url, {
-        method: 'POST',
-        headers: {
-          'content-type':
-            typeof body === 'string'
-              ? 'application/x-www-form-urlencoded'
-              : 'application/json',
-          ...(bearer ? { authorization: `Bearer ${bearer}` } : {}),
-        },
-        body: typeof body === 'string' ? body : JSON.stringify(body),
-        signal: AbortSignal.timeout(TIMEOUT_MS),
-      });
-    } catch (error) {
-      throw new PushSendError(`FCM unreachable: ${String(error)}`, false);
-    }
+  /** A failure before an answer (network, timeout): transient; anything else is a bug and propagates. */
+  private unreachable(error: unknown) {
+    return error instanceof HttpNetworkError ||
+      error instanceof HttpTimeoutError
+      ? new PushSendError(`FCM unreachable: ${String(error)}`, false)
+      : error;
   }
 
   private async accessToken() {
@@ -125,24 +128,27 @@ export class FcmPushProvider implements PushProvider {
         .update(signingInput)
         .sign(this.options.privateKey),
     )}`;
-    const response = await this.post(
-      this.options.tokenUrl,
-      new URLSearchParams({
-        grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-        assertion,
-      }).toString(),
-    );
-    if (!response.ok) {
-      // A refused assertion is a wrong key or account: retrying will not help.
-      throw new PushSendError(
-        `Google refused the FCM service account (${response.status})`,
-        response.status < 500 && response.status !== 429,
-      );
+    let body: { access_token: string; expires_in: number };
+    try {
+      body = (
+        await this.tokenHttp.post<typeof body>(this.options.tokenPath, {
+          body: new URLSearchParams({
+            grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
+            assertion,
+          }),
+          responseType: 'json',
+        })
+      ).data;
+    } catch (error) {
+      if (error instanceof HttpResponseError) {
+        // A refused assertion is a wrong key or account: retrying will not help.
+        throw new PushSendError(
+          `Google refused the FCM service account (${error.status})`,
+          error.status < 500 && error.status !== 429,
+        );
+      }
+      throw this.unreachable(error);
     }
-    const body = (await response.json()) as {
-      access_token: string;
-      expires_in: number;
-    };
     this.access = {
       token: body.access_token,
       expiresAt: now + body.expires_in * 1000,
