@@ -11910,7 +11910,7 @@
             "id"
           ],
           "onUpdate": "no action",
-          "onDelete": "set null (\"team_id\")"
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},

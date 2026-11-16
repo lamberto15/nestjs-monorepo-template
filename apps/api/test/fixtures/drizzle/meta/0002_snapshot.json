@@ -304,7 +304,7 @@
             "tenant_id",
             "id"
           ],
-          "onDelete": "set null (\"parent_id\")",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "test_items_linked_id_fk": {
@@ -319,7 +319,7 @@
             "tenant_id",
             "id"
           ],
-          "onDelete": "set null (\"linked_id\")",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "test_items_unit_fk": {

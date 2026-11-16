@@ -271,7 +271,7 @@
             "tenant_id",
             "id"
           ],
-          "onDelete": "set null (\"parent_id\")",
+          "onDelete": "set null",
           "onUpdate": "no action"
         },
         "test_items_unit_fk": {

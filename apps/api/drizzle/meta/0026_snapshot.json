@@ -7255,7 +7255,7 @@
             "tenant_id",
             "id"
           ],
-          "onDelete": "set null (\"org_unit_id\")",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

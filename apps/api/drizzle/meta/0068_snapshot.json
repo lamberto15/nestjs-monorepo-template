@@ -11797,7 +11797,7 @@
             "tenant_id",
             "id"
           ],
-          "onDelete": "set null (\"team_id\")",
+          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },
