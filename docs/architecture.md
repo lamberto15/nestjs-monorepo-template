@@ -105,7 +105,8 @@ the API uses (`req.ip`, `req.get()`, `res.cookie()`, `res.redirect()`,
 
 ## Rules
 
-- **Dependency direction:** core ← iam ← platform ← features. A group never
+- **Dependency direction:** core ← iam ← platform ← features, enforced by
+  oxlint (`no-restricted-imports` in `.oxlintrc.json`; specs are exempt). A group never
   imports a feature; only `features/index.ts`, `features/tables.ts` and
   `features/env.ts` list them all, and `app.module.ts`, `schema.ts`, `env.ts`
   and `openapi.ts` read those lists.
