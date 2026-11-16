@@ -87,7 +87,10 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
 - **Features come from the generator.** A new one starts from
   `pnpm feature:add` (the `/add-feature` skill in `.claude/skills/`), never
   from copying `notes`; then write only the business logic, where the
-  generated service says so.
+  generated service says so. The generated shape (API and web pages, exercised
+  by `apps/api/test/fixtures/test-items`) is the reference for new features;
+  `features/notes` is the hand-written showcase of every add-on, not a template
+  to copy.
 - **Releases and deploys only through Actions.** Merging the Release Please
   pull request is the only way to release: never push a `v*` tag by hand.
   Staging deploys itself from `main`; production only by a Deploy run with a

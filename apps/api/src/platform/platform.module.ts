@@ -1,13 +1,7 @@
-import { Resolver } from 'node:dns/promises';
 import { randomBytes } from 'node:crypto';
-import {
-  type DynamicModule,
-  Module,
-  type Provider,
-  type Type,
-} from '@nestjs/common';
+import { type DynamicModule, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { ConfigService } from '@nestjs/config';
 import { IdempotencyModule } from '@nestjs/idempotency';
@@ -18,351 +12,92 @@ import { PostgresWebhookStore } from '@nestjs/webhooks/postgres';
 import { WorkflowsModule, WorkflowStorage } from '@nestjs/workflows';
 import { fromDrizzle, PostgresWorkflowStore } from '@nestjs/workflows/postgres';
 import { runsWorkers } from '../core/config/core.env.js';
-import { DatabaseHealth } from '../core/database/database-health.js';
 import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
-import { DrizzleIdempotencyStore } from './idempotency/drizzle-idempotency.store.js';
 import { principalScope } from './idempotency/idempotency.scopes.js';
-import { OpsController } from './ops/ops.controller.js';
-import { FeaturesController } from './features/features.controller.js';
-import { FeaturesService } from './features/features.service.js';
-import { OpsPolicy } from './ops/ops.policy.js';
-import { OpsQueues } from './ops/ops-queues.service.js';
-import { OpsBacklog } from './ops/ops-backlog.service.js';
-import { OpsDiagnostics } from './ops/ops-diagnostics.service.js';
-import { ConfigBundlesController } from './config-bundles/config-bundles.controller.js';
-import { ConfigBundlePolicy } from './config-bundles/config-bundle.policy.js';
-import { ConfigBundlesService } from './config-bundles/config-bundles.service.js';
-import { OpsMetrics } from './ops/ops-metrics.js';
-import { OutboxMetricsReader } from './ops/outbox-metrics.reader.js';
-import { OutboxRetentionJob } from './ops/outbox-retention.job.js';
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
-import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
-import { ACTOR_NAMES } from '../iam/audit/actor-names.js';
-import { AUTH_POLICY } from '../iam/auth/auth-policy.js';
-import { AiController } from './ai/ai.controller.js';
-import { AiProcessor } from './ai/ai.processor.js';
-import { AiProvider, DisabledAiProvider } from './ai/ai-provider.js';
-import { AiRegistry } from './ai/ai.registry.js';
-import { AiService } from './ai/ai.service.js';
 import { AI_SETTINGS } from './ai/ai-settings.js';
 import { FORM_SETTINGS } from './forms/form-settings.js';
-import { FormPolicy } from './forms/form.policy.js';
-import { FormsController } from './forms/forms.controller.js';
-import { FormsService } from './forms/forms.service.js';
-import { FormOptionSourcesService } from './forms/form-option-sources.service.js';
-import {
-  FormPublicLinksController,
-  PublicFormsController,
-} from './forms/form-public-links.controller.js';
-import { FormPublicLinksService } from './forms/form-public-links.service.js';
-import { FormSubmissionsController } from './forms/form-submissions.controller.js';
-import { FormSubmissionsService } from './forms/form-submissions.service.js';
-import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
-import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
-import { WebhookDeliveryRetentionJob } from './webhooks/webhook-delivery-retention.job.js';
-import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
-import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
-import { WebhookEventTypesController } from './webhooks/webhook-event-types.controller.js';
-import { ClientWebhooksController } from './webhooks/client-webhooks.controller.js';
-import { WebhookManagementService } from './webhooks/webhook-management.service.js';
-import { RecordWebhooks } from './webhooks/record-webhooks.service.js';
-import { IncomingEventHandlers } from './webhooks/incoming-event-handlers.js';
-import { IncomingSendersController } from './webhooks/incoming-senders.controller.js';
-import { IncomingEventTypesController } from './webhooks/incoming-event-types.controller.js';
-import { IncomingSendersService } from './webhooks/incoming-senders.service.js';
-import { TenantSenderGuard } from './webhooks/tenant-sender.guard.js';
-import { TenantWebhookReceiverController } from './webhooks/tenant-webhook-receiver.controller.js';
-import { WebhookListSource } from './webhooks/webhook-lists.js';
 import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
 import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
-import { HttpClientModule } from '@nestjs/http-client';
-import { MAIL_DELIVERY } from '../core/mail/mail-delivery.js';
-import { MAIL_SUPPRESSION } from '../core/mail/mail-suppression.js';
-import { ClientErrorsController } from './client-errors/client-errors.controller.js';
-import { ClientErrorsService } from './client-errors/client-errors.service.js';
-import { MailEventsController } from './deliverability/mail-events.controller.js';
-import { MailEventsProcessor } from './deliverability/mail-events.processor.js';
-import { MailEventsRetentionJob } from './deliverability/mail-events-retention.job.js';
-import {
-  MailEventIntakeRegistry,
-  MailEventsService,
-} from './deliverability/mail-events.service.js';
-import { SesIntake } from './deliverability/sns/ses-intake.js';
-import { ResendIntake } from './deliverability/resend/resend-intake.js';
-import { PostmarkIntake } from './deliverability/postmark/postmark-intake.js';
-import { SendGridIntake } from './deliverability/sendgrid/sendgrid-intake.js';
-import {
-  HttpSnsGateway,
-  SNS_HTTP,
-  SnsGateway,
-} from './deliverability/sns/sns-gateway.js';
-import { MailSuppressionListSource } from './deliverability/suppression.list-source.js';
-import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
-import { SuppressionsController } from './deliverability/suppressions.controller.js';
-import { SuppressionsService } from './deliverability/suppressions.service.js';
-import { NoRealtime } from './realtime/no-realtime.js';
-import { Realtime } from './realtime/realtime.service.js';
-import { RealtimeEmitter } from './realtime/realtime-emitter.js';
-import { RecordActivity } from './realtime/record-activity.js';
-import {
-  PeopleController,
-  UnitDirectoryController,
-} from './people/people.controller.js';
-import { PeopleService } from './people/people.service.js';
-import { switchedOn, whenOn } from './switches.js';
-import { FilesController } from './storage/files.controller.js';
 import { storage } from './storage/storage.config.js';
 import { platformQueues, queues } from './queues/queues.js';
-import { DataTransferController } from './data-transfer/data-transfer.controller.js';
-import { DataTransferProcessor } from './data-transfer/data-transfer.processor.js';
-import { DataTransferRegistry } from './data-transfer/data-transfer.registry.js';
-import { DataTransferService } from './data-transfer/data-transfer.service.js';
 import { DATA_TRANSFER_SETTINGS } from './data-transfer/data-transfer.settings.js';
 import { integrations } from './integrations/integrations.js';
-import { BulkController } from './bulk/bulk.controller.js';
-import { BulkProcessor } from './bulk/bulk.processor.js';
-import { BulkRegistry } from './bulk/bulk.registry.js';
-import { BulkService } from './bulk/bulk.service.js';
-import { JobIndex } from './queues/job-index.js';
-import { CustomFieldPolicy } from './custom-fields/custom-field.policy.js';
-import { CustomFieldsController } from './custom-fields/custom-fields.controller.js';
-import { CustomFieldsService } from './custom-fields/custom-fields.service.js';
-import { NotificationCatalog } from './notifications/notification-catalog.js';
-import { NotificationChannelRegistry } from './notifications/notification-channel.registry.js';
-import {
-  NotificationDigestMail,
-  NotificationMail,
-} from './notifications/notification.mails.js';
-import { NotificationsController } from './notifications/notifications.controller.js';
-import { NotificationUnsubscribeController } from './notifications/notification-unsubscribe.controller.js';
-import { NotificationUnsubscribeService } from './notifications/notification-unsubscribe.service.js';
-import { notificationUnsubscribeLinksProvider } from './notifications/notification-unsubscribe.js';
 import {
   inDevelopment,
   TEST_NOTIFICATIONS,
 } from './notifications/notification-test.js';
-import { NotificationTestController } from './notifications/notification-test.controller.js';
-import { NotificationsService } from './notifications/notifications.service.js';
-import { NotificationDeliveryHandler } from './notifications/notification-delivery.handler.js';
-import { NotificationDigestJob } from './notifications/notification-digest.job.js';
-import { NotificationRetentionJob } from './notifications/notification-retention.job.js';
-import { NotificationTransfer } from './notifications/notification.transfer.js';
-import { EmailChannel } from './notifications/channels/email.channel.js';
-import { RealtimeChannel } from './notifications/channels/realtime.channel.js';
-import { WebhookChannel } from './notifications/channels/webhook.channel.js';
-import { SettingsController } from './settings/settings.controller.js';
-import { SettingsService } from './settings/settings.service.js';
-import {
-  AccountController,
-  AccountDeletionLinkController,
-  ConsentKindsController,
-} from './account/account.controller.js';
-import { ConsentKinds } from './account/consent-kinds.js';
-import { AccountDeletionJob } from './account/account-deletion.job.js';
-import { AccountDeletionMail } from './account/account.mails.js';
-import { AccountLifecycleService } from './account/account.service.js';
-import { AvatarController } from './account/avatar.controller.js';
-import { AvatarService } from './account/avatar.service.js';
-import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
-import { AccountTransfer } from './account/account.transfer.js';
-import { TenantCleanup } from './tenants/tenant-cleanup.js';
-import {
-  BrandingController,
-  PublicBrandingController,
-} from './branding/branding.controller.js';
-import { BrandingService } from './branding/branding.service.js';
-import {
-  BrandingDomainsController,
-  DomainAskController,
-  HostBrandingController,
-} from './branding/branding-domains.controller.js';
-import { BrandingDomainsService } from './branding/branding-domains.service.js';
-import { BrandingDomainsProcessor } from './branding/branding-domains.processor.js';
-import { BrandingDomainsJob } from './branding/branding-domains.job.js';
-import { CUSTOM_DOMAINS_TXT_RESOLVER } from './branding/branding-domains.queue.js';
-import { HOST_TENANTS } from '../iam/auth/host-tenant.js';
-import { BrandingLogoUpload } from './branding/branding-logo-upload.interceptor.js';
 import { BRANDING_SETTINGS } from './branding/branding.settings.js';
-import {
-  DELIVERABILITY_SETTINGS,
-  MailDeliverySettings,
-} from './deliverability/mail-delivery.settings.js';
-import { MAIL_BRANDING } from '../core/mail/mail-branding.js';
-import { QuotaMetrics } from './quotas/quota.metrics.js';
+import { DELIVERABILITY_SETTINGS } from './deliverability/mail-delivery.settings.js';
 import { QUOTA_SETTINGS } from './quotas/quota.settings.js';
-import {
-  OwnQuotasController,
-  TenantQuotasController,
-} from './quotas/quotas.controller.js';
-import { QuotasService } from './quotas/quotas.service.js';
-import { TenantExportController } from './tenants/tenant-export.controller.js';
-import { TenantExports } from './tenants/tenant-exports.service.js';
-import { TenantTransfer } from './tenants/tenant.transfer.js';
-import { PersonalDataRegistry } from './account/personal-data.registry.js';
-import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
-import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
-import { SubscriptionsRegistry } from './subscriptions/subscriptions.registry.js';
-import { SearchController } from './search/search.controller.js';
-import { SearchRegistry } from './search/search.registry.js';
-import { SearchService } from './search/search.service.js';
-import { ListsController } from './lists/lists.controller.js';
-import { AccessListSources } from './lists/access-lists.js';
-import { TenantListSource } from './lists/tenant-lists.js';
-import { ListPolicy } from './lists/list.policy.js';
-import { ListsRegistry } from './lists/lists.registry.js';
-import { ListsService } from './lists/lists.service.js';
-import { NamingSeriesController } from './sequences/naming-series.controller.js';
-import { NamingSeriesRegistry } from './sequences/naming-series.registry.js';
-import { NamingSeriesService } from './sequences/naming-series.service.js';
-import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
-import { SequencesService } from './sequences/sequences.service.js';
-import {
-  AttachmentAcknowledgmentsController,
-  MyAcknowledgmentsController,
-} from './acknowledgments/acknowledgments.controller.js';
-import { AcknowledgmentsService } from './acknowledgments/acknowledgments.service.js';
 import { ACKNOWLEDGMENT_NOTIFICATIONS } from './acknowledgments/acknowledgment-notifications.js';
-import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
-import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
-import { AttachmentSearch } from './attachments/attachment.search.js';
-import { AttachmentTextProcessor } from './attachments/attachment-text.processor.js';
-import { AttachmentTextQueue } from './attachments/attachment-text.queue.js';
-import { AttachmentTextRetryJob } from './attachments/attachment-text-retry.job.js';
-import { AttachmentTextService } from './attachments/attachment-text.service.js';
-import { TextExtractor } from './attachments/text-extractor.js';
-import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
-import { AttachmentImagesService } from './attachments/attachment-images.service.js';
-import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
-import { AttachmentScanRetryJob } from './attachments/attachment-scan-retry.job.js';
-import {
-  ATTACHMENT_NOTIFICATIONS,
-  AttachmentScanQueue,
-} from './attachments/attachment-scan.queue.js';
-import { AttachmentScanService } from './attachments/attachment-scan.service.js';
-import { MalwareScanner } from './attachments/malware-scanner.js';
-import { malwareScanner } from './attachments/malware-scanner.factory.js';
-import { ImageProcessor } from './images/image-processor.js';
-import { imageProcessor } from './images/image-processor.factory.js';
-import { AttachmentUploadsService } from './attachments/attachment-uploads.service.js';
-import { AttachmentVersionsService } from './attachments/attachment-versions.service.js';
-import { AttachmentsController } from './attachments/attachments.controller.js';
-import { AttachmentsRegistry } from './attachments/attachments.registry.js';
-import { AttachmentsService } from './attachments/attachments.service.js';
-import { AttachmentSweepJob } from './attachments/attachment-sweep.job.js';
+import { ATTACHMENT_NOTIFICATIONS } from './attachments/attachment-scan.queue.js';
 import { COMMENT_NOTIFICATIONS } from './comments/comment-notifications.js';
-import { CommentsRegistry } from './comments/comments.registry.js';
-import { CommentsService } from './comments/comments.service.js';
-import { TagsController } from './tags/tags.controller.js';
-import { TagsRegistry } from './tags/tags.registry.js';
-import { TagsService } from './tags/tags.service.js';
-import { ImportMappingsController } from './data-transfer/import-mappings.controller.js';
-import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
-import { FavoritesController } from './favorites/favorites.controller.js';
-import { FavoritesService } from './favorites/favorites.service.js';
-import { InboxController } from './inbox/inbox.controller.js';
-import { InboxRegistry } from './inbox/inbox.registry.js';
-import { InboxService } from './inbox/inbox.service.js';
-import { ApprovalInboxSource } from './approvals/approval.inbox.js';
-import { MentionInboxSource } from './comments/mention.inbox.js';
-import { PresenceController } from './presence/presence.controller.js';
-import { PresenceService } from './presence/presence.service.js';
-import { RecentsController } from './recents/recents.controller.js';
-import { RecentsRetentionJob } from './recents/recents-retention.job.js';
-import { RecentsService } from './recents/recents.service.js';
-import { SharedController } from './shares/shared.controller.js';
-import { AutomationRulePolicy } from './automations/automation.policy.js';
 import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
-import { AutomationRunHandler } from './automations/automation-run.handler.js';
-import { AutomationsController } from './automations/automations.controller.js';
-import { AutomationsRegistry } from './automations/automations.registry.js';
-import { AutomationsService } from './automations/automations.service.js';
-import { DataQualityController } from './data-quality/data-quality.controller.js';
-import { DataQualityPolicy } from './data-quality/data-quality.policy.js';
-import { DataQualityProcessor } from './data-quality/data-quality.processor.js';
-import { DataQualityRegistry } from './data-quality/data-quality.registry.js';
-import { DataQualityService } from './data-quality/data-quality.service.js';
-import { ShareCodeMail } from './shares/share.mails.js';
-import { SharesRegistry } from './shares/shares.registry.js';
-import { SharesService } from './shares/shares.service.js';
-import { ChoicesBuiltins } from './choices/choices.builtins.js';
-import { ChoicesController } from './choices/choices.controller.js';
-import { ChoicesRegistry } from './choices/choices.registry.js';
-import { ChoicesService } from './choices/choices.service.js';
-import { TemplatesController } from './templates/templates.controller.js';
-import { TemplatesRegistry } from './templates/templates.registry.js';
-import { TemplatesService } from './templates/templates.service.js';
-import { ViewsController } from './views/views.controller.js';
-import { ViewsService } from './views/views.service.js';
-import { CalendarsController } from './calendars/calendars.controller.js';
-import { CalendarsService } from './calendars/calendars.service.js';
-import { RecordScheduleRunnerJob } from './recurrence/record-schedule-runner.job.js';
-import { RecordSchedulesController } from './recurrence/record-schedules.controller.js';
-import { RecordSchedulesService } from './recurrence/record-schedules.service.js';
-import { ReportRunnerJob } from './reports/report-runner.job.js';
-import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
-import { ReportsController } from './reports/reports.controller.js';
-import { ReportsService } from './reports/reports.service.js';
-import { UsageController } from './usage/usage.controller.js';
-import { UsageInterceptor } from './usage/usage.interceptor.js';
-import { UsageRollupJob } from './usage/usage-rollup.job.js';
-import { PlatformAnalyticsJob } from './analytics/platform-analytics.job.js';
-import { UsageService } from './usage/usage.service.js';
-import { RevisionRetentionJob } from './revisions/revision-retention.job.js';
-import { RevisionsRegistry } from './revisions/revisions.registry.js';
-import { RevisionsService } from './revisions/revisions.service.js';
-import { ApprovalsController } from './approvals/approvals.controller.js';
-import {
-  ApprovalDelegationsController,
-  ApprovalPoliciesController,
-} from './approvals/approval-admin.controllers.js';
-import { ApprovalDelegationsService } from './approvals/approval-delegations.service.js';
-import { ApprovalEngine } from './approvals/approval-engine.service.js';
 import { ModeGuard } from './mode/mode.guard.js';
-import { ModeService } from './mode/mode.service.js';
 import { MODE_SETTINGS } from './mode/mode.setting.js';
 import { APPROVAL_NOTIFICATIONS } from './approvals/approval-events.js';
 import { APPROVAL_SETTINGS } from './approvals/approval-settings.js';
-import { ApprovalPoliciesService } from './approvals/approval-policies.service.js';
-import { ApprovalAccessPolicy } from './approvals/approval.policy.js';
-import { BUILT_IN_RULES } from './approvals/approval-rules.js';
-import { ApprovalWorkflow } from './approvals/approval.workflow.js';
-import { ApprovalsRegistry } from './approvals/approvals.registry.js';
-import { ApprovalsService } from './approvals/approvals.service.js';
-import { ApprovalMetrics } from './approvals/approval-metrics.js';
-import { ReencryptionMetrics } from './encryption/reencryption.metrics.js';
-import { MessagingController } from './messaging/messaging.controller.js';
-import { SmsInboundController } from './messaging/sms-inbound.controller.js';
-import { MessagingService } from './messaging/messaging.service.js';
-import { MessagingLimits } from './messaging/messaging-limits.service.js';
-import { MessagingProcessor } from './messaging/messaging.processor.js';
-import { MessagingRetentionJob } from './messaging/messaging.retention.job.js';
-import { MessagingMetrics } from './messaging/messaging.metrics.js';
-import { pushProvider, smsProvider } from './messaging/messaging.providers.js';
 import { MESSAGING_SETTINGS } from './messaging/messaging.settings.js';
-import { SmsChannel } from './messaging/channels/sms.channel.js';
-import { PushChannel } from './messaging/channels/push.channel.js';
-import { ReencryptionProcessor } from './encryption/reencryption.processor.js';
-import { RetentionController } from './retention/retention.controller.js';
-import { RetentionProcessor } from './retention/retention.processor.js';
-import { RetentionRegistry } from './retention/retention.registry.js';
-import { RetentionScheduler } from './retention/retention.scheduler.js';
-import { RetentionService } from './retention/retention.service.js';
-import { ReencryptionScheduler } from './encryption/reencryption.scheduler.js';
-import { ReencryptionService } from './encryption/reencryption.service.js';
-import { DocumentTemplates } from './documents/document-templates.js';
-import { DocumentsController } from './documents/documents.controller.js';
-import { DocumentsProcessor } from './documents/documents.processor.js';
-import { DocumentsRegistry } from './documents/documents.registry.js';
-import { DocumentsService } from './documents/documents.service.js';
-import { gotenbergClient, PdfRenderer } from './documents/pdf-renderer.js';
 import { MoneyModule } from './money/money.module.js';
 
+import { PlatformOpsModule } from './ops/ops.module.js';
+import { ConfigBundlesModule } from './config-bundles/config-bundles.module.js';
+import { PlatformWebhooksModule } from './webhooks/webhooks.module.js';
+import { PlatformIdempotencyModule } from './idempotency/idempotency.module.js';
+import { PlatformFeaturesModule } from './features/features.module.js';
+import { PlatformStorageModule } from './storage/storage.module.js';
+import { ModeModule } from './mode/mode.module.js';
+import { PlatformKernelModule } from './platform-kernel.module.js';
+import { PeopleModule } from './people/people.module.js';
+import { QueuesModule } from './queues/queues.module.js';
+import { BulkModule } from './bulk/bulk.module.js';
+import { CustomFieldsModule } from './custom-fields/custom-fields.module.js';
+import { MessagingModule } from './messaging/messaging.module.js';
+import { SettingsModule } from './settings/settings.module.js';
+import { AuthPolicyModule } from './auth-policy/auth-policy.module.js';
+import { AccountModule } from './account/account.module.js';
+import { TenantsModule } from './tenants/tenants.module.js';
+import { QuotasModule } from './quotas/quotas.module.js';
+import { SearchModule } from './search/search.module.js';
+import { ListsModule } from './lists/lists.module.js';
+import { DeliverabilityModule } from './deliverability/deliverability.module.js';
+import { SequencesModule } from './sequences/sequences.module.js';
+import { AttachmentsModule } from './attachments/attachments.module.js';
+import { ImagesModule } from './images/images.module.js';
+import { DocumentsModule } from './documents/documents.module.js';
+import { PlatformAiModule } from './ai/ai.module.js';
+import { CommentsModule } from './comments/comments.module.js';
+import { AcknowledgmentsModule } from './acknowledgments/acknowledgments.module.js';
+import { TagsModule } from './tags/tags.module.js';
+import { ViewsModule } from './views/views.module.js';
+import { TemplatesModule } from './templates/templates.module.js';
+import { ChoicesModule } from './choices/choices.module.js';
+import { FavoritesModule } from './favorites/favorites.module.js';
+import { RecentsModule } from './recents/recents.module.js';
+import { PresenceModule } from './presence/presence.module.js';
+import { InboxModule } from './inbox/inbox.module.js';
+import { ApprovalsModule } from './approvals/approvals.module.js';
+import { FormsModule } from './forms/forms.module.js';
+import { CalendarsModule } from './calendars/calendars.module.js';
+import { RecurrenceModule } from './recurrence/recurrence.module.js';
+import { SharesModule } from './shares/shares.module.js';
+import { DataQualityModule } from './data-quality/data-quality.module.js';
+import { AutomationsModule } from './automations/automations.module.js';
+import { ReportsModule } from './reports/reports.module.js';
+import { UsageModule } from './usage/usage.module.js';
+import { AnalyticsModule } from './analytics/analytics.module.js';
+import { RevisionsModule } from './revisions/revisions.module.js';
+import { ClientErrorsModule } from './client-errors/client-errors.module.js';
+import { BrandingModule } from './branding/branding.module.js';
+import { EncryptionModule } from './encryption/encryption.module.js';
+import { RetentionModule } from './retention/retention.module.js';
 /**
  * The outbox, workflow and webhook stores only check their schemas at
  * startup, never create or upgrade them: the app connects as a role that
@@ -395,6 +130,14 @@ interface PlatformSecrets {
  *
  * The packages' modules are global: features inject WorkflowClient,
  * Webhooks, Outbox and use @Idempotent(), @Workflow(), @VerifyWebhook().
+ *
+ * The composition root of the platform (docs/architecture.md, "The
+ * platform's modules"): the packages' modules, then one module per
+ * capability folder (`<folder>/<folder>.module.ts`, importing the ones it
+ * injects from; platform-kernel.module.ts for those that need one another),
+ * re-exported for the features, IAM and core. The options and the queues
+ * come from one global module (optionsModule below). Each capability module
+ * holds its own routes; the platform's global enhancers stay here (`providers`).
  */
 @Module({})
 export class PlatformModule {
@@ -428,17 +171,61 @@ export class PlatformModule {
       providers: [secrets],
       exports: [PLATFORM_SECRETS],
     };
+    // The options, and the queues the platform and the features name: what every
+    // capability module reads, from the one global module of the platform's own.
+    const optionsModule: DynamicModule = {
+      module: class PlatformOptionsModule {},
+      global: true,
+      imports: [...queues(platformQueues(options.queues))],
+      providers: [
+        {
+          provide: PLATFORM_OPTIONS,
+          // The platform's own notification types first (comments' mentions, approvals).
+          useValue: {
+            ...options,
+            notifications: [
+              ...COMMENT_NOTIFICATIONS,
+              ...ACKNOWLEDGMENT_NOTIFICATIONS,
+              ...APPROVAL_NOTIFICATIONS,
+              ...AUTOMATION_NOTIFICATIONS,
+              ...ATTACHMENT_NOTIFICATIONS,
+              // Development only, with the route that sends it.
+              ...inDevelopment(...TEST_NOTIFICATIONS),
+              ...(options.notifications ?? []),
+            ],
+            // And its own settings (IAM's auth policies, numbering's, approvals' delegation limit).
+            settings: [
+              ...AUTH_SETTINGS,
+              ...MODE_SETTINGS,
+              ...NUMBERING_SETTINGS,
+              ...APPROVAL_SETTINGS,
+              ...MESSAGING_SETTINGS,
+              ...QUOTA_SETTINGS,
+              ...BRANDING_SETTINGS,
+              ...DELIVERABILITY_SETTINGS,
+              ...DASHBOARD_SETTINGS,
+              ...AI_SETTINGS,
+              ...FORM_SETTINGS,
+              ...DATA_TRANSFER_SETTINGS,
+              ...(options.settings ?? []),
+            ],
+          },
+        },
+      ],
+      exports: [PLATFORM_OPTIONS, BullModule],
+    };
     return {
       module: PlatformModule,
-      // Features inject Realtime and their queues (@InjectQueue) without importing it.
+      // Features inject Realtime and the rest the capability modules export (re-exported below) without importing it.
       global: true,
       imports: [
         // Idempotency-Key on the routes marked @Idempotent(): a retry gets the
         // first response instead of running the handler again. Its interceptor
-        // is global, outermost but for UsageInterceptor (this module's own
-        // providers register before its imports'): a 403 is stored and
-        // replayed like any other 4xx, a client past its quota gets the 429
-        // before any replay, and a replay is metered. Guards run before every interceptor, so the scope sees the caller.
+        // is global and outermost (this module has no global interceptor of its
+        // own, and this is its first import): a replay passes through no other
+        // interceptor, so it is neither metered nor held to the quota, and a
+        // 403 is stored and replayed like any other 4xx. Guards run before
+        // every interceptor, so the scope sees the caller.
         IdempotencyModule.forRootAsync({
           imports: [secretsModule],
           inject: [PLATFORM_SECRETS, ConfigService],
@@ -453,26 +240,23 @@ export class PlatformModule {
             ttl: '24h', // longer than any client keeps retrying
             lockTtl: '60s', // how long a crashed instance blocks a key
             retryAfter: '1s',
+            // A 429 is not an outcome: the quota's (UsageInterceptor, inside
+            // this one) ends at midnight UTC, and the retry must run then.
+            storeIf: (status) => status < 500 && status !== 429,
             // Stored responses can hold an endpoint's secret: seal them at rest.
             encryption: { keys: platform.idempotency },
           }),
         }),
-        // After IdempotencyModule, whose interceptor must come first.
+        // After IdempotencyModule, whose interceptor must come first, and
+        // before every other module with a global interceptor: USAGE=on, its
+        // meter is the second, so it counts a request once whatever the
+        // route's retries (ResilienceModule, below) do.
+        UsageModule,
         // Private file storage (local or S3) behind signed URLs.
         storage(),
-        ...queues(platformQueues(options.queues)),
-        // Gotenberg, which renders the PDF documents (GOTENBERG_URL).
-        gotenbergClient(),
-        ...integrations(options.resiliencePresets ?? {}),
-        // SNS (the mail intake): signing certificates and subscription
-        // confirmations, at URLs the intake has checked are SNS's own. No
-        // base URL (the region is the message's); one short attempt, SNS retries.
-        HttpClientModule.register({
-          name: SNS_HTTP,
-          timeout: '5s',
-          retry: false,
-          redirect: 'error',
-        }),
+        // The options and the queues, for every module below (global).
+        optionsModule,
+        ...integrations(),
         WorkflowsModule.forRootAsync({
           inject: [ConfigService],
           useFactory: (config: ConfigService<PlatformEnv, true>) => ({
@@ -512,145 +296,60 @@ export class PlatformModule {
         }),
         // Money: exchange rates (the ECB's), conversion, /v1/money.
         MoneyModule,
-      ],
-      controllers: [
-        // WEBHOOKS=off: no endpoint or delivery API (the module itself stays: the
-        // notifications, approvals and incoming receivers inject it).
-        ...whenOn(
-          'WEBHOOKS',
-          WebhookEndpointsController,
-          WebhookDeliveriesController,
-          WebhookEventTypesController,
-          // An administrator managing a client's webhooks on its behalf.
-          ClientWebhooksController,
-        ),
-        // Incoming webhooks of a tenant's own senders: not behind WEBHOOKS (that switch is for the outgoing ones).
-        IncomingSendersController,
-        IncomingEventTypesController,
-        TenantWebhookReceiverController,
-        OpsController,
-        ConfigBundlesController,
-        FeaturesController,
-        FilesController,
-        DataTransferController,
-        BulkController,
-        CustomFieldsController,
-        NotificationsController,
-        NotificationUnsubscribeController,
-        // Push devices and the SMS number; the provider's inbound STOP/START webhook.
-        MessagingController,
-        SmsInboundController,
-        // Development and tests only: POST /v1/notifications/test (production: 404, not in the OpenAPI document).
-        ...inDevelopment<Type>(NotificationTestController),
-        SettingsController,
-        AccountController,
-        // The user's picture (PUT, DELETE /v1/account/avatar).
-        AvatarController,
-        AccountDeletionLinkController,
-        ConsentKindsController,
-        // The operators' export of a tenant (POST /v1/tenants/{id}/export).
-        TenantExportController,
-        // Tenants' use and limits (GET /v1/tenants/{id}/usage, PUT …/quotas, GET /v1/tenant/usage).
-        TenantQuotasController,
-        OwnQuotasController,
-        // The tenant's colour, mail sender name and logo (docs/branding.md).
-        BrandingController,
-        PublicBrandingController,
-        // Its custom domains, the brand before sign-in by host, the edge's TLS ask.
-        BrandingDomainsController,
-        HostBrandingController,
-        DomainAskController,
-        SubscriptionsController,
-        SearchController,
-        ListsController,
-        // The tenant's people and units, for @mentions and pickers (GET /v1/people, GET /v1/organizational-units).
-        PeopleController,
-        UnitDirectoryController,
-        AttachmentsController,
-        AttachmentAcknowledgmentsController,
-        MyAcknowledgmentsController,
-        DocumentsController,
-        AiController,
-        TagsController,
-        NamingSeriesController,
-        CalendarsController,
-        RecordSchedulesController,
-        ViewsController,
-        TemplatesController,
-        ChoicesController,
-        FavoritesController,
-        RecentsController,
-        PresenceController,
-        InboxController,
-        // Runtime forms (docs/forms.md): off per tenant until `forms.enabled`.
-        FormsController,
-        FormSubmissionsController,
-        FormPublicLinksController,
-        // Filling in a public form without a sign-in (POST /v1/public/forms/open, /submit).
-        PublicFormsController,
-        // Opening a record's read-only link, without a sign-in (POST /v1/shared/open).
-        SharedController,
-        // Tenant automation rules (docs/automations.md).
-        AutomationsController,
-        DataQualityController,
-        ImportMappingsController,
-        RetentionController,
-        ...whenOn('REPORTS', ReportsController),
-        ...whenOn('USAGE', UsageController),
-        // The web app's own unexpected errors (apps/web/src/lib/report-error.ts).
-        ClientErrorsController,
-        // Email deliverability: the providers' bounces and complaints, the suppression list.
-        MailEventsController,
-        SuppressionsController,
-        // Before ApprovalsController: its /approvals/{id} would read `delegations` as an id.
-        ApprovalDelegationsController,
-        ApprovalPoliciesController,
-        ApprovalsController,
+        // The capability modules, one per folder (platform-kernel.module.ts: the
+        // ones that need one another). Last: they register no global enhancer.
+        PlatformOpsModule,
+        ConfigBundlesModule,
+        PlatformWebhooksModule,
+        PlatformIdempotencyModule,
+        PlatformFeaturesModule,
+        PlatformStorageModule,
+        ModeModule,
+        PlatformKernelModule,
+        PeopleModule,
+        QueuesModule,
+        BulkModule,
+        CustomFieldsModule,
+        MessagingModule,
+        SettingsModule,
+        AuthPolicyModule,
+        AccountModule,
+        TenantsModule,
+        QuotasModule,
+        SearchModule,
+        ListsModule,
+        DeliverabilityModule,
+        SequencesModule,
+        AttachmentsModule,
+        ImagesModule,
+        DocumentsModule,
+        PlatformAiModule,
+        CommentsModule,
+        AcknowledgmentsModule,
+        TagsModule,
+        ViewsModule,
+        TemplatesModule,
+        ChoicesModule,
+        FavoritesModule,
+        RecentsModule,
+        PresenceModule,
+        InboxModule,
+        ApprovalsModule,
+        FormsModule,
+        CalendarsModule,
+        RecurrenceModule,
+        SharesModule,
+        DataQualityModule,
+        AutomationsModule,
+        ReportsModule,
+        AnalyticsModule,
+        RevisionsModule,
+        ClientErrorsModule,
+        BrandingModule,
+        EncryptionModule,
+        RetentionModule,
       ],
       providers: [
-        {
-          provide: PLATFORM_OPTIONS,
-          // The platform's own notification types first (comments' mentions, approvals).
-          useValue: {
-            ...options,
-            notifications: [
-              ...COMMENT_NOTIFICATIONS,
-              ...ACKNOWLEDGMENT_NOTIFICATIONS,
-              ...APPROVAL_NOTIFICATIONS,
-              ...AUTOMATION_NOTIFICATIONS,
-              ...ATTACHMENT_NOTIFICATIONS,
-              // Development only, with the route that sends it.
-              ...inDevelopment(...TEST_NOTIFICATIONS),
-              ...(options.notifications ?? []),
-            ],
-            // And its own settings (IAM's auth policies, numbering's, approvals' delegation limit).
-            settings: [
-              ...AUTH_SETTINGS,
-              ...MODE_SETTINGS,
-              ...NUMBERING_SETTINGS,
-              ...APPROVAL_SETTINGS,
-              ...MESSAGING_SETTINGS,
-              ...QUOTA_SETTINGS,
-              ...BRANDING_SETTINGS,
-              ...DELIVERABILITY_SETTINGS,
-              ...DASHBOARD_SETTINGS,
-              ...AI_SETTINGS,
-              ...FORM_SETTINGS,
-              ...DATA_TRANSFER_SETTINGS,
-              ...(options.settings ?? []),
-            ],
-          },
-        },
-        OpsQueues,
-        OpsBacklog,
-        // DatabaseHealth: CoreModule's, stateless; the diagnostics' own instance reads the same pool.
-        DatabaseHealth,
-        OpsDiagnostics,
-        ConfigBundlesService,
-        ConfigBundlePolicy,
-        // Queue depths and the outbox on core's /metrics.
-        OpsMetrics,
-        OutboxMetricsReader,
         {
           // Instances and journals in your database, in a schema of their own (nest_workflows)
           provide: PostgresWorkflowStore,
@@ -681,386 +380,40 @@ export class PlatformModule {
               webhooksStorage,
             ),
         },
-        // Both doors to a client's webhooks: its own routes and an administrator's.
-        WebhookManagementService,
-        // Who receives a record's webhook (its owner, the tenant-scope clients that may read it).
-        RecordWebhooks,
-        // A tenant's incoming webhook senders; features register the events they handle.
-        IncomingSendersService,
-        IncomingEventHandlers,
-        TenantSenderGuard,
-        // Idempotency records in idempotency_keys; registers itself with IdempotencyStorage.
-        DrizzleIdempotencyStore,
-        OpsPolicy,
-        // Which switches are on, for clients (GET /v1/features).
-        FeaturesService,
-        // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md).
-        ModeService,
+        // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md);
+        // ModeService is ModeModule's. A global guard: here, in this module's order.
         { provide: APP_GUARD, useClass: ModeGuard },
-        // socket.io gateway at /realtime; features inject it to push events.
-        // REALTIME=off: the same token, pushes that do nothing, no gateway.
-        switchedOn('REALTIME')
-          ? Realtime
-          : { provide: Realtime, useClass: NoRealtime },
-        // Realtime's way to the API's sockets from a process without a socket server (the operator CLI).
-        RealtimeEmitter,
-        // A record's comments and attachments changed: its open pages hear of it.
-        RecordActivity,
-        // The names behind principal keys, and the directory @mentions search.
-        PeopleService,
-        // Who queued which transfers and bulk runs (their lists).
-        JobIndex,
-        // Exports and imports: features register their DataExporter / DataImporter.
-        DataTransferRegistry,
-        DataTransferService,
-        DataTransferProcessor,
-        // Bulk operations: features register a BulkOperation and call BulkService.run().
-        BulkRegistry,
-        BulkService,
-        BulkProcessor,
-        // Custom fields: features declare their subjects (options.customFields) and inject the service.
-        CustomFieldsService,
-        CustomFieldPolicy,
-        // Notifications: features declare their types (options.notifications) and
-        // call NotificationsService.notify(); the channels register themselves.
-        NotificationChannelRegistry,
-        NotificationCatalog,
-        NotificationsService,
-        NotificationUnsubscribeService,
-        notificationUnsubscribeLinksProvider,
-        // IAM's security notifications go through it (iam can't import the platform).
-        { provide: IAM_NOTIFIER, useExisting: NotificationsService },
-        // The audit log's actor names (iam/audit, `actorName`): the people directory's.
-        { provide: ACTOR_NAMES, useExisting: PeopleService },
-        NotificationMail,
-        NotificationDigestMail,
-        NotificationDeliveryHandler,
-        RealtimeChannel,
-        EmailChannel,
-        WebhookChannel,
-        // Push and SMS (docs/notifications.md): channels that queue, a worker that sends within the caps.
-        smsProvider,
-        pushProvider,
-        MessagingService,
-        MessagingLimits,
-        MessagingProcessor,
-        MessagingRetentionJob,
-        MessagingMetrics,
-        SmsChannel,
-        PushChannel,
-        NotificationDigestJob,
-        NotificationRetentionJob,
-        NotificationTransfer,
-        // Settings and flags: features declare them (options.settings) and read them through the service.
-        SettingsService,
-        // IAM's auth policies (iam can't import the platform): the tenants'
-        // auth.* settings, which IAM reads under the env's ceiling.
-        SettingsAuthPolicy,
-        { provide: AUTH_POLICY, useExisting: SettingsAuthPolicy },
-        // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
-        PersonalDataRegistry,
-        AccountLifecycleService,
-        AvatarService,
-        ConsentKinds,
-        deletionCancelLinksProvider,
-        AccountTransfer,
-        AccountDeletionJob,
-        AccountDeletionMail,
-        // A tenant's export (the operators'), and what its erase removes besides its rows.
-        TenantTransfer,
-        TenantExports,
-        TenantCleanup,
-        // Tenant limits: the deployment's defaults (settings), the views, the storage gauges.
-        QuotasService,
-        QuotaMetrics,
-        // Watching records: features subscribe creators and notify the watchers of a change.
-        SubscriptionsService,
-        SubscriptionsRegistry,
-        // Global search: features register a SearchSource.
-        SearchRegistry,
-        SearchService,
-        // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
-        ListsRegistry,
-        ListsService,
-        ListPolicy,
-        // The access API's users and audit lists (GET /v1/lists/User, /Audit).
-        AccessListSources,
-        // The delivery log's list (GET /v1/lists/WebhookDelivery), while WEBHOOKS is on.
-        ...whenOn('WEBHOOKS', WebhookListSource),
-        // The operators' tenants list (GET /v1/lists/Tenant).
-        TenantListSource,
-        // The suppression list (GET /v1/lists/MailSuppression), for the operators.
-        MailSuppressionListSource,
-        // Gapless human-readable numbers, taken in a write's transaction.
-        SequencesService,
-        // Naming series: numbered features register and take numbers through it.
-        NamingSeriesRegistry,
-        NamingVariables,
-        NamingSeriesService,
-        // Files attached to records: features register an AttachmentTarget.
-        AttachmentsRegistry,
-        // Malware scanning of uploads (MALWARE_SCANNER, off by default): a queue job per upload.
-        {
-          provide: MalwareScanner,
-          inject: [ConfigService],
-          useFactory: malwareScanner,
-        },
-        AttachmentScanQueue,
-        AttachmentScanService,
-        AttachmentScanProcessor,
-        AttachmentScanRetryJob,
-        // Thumbnails, previews and stripped metadata of uploaded images (IMAGE_PROCESSING, on by default): a queue job per image, once it is clean.
-        {
-          provide: ImageProcessor,
-          inject: [ConfigService],
-          useFactory: imageProcessor,
-        },
-        AttachmentImagesQueue,
-        AttachmentImagesService,
-        AttachmentImagesProcessor,
-        AttachmentImagesRetryJob,
-        // Search inside files (ATTACHMENT_TEXT_SEARCH, off by default): a queue job extracts a clean upload's text in a sandboxed thread.
-        {
-          provide: TextExtractor,
-          inject: [ConfigService],
-          useFactory: (config: ConfigService<PlatformEnv, true>) =>
-            new TextExtractor({
-              maxBytes:
-                config.get('ATTACHMENT_TEXT_MAX_MB', { infer: true }) *
-                1024 *
-                1024,
-              timeoutMs: config.get('ATTACHMENT_TEXT_TIMEOUT_MS', {
-                infer: true,
-              }),
-            }),
-        },
-        AttachmentTextQueue,
-        AttachmentTextService,
-        AttachmentTextProcessor,
-        AttachmentTextRetryJob,
-        AttachmentSearch,
-        AttachmentsService,
-        // Uploads straight to the object store (STORAGE_DRIVER=s3): presign, then complete through AttachmentsService.upload().
-        AttachmentUploadsService,
-        AttachmentVersionsService,
-        AttachmentSweepJob,
-        // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
-        DocumentsRegistry,
-        DocumentTemplates,
-        PdfRenderer,
-        DocumentsService,
-        DocumentsProcessor,
-        // The AI helper: features register an AiSource; Anthropic unless another AiProvider is provided.
-        AiRegistry,
-        {
-          provide: AiProvider,
-          inject: [ConfigService],
-          useFactory: (config: ConfigService<PlatformEnv, true>) => {
-            const apiKey = config.get('ANTHROPIC_API_KEY', { infer: true });
-            return apiKey
-              ? new AnthropicProvider({
-                  apiKey,
-                  baseURL: config.get('AI_BASE_URL', { infer: true }),
-                })
-              : new DisabledAiProvider();
-          },
-        },
-        AiService,
-        AiProcessor,
-        // Comments and mentions: features register a CommentTarget and call CommentsService.
-        CommentsRegistry,
-        CommentsService,
-        // Acknowledgments of an attachment's version.
-        AcknowledgmentsService,
-        // Tags: features register a TagTarget and call TagsService.
-        TagsRegistry,
-        TagsService,
-        // Saved views: a list's filters, sort and columns under a name (private, unit, tenant).
-        ViewsService,
-        // Record templates: values to prefill a create, checked again at preview (private, unit, tenant).
-        TemplatesRegistry,
-        TemplatesService,
-        // Dependent dropdowns: server-registered choice providers and the sets that chain them.
-        ChoicesRegistry,
-        ChoicesService,
-        ChoicesBuiltins,
-        // Favorites: a person's pinned records, pages and saved views, in their order.
-        FavoritesService,
-        // Recently opened records: a person's bounded, expiring history.
-        RecentsService,
-        // Record presence: who is viewing or editing a record, ephemeral and advisory.
-        PresenceService,
-        // The work inbox: sources (approvals, mentions) register, one list merges them.
-        InboxRegistry,
-        InboxService,
-        ApprovalInboxSource,
-        MentionInboxSource,
-        RecentsRetentionJob,
-        // Runtime forms: definitions, published versions, submissions.
-        FormPolicy,
-        FormsService,
-        FormSubmissionsService,
-        FormOptionSourcesService,
-        FormPublicLinksService,
-        // Business calendars: working hours, zone and holidays, and the deadline calculation on them.
-        CalendarsService,
-        // Recurring record schedules: records created from a template at each occurrence of a rule.
-        RecordSchedulesService,
-        RecordScheduleRunnerJob,
-        // Read-only links to records: features register a ShareTarget (the `share` capability).
-        SharesRegistry,
-        SharesService,
-        // Data-quality checks: records register a DataQualityTarget, scans run on the queue.
-        DataQualityRegistry,
-        DataQualityService,
-        DataQualityProcessor,
-        DataQualityPolicy,
-        ShareCodeMail,
-        // Automation rules: features register an AutomationTarget (the `automation` capability); runs come through the outbox.
-        AutomationsRegistry,
-        AutomationsService,
-        AutomationRulePolicy,
-        AutomationRunHandler,
-        // Saved column mappings of an import (docs/data-transfer.md).
-        ImportMappingsService,
-        // Scheduled reports: exports run on a schedule, mailed to their recipients.
-        ...whenOn<Provider>(
-          'REPORTS',
-          ReportsService,
-          ReportRunnerJob,
-          ReportReadyMail,
-          ReportFailedMail,
-        ),
-        // API clients' usage: counted per day and route, daily quotas, the nightly roll-up.
-        // USAGE=off: no metering, no quota enforcement, no roll-up.
-        ...whenOn<Provider>('USAGE', UsageService, UsageRollupJob, {
-          provide: APP_INTERCEPTOR,
-          useClass: UsageInterceptor,
-        }),
-        // Platform analytics: anonymized aggregates across tenants, for the reporting role, nightly.
-        PlatformAnalyticsJob,
-        // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
-        ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
-        // Outbox dead letters and consumers' inbox records past their retention, nightly (the outbox is always on).
-        OutboxRetentionJob,
-        // Record revisions: features register a RevisionTarget and call RevisionsService.record().
-        RevisionsRegistry,
-        RevisionsService,
-        RevisionRetentionJob,
-        // Approvals: features declare actions (options.approvals) and register their
-        // handlers, rules, modes, conditions and listeners into ApprovalsRegistry.
-        ApprovalsRegistry,
-        ...BUILT_IN_RULES,
-        ApprovalPoliciesService,
-        ApprovalEngine,
-        ApprovalWorkflow,
-        ApprovalsService,
-        ApprovalDelegationsService,
-        ApprovalAccessPolicy,
-        // Open and overdue requests on /metrics.
-        ApprovalMetrics,
-        ClientErrorsService,
-        // Email deliverability (docs/deliverability.md): intakes register
-        // themselves (SES through SNS); the queue applies their events to
-        // the suppression list, which the core's mail queue asks through
-        // MAIL_SUPPRESSION before every send.
-        MailEventIntakeRegistry,
-        MailEventsService,
-        MailEventsProcessor,
-        MailEventsRetentionJob,
-        { provide: SnsGateway, useClass: HttpSnsGateway },
-        SesIntake,
-        PostmarkIntake,
-        ResendIntake,
-        SendGridIntake,
-        SuppressionsService,
-        { provide: MAIL_SUPPRESSION, useExisting: SuppressionsService },
-        // Which mail leaves (mail.delivery), asked by the core's mail queue.
-        MailDeliverySettings,
-        { provide: MAIL_DELIVERY, useExisting: MailDeliverySettings },
-        // The tenant's name and logo in its mail, asked by the core's mail queue.
-        BrandingService,
-        BrandingLogoUpload,
-        { provide: MAIL_BRANDING, useExisting: BrandingService },
-        // Custom domains: the session's tenant on a tenant's own host (SessionAuth).
-        BrandingDomainsService,
-        BrandingDomainsProcessor,
-        BrandingDomainsJob,
-        { provide: HOST_TENANTS, useExisting: BrandingDomainsService },
-        // The domains' TXT lookups: the system resolver, bounded; the tests replace it.
-        {
-          provide: CUSTOM_DOMAINS_TXT_RESOLVER,
-          useFactory: () => new Resolver({ timeout: 5000, tries: 2 }),
-        },
-        MailSuppressionPolicy,
-        // Encrypted columns onto the current keys (docs/encryption.md):
-        // hourly scheduling, one batch per queue job, the stale rows on /metrics.
-        ReencryptionService,
-        ReencryptionProcessor,
-        ReencryptionScheduler,
-        ReencryptionMetrics,
-        // Retention rules features declare, run nightly on a queue (docs/retention.md).
-        RetentionRegistry,
-        RetentionService,
-        RetentionProcessor,
-        RetentionScheduler,
       ],
       exports: [
-        Realtime,
-        RecordActivity,
-        PeopleService,
-        BullModule,
-        DataTransferRegistry,
-        BulkRegistry,
-        BulkService,
-        CustomFieldsService,
-        NotificationsService,
-        IAM_NOTIFIER,
-        ACTOR_NAMES,
-        AUTH_POLICY,
-        NotificationChannelRegistry,
-        SettingsService,
-        PersonalDataRegistry,
-        SubscriptionsService,
-        SubscriptionsRegistry,
-        DataQualityRegistry,
-        SharesRegistry,
-        SharesService,
-        AutomationsRegistry,
-        AutomationsService,
-        SearchRegistry,
-        ListsRegistry,
-        SequencesService,
-        NamingSeriesService,
-        AttachmentsRegistry,
-        AttachmentsService,
-        AttachmentUploadsService,
-        AttachmentVersionsService,
-        AcknowledgmentsService,
+        PlatformKernelModule,
+        PeopleModule,
+        BulkModule,
+        CustomFieldsModule,
+        AuthPolicyModule,
+        SettingsModule,
+        AccountModule,
+        DataQualityModule,
+        SharesModule,
+        AutomationsModule,
+        SearchModule,
+        ListsModule,
+        SequencesModule,
+        AttachmentsModule,
+        AcknowledgmentsModule,
         // A record's templates register here (record-parts.ts).
-        TemplatesRegistry,
-        DocumentsRegistry,
-        DocumentsService,
-        AiRegistry,
-        CommentsRegistry,
-        CommentsService,
-        TagsRegistry,
-        TagsService,
-        RetentionRegistry,
-        RevisionsRegistry,
-        RevisionsService,
-        ApprovalsRegistry,
-        ApprovalsService,
+        TemplatesModule,
+        DocumentsModule,
+        PlatformAiModule,
+        CommentsModule,
+        TagsModule,
+        RetentionModule,
+        RevisionsModule,
+        ApprovalsModule,
         // ExchangeRatesService, to the features.
         MoneyModule,
-        MAIL_SUPPRESSION,
-        MAIL_DELIVERY,
-        MAIL_BRANDING,
-        BrandingService,
-        HOST_TENANTS,
-        MailEventIntakeRegistry,
-        IncomingEventHandlers,
-        RecordWebhooks,
+        DeliverabilityModule,
+        BrandingModule,
+        PlatformWebhooksModule,
       ],
     };
   }

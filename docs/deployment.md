@@ -1560,8 +1560,9 @@ pointing `REDIS_URL` at it.
 **Hosted instead:** NestJS Observe (`OBSERVE_APP_KEY`, `OBSERVE_APP_SECRET`)
 is the hosted alternative: traces, metrics and errors go to the service, and
 alerting is set up there, with nothing to run on the host. It is one option
-of three, none required and all able to run side by side: Observe, your own
-collector over OpenTelemetry, and Sentry for errors ([Telemetry](#telemetry)).
+of three, none required: Observe, your own collector over OpenTelemetry, and
+Sentry for errors. Which combinations are supported is in
+[Telemetry](#telemetry).
 
 Observe wraps every provider in a proxy, which breaks code keyed by the real
 instance. `core/observability/observe.ts` (`skipObserve`, Observe's
@@ -1578,17 +1579,35 @@ exclusion.
 
 ## Telemetry
 
-Three independent switches, each off until its variable is set, so a project
-is not tied to one hosted vendor:
+Three switches, each off until its variable is set, so a project is not tied to
+one hosted vendor. prom-client's `/metrics` ([Metrics](#metrics)) is separate
+and unaffected by any of them. Supported combinations:
+
+| Set | What runs |
+| --- | --- |
+| nothing | no telemetry |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | the standalone OpenTelemetry SDK: traces and metrics to your collector |
+| `OBSERVE_APP_KEY` + `OBSERVE_APP_SECRET` | NestJS Observe alone |
+| both of the above | **Observe only**, joined to your collector: its `openTelemetry` and `otlp` options export Observe's spans (providers included) to `OTEL_EXPORTER_OTLP_ENDPOINT`, and the standalone SDK is not started. Observe and the SDK would instrument http and pg twice, and Observe's OTLP export would send every trace a second time. OTLP metrics are not exported in this mode (Observe has its own, and `/metrics` stays) |
+| `SENTRY_DSN` beside any row | adds error tracking; always supported |
+
+In the Observe-and-collector row the collector sees spans only, from Observe's
+exporter, and `traceId` in the log lines is Observe's. A refused OTLP export
+(401, 403, 429) is still counted in `telemetry_rejected_total{target="otlp"}`,
+read from Observe's log line. Sentry's own tracing (`SENTRY_TRACES_SAMPLE_RATE`)
+runs its own OpenTelemetry setup: leave it unset when Observe or the SDK
+traces.
 
 - **`OBSERVE_APP_KEY` and `OBSERVE_APP_SECRET`:** NestJS Observe (above),
   hosted traces, metrics and errors.
 - **`OTEL_EXPORTER_OTLP_ENDPOINT`** (and `OTEL_EXPORTER_OTLP_HEADERS` for the
   collector's credential, e.g. `x-honeycomb-team=KEY`): OpenTelemetry through
-  `@opentelemetry/sdk-node`. Traces and metrics go over OTLP/HTTP to any
-  collector (Grafana Tempo, Jaeger, Honeycomb, Datadog): spans for HTTP
-  (named after the matched route), PostgreSQL and Redis (the commands of a request), and runtime
-  metrics. The SDK reads the standard `OTEL_*` variables too
+  `@opentelemetry/sdk-node` (without Observe). Traces and metrics go over
+  OTLP/HTTP to any collector (Grafana Tempo, Jaeger, Honeycomb, Datadog):
+  spans for HTTP and undici (named after the matched route), PostgreSQL,
+  Redis and socket.io events, and runtime metrics. Only those instrumentation
+  packages are installed (`telemetry.ts`), not the
+  `auto-instrumentations-node` bundle. The SDK reads the standard `OTEL_*` variables too
   (`OTEL_SERVICE_NAME`, defaulting to `SERVICE_NAME`; `OTEL_TRACES_SAMPLER`,
   …).
 - **`SENTRY_DSN`** (and `SENTRY_TRACES_SAMPLE_RATE`, 0 to 1): Sentry

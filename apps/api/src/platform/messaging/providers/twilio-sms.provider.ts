@@ -1,5 +1,11 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import {
+  type HttpClient,
+  HttpNetworkError,
+  HttpResponseError,
+  HttpTimeoutError,
+} from '@nestjs/http-client';
+import {
   InboundSignatureError,
   type InboundSms,
   type OutgoingSms,
@@ -12,8 +18,6 @@ export interface TwilioOptions {
   authToken: string;
   /** The sending number (E.164) or a Messaging Service SID (`MG…`). */
   from: string;
-  /** Twilio's REST API. */
-  apiUrl: string;
   /** The exact URL Twilio posts inbound messages to: part of what it signs. */
   webhookUrl: string;
 }
@@ -21,7 +25,8 @@ export interface TwilioOptions {
 /**
  * Twilio SMS. Sending is one REST call (`Messages.json`) and the inbound
  * signature is an HMAC-SHA1 of the URL and the sorted form fields, both
- * written here with `fetch` and node:crypto rather than the `twilio` SDK:
+ * written here with @nestjs/http-client (the client on TWILIO_API_URL,
+ * registered by messagingClients()) and node:crypto rather than the `twilio` SDK:
  * that SDK would add dozens of dependencies for these two calls (as
  * deliverability's SendGrid intake does for its signature).
  *
@@ -35,48 +40,47 @@ export class TwilioSmsProvider implements SmsProvider {
 
   constructor(
     private readonly options: TwilioOptions,
-    private readonly fetcher: typeof fetch = fetch,
+    private readonly http: HttpClient,
   ) {}
 
   async send(message: OutgoingSms) {
-    const { accountSid, authToken, from, apiUrl } = this.options;
+    const { accountSid, authToken, from } = this.options;
     const form = new URLSearchParams({ To: message.to, Body: message.body });
     form.set(from.startsWith('MG') ? 'MessagingServiceSid' : 'From', from);
-    let response: Response;
     try {
-      response = await this.fetcher(
-        `${apiUrl}/2010-04-01/Accounts/${accountSid}/Messages.json`,
+      const response = await this.http.post<{ sid?: string }>(
+        `/2010-04-01/Accounts/${accountSid}/Messages.json`,
         {
-          method: 'POST',
           headers: {
             authorization: `Basic ${Buffer.from(`${accountSid}:${authToken}`).toString('base64')}`,
             'content-type': 'application/x-www-form-urlencoded',
             'i-twilio-idempotency-token': message.idempotencyKey,
           },
           body: form,
-          signal: AbortSignal.timeout(10_000),
+          responseType: 'json',
         },
       );
+      return { id: response.data.sid ?? '' };
     } catch (error) {
-      throw new SmsSendError(
-        `Twilio unreachable: ${error instanceof Error ? error.message : String(error)}`,
-        false,
-      );
+      if (error instanceof HttpResponseError) {
+        const body = (
+          typeof error.body === 'object' && error.body ? error.body : {}
+        ) as { code?: number };
+        const transient = error.status === 429 || error.status >= 500;
+        throw new SmsSendError(
+          `Twilio refused (${error.status}${body.code ? `, code ${body.code}` : ''})`,
+          !transient,
+          body.code === 21610,
+        );
+      }
+      if (
+        error instanceof HttpNetworkError ||
+        error instanceof HttpTimeoutError
+      ) {
+        throw new SmsSendError(`Twilio unreachable: ${error.message}`, false);
+      }
+      throw error;
     }
-    if (response.ok) {
-      const body = (await response.json()) as { sid?: string };
-      return { id: body.sid ?? '' };
-    }
-    const body = (await response.json().catch(() => ({}))) as {
-      code?: number;
-      message?: string;
-    };
-    const transient = response.status === 429 || response.status >= 500;
-    throw new SmsSendError(
-      `Twilio refused (${response.status}${body.code ? `, code ${body.code}` : ''})`,
-      !transient,
-      body.code === 21610,
-    );
   }
 
   parseInbound({

@@ -3,9 +3,7 @@ import { logRedaction, type LogRedaction } from '../logging/redaction.js';
 import { recordTelemetryFailure } from './telemetry-health.js';
 
 /**
- * OpenTelemetry export and Sentry error tracking, both off until configured
- * and both independent of NestJS Observe (`observe.ts`): a project picks
- * one, or runs them side by side.
+ * OpenTelemetry export and Sentry error tracking, both off until configured.
  *
  * - **OpenTelemetry** (`OTEL_EXPORTER_OTLP_ENDPOINT`): traces and metrics
  *   through `@opentelemetry/sdk-node`, exported over OTLP/HTTP to any
@@ -14,6 +12,18 @@ import { recordTelemetryFailure } from './telemetry-health.js';
  *   `OTEL_SERVICE_NAME`, `OTEL_TRACES_SAMPLER`, …).
  * - **Sentry** (`SENTRY_DSN`): unhandled errors, through `@sentry/nestjs`,
  *   scrubbed by the log-redaction registry before they leave the process.
+ *   Runs beside either of the others.
+ *
+ * **OpenTelemetry and NestJS Observe are not two SDKs side by side.** Both
+ * patch http and pg, so together they would record every request and query
+ * twice, and Observe's `otlp` export would send every trace a second time
+ * (its docs: the standard `OTEL_*` variables only fill in what its options
+ * leave out). When both are configured, Observe joins: `observe.ts` turns
+ * on its `openTelemetry` and `otlp` options, which export its spans to the
+ * same collector from the same variables, and the standalone SDK below is
+ * not started (`otelSdkEnabled`). Observe's docs support the two SDKs beside
+ * each other (`openTelemetry` alone, tested with `pg`) but not a second
+ * exporter, and they warn that both hook the drivers.
  *
  * Started by `instrument.ts`, which `main.ts` awaits before it loads the app:
  * OpenTelemetry patches `http`, Express and `pg` as they load, so it must run
@@ -25,6 +35,24 @@ export const otelEnabled = (env: NodeJS.ProcessEnv = process.env) =>
 
 export const sentryEnabled = (env: NodeJS.ProcessEnv = process.env) =>
   Boolean(env.SENTRY_DSN?.trim());
+
+/**
+ * Whether NestJS Observe is configured, as `observe.ts` reads it later. This
+ * runs before the environment is validated, so the secret may still be in its
+ * `_FILE`.
+ */
+export const observeConfigured = (env: NodeJS.ProcessEnv = process.env) =>
+  Boolean(
+    secretValue(env, 'OBSERVE_APP_KEY').value &&
+    secretValue(env, 'OBSERVE_APP_SECRET').value,
+  );
+
+/**
+ * Whether the standalone OpenTelemetry SDK starts: the endpoint is set and
+ * Observe is not (Observe then exports its own spans there; see above).
+ */
+export const otelSdkEnabled = (env: NodeJS.ProcessEnv = process.env) =>
+  otelEnabled(env) && !observeConfigured(env);
 
 /**
  * What the exporters hand back for a 429, 502, 503 or 504 once their retries
@@ -137,9 +165,12 @@ function withOtlpHeaders<T>(env: NodeJS.ProcessEnv, build: () => T): T {
   }
 }
 
-/** Starts OpenTelemetry when `OTEL_EXPORTER_OTLP_ENDPOINT` is set. */
+/**
+ * Starts OpenTelemetry when `OTEL_EXPORTER_OTLP_ENDPOINT` is set and NestJS
+ * Observe is not (`otelSdkEnabled`).
+ */
 export async function startOpenTelemetry(env: NodeJS.ProcessEnv = process.env) {
-  if (!otelEnabled(env)) {
+  if (!otelSdkEnabled(env)) {
     return undefined;
   }
   const [
@@ -147,13 +178,23 @@ export async function startOpenTelemetry(env: NodeJS.ProcessEnv = process.env) {
     { OTLPTraceExporter },
     { OTLPMetricExporter },
     { PeriodicExportingMetricReader },
-    { getNodeAutoInstrumentations },
+    { HttpInstrumentation },
+    { UndiciInstrumentation },
+    { PgInstrumentation },
+    { IORedisInstrumentation },
+    { SocketIoInstrumentation },
+    { RuntimeNodeInstrumentation },
   ] = await Promise.all([
     import('@opentelemetry/sdk-node'),
     import('@opentelemetry/exporter-trace-otlp-http'),
     import('@opentelemetry/exporter-metrics-otlp-http'),
     import('@opentelemetry/sdk-metrics'),
-    import('@opentelemetry/auto-instrumentations-node'),
+    import('@opentelemetry/instrumentation-http'),
+    import('@opentelemetry/instrumentation-undici'),
+    import('@opentelemetry/instrumentation-pg'),
+    import('@opentelemetry/instrumentation-ioredis'),
+    import('@opentelemetry/instrumentation-socket.io'),
+    import('@opentelemetry/instrumentation-runtime-node'),
   ]);
   // The service's name and version as resource attributes, through the
   // SDK's own variables (an explicit OTEL_* setting wins).
@@ -173,22 +214,31 @@ export async function startOpenTelemetry(env: NodeJS.ProcessEnv = process.env) {
         exporter: countRefusals(metricExporter),
       }),
     ],
+    // Only what this app loads, not the meta-package's ~40 (fs, dns and net
+    // are left out on purpose: one span per file read or socket call drowns
+    // the trace). Nest's own instrumentation does not support NestJS 12.
     instrumentations: [
-      getNodeAutoInstrumentations({
-        // One span per file read and per DNS or socket call drowns the trace.
-        '@opentelemetry/instrumentation-fs': { enabled: false },
-        '@opentelemetry/instrumentation-dns': { enabled: false },
-        '@opentelemetry/instrumentation-net': { enabled: false },
+      // The server (every request) and node:http clients.
+      new HttpInstrumentation({
         // Health probes every few seconds are no trace worth keeping.
-        '@opentelemetry/instrumentation-http': {
-          ignoreIncomingRequestHook: (request) =>
-            request.url?.startsWith('/health') ?? false,
-          // Secrets in a query string (the OIDC callback's code and state)
-          // stay out of the spans, as they stay out of the logs.
-          redactedQueryParamsServer: redactedParams,
-          redactedQueryParams: redactedParams,
-        },
+        ignoreIncomingRequestHook: (request) =>
+          request.url?.startsWith('/health') ?? false,
+        // Secrets in a query string (the OIDC callback's code and state)
+        // stay out of the spans, as they stay out of the logs.
+        redactedQueryParamsServer: redactedParams,
+        redactedQueryParams: redactedParams,
       }),
+      // fetch and undici (the webhooks, the OIDC and AI clients).
+      new UndiciInstrumentation(),
+      // The database driver Drizzle runs on.
+      new PgInstrumentation(),
+      // ioredis: BullMQ's queues, the throttler, the realtime adapter.
+      new IORedisInstrumentation(),
+      // The realtime gateway's socket.io events.
+      new SocketIoInstrumentation(),
+      // Event loop, GC and heap metrics: the SDK exports metrics too, and
+      // this one needs no native dependency (the bundle's host metrics did).
+      new RuntimeNodeInstrumentation(),
     ],
   });
   sdk.start();

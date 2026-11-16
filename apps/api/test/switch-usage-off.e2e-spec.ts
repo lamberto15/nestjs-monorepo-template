@@ -1,3 +1,4 @@
+import { ApplicationConfig } from '@nestjs/core/application-config.js';
 import { UsageRollupJob } from '../src/platform/usage/usage-rollup.job.js';
 import { UsageService } from '../src/platform/usage/usage.service.js';
 import { bootApp, type TestApp } from './support.js';
@@ -42,6 +43,16 @@ describe('USAGE=off (e2e)', () => {
       .set('Authorization', client.auth)
       .expect(404);
     await node.admin().get(`/v1/access/clients/${client.id}/usage`).expect(404);
+  });
+
+  it('leaves the meter out of the global interceptors', () => {
+    const interceptors = node.app
+      .get(ApplicationConfig)
+      .getGlobalInterceptors()
+      .map((interceptor) => interceptor.constructor.name);
+    expect(interceptors).not.toContain('UsageInterceptor');
+    // The rest keep their order (global-enhancers.e2e-spec.ts).
+    expect(interceptors[0]).toBe('IdempotencyInterceptor');
   });
 
   it('registers neither the meter nor the roll-up', () => {

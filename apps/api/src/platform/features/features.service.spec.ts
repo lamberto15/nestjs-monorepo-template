@@ -1,6 +1,5 @@
 import type { ConfigService } from '@nestjs/config';
 import type { PdfRenderer } from '../documents/pdf-renderer.js';
-import type { AiProvider } from '../ai/ai-provider.js';
 import type { ModeService } from '../mode/mode.service.js';
 import { FeaturesService } from './features.service.js';
 
@@ -20,6 +19,7 @@ function service(
     AUTH_SIGN_UP: false,
     AUTH_MAGIC_LINK: true,
     EXCHANGE_RATES_FETCH: true,
+    ANTHROPIC_API_KEY: ai ? 'sk-ant-test' : undefined,
     STORAGE_DRIVER: 'local',
     TENANCY: 'multi',
     LOCALES: ['en', 'de'],
@@ -33,7 +33,6 @@ function service(
     {
       enabled: documents,
     } as unknown as PdfRenderer,
-    { enabled: ai } as unknown as AiProvider,
     { current: () => 'normal' } as unknown as ModeService,
   );
 }
@@ -118,7 +117,7 @@ describe('FeaturesService', () => {
     expect(service({}, false).current().documents).toBe(false);
   });
 
-  it('says ai is on while the AI provider is (ANTHROPIC_API_KEY is set)', () => {
+  it('says ai is on while an AI key is (ANTHROPIC_API_KEY is set)', () => {
     expect(service({}, false, true).current().ai).toBe(true);
     expect(service({}, false, false).current().ai).toBe(false);
   });

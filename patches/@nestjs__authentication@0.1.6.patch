@@ -54,12 +54,12 @@ index 2da5c4937b1cba3378ad9f1204bd721c36da606c..21e507f593278fd38493ee368b3d1ac4
      async reused(record) {
          await this.storage.refreshTokens.revokeRefreshTokenFamily(record.familyId);
 diff --git a/dist/magic-link/magic-link.service.d.ts b/dist/magic-link/magic-link.service.d.ts
-index 48d87e5dd9b944e0f98cd43cf8e4eb40e518425b..933fdc7bec42550dd811047af599e45cc971b417 100644
+index 33cdf25b2fd756dfd829639e86685c482240af08..b188c6be7ad7e428fe4f506f6de296f59ea8eede 100644
 --- a/dist/magic-link/magic-link.service.d.ts
 +++ b/dist/magic-link/magic-link.service.d.ts
-@@ -66,7 +66,15 @@ export declare class MagicLinkService {
-      * refusal is a `magic-link-refused` event with its reason. Outside an
-      * HTTP handler, pass the `request` that carries the cookie.
+@@ -69,7 +69,15 @@ export declare class MagicLinkService {
+      * `ForbiddenException` first, as `SignInService.signIn()` does, so the
+      * link and the cookie stay as they were.
       */
 -    consume(token: string, { request }?: {
 +    /** Patched (lamberto15/nestjs-monorepo-template#952): `signIn: false` spends the link for the account, and signs no session in. */
@@ -75,19 +75,19 @@ index 48d87e5dd9b944e0f98cd43cf8e4eb40e518425b..933fdc7bec42550dd811047af599e45c
      }): Promise<(IssuedSession & {
          redirectTo?: string;
 diff --git a/dist/magic-link/magic-link.service.js b/dist/magic-link/magic-link.service.js
-index bd760ddf0467d8fe0bce38fab01613e58ee24488..590a71af70e54eb61c0962c691c538093c41526c 100644
+index fde454bbf3106b41fc44fd16f18ea71704fa17a2..9da2587f0f164a5c3c23facd86bd5a5684c65508 100644
 --- a/dist/magic-link/magic-link.service.js
 +++ b/dist/magic-link/magic-link.service.js
-@@ -148,7 +148,7 @@ let MagicLinkService = class MagicLinkService {
-      * refusal is a `magic-link-refused` event with its reason. Outside an
-      * HTTP handler, pass the `request` that carries the cookie.
+@@ -151,7 +151,7 @@ let MagicLinkService = class MagicLinkService {
+      * `ForbiddenException` first, as `SignInService.signIn()` does, so the
+      * link and the cookie stay as they were.
       */
 -    async consume(token, { request } = {}) {
 +    async consume(token, { request, signIn = true } = {}) {
          const { handler } = this.feature();
-         if (typeof token !== 'string' || !TOKEN_PATTERN.test(token)) {
-             return this.refuse('unknown');
-@@ -195,6 +195,11 @@ let MagicLinkService = class MagicLinkService {
+         // Signing in would refuse this request at the end, after the link is spent and the cookie
+         // settled: refuse it before, whatever the token is.
+@@ -201,6 +201,11 @@ let MagicLinkService = class MagicLinkService {
          if (normalizeEmail(user.email) !== record.email) {
              return this.refuse('refused', record.email);
          }
@@ -100,10 +100,10 @@ index bd760ddf0467d8fe0bce38fab01613e58ee24488..590a71af70e54eb61c0962c691c53809
          return { ...issued, redirectTo: record.redirectTo };
      }
 diff --git a/dist/oidc/oidc.service.d.ts b/dist/oidc/oidc.service.d.ts
-index c0b9652eb1abc85a5e16af3a4901a38ccc033b37..ce57d6f1e3a5cde121131546d812d7bc8d4c206c 100644
+index 1d4188eb624cb9738ee40ee7a3749036b3ffc540..1a8f883e8656b0ae6c7e9ff92af671d8ace59dd3 100644
 --- a/dist/oidc/oidc.service.d.ts
 +++ b/dist/oidc/oidc.service.d.ts
-@@ -73,9 +73,13 @@ export declare class OidcService {
+@@ -71,9 +71,13 @@ export declare class OidcService {
       * goes through `SignInService`, which sets the session cookie on the
       * response; the transaction cookie is cleared.
       */
@@ -120,10 +120,10 @@ index c0b9652eb1abc85a5e16af3a4901a38ccc033b37..ce57d6f1e3a5cde121131546d812d7bc
      private redirect;
      /** The options and the resolver; the module refuses to start with one and not the other. */
 diff --git a/dist/oidc/oidc.service.js b/dist/oidc/oidc.service.js
-index 6fa7ad526ce08dd9fc4e3659fb771d4b24f96786..23223c1558d9898b33ecb3be5b66a7afaa556440 100644
+index ce898cc14ceee25564d6ac964f9bc19828b94b29..fc972a54e7e9b944d4956ed7b9da1f38f801a001 100644
 --- a/dist/oidc/oidc.service.js
 +++ b/dist/oidc/oidc.service.js
-@@ -133,7 +133,7 @@ let OidcService = class OidcService {
+@@ -123,7 +123,7 @@ let OidcService = class OidcService {
       * goes through `SignInService`, which sets the session cookie on the
       * response; the transaction cookie is cleared.
       */
@@ -132,7 +132,7 @@ index 6fa7ad526ce08dd9fc4e3659fb771d4b24f96786..23223c1558d9898b33ecb3be5b66a7af
          const { options, resolver } = this.feature();
          const exchange = this.scope.exchange();
          const req = request ?? exchange?.request ?? { headers: {} };
-@@ -169,6 +169,12 @@ let OidcService = class OidcService {
+@@ -160,6 +160,12 @@ let OidcService = class OidcService {
          if (!user) {
              throw new ForbiddenException('account not allowed');
          }
@@ -145,20 +145,3 @@ index 6fa7ad526ce08dd9fc4e3659fb771d4b24f96786..23223c1558d9898b33ecb3be5b66a7af
          const issued = await this.signIn.signIn(user.id, { method: `oidc:${provider}` });
          // `signIn()` set the session cookie on the response itself; the caller outside HTTP needs it too.
          const { url } = this.redirect(exchange?.response, location, [this.txCookie('', 0)]);
-diff --git a/dist/testing/index.js b/dist/testing/index.js
-index d505578d5b1671fcf8765ca346474a1a19d58d00..5e8e7c87e13e89adab100fb9f70c0827bf4c10e6 100644
---- a/dist/testing/index.js
-+++ b/dist/testing/index.js
-@@ -117,7 +117,11 @@ export function authenticationStoreContract(create, options = {}) {
-             const { token } = await ahead.create(uid());
-             clock += 61_000; // idle for 61 s on `ahead`, 59 s on `behind`
-             const [seenIdle, touched] = await Promise.all([ahead.validate(token), behind.validate(token)]);
--            same(seenIdle, null, 'the request that saw the session idle is refused');
-+            // Patched (lamberto15/nestjs-monorepo-template#902): over a real database the two validations
-+            // run on separate connections, so `behind`'s touch may commit before `ahead` reads. `ahead` then
-+            // never saw the session idle and returning it is right. Either order: the touch lands and the
-+            // session survives; `ahead` refuses it only when it read it before the touch.
-+            assert.ok(seenIdle === null || seenIdle.userId === touched?.userId, 'a request that saw the session idle is refused; one that read it after the touch keeps it');
-             assert.ok(touched, 'the other instance, within the idle timeout, touches the session');
-             clock += 1_000;
-             assert.ok(await ahead.validate(token), 'the touched session is still there');

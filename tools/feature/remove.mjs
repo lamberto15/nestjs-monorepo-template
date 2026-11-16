@@ -94,6 +94,9 @@ const pascal = (kebab) =>
     .map((word) => word[0].toUpperCase() + word.slice(1))
     .join('');
 
+/** `invoice-line` → `invoiceLine`. */
+const camel = (kebab) => pascal(kebab).replace(/^./, (c) => c.toLowerCase());
+
 /** `json` without the key path; false when it had none. */
 function deleteKey(json, keys) {
   const parent = keys
@@ -287,10 +290,14 @@ export async function removeFeature(root, options) {
   if (existsSync(i18n)) {
     for (const file of walk(i18n, '.json')) {
       const json = JSON.parse(readFileSync(file, 'utf8'));
-      if (!Object.hasOwn(json, item)) continue;
-      delete json[item];
+      // The key is the item in camelCase (`smokeWidget`: add.mjs, sync.mjs), or as the folder spells it.
+      const keys = [item, camel(item)].filter((key) =>
+        Object.hasOwn(json, key),
+      );
+      if (keys.length === 0) continue;
+      for (const key of keys) delete json[key];
       edits.push([file, `${JSON.stringify(json, null, 2)}\n`]);
-      removed.push(`"${item}" in ${path.relative(repo, file)}`);
+      removed.push(`"${keys[0]}" in ${path.relative(repo, file)}`);
     }
   }
   const locales = inside(web, 'locales');
@@ -306,6 +313,17 @@ export async function removeFeature(root, options) {
         edits.push([file, `${JSON.stringify(json, null, 2)}\n`]);
         removed.push(`"${keys.join('.')}" in ${path.relative(repo, file)}`);
       }
+    }
+  }
+  // Its paths in the OpenAPI test's list (add.mjs and sync.mjs put them there).
+  const openapi = inside(api, 'test/openapi.e2e-spec.ts');
+  if (hasApi && existsSync(openapi)) {
+    const paths = new RegExp(`^[ \\t]*'/v1/${plural}(?:/[^']*)?',\\n`, 'gm');
+    const text = readFileSync(openapi, 'utf8');
+    const out = text.replace(paths, '');
+    if (out !== text) {
+      edits.push([openapi, out]);
+      removed.push(`its paths in ${path.relative(repo, openapi)}`);
     }
   }
   const deletions = [

@@ -20,7 +20,7 @@ overrides:
   'body-parser@^1.0.0': 1.20.9
   'basic-ftp@<6.2.1': 6.2.1
   # GHSA-3f7j-7jwc-fxfj (high, fixed in 5.33.16), through
-  # @opentelemetry/instrumentation-host-metrics and the CLI's dependency.
+  # shadcn's chain (@dotenvx/dotenvx, a dev dependency of packages/ui).
   'systeminformation@<5.33.16': 5.33.18
   # Dependabot alerts on transitive versions (2026-11). Drop each once the
   # parent asks for the fixed version itself.
@@ -50,11 +50,11 @@ allowBuilds:
   # addon for the platform (verified against the hashes pinned in the
   # package), or builds it with node-gyp when none matches.
   re2: true
-patchedDependencies:
-  '@nestjs/authentication@0.1.1': patches/@nestjs__authentication@0.1.1.patch
 # Exempt from pnpm's minimum release age (a new version waits before install).
 # turbosheet: the owner's own library (data-transfer's Excel), published from
 # its CI with npm provenance.
 minimumReleaseAgeExclude:
   - systeminformation@5.33.18
   - turbosheet@0.3.0
+patchedDependencies:
+  '@nestjs/authentication@0.1.6': patches/@nestjs__authentication@0.1.6.patch

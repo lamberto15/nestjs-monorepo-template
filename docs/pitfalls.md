@@ -32,8 +32,11 @@ set …`, `organizational_unit_closure`, `deleted_at is null`), which no type ch
   operator behind the 503 with only the CLI to end it; `mode.e2e-spec.ts`
   walks the whole way back.
 - **Module order:** `PlatformModule` before `CoreModule` before `IamModule`
-  (idempotency outermost; rate limits before authentication). A warning
-  `IdempotencyInterceptor runs inside …` means the order broke.
+  (idempotency is the outermost interceptor, the usage meter inside it; rate
+  limits before authentication). A boot-time notice
+  `IdempotencyInterceptor runs inside …` means a global interceptor got in
+  front of it; the order itself is checked by
+  `test/global-enhancers.e2e-spec.ts`.
 - **No `z.date()` in response schemas** (500 on `/api-json`): `z.iso.datetime()`.
 - **Workflows and the services they call must not import each other**
   (undefined providers): keep the steps' service apart (`NotePublisher`).

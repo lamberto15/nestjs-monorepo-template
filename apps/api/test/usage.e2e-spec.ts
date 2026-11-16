@@ -174,11 +174,13 @@ describe('API usage and quotas (e2e)', () => {
     expect(reset).toBeLessThanOrEqual(86_400);
     expect(refused.headers['retry-after']).toBe(String(reset));
 
-    // Metering runs before idempotency: past the quota, even a replay is refused.
+    // Idempotency runs before metering: a replay is answered past the quota
+    // too, and isn't counted (the total below).
     const replay = await node
       .writeItem(client.auth, undefined, firstKey)
-      .expect(429);
-    expect(replay.body.code).toBe('quota_exceeded');
+      .expect(201);
+    expect(replay.headers['idempotent-replayed']).toBe('true');
+    expect(replay.body.id).toBe(first.body.id);
 
     // A refused write isn't kept for its Idempotency-Key: the retry runs.
     const retryKey = randomUUID();
