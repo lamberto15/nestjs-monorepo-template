@@ -899,7 +899,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        capability: [ai, forms, presence, data-quality, messaging]
+        capability: [ai, forms, presence, data-quality, messaging, shares]
     name: template-without-capabilities (${{ matrix.capability }})
     env:
       CAPABILITY: ${{ matrix.capability }}
