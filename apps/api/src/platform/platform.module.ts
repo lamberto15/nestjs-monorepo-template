@@ -1,4 +1,3 @@
-import { Resolver } from 'node:dns/promises';
 import { randomBytes } from 'node:crypto';
 import {
   type DynamicModule,
@@ -18,26 +17,14 @@ import { PostgresWebhookStore } from '@nestjs/webhooks/postgres';
 import { WorkflowsModule, WorkflowStorage } from '@nestjs/workflows';
 import { fromDrizzle, PostgresWorkflowStore } from '@nestjs/workflows/postgres';
 import { runsWorkers } from '../core/config/core.env.js';
-import { DatabaseHealth } from '../core/database/database-health.js';
 import { loadOrCreateSecret, type Database } from '../core/database/drizzle.js';
 import { principalScope } from './idempotency/idempotency.scopes.js';
 import { OpsController } from './ops/ops.controller.js';
 import { FeaturesController } from './features/features.controller.js';
 import { FeaturesService } from './features/features.service.js';
-import { OpsPolicy } from './ops/ops.policy.js';
-import { OpsQueues } from './ops/ops-queues.service.js';
-import { OpsBacklog } from './ops/ops-backlog.service.js';
-import { OpsDiagnostics } from './ops/ops-diagnostics.service.js';
 import { ConfigBundlesController } from './config-bundles/config-bundles.controller.js';
-import { ConfigBundlePolicy } from './config-bundles/config-bundle.policy.js';
-import { ConfigBundlesService } from './config-bundles/config-bundles.service.js';
-import { OpsMetrics } from './ops/ops-metrics.js';
-import { OutboxMetricsReader } from './ops/outbox-metrics.reader.js';
-import { OutboxRetentionJob } from './ops/outbox-retention.job.js';
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
-import { IAM_NOTIFIER } from '../iam/iam-notifications.js';
-import { AUTH_POLICY } from '../iam/auth/auth-policy.js';
 import { AiController } from './ai/ai.controller.js';
 import { AiProcessor } from './ai/ai.processor.js';
 import { AiProvider, DisabledAiProvider } from './ai/ai-provider.js';
@@ -59,7 +46,6 @@ import { FormSubmissionsService } from './forms/form-submissions.service.js';
 import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
-import { SettingsAuthPolicy } from './auth-policy/settings-auth-policy.js';
 import { WebhookDeliveryRetentionJob } from './webhooks/webhook-delivery-retention.job.js';
 import { WebhookDeliveriesController } from './webhooks/webhook-deliveries.controller.js';
 import { WebhookEndpointsController } from './webhooks/webhook-endpoints.controller.js';
@@ -102,103 +88,57 @@ import { MailSuppressionListSource } from './deliverability/suppression.list-sou
 import { MailSuppressionPolicy } from './deliverability/suppression.policy.js';
 import { SuppressionsController } from './deliverability/suppressions.controller.js';
 import { SuppressionsService } from './deliverability/suppressions.service.js';
-import { NoRealtime } from './realtime/no-realtime.js';
-import { Realtime } from './realtime/realtime.service.js';
-import { RealtimeEmitter } from './realtime/realtime-emitter.js';
-import { RecordActivity } from './realtime/record-activity.js';
 import {
   PeopleController,
   UnitDirectoryController,
 } from './people/people.controller.js';
-import { switchedOn, whenOn } from './switches.js';
+import { whenOn } from './switches.js';
 import { FilesController } from './storage/files.controller.js';
 import { storage } from './storage/storage.config.js';
 import { platformQueues, queues } from './queues/queues.js';
 import { DataTransferController } from './data-transfer/data-transfer.controller.js';
-import { DataTransferProcessor } from './data-transfer/data-transfer.processor.js';
-import { DataTransferRegistry } from './data-transfer/data-transfer.registry.js';
-import { DataTransferService } from './data-transfer/data-transfer.service.js';
 import { DATA_TRANSFER_SETTINGS } from './data-transfer/data-transfer.settings.js';
 import { integrations } from './integrations/integrations.js';
 import { BulkController } from './bulk/bulk.controller.js';
-import { BulkProcessor } from './bulk/bulk.processor.js';
-import { BulkRegistry } from './bulk/bulk.registry.js';
-import { BulkService } from './bulk/bulk.service.js';
 import { CustomFieldsController } from './custom-fields/custom-fields.controller.js';
-import { NotificationCatalog } from './notifications/notification-catalog.js';
-import { NotificationChannelRegistry } from './notifications/notification-channel.registry.js';
-import {
-  NotificationDigestMail,
-  NotificationMail,
-} from './notifications/notification.mails.js';
 import { NotificationsController } from './notifications/notifications.controller.js';
 import { NotificationUnsubscribeController } from './notifications/notification-unsubscribe.controller.js';
-import { NotificationUnsubscribeService } from './notifications/notification-unsubscribe.service.js';
-import { notificationUnsubscribeLinksProvider } from './notifications/notification-unsubscribe.js';
 import {
   inDevelopment,
   TEST_NOTIFICATIONS,
 } from './notifications/notification-test.js';
 import { NotificationTestController } from './notifications/notification-test.controller.js';
-import { NotificationsService } from './notifications/notifications.service.js';
-import { NotificationDeliveryHandler } from './notifications/notification-delivery.handler.js';
-import { NotificationDigestJob } from './notifications/notification-digest.job.js';
-import { NotificationRetentionJob } from './notifications/notification-retention.job.js';
-import { NotificationTransfer } from './notifications/notification.transfer.js';
-import { EmailChannel } from './notifications/channels/email.channel.js';
-import { RealtimeChannel } from './notifications/channels/realtime.channel.js';
-import { WebhookChannel } from './notifications/channels/webhook.channel.js';
 import { SettingsController } from './settings/settings.controller.js';
 import {
   AccountController,
   AccountDeletionLinkController,
   ConsentKindsController,
 } from './account/account.controller.js';
-import { ConsentKinds } from './account/consent-kinds.js';
-import { AccountDeletionJob } from './account/account-deletion.job.js';
-import { AccountDeletionMail } from './account/account.mails.js';
-import { AccountLifecycleService } from './account/account.service.js';
 import { AvatarController } from './account/avatar.controller.js';
-import { AvatarService } from './account/avatar.service.js';
-import { deletionCancelLinksProvider } from './account/deletion-cancel-links.js';
-import { AccountTransfer } from './account/account.transfer.js';
 import { TenantCleanup } from './tenants/tenant-cleanup.js';
 import {
   BrandingController,
   PublicBrandingController,
 } from './branding/branding.controller.js';
-import { BrandingService } from './branding/branding.service.js';
 import {
   BrandingDomainsController,
   DomainAskController,
   HostBrandingController,
 } from './branding/branding-domains.controller.js';
-import { BrandingDomainsService } from './branding/branding-domains.service.js';
-import { BrandingDomainsProcessor } from './branding/branding-domains.processor.js';
-import { BrandingDomainsJob } from './branding/branding-domains.job.js';
-import { CUSTOM_DOMAINS_TXT_RESOLVER } from './branding/branding-domains.queue.js';
-import { HOST_TENANTS } from '../iam/auth/host-tenant.js';
-import { BrandingLogoUpload } from './branding/branding-logo-upload.interceptor.js';
 import { BRANDING_SETTINGS } from './branding/branding.settings.js';
 import {
   DELIVERABILITY_SETTINGS,
   MailDeliverySettings,
 } from './deliverability/mail-delivery.settings.js';
-import { MAIL_BRANDING } from '../core/mail/mail-branding.js';
-import { QuotaMetrics } from './quotas/quota.metrics.js';
 import { QUOTA_SETTINGS } from './quotas/quota.settings.js';
 import {
   OwnQuotasController,
   TenantQuotasController,
 } from './quotas/quotas.controller.js';
-import { QuotasService } from './quotas/quotas.service.js';
 import { TenantExportController } from './tenants/tenant-export.controller.js';
 import { TenantExports } from './tenants/tenant-exports.service.js';
 import { TenantTransfer } from './tenants/tenant.transfer.js';
-import { PersonalDataRegistry } from './account/personal-data.registry.js';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
-import { SubscriptionsService } from './subscriptions/subscriptions.service.js';
-import { SubscriptionsRegistry } from './subscriptions/subscriptions.registry.js';
 import { SearchController } from './search/search.controller.js';
 import { ListsController } from './lists/lists.controller.js';
 import { AccessListSources } from './lists/access-lists.js';
@@ -207,11 +147,7 @@ import { ListPolicy } from './lists/list.policy.js';
 import { ListsRegistry } from './lists/lists.registry.js';
 import { ListsService } from './lists/lists.service.js';
 import { NamingSeriesController } from './sequences/naming-series.controller.js';
-import { NamingSeriesRegistry } from './sequences/naming-series.registry.js';
-import { NamingSeriesService } from './sequences/naming-series.service.js';
-import { NamingVariables } from './sequences/naming-variables.js';
 import { NUMBERING_SETTINGS } from './sequences/numbering-settings.js';
-import { SequencesService } from './sequences/sequences.service.js';
 import {
   AttachmentAcknowledgmentsController,
   MyAcknowledgmentsController,
@@ -248,24 +184,18 @@ import { CommentsRegistry } from './comments/comments.registry.js';
 import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { ImportMappingsController } from './data-transfer/import-mappings.controller.js';
-import { ImportMappingsService } from './data-transfer/import-mappings.service.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
 import { InboxController } from './inbox/inbox.controller.js';
 import { ApprovalInboxSource } from './approvals/approval.inbox.js';
 import { MentionInboxSource } from './comments/mention.inbox.js';
 import { PresenceController } from './presence/presence.controller.js';
-import { PresenceService } from './presence/presence.service.js';
 import { RecentsController } from './recents/recents.controller.js';
 import { RecentsRetentionJob } from './recents/recents-retention.job.js';
 import { RecentsService } from './recents/recents.service.js';
 import { SharedController } from './shares/shared.controller.js';
-import { AutomationRulePolicy } from './automations/automation.policy.js';
 import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
-import { AutomationRunHandler } from './automations/automation-run.handler.js';
 import { AutomationsController } from './automations/automations.controller.js';
-import { AutomationsRegistry } from './automations/automations.registry.js';
-import { AutomationsService } from './automations/automations.service.js';
 import { DataQualityController } from './data-quality/data-quality.controller.js';
 import { ShareCodeMail } from './shares/share.mails.js';
 import { SharesRegistry } from './shares/shares.registry.js';
@@ -328,21 +258,32 @@ import { DocumentsService } from './documents/documents.service.js';
 import { gotenbergClient, PdfRenderer } from './documents/pdf-renderer.js';
 import { MoneyModule } from './money/money.module.js';
 
+import { PlatformOpsModule } from './ops/ops.module.js';
+import { ConfigBundlesModule } from './config-bundles/config-bundles.module.js';
 import { PlatformIdempotencyModule } from './idempotency/idempotency.module.js';
+import { PlatformKernelModule } from './platform-kernel.module.js';
 import { PeopleModule } from './people/people.module.js';
 import { QueuesModule } from './queues/queues.module.js';
+import { BulkModule } from './bulk/bulk.module.js';
 import { CustomFieldsModule } from './custom-fields/custom-fields.module.js';
 import { SettingsModule } from './settings/settings.module.js';
+import { AuthPolicyModule } from './auth-policy/auth-policy.module.js';
+import { AccountModule } from './account/account.module.js';
+import { QuotasModule } from './quotas/quotas.module.js';
 import { SearchModule } from './search/search.module.js';
+import { SequencesModule } from './sequences/sequences.module.js';
 import { ImagesModule } from './images/images.module.js';
 import { TagsModule } from './tags/tags.module.js';
 import { ChoicesModule } from './choices/choices.module.js';
+import { PresenceModule } from './presence/presence.module.js';
 import { InboxModule } from './inbox/inbox.module.js';
 import { CalendarsModule } from './calendars/calendars.module.js';
 import { DataQualityModule } from './data-quality/data-quality.module.js';
+import { AutomationsModule } from './automations/automations.module.js';
 import { UsageModule } from './usage/usage.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
 import { ClientErrorsModule } from './client-errors/client-errors.module.js';
+import { BrandingModule } from './branding/branding.module.js';
 import { EncryptionModule } from './encryption/encryption.module.js';
 import { RetentionModule } from './retention/retention.module.js';
 /**
@@ -548,21 +489,32 @@ export class PlatformModule {
         MoneyModule,
         // The capability modules, one per folder (platform-kernel.module.ts: the
         // ones that need one another). Last: they register no global enhancer.
+        PlatformOpsModule,
+        ConfigBundlesModule,
         PlatformIdempotencyModule,
+        PlatformKernelModule,
         PeopleModule,
         QueuesModule,
+        BulkModule,
         CustomFieldsModule,
         SettingsModule,
+        AuthPolicyModule,
+        AccountModule,
+        QuotasModule,
         SearchModule,
+        SequencesModule,
         ImagesModule,
         TagsModule,
         ChoicesModule,
+        PresenceModule,
         InboxModule,
         CalendarsModule,
         DataQualityModule,
+        AutomationsModule,
         UsageModule,
         AnalyticsModule,
         ClientErrorsModule,
+        BrandingModule,
         EncryptionModule,
         RetentionModule,
       ],
@@ -665,16 +617,6 @@ export class PlatformModule {
         ApprovalsController,
       ],
       providers: [
-        OpsQueues,
-        OpsBacklog,
-        // DatabaseHealth: CoreModule's, stateless; the diagnostics' own instance reads the same pool.
-        DatabaseHealth,
-        OpsDiagnostics,
-        ConfigBundlesService,
-        ConfigBundlePolicy,
-        // Queue depths and the outbox on core's /metrics.
-        OpsMetrics,
-        OutboxMetricsReader,
         {
           // Instances and journals in your database, in a schema of their own (nest_workflows)
           provide: PostgresWorkflowStore,
@@ -713,44 +655,11 @@ export class PlatformModule {
         IncomingSendersService,
         IncomingEventHandlers,
         TenantSenderGuard,
-        OpsPolicy,
         // Which switches are on, for clients (GET /v1/features).
         FeaturesService,
         // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md).
         ModeService,
         { provide: APP_GUARD, useClass: ModeGuard },
-        // socket.io gateway at /realtime; features inject it to push events.
-        // REALTIME=off: the same token, pushes that do nothing, no gateway.
-        switchedOn('REALTIME')
-          ? Realtime
-          : { provide: Realtime, useClass: NoRealtime },
-        // Realtime's way to the API's sockets from a process without a socket server (the operator CLI).
-        RealtimeEmitter,
-        // A record's comments and attachments changed: its open pages hear of it.
-        RecordActivity,
-        // Exports and imports: features register their DataExporter / DataImporter.
-        DataTransferRegistry,
-        DataTransferService,
-        DataTransferProcessor,
-        // Bulk operations: features register a BulkOperation and call BulkService.run().
-        BulkRegistry,
-        BulkService,
-        BulkProcessor,
-        // Notifications: features declare their types (options.notifications) and
-        // call NotificationsService.notify(); the channels register themselves.
-        NotificationChannelRegistry,
-        NotificationCatalog,
-        NotificationsService,
-        NotificationUnsubscribeService,
-        notificationUnsubscribeLinksProvider,
-        // IAM's security notifications go through it (iam can't import the platform).
-        { provide: IAM_NOTIFIER, useExisting: NotificationsService },
-        NotificationMail,
-        NotificationDigestMail,
-        NotificationDeliveryHandler,
-        RealtimeChannel,
-        EmailChannel,
-        WebhookChannel,
         // Push and SMS (docs/notifications.md): channels that queue, a worker that sends within the caps.
         smsProvider,
         pushProvider,
@@ -761,32 +670,10 @@ export class PlatformModule {
         MessagingMetrics,
         SmsChannel,
         PushChannel,
-        NotificationDigestJob,
-        NotificationRetentionJob,
-        NotificationTransfer,
-        // IAM's auth policies (iam can't import the platform): the tenants'
-        // auth.* settings, which IAM reads under the env's ceiling.
-        SettingsAuthPolicy,
-        { provide: AUTH_POLICY, useExisting: SettingsAuthPolicy },
-        // A person's own account: their data (features register PersonalDataSources), its deletion, consents.
-        PersonalDataRegistry,
-        AccountLifecycleService,
-        AvatarService,
-        ConsentKinds,
-        deletionCancelLinksProvider,
-        AccountTransfer,
-        AccountDeletionJob,
-        AccountDeletionMail,
         // A tenant's export (the operators'), and what its erase removes besides its rows.
         TenantTransfer,
         TenantExports,
         TenantCleanup,
-        // Tenant limits: the deployment's defaults (settings), the views, the storage gauges.
-        QuotasService,
-        QuotaMetrics,
-        // Watching records: features subscribe creators and notify the watchers of a change.
-        SubscriptionsService,
-        SubscriptionsRegistry,
         // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
         ListsRegistry,
         ListsService,
@@ -799,12 +686,6 @@ export class PlatformModule {
         TenantListSource,
         // The suppression list (GET /v1/lists/MailSuppression), for the operators.
         MailSuppressionListSource,
-        // Gapless human-readable numbers, taken in a write's transaction.
-        SequencesService,
-        // Naming series: numbered features register and take numbers through it.
-        NamingSeriesRegistry,
-        NamingVariables,
-        NamingSeriesService,
         // Files attached to records: features register an AttachmentTarget.
         AttachmentsRegistry,
         // Malware scanning of uploads (MALWARE_SCANNER, off by default): a queue job per upload.
@@ -883,8 +764,6 @@ export class PlatformModule {
         FavoritesService,
         // Recently opened records: a person's bounded, expiring history.
         RecentsService,
-        // Record presence: who is viewing or editing a record, ephemeral and advisory.
-        PresenceService,
         ApprovalInboxSource,
         MentionInboxSource,
         RecentsRetentionJob,
@@ -901,13 +780,6 @@ export class PlatformModule {
         SharesRegistry,
         SharesService,
         ShareCodeMail,
-        // Automation rules: features register an AutomationTarget (the `automation` capability); runs come through the outbox.
-        AutomationsRegistry,
-        AutomationsService,
-        AutomationRulePolicy,
-        AutomationRunHandler,
-        // Saved column mappings of an import (docs/data-transfer.md).
-        ImportMappingsService,
         // Scheduled reports: exports run on a schedule, mailed to their recipients.
         ...whenOn<Provider>(
           'REPORTS',
@@ -924,8 +796,6 @@ export class PlatformModule {
         }),
         // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
         ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
-        // Outbox dead letters and consumers' inbox records past their retention, nightly (the outbox is always on).
-        OutboxRetentionJob,
         // Record revisions: features register a RevisionTarget and call RevisionsService.record().
         RevisionsRegistry,
         RevisionsService,
@@ -960,47 +830,23 @@ export class PlatformModule {
         // Which mail leaves (mail.delivery), asked by the core's mail queue.
         MailDeliverySettings,
         { provide: MAIL_DELIVERY, useExisting: MailDeliverySettings },
-        // The tenant's name and logo in its mail, asked by the core's mail queue.
-        BrandingService,
-        BrandingLogoUpload,
-        { provide: MAIL_BRANDING, useExisting: BrandingService },
-        // Custom domains: the session's tenant on a tenant's own host (SessionAuth).
-        BrandingDomainsService,
-        BrandingDomainsProcessor,
-        BrandingDomainsJob,
-        { provide: HOST_TENANTS, useExisting: BrandingDomainsService },
-        // The domains' TXT lookups: the system resolver, bounded; the tests replace it.
-        {
-          provide: CUSTOM_DOMAINS_TXT_RESOLVER,
-          useFactory: () => new Resolver({ timeout: 5000, tries: 2 }),
-        },
         MailSuppressionPolicy,
       ],
       exports: [
-        Realtime,
-        RecordActivity,
+        PlatformKernelModule,
         PeopleModule,
-        DataTransferRegistry,
-        BulkRegistry,
-        BulkService,
+        BulkModule,
         CustomFieldsModule,
-        NotificationsService,
-        IAM_NOTIFIER,
-        AUTH_POLICY,
-        NotificationChannelRegistry,
+        AuthPolicyModule,
         SettingsModule,
-        PersonalDataRegistry,
-        SubscriptionsService,
-        SubscriptionsRegistry,
+        AccountModule,
         DataQualityModule,
         SharesRegistry,
         SharesService,
-        AutomationsRegistry,
-        AutomationsService,
+        AutomationsModule,
         SearchModule,
         ListsRegistry,
-        SequencesService,
-        NamingSeriesService,
+        SequencesModule,
         AttachmentsRegistry,
         AttachmentsService,
         AttachmentUploadsService,
@@ -1023,9 +869,7 @@ export class PlatformModule {
         MoneyModule,
         MAIL_SUPPRESSION,
         MAIL_DELIVERY,
-        MAIL_BRANDING,
-        BrandingService,
-        HOST_TENANTS,
+        BrandingModule,
         MailEventIntakeRegistry,
         IncomingEventHandlers,
         RecordWebhooks,
