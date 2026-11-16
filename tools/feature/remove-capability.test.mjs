@@ -117,6 +117,13 @@ for (const name of Object.keys(REMOVABLE)) {
           }
         }
       }
+      // Its sections in shared pages are gone.
+      for (const [relative, heading] of REMOVABLE[name].sections ?? []) {
+        assert.ok(
+          !read(path.join(root, relative)).split('\n').includes(heading),
+          `${relative}: ${heading}`,
+        );
+      }
       assert.ok(result.removed.some((r) => r.endsWith('platform.module.ts')));
     });
 

@@ -739,8 +739,9 @@ pnpm --filter @nestjs-monorepo-template/api remove @ai-sdk/anthropic @nestjs/ai 
 pnpm client:generate
 ```
 
-Supported: `ai` (the AI helper, [ai](ai.md)) and `forms` (runtime forms,
-[forms](forms.md)). The list, and what the command must know of each beyond
+Supported: `ai` (the AI helper, [ai](ai.md)), `forms` (runtime forms,
+[forms](forms.md)) and `presence` (who else is on a record,
+[work surfaces](work-surfaces.md#record-presence)). The list, and what the command must know of each beyond
 the conventions, is `tools/feature/removable.mjs`. It deletes
 `apps/api/src/platform/<name>/` and `test/<name>.e2e-spec.ts`, takes its
 module, queue, settings and notifications out of `platform.module.ts` and
@@ -752,7 +753,8 @@ tests, the setup wizard's question, CI's checks). On the web it takes the
 feature paths (`features/<name>/`, `routes/_app/<name>/`,
 `locales/<lng>/<name>.json`) and regenerates the route tree; in the docs, its
 page, its sidebar entry, the table rows and list items that link to it (a
-link elsewhere becomes text: the command lists those lines to review). It
+link elsewhere becomes text: the command lists those lines to review), and
+the sections of shared pages the manifest names. It
 never writes a migration, and refuses, listing the files, while anything
 else still imports what it deletes; a second run says there is nothing
 left. Markers are comments: a project that removes nothing builds and serves
