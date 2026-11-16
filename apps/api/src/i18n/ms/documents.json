@@ -9,6 +9,13 @@
     "statuses": {
       "draft": "Draf",
       "published": "Diterbitkan"
+    },
+    "fields": {
+      "number": "Nombor",
+      "title": "Tajuk",
+      "body": "Kandungan",
+      "status": "Status",
+      "publishedAt": "Diterbitkan pada"
     }
   }
 }

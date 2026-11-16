@@ -9,6 +9,13 @@
     "statuses": {
       "draft": "草稿",
       "published": "已发布"
+    },
+    "fields": {
+      "number": "编号",
+      "title": "标题",
+      "body": "正文",
+      "status": "状态",
+      "publishedAt": "发布时间"
     }
   }
 }

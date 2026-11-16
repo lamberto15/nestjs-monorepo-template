@@ -6319,13 +6319,13 @@ export interface paths {
         };
         /**
          * The notes you may read, newest first
-         * @description Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).
+         * @description Filter flat or with `filter`, sort with `sort`, pick fields with `fields`; each parameter lists what it takes. A field your permissions hide is a 403 (field_forbidden).
          */
         get: operations["NotesController_list_v1"];
         put?: never;
         /**
-         * Write a note
-         * @description Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.
+         * Create a note
+         * @description Send a new Idempotency-Key per record and the same one on every retry. Audited.
          */
         post: operations["NotesController_create_v1"];
         delete?: never;
@@ -6363,43 +6363,23 @@ export interface paths {
         };
         /**
          * One note
-         * @description With an ETag: send it back as If-None-Match to get 304 while unchanged, or as If-Match on a write to be refused if it changed.
+         * @description With an ETag: If-None-Match gets 304 while unchanged; If-Match on a write refuses it if it changed.
          */
         get: operations["NotesController_get_v1"];
         put?: never;
         post?: never;
         /**
          * Delete a note (to the recycle bin)
-         * @description It disappears from every list; POST /v1/notes/{id}/restore brings it back until it is purged.
+         * @description POST /v1/notes/{id}/restore brings it back until it is purged.
          */
         delete: operations["NotesController_delete_v1"];
         options?: never;
         head?: never;
         /**
          * Change a note: only what is sent changes
-         * @description Your own drafts. Changing the text takes a permission that includes it. With If-Match, refused (412) if the note changed since you read it. Audited with what changed.
+         * @description With If-Match, refused (412) if it changed since you read it. Audited with what changed.
          */
         patch: operations["NotesController_update_v1"];
-        trace?: never;
-    };
-    "/v1/notes/{id}/restore": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Restore a note from the recycle bin
-         * @description Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).
-         */
-        post: operations["NotesController_restore_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
         trace?: never;
     };
     "/v1/webhooks/example-sender": {
@@ -6416,6 +6396,26 @@ export interface paths {
          * @description Signed with Standard Webhooks (webhook-id, webhook-timestamp, webhook-signature) using EXAMPLE_SENDER_WEBHOOK_SECRET.
          */
         post: operations["ExampleSenderWebhookController_handle_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/notes/{id}/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restore a note from the recycle bin
+         * @description Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).
+         */
+        post: operations["NotesController_restore_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -6671,7 +6671,7 @@ export interface paths {
         };
         /**
          * A note's revisions, newest first
-         * @description Revision 1 is the note as written; each change adds one, with what changed (`changes`, from → to). Cursor pages; `?changedBy=user:<id>`, `?number.gte=`. The text and custom values only when your permissions include them.
+         * @description Revision 1 is the note as written; each change adds one, with what changed (`changes`, from → to). Cursor pages; `?changedBy=user:<id>`, `?number.gte=`.
          */
         get: operations["NoteRevisionsController_list_v1"];
         put?: never;
@@ -6730,7 +6730,7 @@ export interface paths {
         put?: never;
         /**
          * Set a note back to a revision
-         * @description Its title, text and custom values become the revision's, as a PATCH would set them (the same permissions, field-level ones too): audited `note.updated`, and a new revision with `restoredFrom`. With If-Match (the note's ETag), refused (412) if the note changed since you read it. Answers the note.
+         * @description Its values become the revision's, as a PATCH would set them (the same permissions, field-level ones too): audited `note.updated`, and a new revision with `restoredFrom`. With If-Match (the note's ETag), refused (412) if the note changed since you read it. Answers the note.
          */
         post: operations["NoteRevisionsController_restore_v1"];
         delete?: never;
@@ -6750,7 +6750,7 @@ export interface paths {
         put?: never;
         /**
          * Issue a PDF of a note
-         * @description Whoever may read the note. Answers at once with the document id; a worker renders the PDF in the request's language (`?lang=`, `X-Lang`, your saved language; right to left in Arabic) and your time zone, and adds it to the note's attachments (`locked`: it never changes and cannot be removed; asking again issues a new one). The text is in it only if you may read it.
+         * @description Whoever may read the note. Answers at once with the document id; a worker renders the PDF in the request's language (`?lang=`, `X-Lang`, your saved language; right to left in Arabic) and your time zone, and adds it to the note's attachments (`locked`: it never changes and cannot be removed; asking again issues a new one).
          *
          *     Follow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).
          */
@@ -6791,13 +6791,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Delete, restore or change many notes at once
-         * @description Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.
-         *
-         *     - `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.
-         *     - `filter` (the list's filters, `{ "title.startsWith": "Old" }`): always 202.
-         *
-         *     A 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.
+         * Act on many notes at once
+         * @description Each one as its own route does it (permissions, audit); one that fails does not stop the others. Up to BULK_SYNC_LIMIT ids answer 200 with a result each; more, or a `filter`, answer 202: follow it at GET /v1/bulk/{id}.
          */
         post: operations["NotesController_runBulk_v1"];
         delete?: never;
@@ -6816,8 +6811,8 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Watch a note: be told when it changes or is published
-         * @description Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).
+         * Watch a note: be told when it changes
+         * @description Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).
          */
         post: operations["NotesController_watch_v1"];
         /** Stop watching a note */
@@ -37201,7 +37196,7 @@ export interface operations {
                 sort?: string;
                 /** @description true: the recycle bin (deleted records), for those who may restore them. */
                 deleted?: "true" | "false";
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, unitId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: ownerId,unitId. Fields: id, ownerId, unitId, number, title, body, status, publishedAt, tags, custom, createdAt, updatedAt, deletedAt, deletedBy. */
                 fields?: string;
                 /** @description Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`. */
                 "custom.<key>[.<op>]"?: string;
@@ -37219,21 +37214,25 @@ export interface operations {
                 content: {
                     "application/json": {
                         items: {
+                            /** Format: uuid */
                             id: string;
-                            /** @description The number people quote: NOTE-<year>-<n>, given on create. */
-                            number: string | null;
-                            /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                            /** @description Who created it: `user:<id>` or `client:<id>`. */
                             ownerId: string;
                             /**
                              * Format: uuid
-                             * @description The author's organizational unit, when they were in exactly one.
+                             * @description The creator's organizational unit, when they were in exactly one.
                              */
                             unitId: string | null;
+                            /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
+                            number: string | null;
                             title: string;
-                            /** @description Left out when your permissions don't include the note's text. */
-                            body?: string;
+                            body: string;
                             /** @enum {string} */
                             status: "draft" | "published";
+                            /** Format: date-time */
+                            publishedAt: string | null;
+                            /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                            tags: components["schemas"]["TagRef"][];
                             /** @description Custom field values by key; left out when your permissions don't include them. */
                             custom?: {
                                 [key: string]: unknown;
@@ -37249,10 +37248,6 @@ export interface operations {
                             deletedAt: string | null;
                             /** @description Who deleted it: `user:<id>` or `client:<id>`. */
                             deletedBy: string | null;
-                            /** Format: date-time */
-                            publishedAt: string | null;
-                            /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                            tags: components["schemas"]["TagRef"][];
                             /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                             can?: {
                                 /** @description PATCH would be allowed. */
@@ -37315,9 +37310,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example Hello */
                     title: string;
-                    /** @example My first note. */
                     body: string;
                     /**
                      * @description Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one.
@@ -37343,21 +37336,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Format: uuid */
                         id: string;
-                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
-                        number: string | null;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        /** @description Who created it: `user:<id>` or `client:<id>`. */
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's organizational unit, when they were in exactly one.
+                         * @description The creator's organizational unit, when they were in exactly one.
                          */
                         unitId: string | null;
+                        /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
+                        number: string | null;
                         title: string;
-                        /** @description Left out when your permissions don't include the note's text. */
-                        body?: string;
+                        body: string;
                         /** @enum {string} */
                         status: "draft" | "published";
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
                         /** @description Custom field values by key; left out when your permissions don't include them. */
                         custom?: {
                             [key: string]: unknown;
@@ -37373,10 +37370,6 @@ export interface operations {
                         deletedAt: string | null;
                         /** @description Who deleted it: `user:<id>` or `client:<id>`. */
                         deletedBy: string | null;
-                        /** Format: date-time */
-                        publishedAt: string | null;
-                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -37500,21 +37493,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Format: uuid */
                         id: string;
-                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
-                        number: string | null;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        /** @description Who created it: `user:<id>` or `client:<id>`. */
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's organizational unit, when they were in exactly one.
+                         * @description The creator's organizational unit, when they were in exactly one.
                          */
                         unitId: string | null;
+                        /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
+                        number: string | null;
                         title: string;
-                        /** @description Left out when your permissions don't include the note's text. */
-                        body?: string;
+                        body: string;
                         /** @enum {string} */
                         status: "draft" | "published";
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
                         /** @description Custom field values by key; left out when your permissions don't include them. */
                         custom?: {
                             [key: string]: unknown;
@@ -37530,10 +37527,6 @@ export interface operations {
                         deletedAt: string | null;
                         /** @description Who deleted it: `user:<id>` or `client:<id>`. */
                         deletedBy: string | null;
-                        /** Format: date-time */
-                        publishedAt: string | null;
-                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -37612,7 +37605,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The note changed since you read it (precondition_failed). */
+            /** @description It changed since you read it (precondition_failed). */
             412: {
                 headers: {
                     [name: string]: unknown;
@@ -37636,9 +37629,7 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
-                    /** @example Hello */
                     title?: string;
-                    /** @example My first note. */
                     body?: string;
                     /**
                      * @description Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one.
@@ -37659,21 +37650,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Format: uuid */
                         id: string;
-                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
-                        number: string | null;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        /** @description Who created it: `user:<id>` or `client:<id>`. */
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's organizational unit, when they were in exactly one.
+                         * @description The creator's organizational unit, when they were in exactly one.
                          */
                         unitId: string | null;
+                        /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
+                        number: string | null;
                         title: string;
-                        /** @description Left out when your permissions don't include the note's text. */
-                        body?: string;
+                        body: string;
                         /** @enum {string} */
                         status: "draft" | "published";
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
                         /** @description Custom field values by key; left out when your permissions don't include them. */
                         custom?: {
                             [key: string]: unknown;
@@ -37689,10 +37684,6 @@ export interface operations {
                         deletedAt: string | null;
                         /** @description Who deleted it: `user:<id>` or `client:<id>`. */
                         deletedBy: string | null;
-                        /** Format: date-time */
-                        publishedAt: string | null;
-                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -37729,98 +37720,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description The note changed since you read it (precondition_failed). */
+            /** @description It changed since you read it (precondition_failed). */
             412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    NotesController_restore_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
-                        number: string | null;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
-                        ownerId: string;
-                        /**
-                         * Format: uuid
-                         * @description The author's organizational unit, when they were in exactly one.
-                         */
-                        unitId: string | null;
-                        title: string;
-                        /** @description Left out when your permissions don't include the note's text. */
-                        body?: string;
-                        /** @enum {string} */
-                        status: "draft" | "published";
-                        /** @description Custom field values by key; left out when your permissions don't include them. */
-                        custom?: {
-                            [key: string]: unknown;
-                        };
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /**
-                         * Format: date-time
-                         * @description Set while the note is in the recycle bin (`?deleted=true`).
-                         */
-                        deletedAt: string | null;
-                        /** @description Who deleted it: `user:<id>` or `client:<id>`. */
-                        deletedBy: string | null;
-                        /** Format: date-time */
-                        publishedAt: string | null;
-                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: components["schemas"]["TagRef"][];
-                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
-                        can?: {
-                            /** @description PATCH would be allowed. */
-                            update: boolean;
-                            /** @description DELETE would be allowed. */
-                            delete: boolean;
-                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
-                            restore: boolean;
-                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
-                            issue: boolean;
-                        };
-                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
-                        watching?: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not in the recycle bin (or purged). */
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -37869,6 +37770,96 @@ export interface operations {
                 content?: never;
             };
             /** @description Unknown note: nothing recorded, so a retry is processed later. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    NotesController_restore_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Who created it: `user:<id>` or `client:<id>`. */
+                        ownerId: string;
+                        /**
+                         * Format: uuid
+                         * @description The creator's organizational unit, when they were in exactly one.
+                         */
+                        unitId: string | null;
+                        /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
+                        number: string | null;
+                        title: string;
+                        body: string;
+                        /** @enum {string} */
+                        status: "draft" | "published";
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
+                        /** @description Custom field values by key; left out when your permissions don't include them. */
+                        custom?: {
+                            [key: string]: unknown;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Set while the note is in the recycle bin (`?deleted=true`).
+                         */
+                        deletedAt: string | null;
+                        /** @description Who deleted it: `user:<id>` or `client:<id>`. */
+                        deletedBy: string | null;
+                        /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
+                        can?: {
+                            /** @description PATCH would be allowed. */
+                            update: boolean;
+                            /** @description DELETE would be allowed. */
+                            delete: boolean;
+                            /** @description It is in the recycle bin and POST …/{id}/restore would be allowed. */
+                            restore: boolean;
+                            /** @description POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503). */
+                            issue: boolean;
+                        };
+                        /** @description Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares. */
+                        watching?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not in the recycle bin (or purged). */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -39092,21 +39083,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Format: uuid */
                         id: string;
-                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
-                        number: string | null;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        /** @description Who created it: `user:<id>` or `client:<id>`. */
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's organizational unit, when they were in exactly one.
+                         * @description The creator's organizational unit, when they were in exactly one.
                          */
                         unitId: string | null;
+                        /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
+                        number: string | null;
                         title: string;
-                        /** @description Left out when your permissions don't include the note's text. */
-                        body?: string;
+                        body: string;
                         /** @enum {string} */
                         status: "draft" | "published";
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
                         /** @description Custom field values by key; left out when your permissions don't include them. */
                         custom?: {
                             [key: string]: unknown;
@@ -39122,10 +39117,6 @@ export interface operations {
                         deletedAt: string | null;
                         /** @description Who deleted it: `user:<id>` or `client:<id>`. */
                         deletedBy: string | null;
-                        /** Format: date-time */
-                        publishedAt: string | null;
-                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */
@@ -39346,7 +39337,7 @@ export interface operations {
             content: {
                 "application/json": {
                     /** @enum {string} */
-                    action: "delete" | "restore" | "update";
+                    action: "delete" | "update" | "restore";
                     /** @description These records (1 to 500); those you may not act on are skipped. Send ids or filter. */
                     ids?: string[];
                     /** @description Every record matching these list filters, as on the list route: { "status": "draft", "title.startsWith": "Old" }. Always a background job. */
@@ -39355,9 +39346,7 @@ export interface operations {
                     };
                     /** @description What the action takes (update: the PATCH body). */
                     input?: {
-                        /** @example Hello */
                         title?: string;
-                        /** @example My first note. */
                         body?: string;
                         /**
                          * @description Custom field values by key (GET /custom-fields?subject=…). On an update, only the keys sent change; null removes one.
@@ -39884,21 +39873,25 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
+                        /** Format: uuid */
                         id: string;
-                        /** @description The number people quote: NOTE-<year>-<n>, given on create. */
-                        number: string | null;
-                        /** @description Who wrote it: `user:<id>` or `client:<id>`. */
+                        /** @description Who created it: `user:<id>` or `client:<id>`. */
                         ownerId: string;
                         /**
                          * Format: uuid
-                         * @description The author's organizational unit, when they were in exactly one.
+                         * @description The creator's organizational unit, when they were in exactly one.
                          */
                         unitId: string | null;
+                        /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
+                        number: string | null;
                         title: string;
-                        /** @description Left out when your permissions don't include the note's text. */
-                        body?: string;
+                        body: string;
                         /** @enum {string} */
                         status: "draft" | "published";
+                        /** Format: date-time */
+                        publishedAt: string | null;
+                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
+                        tags: components["schemas"]["TagRef"][];
                         /** @description Custom field values by key; left out when your permissions don't include them. */
                         custom?: {
                             [key: string]: unknown;
@@ -39914,10 +39907,6 @@ export interface operations {
                         deletedAt: string | null;
                         /** @description Who deleted it: `user:<id>` or `client:<id>`. */
                         deletedBy: string | null;
-                        /** Format: date-time */
-                        publishedAt: string | null;
-                        /** @description Its tags, by name (PUT /v1/notes/{id}/tags sets them). */
-                        tags: components["schemas"]["TagRef"][];
                         /** @description What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag. */
                         can?: {
                             /** @description PATCH would be allowed. */

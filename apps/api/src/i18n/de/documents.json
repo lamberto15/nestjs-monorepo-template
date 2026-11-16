@@ -9,6 +9,13 @@
     "statuses": {
       "draft": "Entwurf",
       "published": "Veröffentlicht"
+    },
+    "fields": {
+      "number": "Nummer",
+      "title": "Titel",
+      "body": "Text",
+      "status": "Status",
+      "publishedAt": "Veröffentlicht am"
     }
   }
 }
