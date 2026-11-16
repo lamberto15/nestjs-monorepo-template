@@ -338,13 +338,17 @@ describe('the environment (env.ts)', () => {
         // capability:ai begin
         'ANTHROPIC_API_KEY',
         // capability:ai end
+        // capability:messaging begin
         'APNS_PRIVATE_KEY',
+        // capability:messaging end
         'AWS_SECRET_ACCESS_KEY',
         'AWS_SESSION_TOKEN',
         'BLIND_INDEX_KEYS',
         'CURSOR_KEYS',
         'DATA_ENCRYPTION_KEYS',
+        // capability:messaging begin
         'FCM_PRIVATE_KEY',
+        // capability:messaging end
         'DATABASE_MAINTENANCE_URL',
         'DATABASE_MONITOR_URL',
         'DATABASE_OWNER_URL',
@@ -369,8 +373,10 @@ describe('the environment (env.ts)', () => {
         'SMTP_URL',
         'STORAGE_SIGNING_KEYS',
         'TURNSTILE_SECRET_KEY',
+        // capability:messaging begin
         'TWILIO_AUTH_TOKEN',
         'WEB_PUSH_VAPID_PRIVATE_KEY',
+        // capability:messaging end
         'WEBHOOKS_ENCRYPTION_KEYS',
       ].sort(),
     );

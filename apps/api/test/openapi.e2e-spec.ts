@@ -314,9 +314,11 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/data/imports/{name}/template',
         '/v1/data/transfers',
         '/v1/data/transfers/{id}',
+        // capability:messaging begin
         '/v1/devices',
         '/v1/devices/web-push',
         '/v1/devices/{id}',
+        // capability:messaging end
         '/v1/documents/{id}',
         '/v1/favorites',
         '/v1/favorites/order',
@@ -347,8 +349,10 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/lists/{subject}',
         '/v1/mail/suppressions',
         '/v1/mail/suppressions/{id}',
+        // capability:messaging begin
         '/v1/messaging/phone',
         '/v1/messaging/phone/verify',
+        // capability:messaging end
         '/v1/money/convert',
         '/v1/money/rates',
         '/v1/naming-series',
@@ -462,7 +466,9 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/webhook-senders/{id}',
         '/v1/webhook-senders/{id}/rotate-secret',
         '/v1/webhooks/mail/{provider}',
+        // capability:messaging begin
         '/v1/webhooks/sms/{provider}',
+        // capability:messaging end
         '/v1/webhooks/tenants/{tenantId}/senders/{name}',
       ]);
     check({

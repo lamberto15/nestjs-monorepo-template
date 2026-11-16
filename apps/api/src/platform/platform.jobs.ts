@@ -206,6 +206,7 @@ export const RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+// capability:messaging begin
 /** MessagingProcessor: the SMS and push the notification channels queued. */
 export const MESSAGING_JOB = defineSystemJob({
   key: 'messaging',
@@ -232,6 +233,7 @@ export const MESSAGING_RETENTION_JOB = defineSystemJob({
     'Removes devices not seen for DEVICES_RETENTION_DAYS and the toll-fraud counters of past days, every night.',
   permissions: [],
 });
+// capability:messaging end
 
 /** AttachmentScanService: the malware scan of an upload, on a worker. */
 export const ATTACHMENT_SCAN_JOB = defineSystemJob({
@@ -303,8 +305,10 @@ export const PLATFORM_SYSTEM_JOBS = [
   PLATFORM_ANALYTICS_JOB,
   REENCRYPTION_JOB,
   RETENTION_JOB,
+  // capability:messaging begin
   MESSAGING_JOB,
   MESSAGING_INBOUND_JOB,
   MESSAGING_RETENTION_JOB,
+  // capability:messaging end
   CUSTOM_DOMAINS_JOB,
 ];

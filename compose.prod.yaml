@@ -225,7 +225,9 @@ x-app: &app
     # Grace periods and retention (docs/retention.md, docs/auth.md).
     ACCOUNT_DELETION_GRACE_DAYS: ${ACCOUNT_DELETION_GRACE_DAYS:-14}
     TENANT_DELETION_GRACE_DAYS: ${TENANT_DELETION_GRACE_DAYS:-30}
+    # capability:messaging begin
     DEVICES_RETENTION_DAYS: ${DEVICES_RETENTION_DAYS:-270}
+    # capability:messaging end
     MAIL_EVENTS_RETENTION_DAYS: ${MAIL_EVENTS_RETENTION_DAYS:-90}
     NOTIFICATIONS_MAX_AGE_DAYS: ${NOTIFICATIONS_MAX_AGE_DAYS:-365}
     NOTIFICATIONS_RETENTION_DAYS: ${NOTIFICATIONS_RETENTION_DAYS:-90}
@@ -258,6 +260,7 @@ x-app: &app
     SES_SNS_TOPIC_ARNS: ${SES_SNS_TOPIC_ARNS:-}
     # Notifications, push and SMS (docs/notifications.md).
     NOTIFICATIONS_DIGEST_HOUR: ${NOTIFICATIONS_DIGEST_HOUR:-8}
+    # capability:messaging begin
     PUSH_PROVIDER: ${PUSH_PROVIDER:-}
     PUSH_MAX_PAYLOAD_BYTES: ${PUSH_MAX_PAYLOAD_BYTES:-3500}
     WEB_PUSH_SUBJECT: ${WEB_PUSH_SUBJECT:-}
@@ -287,6 +290,7 @@ x-app: &app
     TWILIO_AUTH_TOKEN: ${TWILIO_AUTH_TOKEN:-}
     TWILIO_FROM: ${TWILIO_FROM:-}
     TWILIO_WEBHOOK_URL: ${TWILIO_WEBHOOK_URL:-}
+    # capability:messaging end
     # Debug builds' App Attest keys too (docs/auth.md, "App attestation").
     APP_ATTEST_DEVELOPMENT: ${APP_ATTEST_DEVELOPMENT:-off}
     # Optional statistics credential for independent incident snapshots.
@@ -317,10 +321,12 @@ x-app: &app
     # capability:ai end
     POSTMARK_WEBHOOK_SECRET_FILE: ${POSTMARK_WEBHOOK_SECRET_FILE:+/run/secrets/postmark_webhook_secret}
     RESEND_WEBHOOK_SECRET_FILE: ${RESEND_WEBHOOK_SECRET_FILE:+/run/secrets/resend_webhook_secret}
+    # capability:messaging begin
     TWILIO_AUTH_TOKEN_FILE: ${TWILIO_AUTH_TOKEN_FILE:+/run/secrets/twilio_auth_token}
     WEB_PUSH_VAPID_PRIVATE_KEY_FILE: ${WEB_PUSH_VAPID_PRIVATE_KEY_FILE:+/run/secrets/web_push_vapid_private_key}
     APNS_PRIVATE_KEY_FILE: ${APNS_PRIVATE_KEY_FILE:+/run/secrets/apns_private_key}
     FCM_PRIVATE_KEY_FILE: ${FCM_PRIVATE_KEY_FILE:+/run/secrets/fcm_private_key}
+    # capability:messaging end
     SENTRY_DSN_FILE: ${SENTRY_DSN_FILE:+/run/secrets/sentry_dsn}
     OTEL_EXPORTER_OTLP_HEADERS_FILE: ${OTEL_EXPORTER_OTLP_HEADERS_FILE:+/run/secrets/otel_exporter_otlp_headers}
   # Every secret is mounted; those without X_FILE in .env are the empty secret.empty.
@@ -352,10 +358,12 @@ x-app: &app
     # capability:ai end
     - postmark_webhook_secret
     - resend_webhook_secret
+    # capability:messaging begin
     - twilio_auth_token
     - web_push_vapid_private_key
     - apns_private_key
     - fcm_private_key
+    # capability:messaging end
     - sentry_dsn
     - otel_exporter_otlp_headers
   logging: *logging
@@ -474,7 +482,9 @@ services:
       PASSWORD_HASH_CONCURRENCY: ${WORKER_PASSWORD_HASH_CONCURRENCY:-1}
       QUEUE_CONCURRENCY_MAIL: ${QUEUE_CONCURRENCY_MAIL:-5}
       QUEUE_CONCURRENCY_SSO: ${QUEUE_CONCURRENCY_SSO:-2}
+      # capability:messaging begin
       QUEUE_CONCURRENCY_MESSAGING: ${QUEUE_CONCURRENCY_MESSAGING:-5}
+      # capability:messaging end
       QUEUE_CONCURRENCY_ATTACHMENT_SCAN: ${QUEUE_CONCURRENCY_ATTACHMENT_SCAN:-4}
       QUEUE_CONCURRENCY_DATA_TRANSFERS: ${QUEUE_CONCURRENCY_DATA_TRANSFERS:-2}
       QUEUE_CONCURRENCY_BULK: ${QUEUE_CONCURRENCY_BULK:-2}
@@ -519,10 +529,12 @@ services:
       # capability:ai end
       - postmark_webhook_secret
       - resend_webhook_secret
+      # capability:messaging begin
       - twilio_auth_token
       - web_push_vapid_private_key
       - apns_private_key
       - fcm_private_key
+      # capability:messaging end
       - sentry_dsn
       - otel_exporter_otlp_headers
       - database_maintenance_url
@@ -912,6 +924,7 @@ secrets:
     file: ${POSTMARK_WEBHOOK_SECRET_FILE:-./secret.empty}
   resend_webhook_secret:
     file: ${RESEND_WEBHOOK_SECRET_FILE:-./secret.empty}
+  # capability:messaging begin
   twilio_auth_token:
     file: ${TWILIO_AUTH_TOKEN_FILE:-./secret.empty}
   web_push_vapid_private_key:
@@ -920,6 +933,7 @@ secrets:
     file: ${APNS_PRIVATE_KEY_FILE:-./secret.empty}
   fcm_private_key:
     file: ${FCM_PRIVATE_KEY_FILE:-./secret.empty}
+  # capability:messaging end
   sentry_dsn:
     file: ${SENTRY_DSN_FILE:-./secret.empty}
   otel_exporter_otlp_headers:

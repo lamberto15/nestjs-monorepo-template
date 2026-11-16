@@ -174,7 +174,9 @@ export async function run(argv, io = {}) {
       err,
       ask,
       runRemove: io.runRemove,
+      // capability:messaging begin
       vapid: io.vapid,
+      // capability:messaging end
     });
   } finally {
     rl?.close();
@@ -279,7 +281,9 @@ async function wizard(values, io) {
     answers,
     ctx,
     rotate: values.rotate,
+    // capability:messaging begin
     ...(io.vapid && { vapid: io.vapid }),
+    // capability:messaging end
   });
   const removeNotes = answers.removeNotes === true;
   // The file as it will be: an existing one (without the example feature when

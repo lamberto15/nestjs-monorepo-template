@@ -233,6 +233,7 @@ groups:
           summary: The exchange rates are stale
           description: "The newest stored ECB reference rates are {{ $value | humanizeDuration }} old (+Inf: none was ever fetched). The worker's ExchangeRatesJob logs why each hourly fetch fails; conversions use the last rates meanwhile (docs/money.md)."
 
+      # capability:messaging begin
       # sms_blocked_today (the workers' /metrics, every tenant, reset at 00:00 UTC) counts the
       # SMS the toll-fraud caps, the country allowlist or the spend cap refused today, by
       # reason. A refusal is the system working, so it is a warning to look at: a rising
@@ -255,6 +256,7 @@ groups:
         annotations:
           summary: A tenant has used {{ $value | humanizePercentage }} of its monthly SMS budget
           description: At 100% (SMS_MONTHLY_BUDGET_MINOR) the tenant's SMS stop until next month (sms_blocked_today{reason="budget_exceeded"}). Check the spend is real (a pumping attack looks like this), then raise the budget or wait for the month to end.
+      # capability:messaging end
 
       - alert: MailBudgetNearCap
         expr: max(mail_budget_used_ratio) >= 0.8

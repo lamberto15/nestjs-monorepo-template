@@ -65,7 +65,9 @@ export const platformEnv = z.object({
   /** Workflow instances this process executes at once. */
   WORKFLOW_CONCURRENCY: z.coerce.number().int().min(1).default(10),
   /** Jobs each queue's worker runs at once (the mail and SSO queues: core and iam). */
+  // capability:messaging begin
   QUEUE_CONCURRENCY_MESSAGING: z.coerce.number().int().min(1).default(5),
+  // capability:messaging end
   QUEUE_CONCURRENCY_ATTACHMENT_SCAN: z.coerce.number().int().min(1).default(4),
   QUEUE_CONCURRENCY_DATA_TRANSFERS: z.coerce.number().int().min(1).default(2),
   QUEUE_CONCURRENCY_BULK: z.coerce.number().int().min(1).default(2),
@@ -163,6 +165,7 @@ export const platformEnv = z.object({
   /** Where the ECB's eurofxref documents are (eurofxref-daily.xml, eurofxref-hist-90d.xml): a mirror, or a stub in tests. */
   EXCHANGE_RATES_ECB_URL: baseUrl('https://www.ecb.europa.eu/stats/eurofxref'),
 
+  // capability:messaging begin
   // Push and SMS (platform/messaging, docs/notifications.md, "Push and SMS").
   // Both providers are off until configured: nothing leaves the deployment.
   /** SMS provider: `off`, `twilio`, or `memory` (tests: keeps what it would send). */
@@ -252,6 +255,7 @@ export const platformEnv = z.object({
     .default(3500),
   /** A person's devices that have not been seen for this many days are removed every night. */
   DEVICES_RETENTION_DAYS: z.coerce.number().int().min(1).default(270),
+  // capability:messaging end
 
   // Email deliverability (platform/deliverability, docs/deliverability.md).
   /**
