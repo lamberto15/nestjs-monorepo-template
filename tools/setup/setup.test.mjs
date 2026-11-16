@@ -1170,7 +1170,7 @@ describe('a re-run merges what the template gained', () => {
   });
 });
 
-describe('questions for observability, the AI key, push and SMS', () => {
+describe('questions for observability, provider keys, push and SMS', () => {
   const KEYS = { publicKey: 'pub-key', privateKey: 'priv-key' };
   const vapid = () => KEYS;
 

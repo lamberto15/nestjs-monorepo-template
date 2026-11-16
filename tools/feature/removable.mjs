@@ -16,7 +16,8 @@
 //   dependencies: packages only it uses, by workspace package: the command
 //                 prints the `pnpm remove` for them (never edits package.json)
 //   edits:        [file, text, replacement]: prose a marker can't hold (a
-//                 name inside a line); the command fails when one is gone
+//                 name inside a line, a Markdown table's row); the command
+//                 fails unless each text is there once
 
 export const REMOVABLE = {
   ai: {
@@ -35,6 +36,34 @@ export const REMOVABLE = {
         'ai',
       ],
     },
-    edits: [['AGENTS.md', ' `deliverability`, `ai`, ', ' `deliverability`, ']],
+    edits: [
+      ['AGENTS.md', ' `deliverability`, `ai`, ', ' `deliverability`, '],
+      [
+        'docs/configuration.md',
+        '`DOCUMENTS` (2), `AI` (2), ',
+        '`DOCUMENTS` (2), ',
+      ],
+      [
+        'docs/configuration.md',
+        '`RESEND_WEBHOOK_SECRET`, `ANTHROPIC_API_KEY`, ',
+        '`RESEND_WEBHOOK_SECRET`, ',
+      ],
+      [
+        'docs/configuration.md',
+        '  (`SENTRY_DSN`), the AI helper (`ANTHROPIC_API_KEY`), Web Push\n',
+        '  (`SENTRY_DSN`), Web Push\n',
+      ],
+      [
+        'docs/deployment.md',
+        '| `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |\n',
+        '',
+      ],
+      ['docs/architecture.md', ' AI sources (`AiRegistry`),', ''],
+      [
+        'docs/adding-a-feature.md',
+        "  note-ai.ts                            the AI helper's source\n",
+        '',
+      ],
+    ],
   },
 };

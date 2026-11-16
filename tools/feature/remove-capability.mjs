@@ -315,15 +315,16 @@ export async function removeCapability(root, options) {
   for (const [relative, text, replacement] of spec.edits ?? []) {
     const file = inside(repo, relative);
     const before = existsSync(file) ? current(file) : '';
-    if (before.includes(text)) {
+    const found = before.split(text).length - 1;
+    if (found === 1) {
       change(
         file,
         before.replace(text, () => replacement),
         'its mention',
       );
-    } else if (deletions.includes(folder)) {
+    } else if (found > 1 || deletions.includes(folder)) {
       throw new Error(
-        `${relative} no longer holds "${text}" (tools/feature/removable.mjs, ${name}.edits): update the manifest.`,
+        `${relative} holds "${text}" ${found} times, not once (tools/feature/removable.mjs, ${name}.edits): update the manifest.`,
       );
     }
   }
