@@ -961,6 +961,7 @@ export class RecordTransfer {
     registry.registerExporter(this as never);
     const importable = fields.every(
       ([, f]) =>
+        f.options.readOnly ||
         f.options.optional ||
         f.options.hasDefault ||
         !['money', 'json'].includes(f.kind),

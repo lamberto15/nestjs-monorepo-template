@@ -72,7 +72,10 @@ export const INVOICE = defineRecord({
   `date`, `datetime`, `enum(a|b)`, `json`, `ref(<feature>)` (optional, named `<x>Id`, a key
   within the tenant; its list filter is `ref: '<Subject>'` in the list metadata; a relationship: see "Relationships" below). `?` makes a field optional, `!unique` (string, int)
   unique per tenant (a duplicate is a 409 `<item>_taken`). In the declaration:
-  `.optional()`, `.unique()`, `.default(v)`, `.searchable()`.
+  `.optional()`, `.unique()`, `.default(v)`, `.searchable()`, `.readOnly()` (set by the
+  service, never by a body: in the table and the response, out of the create, update and
+  bulk-update bodies, so out of imports and templates too; the service gives a new row its
+  value, and a new required column needs `.default(v)` as any).
 - **Options:** `--unit` (records carry their creator's organizational unit: `unit: true`),
   `--no-soft-delete` (deleted for good, no recycle bin: `softDelete: false`),
   both changeable later in the declaration, `--singular <name>`

@@ -76,7 +76,8 @@ export function referencedSubject(f: AnyField): string | undefined {
 /**
  * One field. `C` the column builder (before NOT NULL), `I` the input schema
  * and `O` the output one (both for a value present), `Opt` optional (null
- * allowed), `Def` has a default (the insert may leave it out).
+ * allowed), `Def` has a default (the insert may leave it out), `RO` read-only
+ * (set by the service, never by a body).
  */
 export class Field<
   K extends FieldKind = FieldKind,
@@ -85,6 +86,7 @@ export class Field<
   O extends z.ZodType = z.ZodType,
   Opt extends boolean = boolean,
   Def extends boolean = boolean,
+  RO extends boolean = false,
 > {
   constructor(
     readonly kind: K,
@@ -95,6 +97,8 @@ export class Field<
     readonly options: {
       optional: Opt;
       hasDefault: Def;
+      /** Set by the service, not the API: no create or update body takes it, the response shows it. */
+      readOnly: RO;
       defaultValue?: unknown;
       unique?: boolean;
       searchable?: boolean;
@@ -108,7 +112,7 @@ export class Field<
   ) {}
 
   /** May be left empty: null in the column, `null` or absent in the body. */
-  optional(): Field<K, C, I, O, true, Def> {
+  optional(): Field<K, C, I, O, true, Def, RO> {
     return new Field(this.kind, this.makeColumn, this.input, this.output, {
       ...this.options,
       optional: true,
@@ -116,7 +120,7 @@ export class Field<
   }
 
   /** The value a row gets when the body leaves it out (also what lets a new column join a table with rows). */
-  default(value: z.input<I>): Field<K, C, I, O, Opt, true> {
+  default(value: z.input<I>): Field<K, C, I, O, Opt, true, RO> {
     return new Field(this.kind, this.makeColumn, this.input, this.output, {
       ...this.options,
       hasDefault: true,
@@ -125,7 +129,7 @@ export class Field<
   }
 
   /** Unique per tenant (a unique index on the tenant and the column): a duplicate is a 409. */
-  unique(): Field<K, C, I, O, Opt, Def> {
+  unique(): Field<K, C, I, O, Opt, Def, RO> {
     return new Field(this.kind, this.makeColumn, this.input, this.output, {
       ...this.options,
       unique: true,
@@ -133,10 +137,22 @@ export class Field<
   }
 
   /** Part of the record's full-text search (the `search` capability). */
-  searchable(): Field<K, C, I, O, Opt, Def> {
+  searchable(): Field<K, C, I, O, Opt, Def, RO> {
     return new Field(this.kind, this.makeColumn, this.input, this.output, {
       ...this.options,
       searchable: true,
+    });
+  }
+
+  /**
+   * Set by the service, never by the API: left out of the create, update and
+   * bulk-update bodies (and so of imports and templates), kept in the table and
+   * the response. The service gives it its value (a new row needs one unless it is optional).
+   */
+  readOnly(): Field<K, C, I, O, Opt, Def, true> {
+    return new Field(this.kind, this.makeColumn, this.input, this.output, {
+      ...this.options,
+      readOnly: true,
     });
   }
 
@@ -145,7 +161,7 @@ export class Field<
    * default, refuses deleting a record live ones refer to; `keep` lets it go
    * to the recycle bin with the references kept (optional fields only).
    */
-  onDelete(rule: OnDelete): Field<K, C, I, O, Opt, Def> {
+  onDelete(rule: OnDelete): Field<K, C, I, O, Opt, Def, RO> {
     return new Field(this.kind, this.makeColumn, this.input, this.output, {
       ...this.options,
       onDelete: rule,
@@ -164,6 +180,7 @@ export type AnyField = Field<
   z.ZodType,
   z.ZodType,
   boolean,
+  boolean,
   boolean
 >;
 /** A record's fields, by name (camelCase: the column is snake_case). */
@@ -179,11 +196,15 @@ const plain = <
   makeColumn: (name: string) => C,
   input: I,
   output: O,
-  extra: Omit<Partial<AnyField['options']>, 'optional' | 'hasDefault'> = {},
+  extra: Omit<
+    Partial<AnyField['options']>,
+    'optional' | 'hasDefault' | 'readOnly'
+  > = {},
 ) =>
-  new Field<K, C, I, O, false, false>(kind, makeColumn, input, output, {
+  new Field<K, C, I, O, false, false, false>(kind, makeColumn, input, output, {
     optional: false,
     hasDefault: false,
+    readOnly: false,
     ...extra,
   });
 
@@ -246,10 +267,12 @@ export const field = {
       typeof moneySchema,
       typeof moneyResponseSchema,
       false,
+      false,
       false
     >('money', null, moneySchema, moneyResponseSchema, {
       optional: false,
       hasDefault: false,
+      readOnly: false,
     }),
   /** Yes or no; false unless sent. */
   bool: () =>
@@ -261,6 +284,7 @@ export const field = {
       {
         optional: false as const,
         hasDefault: true as const,
+        readOnly: false as const,
         defaultValue: false,
       },
     ),

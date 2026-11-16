@@ -801,6 +801,22 @@ describe('feature:sync', () => {
     assert.equal(result.generate, true);
   });
 
+  it('reads a read-only field like the others: a new required one still needs a default', async () => {
+    edit(
+      '    rank: field.int().default(1),\n',
+      "    rank: field.int().default(1),\n    state: field.enum(['new', 'done']).readOnly(),\n",
+    );
+    assert.deepEqual(
+      readRecord(record()).fields.map((f) => f.name),
+      ['title', 'total', 'dueOn', 'rank', 'state'],
+    );
+    assert.match(
+      (await syncFeature(api(), 'orders')).errors.join('\n'),
+      /orders\.state: a new required field/,
+    );
+    edit("    state: field.enum(['new', 'done']).readOnly(),\n", '');
+  });
+
   it('refuses a removed field (expand/contract)', async () => {
     edit('    title: field.string(),\n', '');
     assert.match(
