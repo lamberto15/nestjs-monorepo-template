@@ -15,7 +15,9 @@ import {
 import {
   countRefusals,
   exportFailureStatus,
+  observeConfigured,
   otelEnabled,
+  otelSdkEnabled,
   redactedQueryParams,
   sentryEnabled,
   startOpenTelemetry,
@@ -32,6 +34,17 @@ describe('switches', () => {
     expect(
       sentryEnabled({ SENTRY_DSN: 'https://k@o.ingest.sentry.io/1' }),
     ).toBe(true);
+  });
+
+  it('starts the standalone SDK only when Observe is not there to export', () => {
+    const endpoint = { OTEL_EXPORTER_OTLP_ENDPOINT: 'http://c:4318' };
+    const observe = { OBSERVE_APP_KEY: 'k', OBSERVE_APP_SECRET: 's' };
+    expect(observeConfigured({})).toBe(false);
+    expect(observeConfigured({ OBSERVE_APP_KEY: 'k' })).toBe(false);
+    expect(observeConfigured(observe)).toBe(true);
+    expect(otelSdkEnabled(endpoint)).toBe(true);
+    expect(otelSdkEnabled({ ...endpoint, ...observe })).toBe(false);
+    expect(otelSdkEnabled(observe)).toBe(false);
   });
 
   it('choose the error tracker by the DSN', () => {

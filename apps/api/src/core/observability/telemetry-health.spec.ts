@@ -1,4 +1,5 @@
 import {
+  observeOtlpRefusalStatus,
   observeRefusalStatus,
   onTelemetryRejected,
   recordTelemetryFailure,
@@ -44,5 +45,19 @@ describe('telemetry health', () => {
     ).toBe(401);
     expect(observeRefusalStatus('GET /v1/things 429')).toBeUndefined();
     expect(observeRefusalStatus(new Error('boom'))).toBeUndefined();
+  });
+
+  it("reads the status out of Observe's OTLP export failure", () => {
+    expect(
+      observeOtlpRefusalStatus(
+        'OTLP export to http://c:4318/v1/traces failed: it answered 429 (slow down). Retrying with backoff; spans wait meanwhile, up to a limit.',
+      ),
+    ).toBe(429);
+    expect(
+      observeOtlpRefusalStatus(
+        'OTLP export to http://c:4318/v1/traces failed: the receiver could not be reached (ECONNREFUSED).',
+      ),
+    ).toBeUndefined();
+    expect(observeOtlpRefusalStatus(undefined)).toBeUndefined();
   });
 });

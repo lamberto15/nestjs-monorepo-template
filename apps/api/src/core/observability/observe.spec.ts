@@ -7,7 +7,7 @@ import {
 } from '@nestjs/mail';
 import { createObserveModule } from '@nestjs/observe';
 import { describe, expect, it } from 'vitest';
-import { skipObserve } from './observe.js';
+import { observeOtlpOptions, skipObserve } from './observe.js';
 
 // Runs the classes through Observe's real instance decorator, the one Nest
 // applies to every provider when OBSERVE_APP_KEY is set (issue #392): a proxy
@@ -64,5 +64,16 @@ describe('Observe instrumentation exclusions', () => {
   it('still instruments other providers (the exclusion is narrow)', () => {
     const service = new PlainService();
     expect(decorate(service)).not.toBe(service);
+  });
+});
+
+describe('observeOtlpOptions', () => {
+  it('joins OpenTelemetry and exports over OTLP only when the endpoint is set', () => {
+    expect(observeOtlpOptions('http://c:4318')).toEqual({
+      openTelemetry: true,
+      otlp: true,
+    });
+    expect(observeOtlpOptions(undefined)).toEqual({});
+    expect(observeOtlpOptions(' ')).toEqual({});
   });
 });
