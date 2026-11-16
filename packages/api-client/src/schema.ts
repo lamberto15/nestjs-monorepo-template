@@ -4,6 +4,351 @@
  */
 
 export interface paths {
+    "/v1/money/rates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The exchange rates of a day
+         * @description The ECB’s euro reference rates of the newest working day on or before `date` (default today, UTC): units of each currency per euro, as decimal strings.
+         */
+        get: operations["MoneyController_ratesOn_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/money/convert": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Convert an amount
+         * @description Converts through the euro (triangulation) at the rates of the newest working day on or before `date` that has both currencies, rounded once to the target’s minor unit. The answer carries the rate, its day and its source.
+         */
+        get: operations["MoneyController_convert_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/outbox": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Outbox stats and the latest 50 dead letters
+         * @description lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes; it stops at 10,000 and undeliveredCapped is then true. Errors, payloads and headers are masked as in the logs and cut; no stack traces.
+         */
+        get: operations["OpsController_state_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Live events of workflows, webhooks, the outbox, idempotency, locks, mail and resilience (Server-Sent Events) */
+        get: operations["OpsController_events_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/queues": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Background job queues: counts by state and the latest failures
+         * @description Failure reasons are masked as in the logs and cut; no stack traces.
+         */
+        get: operations["OpsController_queueOverview_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Integration diagnostics: database, Redis, workers, mail, storage, realtime
+         * @description Each one ok, configured (set up, not probed: run its test), disabled, unconfigured or unavailable, with a hint. Built from switches and driver names: no URL, host credential or key is ever in it; errors are masked as in the logs and cut.
+         */
+        get: operations["OpsController_diagnosticsOverview_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/diagnostics/{check}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Test one integration now (safe: sends nothing, keeps nothing)
+         * @description SMTP: connects, authenticates and says QUIT. Storage: writes, reads and deletes a probe file. Database, Redis, realtime: a ping; workers: at least one connected. A failure answers 200 with ok false and the masked reason. 400 not_testable when the configuration has nothing to probe. 10 per minute per user. Audited.
+         */
+        post: operations["OpsController_testDiagnostic_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/queues/{name}/retry-failed": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Retry a queue's failed jobs */
+        post: operations["OpsController_retryFailed_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/queues/{name}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a queue (every worker stops taking its jobs)
+         * @description BullMQ pause, kept in Redis: nothing is lost, and running jobs finish. Leaving maintenance mode resumes every queue. The outbox keeps queuing jobs into it: see /v1/ops/backlog. Audited.
+         */
+        post: operations["OpsController_pauseQueue_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/queues/{name}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Resume a paused queue. Audited. */
+        post: operations["OpsController_resumeQueue_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Count the outbox and mail backlog of one tenant (or, explicitly, every tenant)
+         * @description Changes nothing. The outbox (pending messages by topic and notification type, dead letters, those being delivered) and the mail queue (jobs by state and mail class). Exactly one of tenantId and global: true. topic and type narrow the outbox, template the mail queue, before (ISO 8601) keeps to older work. Mail queued before jobs named their tenant counts under global only.
+         */
+        post: operations["OpsController_previewBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/discard": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Discard the outbox or mail backlog in a scope
+         * @description outbox: deletes pending notifications.deliver (and other) messages not being delivered, and dead letters, in batches; a discarded notification stays in the list, marked delivered, with no push, mail or webhook. mail: removes waiting, delayed and failed jobs. Never a mandatory notification type, essential mail or running work. Up to limit (10,000) per call: call again while more. Preview first. Audited.
+         */
+        post: operations["OpsController_discardBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/backlog/retry": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Retry the outbox dead letters or failed mail in a scope
+         * @description outbox: requeues the dead letters with a fresh retry budget; mail: retries the failed jobs. The mail mode and the daily budgets still apply. Up to limit (10,000) per call: call again while more. Audited.
+         */
+        post: operations["OpsController_retryBacklog_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/dead-letters/requeue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Requeue dead letters (these ids, or all) */
+        post: operations["OpsController_requeue_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ops/dead-letters/purge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Delete dead letters (these ids, or all) */
+        post: operations["OpsController_purge_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * This tenant's settings and custom roles as a bundle
+         * @description Tenant-scope setting values (flag rollouts and rules, a role condition by role name) and the custom roles with their permissions, with a SHA-256 checksum. No secrets, users, grants, API clients or records.
+         */
+        get: operations["ConfigBundlesController_export_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * What applying a bundle here would change (a dry run)
+         * @description Validates the bundle against this deployment (format, checksum, declared settings, their values, the permission catalog) and diffs it against this tenant. Changes nothing. Hand `targetVersion` to apply.
+         */
+        post: operations["ConfigBundlesController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/config-bundles/apply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Apply a previewed bundle to this tenant, all or nothing
+         * @description Roles first, then settings, in one transaction, each through its own checks and audit entry, plus one config-bundle.applied entry. Additive: nothing the bundle lacks is removed.
+         */
+        post: operations["ConfigBundlesController_apply_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/webhook-endpoints": {
         parameters: {
             query?: never;
@@ -465,311 +810,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/ops/outbox": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Outbox stats and the latest 50 dead letters
-         * @description lagMs is the number to alert on: how long the oldest due message has waited. notifications.undelivered: stored notifications the worker has not delivered, though older than ten minutes; it stops at 10,000 and undeliveredCapped is then true. Errors, payloads and headers are masked as in the logs and cut; no stack traces.
-         */
-        get: operations["OpsController_state_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Live events of workflows, webhooks, the outbox, idempotency, locks, mail and resilience (Server-Sent Events) */
-        get: operations["OpsController_events_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/queues": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Background job queues: counts by state and the latest failures
-         * @description Failure reasons are masked as in the logs and cut; no stack traces.
-         */
-        get: operations["OpsController_queueOverview_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/diagnostics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Integration diagnostics: database, Redis, workers, mail, storage, realtime
-         * @description Each one ok, configured (set up, not probed: run its test), disabled, unconfigured or unavailable, with a hint. Built from switches and driver names: no URL, host credential or key is ever in it; errors are masked as in the logs and cut.
-         */
-        get: operations["OpsController_diagnosticsOverview_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/diagnostics/{check}/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Test one integration now (safe: sends nothing, keeps nothing)
-         * @description SMTP: connects, authenticates and says QUIT. Storage: writes, reads and deletes a probe file. Database, Redis, realtime: a ping; workers: at least one connected. A failure answers 200 with ok false and the masked reason. 400 not_testable when the configuration has nothing to probe. 10 per minute per user. Audited.
-         */
-        post: operations["OpsController_testDiagnostic_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/queues/{name}/retry-failed": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Retry a queue's failed jobs */
-        post: operations["OpsController_retryFailed_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/queues/{name}/pause": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Pause a queue (every worker stops taking its jobs)
-         * @description BullMQ pause, kept in Redis: nothing is lost, and running jobs finish. Leaving maintenance mode resumes every queue. The outbox keeps queuing jobs into it: see /v1/ops/backlog. Audited.
-         */
-        post: operations["OpsController_pauseQueue_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/queues/{name}/resume": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Resume a paused queue. Audited. */
-        post: operations["OpsController_resumeQueue_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/backlog/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Count the outbox and mail backlog of one tenant (or, explicitly, every tenant)
-         * @description Changes nothing. The outbox (pending messages by topic and notification type, dead letters, those being delivered) and the mail queue (jobs by state and mail class). Exactly one of tenantId and global: true. topic and type narrow the outbox, template the mail queue, before (ISO 8601) keeps to older work. Mail queued before jobs named their tenant counts under global only.
-         */
-        post: operations["OpsController_previewBacklog_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/backlog/discard": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Discard the outbox or mail backlog in a scope
-         * @description outbox: deletes pending notifications.deliver (and other) messages not being delivered, and dead letters, in batches; a discarded notification stays in the list, marked delivered, with no push, mail or webhook. mail: removes waiting, delayed and failed jobs. Never a mandatory notification type, essential mail or running work. Up to limit (10,000) per call: call again while more. Preview first. Audited.
-         */
-        post: operations["OpsController_discardBacklog_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/backlog/retry": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Retry the outbox dead letters or failed mail in a scope
-         * @description outbox: requeues the dead letters with a fresh retry budget; mail: retries the failed jobs. The mail mode and the daily budgets still apply. Up to limit (10,000) per call: call again while more. Audited.
-         */
-        post: operations["OpsController_retryBacklog_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/dead-letters/requeue": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Requeue dead letters (these ids, or all) */
-        post: operations["OpsController_requeue_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ops/dead-letters/purge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Delete dead letters (these ids, or all) */
-        post: operations["OpsController_purge_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/config-bundles/export": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * This tenant's settings and custom roles as a bundle
-         * @description Tenant-scope setting values (flag rollouts and rules, a role condition by role name) and the custom roles with their permissions, with a SHA-256 checksum. No secrets, users, grants, API clients or records.
-         */
-        get: operations["ConfigBundlesController_export_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/config-bundles/preview": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * What applying a bundle here would change (a dry run)
-         * @description Validates the bundle against this deployment (format, checksum, declared settings, their values, the permission catalog) and diffs it against this tenant. Changes nothing. Hand `targetVersion` to apply.
-         */
-        post: operations["ConfigBundlesController_preview_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/config-bundles/apply": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Apply a previewed bundle to this tenant, all or nothing
-         * @description Roles first, then settings, in one transaction, each through its own checks and audit entry, plus one config-bundle.applied entry. Additive: nothing the bundle lacks is removed.
-         */
-        post: operations["ConfigBundlesController_apply_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/features": {
         parameters: {
             query?: never;
@@ -896,134 +936,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/v1/bulk": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The bulk runs you handed to the workers in this tenant
-         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?status=` and `?kind=` keep some (a filtered page may hold fewer than `limit` items, or none, while `nextCursor` is set: follow it until it is null). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.
-         */
-        get: operations["BulkController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/bulk/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A bulk run you started: progress, then the result per item
-         * @description The realtime connection hears `bulk.finished { id, name, action, done, failed }` when it ends.
-         */
-        get: operations["BulkController_status_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/custom-fields/subjects": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The subjects that take custom fields
-         * @description Each with its name in the response's language (`lang`). Only the subjects whose fields you may read (GET /custom-fields?subject=…: whoever may read the subject, or manages custom fields); a 403 when there are none.
-         */
-        get: operations["CustomFieldsController_subjects_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/custom-fields": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A subject's custom fields, in their order
-         * @description For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true. ?include=counts adds how many records hold a value of each field (valueCount, and deletedValueCount for those in the recycle bin): one query over the subject's table, for those who manage custom fields only (403 otherwise).
-         */
-        get: operations["CustomFieldsController_list_v1"];
-        put?: never;
-        /**
-         * Add a field to a subject
-         * @description Audited. The key is set once and never reused.
-         */
-        post: operations["CustomFieldsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/custom-fields/order": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Reorder a subject's fields
-         * @description The fields listed come first, in that order; the others follow in theirs.
-         */
-        put: operations["CustomFieldsController_reorder_v1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/custom-fields/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Deactivate a field
-         * @description No longer accepted on writes nor exported; the values records hold are kept, and PATCH { active: true } brings it back.
-         */
-        delete: operations["CustomFieldsController_deactivate_v1"];
-        options?: never;
-        head?: never;
-        /**
-         * Change a field
-         * @description Audited with what changed. A type change is refused while records hold values (except text → longText, email/url → text or longText); so is removing a choice records hold.
-         */
-        patch: operations["CustomFieldsController_update_v1"];
         trace?: never;
     };
     "/v1/notifications": {
@@ -1207,6 +1119,295 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/notifications/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send yourself a test notification (development only)
+         * @description Sends the caller a `system.test` notification the way a real one goes: stored for the bell, pushed to your open connections, mailed per your preference (users), sent as a `notification.created` webhook (API clients). Only in development and tests; in production the route does not exist (404).
+         */
+        post: operations["NotificationTestController_test_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The records you watch
+         * @description Filter with `?subject=Note`; newest first; cursor pages.
+         */
+        get: operations["SubscriptionsController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/subscriptions/{subject}/{recordId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Stop watching a record */
+        delete: operations["SubscriptionsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data/imports/{name}/mappings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The saved column mappings of an import
+         * @description The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.
+         */
+        get: operations["ImportMappingsController_list_v1"];
+        put?: never;
+        /**
+         * Save a column mapping
+         * @description Checked as an import would be: every target a column you may fill, none twice. At most 50 per import. Audited (`importMapping.created`).
+         */
+        post: operations["ImportMappingsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data/imports/{name}/mappings/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Delete a saved column mapping
+         * @description Audited (`importMapping.deleted`).
+         */
+        delete: operations["ImportMappingsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your tenant's people, by name or by key: for @mentions and pickers
+         * @description With `q` (or nothing): the active members of your tenant whose name contains `q`, by name. With `key=user:<id>,client:<id>`: the names of these keys, in the order asked: a member, or a former member (they still own records), or an API client of your tenant; a key your tenant has no one for is left out (no error). Each item is a key (`user:<id>`, what `@user:<id>` mentions and `ownerId` holds) and a name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
+         */
+        get: operations["PeopleController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/people/{id}/avatar": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A person's picture
+         * @description The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.
+         */
+        get: operations["PeopleController_avatar_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/organizational-units": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your tenant's organizational units: names and tree, for pickers
+         * @description Every organizational unit of your tenant, newest first in cursor pages (`limit`: 50 a page by default, 100 at most; follow `nextCursor` to read them all): its id (what `unitId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these units (100 ids at most; an id your tenant has no unit of is left out). For any member; managing units is /v1/access/organizational-units.
+         */
+        get: operations["UnitDirectoryController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The bulk runs you handed to the workers in this tenant
+         * @description Newest first, by cursor (`limit`, `cursor` = the previous `nextCursor`); `?status=` and `?kind=` keep some (a filtered page may hold fewer than `limit` items, or none, while `nextCursor` is set: follow it until it is null). Each item as GET /v1/bulk/{id} tells it, without the result per item (its counts stay). Runs answered in the request (200) were never jobs and are not listed; finished ones are kept 7 days.
+         */
+        get: operations["BulkController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/bulk/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A bulk run you started: progress, then the result per item
+         * @description The realtime connection hears `bulk.finished { id, name, action, done, failed }` when it ends.
+         */
+        get: operations["BulkController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom-fields/subjects": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The subjects that take custom fields
+         * @description Each with its name in the response's language (`lang`). Only the subjects whose fields you may read (GET /custom-fields?subject=…: whoever may read the subject, or manages custom fields); a 403 when there are none.
+         */
+        get: operations["CustomFieldsController_subjects_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom-fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A subject's custom fields, in their order
+         * @description For anyone who may read the subject: forms and tables are built from them. Inactive fields only with includeInactive=true. ?include=counts adds how many records hold a value of each field (valueCount, and deletedValueCount for those in the recycle bin): one query over the subject's table, for those who manage custom fields only (403 otherwise).
+         */
+        get: operations["CustomFieldsController_list_v1"];
+        put?: never;
+        /**
+         * Add a field to a subject
+         * @description Audited. The key is set once and never reused.
+         */
+        post: operations["CustomFieldsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom-fields/order": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Reorder a subject's fields
+         * @description The fields listed come first, in that order; the others follow in theirs.
+         */
+        put: operations["CustomFieldsController_reorder_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/custom-fields/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Deactivate a field
+         * @description No longer accepted on writes nor exported; the values records hold are kept, and PATCH { active: true } brings it back.
+         */
+        delete: operations["CustomFieldsController_deactivate_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a field
+         * @description Audited with what changed. A type change is refused while records hold values (except text → longText, email/url → text or longText); so is removing a choice records hold.
+         */
+        patch: operations["CustomFieldsController_update_v1"];
+        trace?: never;
+    };
     "/v1/devices": {
         parameters: {
             query?: never;
@@ -1321,26 +1522,6 @@ export interface paths {
          * @description `twilio`: a form-encoded inbound message, signed with `X-Twilio-Signature` (verified with TWILIO_AUTH_TOKEN and the webhook URL). STOP opts the sender out; START opts them back in.
          */
         post: operations["SmsInboundController_receive_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/notifications/test": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send yourself a test notification (development only)
-         * @description Sends the caller a `system.test` notification the way a real one goes: stored for the bell, pushed to your open connections, mailed per your preference (users), sent as a `notification.created` webhook (API clients). Only in development and tests; in production the route does not exist (404).
-         */
-        post: operations["NotificationTestController_test_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -1714,239 +1895,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/branding": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The branding of your tenant
-         * @description The brand colour (`#rrggbb`), the name mail is sent under, the logo’s path, whether the operators locked it and whether you may change it.
-         */
-        get: operations["BrandingController_get_v1"];
-        /**
-         * Change the branding of your tenant
-         * @description Who manages settings. Sets the colour and the sender name (the settings `branding.primaryColor` and `branding.mailFromName`, so audited as `setting.updated`): `null` removes one, an absent key stays. The colour is `#rrggbb` only. Answers 409 `branding_locked` while the operators have it locked.
-         */
-        put: operations["BrandingController_update_v1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/logo": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Set the logo of your tenant
-         * @description Who manages settings. Multipart, the field `file`: a PNG, JPEG or WebP of at most 512 KB, recognized by its bytes (never SVG). Replaces the logo. Audited (`branding.logo-changed`). 409 `branding_locked` while locked.
-         */
-        post: operations["BrandingController_upload_v1"];
-        /**
-         * Remove the logo of your tenant
-         * @description Who manages settings. The file goes too. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
-         */
-        delete: operations["BrandingController_remove_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/logo/dark": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Set the dark-mode logo of your tenant
-         * @description Who manages settings. Like the logo (the same types, size and checks), shown by the web app in its dark theme. Replaces the dark-mode logo. Audited (`branding.logo-changed`, `variant: dark`). 409 `branding_locked` while locked.
-         */
-        post: operations["BrandingController_uploadDark_v1"];
-        /**
-         * Remove the dark-mode logo of your tenant
-         * @description Who manages settings. The file goes too; the logo is shown in the dark theme again. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
-         */
-        delete: operations["BrandingController_removeDark_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/{tenantId}/logo": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The logo of a tenant
-         * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
-         */
-        get: operations["PublicBrandingController_logo_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/{tenantId}/logo/dark": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The dark-mode logo of a tenant
-         * @description No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.
-         */
-        get: operations["PublicBrandingController_darkLogo_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/domains": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The tenant's custom domains and their verification
-         * @description `enabled`: whether this deployment serves custom domains (CUSTOM_DOMAINS); off, adding and verifying answer 404 `custom_domains_off`.
-         */
-        get: operations["BrandingDomainsController_list_v1"];
-        put?: never;
-        /**
-         * Add a custom domain: publish its `record`, then verify
-         * @description A public hostname (no IP, port or path; not the app's own domain or one under it; an internationalized name is stored in punycode). Point it at the app (a CNAME) and publish the TXT `record`. Audited (`branding.domain-added`). 409 `branding_locked` while the operators lock the branding.
-         */
-        post: operations["BrandingDomainsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/domains/{id}/verify": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Look the TXT record up (on the queue): `verified` once found
-         * @description The domain routes to the tenant while its record resolves: checked again every night, a record gone stops it. 409 `branding_locked` while locked.
-         */
-        post: operations["BrandingDomainsController_verify_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/domains/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Remove a custom domain: it stops routing at once
-         * @description No brand, no session and no new certificate on that host from then on. Audited (`branding.domain-removed`). Allowed while the branding is locked.
-         */
-        delete: operations["BrandingDomainsController_remove_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/branding/host": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The brand of the host you reached the app on
-         * @description No sign-in needed. On a tenant's verified custom domain, its colours, sender name and logos; on any other host (the app's own, an unknown one, a domain removed), every field null. Never names the tenant otherwise. Not cached: a removed domain stops at once.
-         */
-        get: operations["HostBrandingController_host_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/subscriptions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The records you watch
-         * @description Filter with `?subject=Note`; newest first; cursor pages.
-         */
-        get: operations["SubscriptionsController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/subscriptions/{subject}/{recordId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Stop watching a record */
-        delete: operations["SubscriptionsController_remove_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/search": {
         parameters: {
             query?: never;
@@ -1987,131 +1935,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/people": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Your tenant's people, by name or by key: for @mentions and pickers
-         * @description With `q` (or nothing): the active members of your tenant whose name contains `q`, by name. With `key=user:<id>,client:<id>`: the names of these keys, in the order asked: a member, or a former member (they still own records), or an API client of your tenant; a key your tenant has no one for is left out (no error). Each item is a key (`user:<id>`, what `@user:<id>` mentions and `ownerId` holds) and a name, nothing else. For any member. A mention still reaches only those who may read the record (docs/comments.md).
-         */
-        get: operations["PeopleController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/people/{id}/avatar": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A person's picture
-         * @description The picture itself (what `avatarUrl` of a person points at), streamed by this API rather than redirected to the disk's signed link: an `<img>` then loads it from the page's own origin, whatever the storage (a redirect to another origin, the bucket with S3, is refused by the browser's cross-origin and Content-Security-Policy rules). `Content-Disposition: inline`, `Cache-Control: private` (the address changes with the picture), `nosniff`. For a member (or former member) of your tenant, or yourself. 404 when they have none, or are no one of your tenant: the two are not told apart.
-         */
-        get: operations["PeopleController_avatar_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/organizational-units": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Your tenant's organizational units: names and tree, for pickers
-         * @description Every organizational unit of your tenant, newest first in cursor pages (`limit`: 50 a page by default, 100 at most; follow `nextCursor` to read them all): its id (what `unitId` holds), name, parent and depth, nothing else. `q`: a part of the name; `id=<id>,<id>`: these units (100 ids at most; an id your tenant has no unit of is left out). For any member; managing units is /v1/access/organizational-units.
-         */
-        get: operations["UnitDirectoryController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * An attachment
-         * @description Whoever may read its record. Its ETag is what `If-Match` takes to replace or restore it (`POST …/attachments/{attachmentId}/versions`, `…/versions/{version}/restore`).
-         */
-        get: operations["AttachmentsController_get_v1"];
-        put?: never;
-        post?: never;
-        /**
-         * Remove an attachment
-         * @description Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).
-         */
-        delete: operations["AttachmentsController_remove_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * An attachment's versions, newest first
-         * @description The current file (`current: true`) and the earlier ones, with who uploaded each, when, and its revision note. Whoever may read its record.
-         */
-        get: operations["AttachmentsController_listVersions_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}/versions/{version}/download": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Download one version of an attachment
-         * @description Whoever may read its record. Redirects to a signed link to that version's file, valid for 5m, as a download (never inline). The current version downloads as `GET /v1/attachments/{id}/download` does.
-         */
-        get: operations["AttachmentsController_downloadVersion_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}/versions/{version}/restore": {
+    "/v1/webhooks/mail/{provider}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2121,17 +1945,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Restore an earlier version of an attachment
-         * @description Who may change its record. The version's bytes become the current file again as a new version (nothing is lost), scanned again like an upload. Audited (attachment.version-restored). With `If-Match` (the attachment's ETag) refused (412) if it changed since you read it.
+         * A mail provider reports bounces and complaints
+         * @description `postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `resend`: a Svix-signed webhook (`email.bounced`, `email.complained`, `email.delivered`), verified with RESEND_WEBHOOK_SECRET. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.
          */
-        post: operations["AttachmentsController_restoreVersion_v1"];
+        post: operations["MailEventsController_handle_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/attachments/{id}/download": {
+    "/v1/mail/suppressions": {
         parameters: {
             query?: never;
             header?: never;
@@ -2139,244 +1963,41 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Download an attachment
-         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download. `?rendition=thumb` or `preview` links to an image's smaller WebP copy instead, inline.
+         * The suppression list, newest first
+         * @description Addresses mail is not sent to (`suppressedAt` set) and addresses being watched for soft bounces (`suppressedAt.isNull=true`). `?address=ada@example.com` (any case), `?address.endsWith=@example.com`, `?reason=complaint`, `?source=ses`; `?sort=-lastSeenAt`. Cursor pages.
          */
-        get: operations["AttachmentsController_download_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}/acknowledgment-requests": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        get: operations["SuppressionsController_list_v1"];
         put?: never;
         /**
-         * Ask people to acknowledge a document
-         * @description Whoever may change the document's record. Each person is asked about its current version (`version`; 1 while attachments are unversioned); those already asked keep their answer. They must be members who may read the record. They are told (`acknowledgment.requested`). Audited. An acknowledgment records that the person confirmed reading that version, and when; it is not a signature.
+         * Stop mail to an address
+         * @description A manual entry (`reason: manual`): nothing is sent to the address, essential mail included, until it is removed. Audited (`mailSuppression.created`).
          */
-        post: operations["AttachmentAcknowledgmentsController_request_v1"];
+        post: operations["SuppressionsController_create_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/attachments/{id}/acknowledgments": {
+    "/v1/mail/suppressions/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /**
-         * A document's acknowledgments (completion dashboard)
-         * @description Whoever may change the document's record: counts and each person's state for a version (`?version=`, default the current).
-         */
-        get: operations["AttachmentAcknowledgmentsController_status_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}/acknowledgments/remind": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Remind those who have not acknowledged
-         * @description Whoever may change the record. Everyone still waiting, or the named `recipients`; nobody twice within 24 hours (`skipped`). Told with `acknowledgment.reminder`. Audited.
-         */
-        post: operations["AttachmentAcknowledgmentsController_remind_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}/acknowledgments/{acknowledgmentId}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
+        /** One entry */
+        get: operations["SuppressionsController_findOne_v1"];
         put?: never;
         post?: never;
         /**
-         * Withdraw a request
-         * @description Whoever may change the record. Only one nobody has answered; an answer stays. Audited.
+         * Send mail to the address again
+         * @description Removes the entry. For a bounced address, once the mailbox is known to work; for a complaint, only when the person asked for mail again. A new bounce or complaint lists it again. Audited (`mailSuppression.deleted`).
          */
-        delete: operations["AttachmentAcknowledgmentsController_withdraw_v1"];
+        delete: operations["SuppressionsController_remove_v1"];
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/v1/attachments/{id}/acknowledge": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Acknowledge a document
-         * @description The person asked, for the document's current version; acknowledging again changes nothing. A 404 for anyone nobody asked. Audited (`acknowledgment.acknowledged`).
-         */
-        post: operations["AttachmentAcknowledgmentsController_acknowledge_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/acknowledgments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Acknowledgments asked of me
-         * @description Newest first, at most 100, for documents whose record you may read: `?status=pending` (default) or `acknowledged`.
-         */
-        get: operations["MyAcknowledgmentsController_mine_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/documents/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A document asked for: its state, then the issued PDF
-         * @description Whoever may read its record. `completed`: `attachmentId` is the PDF (GET /v1/attachments/{id}/download). The requester's realtime connection hears `document.ready { id, subject, recordId, attachmentId }` or `document.failed { id, subject, recordId, error }`.
-         */
-        get: operations["DocumentsController_status_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ai/runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Ask the AI helper about a record
-         * @description Whoever may use the helper on the record (its source decides). Answers at once with the run id; a worker sends the record's fields you may read to the provider and keeps a structured answer for an hour. Follow it at GET /v1/ai/runs/{id}; your realtime connection hears `ai.ready { id, subject, recordId, task }` or `ai.failed { id, subject, recordId, error }`. Off until the tenant sets `ai.enabled`. Audited (ai.requested, ai.completed).
-         */
-        post: operations["AiController_request_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/ai/runs/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A run you asked for: its state, then the answer
-         * @description Only the principal who asked. `completed`: `output` is the answer in the task's shape (kept an hour, then null), with the model id and prompt version that produced it and the tokens used.
-         */
-        get: operations["AiController_status_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tags": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The tags, newest first
-         * @description Every subject unless `?subject=Note` (or `subject.in=`); `?name.contains=urg`, `?name=Urgent` (whatever the case); `?sort=name`. Cursor pages.
-         */
-        get: operations["TagsController_list_v1"];
-        put?: never;
-        /**
-         * Create a tag
-         * @description For a subject whose records take tags (`Note`); the name is unique per subject, whatever its case. Audited (`tag.created`).
-         */
-        post: operations["TagsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/tags/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a tag
-         * @description Every record carrying it loses it. Audited (`tag.deleted`).
-         */
-        delete: operations["TagsController_remove_v1"];
-        options?: never;
-        head?: never;
-        /**
-         * Rename, recolour or describe a tag
-         * @description Only what is sent changes; null clears the colour or the description. Audited (`tag.updated`).
-         */
-        patch: operations["TagsController_update_v1"];
         trace?: never;
     };
     "/v1/naming-series": {
@@ -2512,7 +2133,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/calendars": {
+    "/v1/attachments/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2520,48 +2141,63 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The tenant's business calendars, by name
-         * @description At most 50 per tenant, so one list (no pages).
+         * An attachment
+         * @description Whoever may read its record. Its ETag is what `If-Match` takes to replace or restore it (`POST …/attachments/{attachmentId}/versions`, `…/versions/{version}/restore`).
          */
-        get: operations["CalendarsController_list_v1"];
-        put?: never;
-        /**
-         * Create a business calendar
-         * @description Hours per weekday and exceptions (a holiday: no `hours`; special hours), in an IANA `timezone`. Audited (`businessCalendar.created`).
-         */
-        post: operations["CalendarsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/calendars/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** A business calendar */
-        get: operations["CalendarsController_findOne_v1"];
+        get: operations["AttachmentsController_get_v1"];
         put?: never;
         post?: never;
         /**
-         * Delete a business calendar
-         * @description Audited (`businessCalendar.deleted`).
+         * Remove an attachment
+         * @description Your own upload, or any attachment of a record you may change (for notes: Note.update). The file is deleted too. Audited (attachment.removed). Never an issued document (`locked`).
          */
-        delete: operations["CalendarsController_remove_v1"];
+        delete: operations["AttachmentsController_remove_v1"];
         options?: never;
         head?: never;
-        /**
-         * Change a business calendar
-         * @description Only what is sent changes; hours and exceptions are replaced whole. A change of hours, zone or exceptions raises `version`. Deadlines already computed are not recomputed: ask again. Audited (`businessCalendar.updated`).
-         */
-        patch: operations["CalendarsController_update_v1"];
+        patch?: never;
         trace?: never;
     };
-    "/v1/calendars/{id}/deadline": {
+    "/v1/attachments/{id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An attachment's versions, newest first
+         * @description The current file (`current: true`) and the earlier ones, with who uploaded each, when, and its revision note. Whoever may read its record.
+         */
+        get: operations["AttachmentsController_listVersions_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/versions/{version}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Download one version of an attachment
+         * @description Whoever may read its record. Redirects to a signed link to that version's file, valid for 5m, as a download (never inline). The current version downloads as `GET /v1/attachments/{id}/download` does.
+         */
+        get: operations["AttachmentsController_downloadVersion_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/versions/{version}/restore": {
         parameters: {
             query?: never;
             header?: never;
@@ -2571,17 +2207,17 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * A deadline in working time
-         * @description `minutes` of working time after `from`, skipping nights, weekends and exceptions in the calendar's zone (daylight-saving changes followed); 0 minutes: the first working moment at or after `from`. Returns the calendar `version` to store beside the deadline.
+         * Restore an earlier version of an attachment
+         * @description Who may change its record. The version's bytes become the current file again as a new version (nothing is lost), scanned again like an upload. Audited (attachment.version-restored). With `If-Match` (the attachment's ETag) refused (412) if it changed since you read it.
          */
-        post: operations["CalendarsController_deadline_v1"];
+        post: operations["AttachmentsController_restoreVersion_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/record-schedules": {
+    "/v1/attachments/{id}/download": {
         parameters: {
             query?: never;
             header?: never;
@@ -2589,23 +2225,39 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Your recurring record schedules
-         * @description `?status=active`, `?importer=notes`, `?name.contains=`, `?sort=nextRunAt`; newest first; cursor pages.
+         * Download an attachment
+         * @description Whoever may read its record. Redirects to a signed link to the file, valid for 5m: it needs no credentials, so a browser can follow it (a link, an image). The file comes as `Content-Disposition: attachment` (a download), with `X-Content-Type-Options: nosniff`; `?inline=true` shows a PDF in the browser instead (a preview in a new tab), under `Content-Security-Policy: default-src 'none'; frame-ancestors 'none'; sandbox` (nothing loads, nothing runs, no page may frame it). Any other type stays a download. `?rendition=thumb` or `preview` links to an image's smaller WebP copy instead, inline.
          */
-        get: operations["RecordSchedulesController_list_v1"];
+        get: operations["AttachmentsController_download_v1"];
         put?: never;
-        /**
-         * Schedule recurring records
-         * @description Creates the `template` (one row of an importer, as a file import takes it) as you at every occurrence of `rrule` from `startDate` at `time` in `timezone`, optionally moved into a business calendar's working time. Each occurrence makes one record, however often it is retried. Missed occurrences (downtime) are made up, oldest first, a few per pass; pausing skips a period. At most 20 active schedules, 1000 records each. Audited (`recordSchedule.created`).
-         */
-        post: operations["RecordSchedulesController_create_v1"];
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/record-schedules/preview": {
+    "/v1/documents/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A document asked for: its state, then the issued PDF
+         * @description Whoever may read its record. `completed`: `attachmentId` is the PDF (GET /v1/attachments/{id}/download). The requester's realtime connection hears `document.ready { id, subject, recordId, attachmentId }` or `document.failed { id, subject, recordId, error }`.
+         */
+        get: operations["DocumentsController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ai/runs": {
         parameters: {
             query?: never;
             header?: never;
@@ -2615,42 +2267,117 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Preview the next occurrences
-         * @description The next moments (up to 20) a schedule with this rule, start, time, zone and calendar would create records, from now. Nothing is saved.
+         * Ask the AI helper about a record
+         * @description Whoever may use the helper on the record (its source decides). Answers at once with the run id; a worker sends the record's fields you may read to the provider and keeps a structured answer for an hour. Follow it at GET /v1/ai/runs/{id}; your realtime connection hears `ai.ready { id, subject, recordId, task }` or `ai.failed { id, subject, recordId, error }`. Off until the tenant sets `ai.enabled`. Audited (ai.requested, ai.completed).
          */
-        post: operations["RecordSchedulesController_preview_v1"];
+        post: operations["AiController_request_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/record-schedules/{id}": {
+    "/v1/ai/runs/{id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** One of your recurring record schedules */
-        get: operations["RecordSchedulesController_get_v1"];
+        /**
+         * A run you asked for: its state, then the answer
+         * @description Only the principal who asked. `completed`: `output` is the answer in the task's shape (kept an hour, then null), with the model id and prompt version that produced it and the tokens used.
+         */
+        get: operations["AiController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgment-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Ask people to acknowledge a document
+         * @description Whoever may change the document's record. Each person is asked about its current version (`version`; 1 while attachments are unversioned); those already asked keep their answer. They must be members who may read the record. They are told (`acknowledgment.requested`). Audited. An acknowledgment records that the person confirmed reading that version, and when; it is not a signature.
+         */
+        post: operations["AttachmentAcknowledgmentsController_request_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A document's acknowledgments (completion dashboard)
+         * @description Whoever may change the document's record: counts and each person's state for a version (`?version=`, default the current).
+         */
+        get: operations["AttachmentAcknowledgmentsController_status_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments/remind": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Remind those who have not acknowledged
+         * @description Whoever may change the record. Everyone still waiting, or the named `recipients`; nobody twice within 24 hours (`skipped`). Told with `acknowledgment.reminder`. Audited.
+         */
+        post: operations["AttachmentAcknowledgmentsController_remind_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/attachments/{id}/acknowledgments/{acknowledgmentId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
         put?: never;
         post?: never;
         /**
-         * Delete a recurring record schedule
-         * @description Audited (`recordSchedule.deleted`). The records it made stay.
+         * Withdraw a request
+         * @description Whoever may change the record. Only one nobody has answered; an answer stays. Audited.
          */
-        delete: operations["RecordSchedulesController_remove_v1"];
+        delete: operations["AttachmentAcknowledgmentsController_withdraw_v1"];
         options?: never;
         head?: never;
-        /**
-         * Change a recurring record schedule
-         * @description Only what is sent changes; an active schedule's next run is computed again from now when its rule, start, time, zone or calendar changes. Audited (`recordSchedule.updated`).
-         */
-        patch: operations["RecordSchedulesController_update_v1"];
+        patch?: never;
         trace?: never;
     };
-    "/v1/record-schedules/{id}/pause": {
+    "/v1/attachments/{id}/acknowledge": {
         parameters: {
             query?: never;
             header?: never;
@@ -2660,17 +2387,61 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Pause a schedule
-         * @description No records are created until it is resumed, and the occurrences in between are not made up.
+         * Acknowledge a document
+         * @description The person asked, for the document's current version; acknowledging again changes nothing. A 404 for anyone nobody asked. Audited (`acknowledgment.acknowledged`).
          */
-        post: operations["RecordSchedulesController_pause_v1"];
+        post: operations["AttachmentAcknowledgmentsController_acknowledge_v1"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/record-schedules/{id}/resume": {
+    "/v1/acknowledgments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Acknowledgments asked of me
+         * @description Newest first, at most 100, for documents whose record you may read: `?status=pending` (default) or `acknowledged`.
+         */
+        get: operations["MyAcknowledgmentsController_mine_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tags": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tags, newest first
+         * @description Every subject unless `?subject=Note` (or `subject.in=`); `?name.contains=urg`, `?name=Urgent` (whatever the case); `?sort=name`. Cursor pages.
+         */
+        get: operations["TagsController_list_v1"];
+        put?: never;
+        /**
+         * Create a tag
+         * @description For a subject whose records take tags (`Note`); the name is unique per subject, whatever its case. Audited (`tag.created`).
+         */
+        post: operations["TagsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/tags/{id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -2679,35 +2450,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        post?: never;
         /**
-         * Resume a paused schedule
-         * @description Continues at the first occurrence after now.
+         * Delete a tag
+         * @description Every record carrying it loses it. Audited (`tag.deleted`).
          */
-        post: operations["RecordSchedulesController_resume_v1"];
-        delete?: never;
+        delete: operations["TagsController_remove_v1"];
         options?: never;
         head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/record-schedules/{id}/end": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
         /**
-         * End a schedule for good
-         * @description The records it made stay. It cannot be resumed.
+         * Rename, recolour or describe a tag
+         * @description Only what is sent changes; null clears the colour or the description. Audited (`tag.updated`).
          */
-        post: operations["RecordSchedulesController_end_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
+        patch: operations["TagsController_update_v1"];
         trace?: never;
     };
     "/v1/views": {
@@ -3116,6 +2871,266 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/approvals/delegations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Your delegations: those you gave, and those you hold */
+        get: operations["ApprovalDelegationsController_list_v1"];
+        put?: never;
+        /**
+         * Let someone decide your approvals for a while
+         * @description Between `startsAt` and `endsAt`, `toUserId` may decide the approvals assigned to you (of every subject, or of `subject`): the decision is recorded as theirs, on behalf of you. You may still decide yourself. Audited.
+         */
+        post: operations["ApprovalDelegationsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/delegations/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** End a delegation you gave */
+        delete: operations["ApprovalDelegationsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/policy-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * What policies are made of: approver rules, stage modes, conditions
+         * @description Each with the JSON Schema of its parameters, which sit beside `type` in a policy. Projects register their own (docs/approvals.md, "Extending").
+         */
+        get: operations["ApprovalPoliciesController_types_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/policies": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The approvable actions and the policy each runs under */
+        get: operations["ApprovalPoliciesController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/policies/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One action's policy (`Note.publish`) */
+        get: operations["ApprovalPoliciesController_get_v1"];
+        /**
+         * Store a new version of an action's policy
+         * @description The whole policy, checked against the registered rule, mode and condition types (GET /v1/approvals/policy-types). New requests run under it; running ones keep the version they started with. Audited.
+         */
+        put: operations["ApprovalPoliciesController_set_v1"];
+        post?: never;
+        /**
+         * Back to the code's default policy
+         * @description Stored as a new version, so the history stays. Audited.
+         */
+        delete: operations["ApprovalPoliciesController_reset_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Approval requests: your inbox, and what you asked for
+         * @description `?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for; `?decidedByMe=true` what you decided (yourself, or standing in for someone): the history. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages. Each item has the `can` and the `etag` its `GET /v1/approvals/{id}` would give you (`?fields=` keeps them): decide from the list with `If-Match: <etag>`.
+         */
+        get: operations["ApprovalsController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One request: its stages, assignments, decisions and timeline
+         * @description `can` says what you may do with it now. With an ETag: send it as If-Match on a decision to be refused (412) if it changed since you read it.
+         */
+        get: operations["ApprovalsController_get_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{id}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Approve
+         * @description As an approver of the current stage, or as the delegate of one (the decision is recorded as yours, on behalf of them). Approving again changes nothing.
+         */
+        post: operations["ApprovalsController_approve_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{id}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reject (with a comment saying why)
+         * @description Ends the request as rejected, in every stage mode but a quorum that can still be reached.
+         */
+        post: operations["ApprovalsController_reject_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{id}/request-changes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Send it back for changes (with a comment saying which)
+         * @description The requester may change the record, then resubmit (POST /v1/approvals/{id}/resubmit): a new round from the first stage.
+         */
+        post: operations["ApprovalsController_requestChanges_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Withdraw a request
+         * @description The requester, or someone who may cancel approvals (Approval.cancel). The approvers still waiting are told.
+         */
+        post: operations["ApprovalsController_cancel_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{id}/abandon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Abandon an approved request whose outcome would not apply
+         * @description For administrators (Approval.manage): an approved request whose workflow ended without applying it ends as failed (`abandoned`), so its record isn't locked any more, and `onFailed` runs. Refused while the workflow still runs or retries. Audited; the requester is told.
+         */
+        post: operations["ApprovalsController_abandon_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/approvals/{id}/resubmit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resubmit after changes were requested
+         * @description The same request, a new round: from the first stage, its approvers resolved again, under the policy version it started with. `payload` replaces the proposed change (checked by the action's schema).
+         */
+        post: operations["ApprovalsController_resubmit_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/forms": {
         parameters: {
             query?: never;
@@ -3468,6 +3483,204 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/calendars": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's business calendars, by name
+         * @description At most 50 per tenant, so one list (no pages).
+         */
+        get: operations["CalendarsController_list_v1"];
+        put?: never;
+        /**
+         * Create a business calendar
+         * @description Hours per weekday and exceptions (a holiday: no `hours`; special hours), in an IANA `timezone`. Audited (`businessCalendar.created`).
+         */
+        post: operations["CalendarsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/calendars/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** A business calendar */
+        get: operations["CalendarsController_findOne_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a business calendar
+         * @description Audited (`businessCalendar.deleted`).
+         */
+        delete: operations["CalendarsController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a business calendar
+         * @description Only what is sent changes; hours and exceptions are replaced whole. A change of hours, zone or exceptions raises `version`. Deadlines already computed are not recomputed: ask again. Audited (`businessCalendar.updated`).
+         */
+        patch: operations["CalendarsController_update_v1"];
+        trace?: never;
+    };
+    "/v1/calendars/{id}/deadline": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * A deadline in working time
+         * @description `minutes` of working time after `from`, skipping nights, weekends and exceptions in the calendar's zone (daylight-saving changes followed); 0 minutes: the first working moment at or after `from`. Returns the calendar `version` to store beside the deadline.
+         */
+        post: operations["CalendarsController_deadline_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your recurring record schedules
+         * @description `?status=active`, `?importer=notes`, `?name.contains=`, `?sort=nextRunAt`; newest first; cursor pages.
+         */
+        get: operations["RecordSchedulesController_list_v1"];
+        put?: never;
+        /**
+         * Schedule recurring records
+         * @description Creates the `template` (one row of an importer, as a file import takes it) as you at every occurrence of `rrule` from `startDate` at `time` in `timezone`, optionally moved into a business calendar's working time. Each occurrence makes one record, however often it is retried. Missed occurrences (downtime) are made up, oldest first, a few per pass; pausing skips a period. At most 20 active schedules, 1000 records each. Audited (`recordSchedule.created`).
+         */
+        post: operations["RecordSchedulesController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Preview the next occurrences
+         * @description The next moments (up to 20) a schedule with this rule, start, time, zone and calendar would create records, from now. Nothing is saved.
+         */
+        post: operations["RecordSchedulesController_preview_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One of your recurring record schedules */
+        get: operations["RecordSchedulesController_get_v1"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete a recurring record schedule
+         * @description Audited (`recordSchedule.deleted`). The records it made stay.
+         */
+        delete: operations["RecordSchedulesController_remove_v1"];
+        options?: never;
+        head?: never;
+        /**
+         * Change a recurring record schedule
+         * @description Only what is sent changes; an active schedule's next run is computed again from now when its rule, start, time, zone or calendar changes. Audited (`recordSchedule.updated`).
+         */
+        patch: operations["RecordSchedulesController_update_v1"];
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/pause": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Pause a schedule
+         * @description No records are created until it is resumed, and the occurrences in between are not made up.
+         */
+        post: operations["RecordSchedulesController_pause_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/resume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Resume a paused schedule
+         * @description Continues at the first occurrence after now.
+         */
+        post: operations["RecordSchedulesController_resume_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/record-schedules/{id}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End a schedule for good
+         * @description The records it made stay. It cannot be resumed.
+         */
+        post: operations["RecordSchedulesController_end_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/shared/open": {
         parameters: {
             query?: never;
@@ -3522,6 +3735,106 @@ export interface paths {
          * @description A signed link to one of the files the link lists, valid for 5 minutes, handed out only while the link works. Audited `share.opened` with the file.
          */
         post: operations["SharedController_file_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Open findings per subject, and the last scan
+         * @description Counts only the findings you may see: on records you may read, on fields shown to you. `lastScan` says how fresh they are, and how far a running scan got.
+         */
+        get: operations["DataQualityController_summary_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Scan every record again
+         * @description Runs on the queue in batches; follow it at GET /v1/data-quality (`lastScan`). It adds the findings that hold and deletes those that no longer do; dismissed ones stay dismissed. Audited `data-quality.scan-started`.
+         */
+        post: operations["DataQualityController_scan_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/subjects/{subject}/findings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * A page of one subject’s findings
+         * @description Open ones unless `dismissed=true`; newest first. Only those on records you may read and fields shown to you.
+         */
+        get: operations["DataQualityController_findings_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/findings/{id}/dismiss": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Dismiss a finding: right as it is
+         * @description It stays dismissed while it holds; one that stops holding and comes back is new. Audited `data-quality.finding-dismissed`.
+         */
+        post: operations["DataQualityController_dismiss_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/data-quality/findings/{id}/recheck": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check a finding’s record again now
+         * @description Its record’s findings are brought up to date; `resolved` when this one no longer holds.
+         */
+        post: operations["DataQualityController_recheck_v1"];
         delete?: never;
         options?: never;
         head?: never;
@@ -3677,190 +3990,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/data-quality": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Open findings per subject, and the last scan
-         * @description Counts only the findings you may see: on records you may read, on fields shown to you. `lastScan` says how fresh they are, and how far a running scan got.
-         */
-        get: operations["DataQualityController_summary_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/data-quality/scans": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Scan every record again
-         * @description Runs on the queue in batches; follow it at GET /v1/data-quality (`lastScan`). It adds the findings that hold and deletes those that no longer do; dismissed ones stay dismissed. Audited `data-quality.scan-started`.
-         */
-        post: operations["DataQualityController_scan_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/data-quality/subjects/{subject}/findings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * A page of one subject’s findings
-         * @description Open ones unless `dismissed=true`; newest first. Only those on records you may read and fields shown to you.
-         */
-        get: operations["DataQualityController_findings_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/data-quality/findings/{id}/dismiss": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Dismiss a finding: right as it is
-         * @description It stays dismissed while it holds; one that stops holding and comes back is new. Audited `data-quality.finding-dismissed`.
-         */
-        post: operations["DataQualityController_dismiss_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/data-quality/findings/{id}/recheck": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Check a finding’s record again now
-         * @description Its record’s findings are brought up to date; `resolved` when this one no longer holds.
-         */
-        post: operations["DataQualityController_recheck_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/data/imports/{name}/mappings": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The saved column mappings of an import
-         * @description The tenant’s, by name. `stale` lists the targets you may no longer import (the schema or your permissions changed since): use the mapping only after changing them.
-         */
-        get: operations["ImportMappingsController_list_v1"];
-        put?: never;
-        /**
-         * Save a column mapping
-         * @description Checked as an import would be: every target a column you may fill, none twice. At most 50 per import. Audited (`importMapping.created`).
-         */
-        post: operations["ImportMappingsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/data/imports/{name}/mappings/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /**
-         * Delete a saved column mapping
-         * @description Audited (`importMapping.deleted`).
-         */
-        delete: operations["ImportMappingsController_remove_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/retention/rules": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * The retention rules and the tenant’s choice for each
-         * @description A declared rule does nothing until the tenant turns it on. `days` is the age after which a record is purged or anonymised (`action`); records under a legal hold are always kept.
-         */
-        get: operations["RetentionController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/retention/rules/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        /**
-         * Turn a retention rule on or off, and set its days
-         * @description Takes effect at the next nightly run (04:10 in APP_TIMEZONE). Not below the rule’s `minDays`. Audited (`retention.policy-changed`).
-         */
-        put: operations["RetentionController_set_v1"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/v1/reports": {
         parameters: {
             query?: never;
@@ -3990,7 +4119,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/webhooks/mail/{provider}": {
+    "/v1/branding": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The branding of your tenant
+         * @description The brand colour (`#rrggbb`), the name mail is sent under, the logo’s path, whether the operators locked it and whether you may change it.
+         */
+        get: operations["BrandingController_get_v1"];
+        /**
+         * Change the branding of your tenant
+         * @description Who manages settings. Sets the colour and the sender name (the settings `branding.primaryColor` and `branding.mailFromName`, so audited as `setting.updated`): `null` removes one, an absent key stays. The colour is `#rrggbb` only. Answers 409 `branding_locked` while the operators have it locked.
+         */
+        put: operations["BrandingController_update_v1"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/logo": {
         parameters: {
             query?: never;
             header?: never;
@@ -4000,202 +4153,21 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * A mail provider reports bounces and complaints
-         * @description `postmark`: a Bounce, SpamComplaint or Delivery webhook (JSON) carrying POSTMARK_WEBHOOK_SECRET as the Basic Auth password or in X-Postmark-Webhook-Secret. `resend`: a Svix-signed webhook (`email.bounced`, `email.complained`, `email.delivered`), verified with RESEND_WEBHOOK_SECRET. `sendgrid`: the signed Event Webhook (a JSON array), verified with SENDGRID_WEBHOOK_PUBLIC_KEY. `ses`: an SNS HTTP(S) notification (JSON, sent as text/plain) from one of SES_SNS_TOPIC_ARNS, signed by SNS (SignatureVersion 1 or 2). A `SubscriptionConfirmation` from an allowed topic is confirmed; a `Notification` carrying SES bounces, complaints or deliveries is queued for the suppression list. Nothing is written in the request.
+         * Set the logo of your tenant
+         * @description Who manages settings. Multipart, the field `file`: a PNG, JPEG or WebP of at most 512 KB, recognized by its bytes (never SVG). Replaces the logo. Audited (`branding.logo-changed`). 409 `branding_locked` while locked.
          */
-        post: operations["MailEventsController_handle_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/mail/suppressions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
+        post: operations["BrandingController_upload_v1"];
         /**
-         * The suppression list, newest first
-         * @description Addresses mail is not sent to (`suppressedAt` set) and addresses being watched for soft bounces (`suppressedAt.isNull=true`). `?address=ada@example.com` (any case), `?address.endsWith=@example.com`, `?reason=complaint`, `?source=ses`; `?sort=-lastSeenAt`. Cursor pages.
+         * Remove the logo of your tenant
+         * @description Who manages settings. The file goes too. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
          */
-        get: operations["SuppressionsController_list_v1"];
-        put?: never;
-        /**
-         * Stop mail to an address
-         * @description A manual entry (`reason: manual`): nothing is sent to the address, essential mail included, until it is removed. Audited (`mailSuppression.created`).
-         */
-        post: operations["SuppressionsController_create_v1"];
-        delete?: never;
+        delete: operations["BrandingController_remove_v1"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/mail/suppressions/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** One entry */
-        get: operations["SuppressionsController_findOne_v1"];
-        put?: never;
-        post?: never;
-        /**
-         * Send mail to the address again
-         * @description Removes the entry. For a bounced address, once the mailbox is known to work; for a complaint, only when the person asked for mail again. A new bounce or complaint lists it again. Audited (`mailSuppression.deleted`).
-         */
-        delete: operations["SuppressionsController_remove_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/delegations": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Your delegations: those you gave, and those you hold */
-        get: operations["ApprovalDelegationsController_list_v1"];
-        put?: never;
-        /**
-         * Let someone decide your approvals for a while
-         * @description Between `startsAt` and `endsAt`, `toUserId` may decide the approvals assigned to you (of every subject, or of `subject`): the decision is recorded as theirs, on behalf of you. You may still decide yourself. Audited.
-         */
-        post: operations["ApprovalDelegationsController_create_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/delegations/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** End a delegation you gave */
-        delete: operations["ApprovalDelegationsController_remove_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/policy-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * What policies are made of: approver rules, stage modes, conditions
-         * @description Each with the JSON Schema of its parameters, which sit beside `type` in a policy. Projects register their own (docs/approvals.md, "Extending").
-         */
-        get: operations["ApprovalPoliciesController_types_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/policies": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The approvable actions and the policy each runs under */
-        get: operations["ApprovalPoliciesController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/policies/{key}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** One action's policy (`Note.publish`) */
-        get: operations["ApprovalPoliciesController_get_v1"];
-        /**
-         * Store a new version of an action's policy
-         * @description The whole policy, checked against the registered rule, mode and condition types (GET /v1/approvals/policy-types). New requests run under it; running ones keep the version they started with. Audited.
-         */
-        put: operations["ApprovalPoliciesController_set_v1"];
-        post?: never;
-        /**
-         * Back to the code's default policy
-         * @description Stored as a new version, so the history stays. Audited.
-         */
-        delete: operations["ApprovalPoliciesController_reset_v1"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Approval requests: your inbox, and what you asked for
-         * @description `?assignedToMe=true` is what waits for your decision now (yours, and those of people you stand in for); `?requestedByMe=true` what you asked for; `?decidedByMe=true` what you decided (yourself, or standing in for someone): the history. Filter by `status`, `subject`, `action`, `recordId`, `dueAt`; newest first, cursor pages. Each item has the `can` and the `etag` its `GET /v1/approvals/{id}` would give you (`?fields=` keeps them): decide from the list with `If-Match: <etag>`.
-         */
-        get: operations["ApprovalsController_list_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * One request: its stages, assignments, decisions and timeline
-         * @description `can` says what you may do with it now. With an ETag: send it as If-Match on a decision to be refused (412) if it changed since you read it.
-         */
-        get: operations["ApprovalsController_get_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/{id}/approve": {
+    "/v1/branding/logo/dark": {
         parameters: {
             query?: never;
             header?: never;
@@ -4205,117 +4177,21 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Approve
-         * @description As an approver of the current stage, or as the delegate of one (the decision is recorded as yours, on behalf of them). Approving again changes nothing.
+         * Set the dark-mode logo of your tenant
+         * @description Who manages settings. Like the logo (the same types, size and checks), shown by the web app in its dark theme. Replaces the dark-mode logo. Audited (`branding.logo-changed`, `variant: dark`). 409 `branding_locked` while locked.
          */
-        post: operations["ApprovalsController_approve_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/{id}/reject": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
+        post: operations["BrandingController_uploadDark_v1"];
         /**
-         * Reject (with a comment saying why)
-         * @description Ends the request as rejected, in every stage mode but a quorum that can still be reached.
+         * Remove the dark-mode logo of your tenant
+         * @description Who manages settings. The file goes too; the logo is shown in the dark theme again. Audited (`branding.logo-removed`). 409 `branding_locked` while locked.
          */
-        post: operations["ApprovalsController_reject_v1"];
-        delete?: never;
+        delete: operations["BrandingController_removeDark_v1"];
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/v1/approvals/{id}/request-changes": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send it back for changes (with a comment saying which)
-         * @description The requester may change the record, then resubmit (POST /v1/approvals/{id}/resubmit): a new round from the first stage.
-         */
-        post: operations["ApprovalsController_requestChanges_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/{id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Withdraw a request
-         * @description The requester, or someone who may cancel approvals (Approval.cancel). The approvers still waiting are told.
-         */
-        post: operations["ApprovalsController_cancel_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/{id}/abandon": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Abandon an approved request whose outcome would not apply
-         * @description For administrators (Approval.manage): an approved request whose workflow ended without applying it ends as failed (`abandoned`), so its record isn't locked any more, and `onFailed` runs. Refused while the workflow still runs or retries. Audited; the requester is told.
-         */
-        post: operations["ApprovalsController_abandon_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/approvals/{id}/resubmit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Resubmit after changes were requested
-         * @description The same request, a new round: from the first stage, its approvers resolved again, under the policy version it started with. `payload` replaces the proposed change (checked by the action's schema).
-         */
-        post: operations["ApprovalsController_resubmit_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/money/rates": {
+    "/v1/branding/{tenantId}/logo": {
         parameters: {
             query?: never;
             header?: never;
@@ -4323,10 +4199,10 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The exchange rates of a day
-         * @description The ECB’s euro reference rates of the newest working day on or before `date` (default today, UTC): units of each currency per euro, as decimal strings.
+         * The logo of a tenant
+         * @description No sign-in needed. The image itself (PNG, JPEG or WebP, the type its bytes say), cached for five minutes, with `X-Content-Type-Options: nosniff`, `Content-Security-Policy: default-src 'none'; sandbox` and `Cross-Origin-Resource-Policy: cross-origin` (other sites' mail pages and apps may show it).
          */
-        get: operations["MoneyController_ratesOn_v1"];
+        get: operations["PublicBrandingController_logo_v1"];
         put?: never;
         post?: never;
         delete?: never;
@@ -4335,7 +4211,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/v1/money/convert": {
+    "/v1/branding/{tenantId}/logo/dark": {
         parameters: {
             query?: never;
             header?: never;
@@ -4343,11 +4219,135 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Convert an amount
-         * @description Converts through the euro (triangulation) at the rates of the newest working day on or before `date` that has both currencies, rounded once to the target’s minor unit. The answer carries the rate, its day and its source.
+         * The dark-mode logo of a tenant
+         * @description No sign-in needed. Like the logo, with the same headers: the image the web app shows in its dark theme.
          */
-        get: operations["MoneyController_convert_v1"];
+        get: operations["PublicBrandingController_darkLogo_v1"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The tenant's custom domains and their verification
+         * @description `enabled`: whether this deployment serves custom domains (CUSTOM_DOMAINS); off, adding and verifying answer 404 `custom_domains_off`.
+         */
+        get: operations["BrandingDomainsController_list_v1"];
+        put?: never;
+        /**
+         * Add a custom domain: publish its `record`, then verify
+         * @description A public hostname (no IP, port or path; not the app's own domain or one under it; an internationalized name is stored in punycode). Point it at the app (a CNAME) and publish the TXT `record`. Audited (`branding.domain-added`). 409 `branding_locked` while the operators lock the branding.
+         */
+        post: operations["BrandingDomainsController_create_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains/{id}/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Look the TXT record up (on the queue): `verified` once found
+         * @description The domain routes to the tenant while its record resolves: checked again every night, a record gone stops it. 409 `branding_locked` while locked.
+         */
+        post: operations["BrandingDomainsController_verify_v1"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/domains/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Remove a custom domain: it stops routing at once
+         * @description No brand, no session and no new certificate on that host from then on. Audited (`branding.domain-removed`). Allowed while the branding is locked.
+         */
+        delete: operations["BrandingDomainsController_remove_v1"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/branding/host": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The brand of the host you reached the app on
+         * @description No sign-in needed. On a tenant's verified custom domain, its colours, sender name and logos; on any other host (the app's own, an unknown one, a domain removed), every field null. Never names the tenant otherwise. Not cached: a removed domain stops at once.
+         */
+        get: operations["HostBrandingController_host_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retention/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The retention rules and the tenant’s choice for each
+         * @description A declared rule does nothing until the tenant turns it on. `days` is the age after which a record is purged or anonymised (`action`); records under a legal hold are always kept.
+         */
+        get: operations["RetentionController_list_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retention/rules/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Turn a retention rule on or off, and set its days
+         * @description Takes effect at the next nightly run (04:10 in APP_TIMEZONE). Not below the rule’s `minDays`. Audited (`retention.policy-changed`).
+         */
+        put: operations["RetentionController_set_v1"];
         post?: never;
         delete?: never;
         options?: never;
@@ -6955,6 +6955,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        Money: {
+            /** @description The amount in major units, with exactly the currency’s decimals: "12.30", "1200" (JPY), "1.250" (KWD). */
+            amount: string;
+            /** @description ISO 4217. */
+            currency: string;
+        };
         IncomingWebhookSenderList: {
             items: components["schemas"]["IncomingWebhookSender"][];
         };
@@ -7018,6 +7024,124 @@ export interface components {
             duplicate: boolean;
             /** @description false: no handler is registered for the event type (acknowledged and ignored, so the sender does not retry). */
             handled: boolean;
+        };
+        ImportMapping: {
+            id: string;
+            /** @example notes */
+            importer: string;
+            name: string;
+            /**
+             * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
+             * @example {
+             *       "Title": "title",
+             *       "Internal": null
+             *     }
+             */
+            mapping: {
+                [key: string]: string | null;
+            };
+            /** @description Targets that are no longer columns you may import (the schema changed, or your permissions did): saving or using the mapping as it is would be refused; change them first. */
+            stale: string[];
+            /** Format: date-time */
+            createdAt: string;
+        };
+        NamingSeriesPage: {
+            items: components["schemas"]["NamingSeries"][];
+            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+            nextCursor: string | null;
+            /** @description With `page`: this page. */
+            page?: number;
+            /** @description With `page`: the next page; null: no more. */
+            nextPage?: number | null;
+            /** @description With `page` and `count=true`: ceil(total / limit). */
+            pageCount?: number;
+            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+            total?: number;
+            /** @description true: there are more than `total` (show "10,000+"). */
+            totalCapped?: boolean;
+        };
+        NamingSeries: {
+            /** Format: uuid */
+            id: string;
+            /**
+             * @description What it numbers: a permission subject, `Note`.
+             * @example Note
+             */
+            subject: string;
+            /** @example INV-.YYYY.-.MM.-.##### */
+            pattern: string;
+            /** @example Invoices */
+            label: string | null;
+            /** @description What a new record takes when its body names no series and no series' conditions hold for it. */
+            isDefault: boolean;
+            /** @example invoiceDate */
+            dateField: string | null;
+            conditions: components["schemas"]["NamingCondition"][];
+            priority: number;
+            /**
+             * @description The number it gives next, if taken now; the fields it prints show as `{field}`.
+             * @example INV-2026-10-00043
+             */
+            example: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        NamingCondition: {
+            /** @example region */
+            field: string;
+            /**
+             * @description Compared as numbers for number fields, as ISO dates for date fields, else as text.
+             * @enum {string}
+             */
+            op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
+            /** @example EU */
+            value: string | number | boolean;
+        };
+        NumberedSubjectList: {
+            items: components["schemas"]["NumberedSubject"][];
+        };
+        NumberedSubject: {
+            /** @example Note */
+            subject: string;
+            /**
+             * @description The format in code: used while the subject has no series.
+             * @example NOTE-.YYYY.-.#####
+             */
+            declaredPattern: string;
+            /** @description The fields a pattern may print (`{title}`; not `boolean` ones), a series take its date from (`date`, `datetime`) or its conditions test. */
+            fields: {
+                /** @example title */
+                name: string;
+                /** @enum {string} */
+                kind: "text" | "number" | "date" | "datetime" | "boolean";
+            }[];
+        };
+        NamingVariableList: {
+            items: components["schemas"]["NamingVariable"][];
+        };
+        NamingVariable: {
+            /** @example FY */
+            name: string;
+            description: string;
+        };
+        NamingCounter: {
+            /**
+             * @description What the pattern prints around its counter now; patterns printing the same share the counter.
+             * @example INV-2026-10-{#}
+             */
+            key: string;
+            /**
+             * @description The last value taken (0 when none).
+             * @example 42
+             */
+            current: number;
+            /**
+             * @description The number the next record gets.
+             * @example INV-2026-10-00043
+             */
+            next: string;
         };
         Attachment: {
             /** Format: uuid */
@@ -7198,216 +7322,6 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-        };
-        NamingSeriesPage: {
-            items: components["schemas"]["NamingSeries"][];
-            /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-            nextCursor: string | null;
-            /** @description With `page`: this page. */
-            page?: number;
-            /** @description With `page`: the next page; null: no more. */
-            nextPage?: number | null;
-            /** @description With `page` and `count=true`: ceil(total / limit). */
-            pageCount?: number;
-            /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-            total?: number;
-            /** @description true: there are more than `total` (show "10,000+"). */
-            totalCapped?: boolean;
-        };
-        NamingSeries: {
-            /** Format: uuid */
-            id: string;
-            /**
-             * @description What it numbers: a permission subject, `Note`.
-             * @example Note
-             */
-            subject: string;
-            /** @example INV-.YYYY.-.MM.-.##### */
-            pattern: string;
-            /** @example Invoices */
-            label: string | null;
-            /** @description What a new record takes when its body names no series and no series' conditions hold for it. */
-            isDefault: boolean;
-            /** @example invoiceDate */
-            dateField: string | null;
-            conditions: components["schemas"]["NamingCondition"][];
-            priority: number;
-            /**
-             * @description The number it gives next, if taken now; the fields it prints show as `{field}`.
-             * @example INV-2026-10-00043
-             */
-            example: string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        NamingCondition: {
-            /** @example region */
-            field: string;
-            /**
-             * @description Compared as numbers for number fields, as ISO dates for date fields, else as text.
-             * @enum {string}
-             */
-            op: "eq" | "ne" | "gt" | "gte" | "lt" | "lte";
-            /** @example EU */
-            value: string | number | boolean;
-        };
-        NumberedSubjectList: {
-            items: components["schemas"]["NumberedSubject"][];
-        };
-        NumberedSubject: {
-            /** @example Note */
-            subject: string;
-            /**
-             * @description The format in code: used while the subject has no series.
-             * @example NOTE-.YYYY.-.#####
-             */
-            declaredPattern: string;
-            /** @description The fields a pattern may print (`{title}`; not `boolean` ones), a series take its date from (`date`, `datetime`) or its conditions test. */
-            fields: {
-                /** @example title */
-                name: string;
-                /** @enum {string} */
-                kind: "text" | "number" | "date" | "datetime" | "boolean";
-            }[];
-        };
-        NamingVariableList: {
-            items: components["schemas"]["NamingVariable"][];
-        };
-        NamingVariable: {
-            /** @example FY */
-            name: string;
-            description: string;
-        };
-        NamingCounter: {
-            /**
-             * @description What the pattern prints around its counter now; patterns printing the same share the counter.
-             * @example INV-2026-10-{#}
-             */
-            key: string;
-            /**
-             * @description The last value taken (0 when none).
-             * @example 42
-             */
-            current: number;
-            /**
-             * @description The number the next record gets.
-             * @example INV-2026-10-00043
-             */
-            next: string;
-        };
-        BusinessCalendarList: {
-            items: components["schemas"]["BusinessCalendar"][];
-        };
-        BusinessCalendar: {
-            /** Format: uuid */
-            id: string;
-            /** @example Support desk */
-            name: string;
-            /** @example Europe/Berlin */
-            timezone: string;
-            /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
-            hours: {
-                /** @example 09:00 */
-                start: string;
-                /** @example 17:00 */
-                end: string;
-                /** @description 0 Sunday … 6 Saturday. */
-                weekday: number;
-            }[];
-            exceptions: components["schemas"]["CalendarException"][];
-            /** @description Starts at 1; +1 whenever the hours, the zone or the exceptions change. Deadlines already computed keep their value: compare the version they carry. */
-            version: number;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        CalendarException: {
-            /**
-             * Format: date
-             * @description A date in the calendar's zone.
-             * @example 2026-12-25
-             */
-            date: string;
-            /** @example Christmas Day */
-            name: string;
-            /** @description Special hours that day; left out: closed all day. */
-            hours?: {
-                /** @example 09:00 */
-                start: string;
-                /** @example 17:00 */
-                end: string;
-            }[];
-        };
-        CalendarDeadline: {
-            /** Format: date-time */
-            due: string;
-            /** @description The calendar version it was computed with: store it with the deadline. */
-            calendarVersion: number;
-        };
-        RecordSchedule: {
-            /** Format: uuid */
-            id: string;
-            /** @example Weekly review */
-            name: string;
-            /** @example notes */
-            importer: string;
-            /**
-             * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
-             * @example {
-             *       "title": "Weekly review",
-             *       "body": "Check the board."
-             *     }
-             */
-            template: {
-                [key: string]: unknown;
-            };
-            /**
-             * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
-             * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
-             */
-            rrule: string;
-            /**
-             * Format: date
-             * @description The first date that may occur, in the schedule's zone.
-             * @example 2026-11-02
-             */
-            startDate: string;
-            /**
-             * @description Time of day of each occurrence, in the schedule's zone.
-             * @example 08:30
-             */
-            time: string;
-            /** @example Europe/Berlin */
-            timezone: string;
-            /** Format: uuid */
-            calendarId: string | null;
-            /** @enum {string} */
-            status: "active" | "paused" | "ended";
-            /** @description `completed`, `ended` (by its owner), `owner_inactive`, `import_not_allowed`, `template_invalid`. */
-            endReason: string | null;
-            /** @description Occurrences handled: created, or skipped after failing for good. */
-            occurrences: number;
-            maxOccurrences: number | null;
-            /** @description Failed attempts at the occurrence due now (3 skip it). */
-            failures: number;
-            lastError: string | null;
-            /** Format: date-time */
-            lastRunAt: string | null;
-            /** @enum {string|null} */
-            lastStatus: "created" | "failed" | null;
-            /** Format: date-time */
-            nextRunAt: string | null;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        RecordSchedulePreview: {
-            /** @description The next moments records would be created, from now. */
-            occurrences: string[];
         };
         SavedViewPage: {
             items: components["schemas"]["SavedView"][];
@@ -7603,6 +7517,118 @@ export interface components {
         } | {
             not: components["schemas"]["FormCondition"];
         };
+        BusinessCalendarList: {
+            items: components["schemas"]["BusinessCalendar"][];
+        };
+        BusinessCalendar: {
+            /** Format: uuid */
+            id: string;
+            /** @example Support desk */
+            name: string;
+            /** @example Europe/Berlin */
+            timezone: string;
+            /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+            hours: {
+                /** @example 09:00 */
+                start: string;
+                /** @example 17:00 */
+                end: string;
+                /** @description 0 Sunday … 6 Saturday. */
+                weekday: number;
+            }[];
+            exceptions: components["schemas"]["CalendarException"][];
+            /** @description Starts at 1; +1 whenever the hours, the zone or the exceptions change. Deadlines already computed keep their value: compare the version they carry. */
+            version: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        CalendarException: {
+            /**
+             * Format: date
+             * @description A date in the calendar's zone.
+             * @example 2026-12-25
+             */
+            date: string;
+            /** @example Christmas Day */
+            name: string;
+            /** @description Special hours that day; left out: closed all day. */
+            hours?: {
+                /** @example 09:00 */
+                start: string;
+                /** @example 17:00 */
+                end: string;
+            }[];
+        };
+        CalendarDeadline: {
+            /** Format: date-time */
+            due: string;
+            /** @description The calendar version it was computed with: store it with the deadline. */
+            calendarVersion: number;
+        };
+        RecordSchedule: {
+            /** Format: uuid */
+            id: string;
+            /** @example Weekly review */
+            name: string;
+            /** @example notes */
+            importer: string;
+            /**
+             * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+             * @example {
+             *       "title": "Weekly review",
+             *       "body": "Check the board."
+             *     }
+             */
+            template: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+             * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+             */
+            rrule: string;
+            /**
+             * Format: date
+             * @description The first date that may occur, in the schedule's zone.
+             * @example 2026-11-02
+             */
+            startDate: string;
+            /**
+             * @description Time of day of each occurrence, in the schedule's zone.
+             * @example 08:30
+             */
+            time: string;
+            /** @example Europe/Berlin */
+            timezone: string;
+            /** Format: uuid */
+            calendarId: string | null;
+            /** @enum {string} */
+            status: "active" | "paused" | "ended";
+            /** @description `completed`, `ended` (by its owner), `owner_inactive`, `import_not_allowed`, `template_invalid`. */
+            endReason: string | null;
+            /** @description Occurrences handled: created, or skipped after failing for good. */
+            occurrences: number;
+            maxOccurrences: number | null;
+            /** @description Failed attempts at the occurrence due now (3 skip it). */
+            failures: number;
+            lastError: string | null;
+            /** Format: date-time */
+            lastRunAt: string | null;
+            /** @enum {string|null} */
+            lastStatus: "created" | "failed" | null;
+            /** Format: date-time */
+            nextRunAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        RecordSchedulePreview: {
+            /** @description The next moments records would be created, from now. */
+            occurrences: string[];
+        };
         DataQualitySummary: {
             /** @description The newest scan (running or not): how fresh the findings are. */
             lastScan: components["schemas"]["DataQualityScan"] | null;
@@ -7678,26 +7704,6 @@ export interface components {
             resolved: boolean;
             finding: components["schemas"]["DataQualityFinding"] | null;
         };
-        ImportMapping: {
-            id: string;
-            /** @example notes */
-            importer: string;
-            name: string;
-            /**
-             * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
-             * @example {
-             *       "Title": "title",
-             *       "Internal": null
-             *     }
-             */
-            mapping: {
-                [key: string]: string | null;
-            };
-            /** @description Targets that are no longer columns you may import (the schema changed, or your permissions did): saving or using the mapping as it is would be refused; change them first. */
-            stale: string[];
-            /** Format: date-time */
-            createdAt: string;
-        };
         RetentionRuleList: {
             items: components["schemas"]["RetentionRule"][];
         };
@@ -7720,12 +7726,6 @@ export interface components {
             lastRunAt: string | null;
             /** @description Records the last run purged or anonymised. */
             lastCount: number | null;
-        };
-        Money: {
-            /** @description The amount in major units, with exactly the currency’s decimals: "12.30", "1200" (JPY), "1.250" (KWD). */
-            amount: string;
-            /** @description ISO 4217. */
-            currency: string;
         };
         AuditPage: {
             items: components["schemas"]["AuditEntry"][];
@@ -8380,6 +8380,1696 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    MoneyController_ratesOn_v1: {
+        parameters: {
+            query?: {
+                /** @description A day (yyyy-mm-dd): the rates of the newest working day on or before it. Default: today (UTC). */
+                date?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Whose rates: `ecb`. */
+                        source: string;
+                        /** @description The currency the rates are quoted against: EUR. */
+                        base: string;
+                        /**
+                         * Format: date
+                         * @description The day of these rates.
+                         */
+                        day: string;
+                        /** @description Units of each currency per one `base`, as decimal strings: { "USD": "1.1652" }. */
+                        rates: {
+                            [key: string]: string;
+                        };
+                    };
+                };
+            };
+            /** @description A malformed date. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `rates_unavailable`: no rates on or before that day. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MoneyController_convert_v1: {
+        parameters: {
+            query: {
+                /** @description The amount to convert, in major units: "12.34". */
+                amount: string;
+                /** @description The amount’s currency. */
+                currency: string;
+                /** @description The currency to convert to. */
+                to: string;
+                /** @description A day (yyyy-mm-dd): the rates of the newest working day on or before it. Default: today (UTC). */
+                date?: string;
+                /** @description How a result between two minor units is rounded: half-up (ties away from zero, the default), half-even (banker’s), half-down, up, down, ceiling, floor. */
+                rounding?: "half-up" | "half-even" | "half-down" | "up" | "down" | "ceiling" | "floor";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description The amount asked for. */
+                        from: components["schemas"]["Money"];
+                        /** @description The converted amount, rounded once to the target’s minor unit. */
+                        amount: components["schemas"]["Money"];
+                        /** @description Target units per source unit, to 10 decimals (half-up), to show and store. The amount is computed from the exact legs, not from it. */
+                        rate: string;
+                        /**
+                         * Format: date
+                         * @description The day of the rates used: the newest with both currencies on or before `date`.
+                         */
+                        rateDate: string;
+                        /** @description Whose rates: `ecb` (`identity` for the same currency). */
+                        source: string;
+                        /** @description The currency both legs are quoted against. */
+                        base: string;
+                        /** @description Units of the source and the target currency per one `base` (1 for the base). */
+                        legs: {
+                            from: string;
+                            to: string;
+                        };
+                        rounding: string;
+                    };
+                };
+            };
+            /** @description An unknown currency, a malformed amount, or more decimals than the currency has. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid credentials. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `rate_unavailable`: no rate for a currency on or before that day (the ECB doesn’t publish it, or none was fetched yet). */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_state_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        stats: {
+                            pending: number;
+                            ready: number;
+                            leased: number;
+                            deadLetters: number;
+                            oldestDueAt: number | null;
+                            lagMs: number;
+                            inFlight: number;
+                        };
+                        deadLetters: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            attempts: number;
+                            lastError: string | null;
+                            /** @enum {string} */
+                            reason: "exhausted" | "rejected";
+                            createdAt: number;
+                            failedAt: number;
+                            history: {
+                                attempt: number;
+                                at: number;
+                                error: string;
+                                transport?: string;
+                            }[];
+                            payload: unknown;
+                            headers: {
+                                [key: string]: string;
+                            };
+                        }[];
+                        notifications: {
+                            undelivered: number;
+                            undeliveredCapped: boolean;
+                        };
+                        canManage: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_events_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description A stream of `data: {source, at, type, …}` messages, each one JSON: the schema describes that `data`. Errors, payloads and headers are masked as in the logs and cut; no stack traces. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": ({
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-started";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-resumed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        run: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-suspended";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        wakeAt: number | null;
+                        waits: {
+                            signal: string;
+                            key: string | null;
+                        }[];
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-compensating";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-completed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        output: unknown;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-failed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-cancelled";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-compensation-failed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "step-completed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        step: string;
+                        attempt: number;
+                        durationMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "step-failed";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        step: string;
+                        attempt: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        retryAt: number | null;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "step-compensated";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        step: string;
+                        attempt: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "child-started";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        child: string;
+                        childWorkflow: string;
+                        childVersion: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "signal-received";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        wait: string;
+                        signal: string;
+                        signalId: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "signal-timed-out";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        wait: string;
+                        signal: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "journal-large";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        entries: number;
+                        bytes: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "custom-status";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        status: unknown;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-retried";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        /** @enum {string} */
+                        from: "failed" | "compensation_failed";
+                        error: {
+                            name?: string;
+                            message: string;
+                        } | null;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "workflow-deleted";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        status: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "workflow";
+                        at: number;
+                        /** @enum {string} */
+                        type: "schedule-skipped";
+                        id: string;
+                        workflow: string;
+                        version: number;
+                        /** @enum {string} */
+                        reason: "missed" | "overlap";
+                        from: number;
+                        to: number;
+                    }) | ({
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "delivered";
+                        delivery: {
+                            id: string;
+                            messageId: string;
+                            endpointId: string;
+                            tenant: string | null;
+                            type: string;
+                            /** @enum {string} */
+                            status: "pending" | "succeeded" | "failed";
+                            attempts: number;
+                            nextAttemptAt: number | null;
+                            lastAttemptAt: number | null;
+                            lastStatusCode: number | null;
+                            lastError: string | null;
+                            /** @enum {string|null} */
+                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                            createdAt: number;
+                            completedAt: number | null;
+                        };
+                        statusCode: number;
+                        attempt: number;
+                        durationMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "retry-scheduled";
+                        delivery: {
+                            id: string;
+                            messageId: string;
+                            endpointId: string;
+                            tenant: string | null;
+                            type: string;
+                            /** @enum {string} */
+                            status: "pending" | "succeeded" | "failed";
+                            attempts: number;
+                            nextAttemptAt: number | null;
+                            lastAttemptAt: number | null;
+                            lastStatusCode: number | null;
+                            lastError: string | null;
+                            /** @enum {string|null} */
+                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                            createdAt: number;
+                            completedAt: number | null;
+                        };
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        statusCode: number | null;
+                        attempt: number;
+                        delayMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "delivery-failed";
+                        delivery: {
+                            id: string;
+                            messageId: string;
+                            endpointId: string;
+                            tenant: string | null;
+                            type: string;
+                            /** @enum {string} */
+                            status: "pending" | "succeeded" | "failed";
+                            attempts: number;
+                            nextAttemptAt: number | null;
+                            lastAttemptAt: number | null;
+                            lastStatusCode: number | null;
+                            lastError: string | null;
+                            /** @enum {string|null} */
+                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
+                            createdAt: number;
+                            completedAt: number | null;
+                        };
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        statusCode: number | null;
+                        attempt: number;
+                        /** @enum {string} */
+                        reason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted";
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "endpoint-disabled";
+                        endpointId: string;
+                        tenant: string | null;
+                        /** @enum {string} */
+                        reason: "failing" | "gone";
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "destination-blocked";
+                        endpointId: string;
+                        tenant: string | null;
+                        reason: string;
+                        address?: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "webhooks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "verification-failed";
+                        receiver: string;
+                        reason: string;
+                    }) | ({
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "published";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                        transport: string;
+                        durationMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "retry-scheduled";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                        transport?: string;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        attempt: number;
+                        delayMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "dead-lettered";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                        transport?: string;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        attempt: number;
+                        /** @enum {string} */
+                        reason: "exhausted" | "rejected";
+                    } | {
+                        /** @enum {string} */
+                        source: "outbox";
+                        at: number;
+                        /** @enum {string} */
+                        type: "lease-lost";
+                        message: {
+                            id: string;
+                            topic: string;
+                            key: string | null;
+                            createdAt: number;
+                            availableAt: number;
+                            attempts: number;
+                            lastError: string | null;
+                            headers: {
+                                [key: string]: string;
+                            };
+                            payload: unknown;
+                        };
+                    }) | ({
+                        /** @enum {string} */
+                        source: "idempotency";
+                        at: number;
+                        /** @enum {string} */
+                        context: "http" | "graphql" | "rpc";
+                        handler: string;
+                        scope?: string;
+                        /** @enum {string} */
+                        type: "replayed";
+                        key: string;
+                        status: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "idempotency";
+                        at: number;
+                        /** @enum {string} */
+                        context: "http" | "graphql" | "rpc";
+                        handler: string;
+                        scope?: string;
+                        /** @enum {string} */
+                        type: "rejected";
+                        key?: string;
+                        code: string;
+                        status: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "idempotency";
+                        at: number;
+                        /** @enum {string} */
+                        context: "http" | "graphql" | "rpc";
+                        handler: string;
+                        scope?: string;
+                        /** @enum {string} */
+                        type: "lock-lost";
+                        key: string;
+                        /** @enum {string} */
+                        phase: "extend" | "complete" | "release";
+                    }) | ({
+                        /** @enum {string} */
+                        source: "locks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "lock-lost";
+                        key: string;
+                        fencingToken: number;
+                        /** @enum {string} */
+                        detectedBy: "renewal" | "deadline";
+                    } | {
+                        /** @enum {string} */
+                        source: "locks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "leadership-acquired";
+                        key: string;
+                        fencingToken: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "locks";
+                        at: number;
+                        /** @enum {string} */
+                        type: "leadership-lost";
+                        key: string;
+                        fencingToken: number;
+                        /** @enum {string} */
+                        reason: "lost" | "released";
+                    }) | ({
+                        /** @enum {string} */
+                        source: "mail";
+                        at: number;
+                        messageId: string;
+                        mail?: string;
+                        recipients: string[];
+                        subject: string;
+                        transport: string;
+                        attempts: number;
+                        durationMs: number;
+                        /** @enum {string} */
+                        type: "sent";
+                        providerMessageId?: string;
+                    } | {
+                        /** @enum {string} */
+                        source: "mail";
+                        at: number;
+                        messageId: string;
+                        mail?: string;
+                        recipients: string[];
+                        subject: string;
+                        transport: string;
+                        attempts: number;
+                        durationMs: number;
+                        /** @enum {string} */
+                        type: "failed";
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                        permanent: boolean;
+                    }) | ({
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "retry";
+                        attempt: number;
+                        delayMs: number;
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "timeout";
+                        timeoutMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-open";
+                        /** @enum {string} */
+                        from: "closed" | "open" | "half-open";
+                        /** @enum {string} */
+                        to: "open";
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-half-open";
+                        /** @enum {string} */
+                        from: "closed" | "open" | "half-open";
+                        /** @enum {string} */
+                        to: "half-open";
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-closed";
+                        /** @enum {string} */
+                        from: "closed" | "open" | "half-open";
+                        /** @enum {string} */
+                        to: "closed";
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "circuit-rejected";
+                        retryAfterMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "bulkhead-rejected";
+                        /** @enum {string} */
+                        reason: "full" | "queue-timeout";
+                        active: number;
+                        queued: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "rate-limited";
+                        retryAfterMs: number;
+                    } | {
+                        /** @enum {string} */
+                        source: "resilience";
+                        at: number;
+                        policy: string;
+                        origin?: string;
+                        /** @enum {string} */
+                        type: "fallback";
+                        error: {
+                            name?: string;
+                            message: string;
+                        };
+                    });
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_queueOverview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            name: string;
+                            paused: boolean;
+                            counts: {
+                                waiting: number;
+                                active: number;
+                                delayed: number;
+                                completed: number;
+                                failed: number;
+                            };
+                            recentFailures: {
+                                id: (string | number) | null;
+                                name: string;
+                                attempts: number;
+                                reason: string | null;
+                                /** Format: date-time */
+                                failedAt: string | null;
+                            }[];
+                        }[];
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_diagnosticsOverview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @enum {string} */
+                            check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
+                            /** @enum {string} */
+                            state: "ok" | "configured" | "disabled" | "unconfigured" | "unavailable";
+                            driver: string | null;
+                            detail: string | null;
+                            hint: string | null;
+                            testable: boolean;
+                        }[];
+                        canTest: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_testDiagnostic_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                check: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
+                        ok: boolean;
+                        durationMs: number;
+                        detail: string | null;
+                        hint: string | null;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_retryFailed_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        retried: number;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_pauseQueue_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        name: string;
+                        paused: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_resumeQueue_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        name: string;
+                        paused: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_previewBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    tenantId?: string;
+                    /** @enum {boolean} */
+                    global?: true;
+                    topic?: string;
+                    type?: string;
+                    template?: string;
+                    /** Format: date-time */
+                    before?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        outbox: {
+                            pending: {
+                                total: number;
+                                groups: {
+                                    topic: string;
+                                    type: string | null;
+                                    count: number;
+                                    mandatory: boolean;
+                                }[];
+                            };
+                            deadLetters: {
+                                total: number;
+                                groups: {
+                                    topic: string;
+                                    type: string | null;
+                                    count: number;
+                                    mandatory: boolean;
+                                }[];
+                            };
+                            leased: number;
+                        };
+                        mail: {
+                            groups: {
+                                state: string;
+                                template: string;
+                                count: number;
+                                essential: number;
+                            }[];
+                            capped: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_discardBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    scope: {
+                        /** Format: uuid */
+                        tenantId?: string;
+                        /** @enum {boolean} */
+                        global?: true;
+                        topic?: string;
+                        type?: string;
+                        template?: string;
+                        /** Format: date-time */
+                        before?: string;
+                    };
+                    /** @enum {string} */
+                    target: "outbox" | "mail";
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        count: number;
+                        more: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_retryBacklog_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    scope: {
+                        /** Format: uuid */
+                        tenantId?: string;
+                        /** @enum {boolean} */
+                        global?: true;
+                        topic?: string;
+                        type?: string;
+                        template?: string;
+                        /** Format: date-time */
+                        before?: string;
+                    };
+                    /** @enum {string} */
+                    target: "outbox" | "mail";
+                    limit?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        count: number;
+                        more: boolean;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_requeue_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ids?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        requeued: number;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    OpsController_purge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ids?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        purged: number;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_export_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bundle: {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        valid: boolean;
+                        errors: {
+                            ref: string | null;
+                            message: string;
+                        }[];
+                        warnings: {
+                            ref: string | null;
+                            message: string;
+                        }[];
+                        changes: {
+                            /** @enum {string} */
+                            type: "setting" | "role";
+                            ref: string;
+                            /** @enum {string} */
+                            action: "create" | "update" | "unchanged";
+                        }[];
+                        targetVersion: string;
+                    };
+                };
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ConfigBundlesController_apply_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    bundle: {
+                        /** @enum {string} */
+                        format: "config-bundle";
+                        version: number;
+                        /** Format: date-time */
+                        exportedAt: string;
+                        checksum: string;
+                        contents: {
+                            settings: {
+                                key: string;
+                                value: unknown;
+                                rollout: number | null;
+                                rules: {
+                                    [key: string]: unknown;
+                                }[];
+                            }[];
+                            roles: {
+                                name: string;
+                                description: string;
+                                permissions: {
+                                    subject: string;
+                                    action: string;
+                                    conditions: {
+                                        key: string;
+                                        params?: {
+                                            [key: string]: unknown;
+                                        };
+                                    }[];
+                                    fields?: string[];
+                                }[];
+                            }[];
+                        };
+                    };
+                    targetVersion: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        created: number;
+                        updated: number;
+                        unchanged: number;
+                    };
+                };
+            };
+            /** @description validation_failed: the bundle is invalid here (the preview lists why). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description config_changed: the tenant changed since the preview. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     WebhookEndpointsController_list_v1: {
         parameters: {
             query?: never;
@@ -10299,1566 +11989,6 @@ export interface operations {
             };
         };
     };
-    OpsController_state_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        stats: {
-                            pending: number;
-                            ready: number;
-                            leased: number;
-                            deadLetters: number;
-                            oldestDueAt: number | null;
-                            lagMs: number;
-                            inFlight: number;
-                        };
-                        deadLetters: {
-                            id: string;
-                            topic: string;
-                            key: string | null;
-                            attempts: number;
-                            lastError: string | null;
-                            /** @enum {string} */
-                            reason: "exhausted" | "rejected";
-                            createdAt: number;
-                            failedAt: number;
-                            history: {
-                                attempt: number;
-                                at: number;
-                                error: string;
-                                transport?: string;
-                            }[];
-                            payload: unknown;
-                            headers: {
-                                [key: string]: string;
-                            };
-                        }[];
-                        notifications: {
-                            undelivered: number;
-                            undeliveredCapped: boolean;
-                        };
-                        canManage: boolean;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_events_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description A stream of `data: {source, at, type, …}` messages, each one JSON: the schema describes that `data`. Errors, payloads and headers are masked as in the logs and cut; no stack traces. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/event-stream": ({
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-started";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-resumed";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        run: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-suspended";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        wakeAt: number | null;
-                        waits: {
-                            signal: string;
-                            key: string | null;
-                        }[];
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-compensating";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-completed";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        output: unknown;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-failed";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-cancelled";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-compensation-failed";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "step-completed";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        step: string;
-                        attempt: number;
-                        durationMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "step-failed";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        step: string;
-                        attempt: number;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                        retryAt: number | null;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "step-compensated";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        step: string;
-                        attempt: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "child-started";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        child: string;
-                        childWorkflow: string;
-                        childVersion: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "signal-received";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        wait: string;
-                        signal: string;
-                        signalId: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "signal-timed-out";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        wait: string;
-                        signal: string;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "journal-large";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        entries: number;
-                        bytes: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "custom-status";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        status: unknown;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-retried";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        /** @enum {string} */
-                        from: "failed" | "compensation_failed";
-                        error: {
-                            name?: string;
-                            message: string;
-                        } | null;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "workflow-deleted";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        status: string;
-                    } | {
-                        /** @enum {string} */
-                        source: "workflow";
-                        at: number;
-                        /** @enum {string} */
-                        type: "schedule-skipped";
-                        id: string;
-                        workflow: string;
-                        version: number;
-                        /** @enum {string} */
-                        reason: "missed" | "overlap";
-                        from: number;
-                        to: number;
-                    }) | ({
-                        /** @enum {string} */
-                        source: "webhooks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "delivered";
-                        delivery: {
-                            id: string;
-                            messageId: string;
-                            endpointId: string;
-                            tenant: string | null;
-                            type: string;
-                            /** @enum {string} */
-                            status: "pending" | "succeeded" | "failed";
-                            attempts: number;
-                            nextAttemptAt: number | null;
-                            lastAttemptAt: number | null;
-                            lastStatusCode: number | null;
-                            lastError: string | null;
-                            /** @enum {string|null} */
-                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                            createdAt: number;
-                            completedAt: number | null;
-                        };
-                        statusCode: number;
-                        attempt: number;
-                        durationMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "webhooks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "retry-scheduled";
-                        delivery: {
-                            id: string;
-                            messageId: string;
-                            endpointId: string;
-                            tenant: string | null;
-                            type: string;
-                            /** @enum {string} */
-                            status: "pending" | "succeeded" | "failed";
-                            attempts: number;
-                            nextAttemptAt: number | null;
-                            lastAttemptAt: number | null;
-                            lastStatusCode: number | null;
-                            lastError: string | null;
-                            /** @enum {string|null} */
-                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                            createdAt: number;
-                            completedAt: number | null;
-                        };
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                        statusCode: number | null;
-                        attempt: number;
-                        delayMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "webhooks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "delivery-failed";
-                        delivery: {
-                            id: string;
-                            messageId: string;
-                            endpointId: string;
-                            tenant: string | null;
-                            type: string;
-                            /** @enum {string} */
-                            status: "pending" | "succeeded" | "failed";
-                            attempts: number;
-                            nextAttemptAt: number | null;
-                            lastAttemptAt: number | null;
-                            lastStatusCode: number | null;
-                            lastError: string | null;
-                            /** @enum {string|null} */
-                            failureReason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted" | null;
-                            createdAt: number;
-                            completedAt: number | null;
-                        };
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                        statusCode: number | null;
-                        attempt: number;
-                        /** @enum {string} */
-                        reason: "exhausted" | "rejected" | "endpoint-disabled" | "endpoint-deleted";
-                    } | {
-                        /** @enum {string} */
-                        source: "webhooks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "endpoint-disabled";
-                        endpointId: string;
-                        tenant: string | null;
-                        /** @enum {string} */
-                        reason: "failing" | "gone";
-                    } | {
-                        /** @enum {string} */
-                        source: "webhooks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "destination-blocked";
-                        endpointId: string;
-                        tenant: string | null;
-                        reason: string;
-                        address?: string;
-                    } | {
-                        /** @enum {string} */
-                        source: "webhooks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "verification-failed";
-                        receiver: string;
-                        reason: string;
-                    }) | ({
-                        /** @enum {string} */
-                        source: "outbox";
-                        at: number;
-                        /** @enum {string} */
-                        type: "published";
-                        message: {
-                            id: string;
-                            topic: string;
-                            key: string | null;
-                            createdAt: number;
-                            availableAt: number;
-                            attempts: number;
-                            lastError: string | null;
-                            headers: {
-                                [key: string]: string;
-                            };
-                            payload: unknown;
-                        };
-                        transport: string;
-                        durationMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "outbox";
-                        at: number;
-                        /** @enum {string} */
-                        type: "retry-scheduled";
-                        message: {
-                            id: string;
-                            topic: string;
-                            key: string | null;
-                            createdAt: number;
-                            availableAt: number;
-                            attempts: number;
-                            lastError: string | null;
-                            headers: {
-                                [key: string]: string;
-                            };
-                            payload: unknown;
-                        };
-                        transport?: string;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                        attempt: number;
-                        delayMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "outbox";
-                        at: number;
-                        /** @enum {string} */
-                        type: "dead-lettered";
-                        message: {
-                            id: string;
-                            topic: string;
-                            key: string | null;
-                            createdAt: number;
-                            availableAt: number;
-                            attempts: number;
-                            lastError: string | null;
-                            headers: {
-                                [key: string]: string;
-                            };
-                            payload: unknown;
-                        };
-                        transport?: string;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                        attempt: number;
-                        /** @enum {string} */
-                        reason: "exhausted" | "rejected";
-                    } | {
-                        /** @enum {string} */
-                        source: "outbox";
-                        at: number;
-                        /** @enum {string} */
-                        type: "lease-lost";
-                        message: {
-                            id: string;
-                            topic: string;
-                            key: string | null;
-                            createdAt: number;
-                            availableAt: number;
-                            attempts: number;
-                            lastError: string | null;
-                            headers: {
-                                [key: string]: string;
-                            };
-                            payload: unknown;
-                        };
-                    }) | ({
-                        /** @enum {string} */
-                        source: "idempotency";
-                        at: number;
-                        /** @enum {string} */
-                        context: "http" | "graphql" | "rpc";
-                        handler: string;
-                        scope?: string;
-                        /** @enum {string} */
-                        type: "replayed";
-                        key: string;
-                        status: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "idempotency";
-                        at: number;
-                        /** @enum {string} */
-                        context: "http" | "graphql" | "rpc";
-                        handler: string;
-                        scope?: string;
-                        /** @enum {string} */
-                        type: "rejected";
-                        key?: string;
-                        code: string;
-                        status: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "idempotency";
-                        at: number;
-                        /** @enum {string} */
-                        context: "http" | "graphql" | "rpc";
-                        handler: string;
-                        scope?: string;
-                        /** @enum {string} */
-                        type: "lock-lost";
-                        key: string;
-                        /** @enum {string} */
-                        phase: "extend" | "complete" | "release";
-                    }) | ({
-                        /** @enum {string} */
-                        source: "locks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "lock-lost";
-                        key: string;
-                        fencingToken: number;
-                        /** @enum {string} */
-                        detectedBy: "renewal" | "deadline";
-                    } | {
-                        /** @enum {string} */
-                        source: "locks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "leadership-acquired";
-                        key: string;
-                        fencingToken: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "locks";
-                        at: number;
-                        /** @enum {string} */
-                        type: "leadership-lost";
-                        key: string;
-                        fencingToken: number;
-                        /** @enum {string} */
-                        reason: "lost" | "released";
-                    }) | ({
-                        /** @enum {string} */
-                        source: "mail";
-                        at: number;
-                        messageId: string;
-                        mail?: string;
-                        recipients: string[];
-                        subject: string;
-                        transport: string;
-                        attempts: number;
-                        durationMs: number;
-                        /** @enum {string} */
-                        type: "sent";
-                        providerMessageId?: string;
-                    } | {
-                        /** @enum {string} */
-                        source: "mail";
-                        at: number;
-                        messageId: string;
-                        mail?: string;
-                        recipients: string[];
-                        subject: string;
-                        transport: string;
-                        attempts: number;
-                        durationMs: number;
-                        /** @enum {string} */
-                        type: "failed";
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                        permanent: boolean;
-                    }) | ({
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "retry";
-                        attempt: number;
-                        delayMs: number;
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "timeout";
-                        timeoutMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "circuit-open";
-                        /** @enum {string} */
-                        from: "closed" | "open" | "half-open";
-                        /** @enum {string} */
-                        to: "open";
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "circuit-half-open";
-                        /** @enum {string} */
-                        from: "closed" | "open" | "half-open";
-                        /** @enum {string} */
-                        to: "half-open";
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "circuit-closed";
-                        /** @enum {string} */
-                        from: "closed" | "open" | "half-open";
-                        /** @enum {string} */
-                        to: "closed";
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "circuit-rejected";
-                        retryAfterMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "bulkhead-rejected";
-                        /** @enum {string} */
-                        reason: "full" | "queue-timeout";
-                        active: number;
-                        queued: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "rate-limited";
-                        retryAfterMs: number;
-                    } | {
-                        /** @enum {string} */
-                        source: "resilience";
-                        at: number;
-                        policy: string;
-                        origin?: string;
-                        /** @enum {string} */
-                        type: "fallback";
-                        error: {
-                            name?: string;
-                            message: string;
-                        };
-                    });
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_queueOverview_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            name: string;
-                            paused: boolean;
-                            counts: {
-                                waiting: number;
-                                active: number;
-                                delayed: number;
-                                completed: number;
-                                failed: number;
-                            };
-                            recentFailures: {
-                                id: (string | number) | null;
-                                name: string;
-                                attempts: number;
-                                reason: string | null;
-                                /** Format: date-time */
-                                failedAt: string | null;
-                            }[];
-                        }[];
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_diagnosticsOverview_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** @enum {string} */
-                            check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
-                            /** @enum {string} */
-                            state: "ok" | "configured" | "disabled" | "unconfigured" | "unavailable";
-                            driver: string | null;
-                            detail: string | null;
-                            hint: string | null;
-                            testable: boolean;
-                        }[];
-                        canTest: boolean;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_testDiagnostic_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                check: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        check: "database" | "redis" | "workers" | "mail" | "storage" | "realtime";
-                        ok: boolean;
-                        durationMs: number;
-                        detail: string | null;
-                        hint: string | null;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_retryFailed_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        retried: number;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_pauseQueue_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        name: string;
-                        paused: boolean;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_resumeQueue_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        name: string;
-                        paused: boolean;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_previewBacklog_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    tenantId?: string;
-                    /** @enum {boolean} */
-                    global?: true;
-                    topic?: string;
-                    type?: string;
-                    template?: string;
-                    /** Format: date-time */
-                    before?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        outbox: {
-                            pending: {
-                                total: number;
-                                groups: {
-                                    topic: string;
-                                    type: string | null;
-                                    count: number;
-                                    mandatory: boolean;
-                                }[];
-                            };
-                            deadLetters: {
-                                total: number;
-                                groups: {
-                                    topic: string;
-                                    type: string | null;
-                                    count: number;
-                                    mandatory: boolean;
-                                }[];
-                            };
-                            leased: number;
-                        };
-                        mail: {
-                            groups: {
-                                state: string;
-                                template: string;
-                                count: number;
-                                essential: number;
-                            }[];
-                            capped: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_discardBacklog_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    scope: {
-                        /** Format: uuid */
-                        tenantId?: string;
-                        /** @enum {boolean} */
-                        global?: true;
-                        topic?: string;
-                        type?: string;
-                        template?: string;
-                        /** Format: date-time */
-                        before?: string;
-                    };
-                    /** @enum {string} */
-                    target: "outbox" | "mail";
-                    limit?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        count: number;
-                        more: boolean;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_retryBacklog_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    scope: {
-                        /** Format: uuid */
-                        tenantId?: string;
-                        /** @enum {boolean} */
-                        global?: true;
-                        topic?: string;
-                        type?: string;
-                        template?: string;
-                        /** Format: date-time */
-                        before?: string;
-                    };
-                    /** @enum {string} */
-                    target: "outbox" | "mail";
-                    limit?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        count: number;
-                        more: boolean;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_requeue_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    ids?: string[];
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        requeued: number;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    OpsController_purge_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    ids?: string[];
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        purged: number;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ConfigBundlesController_export_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {string} */
-                        format: "config-bundle";
-                        version: number;
-                        /** Format: date-time */
-                        exportedAt: string;
-                        checksum: string;
-                        contents: {
-                            settings: {
-                                key: string;
-                                value: unknown;
-                                rollout: number | null;
-                                rules: {
-                                    [key: string]: unknown;
-                                }[];
-                            }[];
-                            roles: {
-                                name: string;
-                                description: string;
-                                permissions: {
-                                    subject: string;
-                                    action: string;
-                                    conditions: {
-                                        key: string;
-                                        params?: {
-                                            [key: string]: unknown;
-                                        };
-                                    }[];
-                                    fields?: string[];
-                                }[];
-                            }[];
-                        };
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ConfigBundlesController_preview_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    bundle: {
-                        /** @enum {string} */
-                        format: "config-bundle";
-                        version: number;
-                        /** Format: date-time */
-                        exportedAt: string;
-                        checksum: string;
-                        contents: {
-                            settings: {
-                                key: string;
-                                value: unknown;
-                                rollout: number | null;
-                                rules: {
-                                    [key: string]: unknown;
-                                }[];
-                            }[];
-                            roles: {
-                                name: string;
-                                description: string;
-                                permissions: {
-                                    subject: string;
-                                    action: string;
-                                    conditions: {
-                                        key: string;
-                                        params?: {
-                                            [key: string]: unknown;
-                                        };
-                                    }[];
-                                    fields?: string[];
-                                }[];
-                            }[];
-                        };
-                    };
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        valid: boolean;
-                        errors: {
-                            ref: string | null;
-                            message: string;
-                        }[];
-                        warnings: {
-                            ref: string | null;
-                            message: string;
-                        }[];
-                        changes: {
-                            /** @enum {string} */
-                            type: "setting" | "role";
-                            ref: string;
-                            /** @enum {string} */
-                            action: "create" | "update" | "unchanged";
-                        }[];
-                        targetVersion: string;
-                    };
-                };
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ConfigBundlesController_apply_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    bundle: {
-                        /** @enum {string} */
-                        format: "config-bundle";
-                        version: number;
-                        /** Format: date-time */
-                        exportedAt: string;
-                        checksum: string;
-                        contents: {
-                            settings: {
-                                key: string;
-                                value: unknown;
-                                rollout: number | null;
-                                rules: {
-                                    [key: string]: unknown;
-                                }[];
-                            }[];
-                            roles: {
-                                name: string;
-                                description: string;
-                                permissions: {
-                                    subject: string;
-                                    action: string;
-                                    conditions: {
-                                        key: string;
-                                        params?: {
-                                            [key: string]: unknown;
-                                        };
-                                    }[];
-                                    fields?: string[];
-                                }[];
-                            }[];
-                        };
-                    };
-                    targetVersion: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        created: number;
-                        updated: number;
-                        unchanged: number;
-                    };
-                };
-            };
-            /** @description validation_failed: the bundle is invalid here (the preview lists why). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description config_changed: the tenant changed since the preview. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     FeaturesController_list_v1: {
         parameters: {
             query?: never;
@@ -12270,666 +12400,6 @@ export interface operations {
                 };
             };
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BulkController_list_v1: {
-        parameters: {
-            query?: {
-                /** @description Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all. */
-                status?: "queued" | "running" | "completed" | "failed";
-                /** @description Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches. */
-                kind?: "delete" | "restore" | "update";
-                limit?: number;
-                /** @description `nextCursor` of the previous page. */
-                cursor?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            name: string;
-                            action: string;
-                            /** @enum {string} */
-                            status: "queued" | "running" | "completed" | "failed";
-                            /** @description processed, done, failed: every 100 items. */
-                            progress: {
-                                [key: string]: number;
-                            };
-                            /**
-                             * Format: date-time
-                             * @description When it was handed to the workers.
-                             */
-                            createdAt: string;
-                            /**
-                             * Format: date-time
-                             * @description When a worker took it up; null while it is queued.
-                             */
-                            startedAt: string | null;
-                            /**
-                             * Format: date-time
-                             * @description When it completed or failed; null while it waits or runs.
-                             */
-                            finishedAt: string | null;
-                            /** @description The counts; GET /v1/bulk/{id} has the result per item. */
-                            result?: {
-                                done: number;
-                                failed: number;
-                                /** @description Ids not found, or not yours to act on (code not_found). */
-                                skipped: number;
-                                /** @description A background job keeps 10000 results; true when there were more. */
-                                truncated?: boolean;
-                            };
-                            error?: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-        };
-    };
-    BulkController_status_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        name: string;
-                        action: string;
-                        /** @enum {string} */
-                        status: "queued" | "running" | "completed" | "failed";
-                        /** @description processed, done, failed: every 100 items. */
-                        progress: {
-                            [key: string]: number;
-                        };
-                        /**
-                         * Format: date-time
-                         * @description When it was handed to the workers.
-                         */
-                        createdAt: string;
-                        /**
-                         * Format: date-time
-                         * @description When a worker took it up; null while it is queued.
-                         */
-                        startedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description When it completed or failed; null while it waits or runs.
-                         */
-                        finishedAt: string | null;
-                        result?: {
-                            done: number;
-                            failed: number;
-                            /** @description Ids not found, or not yours to act on (code not_found). */
-                            skipped: number;
-                            results: {
-                                id: string;
-                                /** @enum {string} */
-                                status: "done" | "failed" | "skipped";
-                                /** @description Why it failed: the problem the record's own route would have answered. */
-                                error?: {
-                                    /** @example field_forbidden */
-                                    code: string;
-                                    message: string;
-                                    errors?: {
-                                        path: string;
-                                        message: string;
-                                    }[];
-                                };
-                            }[];
-                            /** @description A background job keeps 10000 results; true when there were more. */
-                            truncated?: boolean;
-                        };
-                        error?: string;
-                    };
-                };
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CustomFieldsController_subjects_v1: {
-        parameters: {
-            query?: {
-                lang?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** @example Note */
-                            subject: string;
-                            /** @description How the subject is named, in the response's language: one record and several. */
-                            label: {
-                                /** @example Note */
-                                singular: string;
-                                /** @example Notes */
-                                plural: string;
-                            };
-                        }[];
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CustomFieldsController_list_v1: {
-        parameters: {
-            query: {
-                subject: string;
-                includeInactive?: "true" | "false";
-                /** @description counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields). */
-                include?: "counts";
-                lang?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            subject: string;
-                            key: string;
-                            label: string;
-                            description: string | null;
-                            /** @enum {string} */
-                            type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
-                            options: {
-                                value: string;
-                                label: string;
-                            }[] | null;
-                            required: boolean;
-                            default: unknown;
-                            validation: {
-                                /** @description number: lowest value; multiSelect: fewest choices. */
-                                min?: number;
-                                /** @description number: highest value; multiSelect: most choices. */
-                                max?: number;
-                                minLength?: number;
-                                maxLength?: number;
-                                /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
-                                pattern?: string;
-                            } | null;
-                            position: number;
-                            filterable: boolean;
-                            sortable: boolean;
-                            active: boolean;
-                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
-                            valueCount?: number;
-                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
-                            deletedValueCount?: number;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The subject takes no custom fields. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CustomFieldsController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Note */
-                    subject: string;
-                    /**
-                     * @description The JSON key of the value; never changes.
-                     * @example region
-                     */
-                    key: string;
-                    /** @example Region */
-                    label: string;
-                    description?: string | null;
-                    /**
-                     * @example select
-                     * @enum {string}
-                     */
-                    type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
-                    /**
-                     * @description The choices of select and multiSelect.
-                     * @example [
-                     *       {
-                     *         "value": "eu",
-                     *         "label": "Europe"
-                     *       },
-                     *       {
-                     *         "value": "us",
-                     *         "label": "Americas"
-                     *       }
-                     *     ]
-                     */
-                    options?: {
-                        value: string;
-                        label: string;
-                    }[];
-                    required?: boolean;
-                    /** @description Filled in on create when the value is left out. */
-                    default?: unknown;
-                    validation?: {
-                        /** @description number: lowest value; multiSelect: fewest choices. */
-                        min?: number;
-                        /** @description number: highest value; multiSelect: most choices. */
-                        max?: number;
-                        minLength?: number;
-                        maxLength?: number;
-                        /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
-                        pattern?: string;
-                    };
-                    /** @description Default: after the others. */
-                    position?: number;
-                    filterable?: boolean;
-                    sortable?: boolean;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        subject: string;
-                        key: string;
-                        label: string;
-                        description: string | null;
-                        /** @enum {string} */
-                        type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
-                        options: {
-                            value: string;
-                            label: string;
-                        }[] | null;
-                        required: boolean;
-                        default: unknown;
-                        validation: {
-                            /** @description number: lowest value; multiSelect: fewest choices. */
-                            min?: number;
-                            /** @description number: highest value; multiSelect: most choices. */
-                            max?: number;
-                            minLength?: number;
-                            maxLength?: number;
-                            /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
-                            pattern?: string;
-                        } | null;
-                        position: number;
-                        filterable: boolean;
-                        sortable: boolean;
-                        active: boolean;
-                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
-                        valueCount?: number;
-                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
-                        deletedValueCount?: number;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description Invalid definition: options, validation or default that the type does not take. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The key exists (custom_field_exists), or the subject has 100 active fields (custom_field_limit). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CustomFieldsController_reorder_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    subject: string;
-                    /** @description These fields first, in this order; the others follow. */
-                    ids: string[];
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            subject: string;
-                            key: string;
-                            label: string;
-                            description: string | null;
-                            /** @enum {string} */
-                            type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
-                            options: {
-                                value: string;
-                                label: string;
-                            }[] | null;
-                            required: boolean;
-                            default: unknown;
-                            validation: {
-                                /** @description number: lowest value; multiSelect: fewest choices. */
-                                min?: number;
-                                /** @description number: highest value; multiSelect: most choices. */
-                                max?: number;
-                                minLength?: number;
-                                maxLength?: number;
-                                /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
-                                pattern?: string;
-                            } | null;
-                            position: number;
-                            filterable: boolean;
-                            sortable: boolean;
-                            active: boolean;
-                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
-                            valueCount?: number;
-                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
-                            deletedValueCount?: number;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CustomFieldsController_deactivate_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CustomFieldsController_update_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Region */
-                    label?: string;
-                    description?: string | null;
-                    /**
-                     * @example select
-                     * @enum {string}
-                     */
-                    type?: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
-                    options?: {
-                        value: string;
-                        label: string;
-                    }[] | null;
-                    required?: boolean;
-                    /** @description null: no default. */
-                    default?: unknown;
-                    validation?: {
-                        /** @description number: lowest value; multiSelect: fewest choices. */
-                        min?: number;
-                        /** @description number: highest value; multiSelect: most choices. */
-                        max?: number;
-                        minLength?: number;
-                        maxLength?: number;
-                        /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
-                        pattern?: string;
-                    } | null;
-                    filterable?: boolean;
-                    sortable?: boolean;
-                    /** @description false deactivates (values kept), true brings it back. */
-                    active?: boolean;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        subject: string;
-                        key: string;
-                        label: string;
-                        description: string | null;
-                        /** @enum {string} */
-                        type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
-                        options: {
-                            value: string;
-                            label: string;
-                        }[] | null;
-                        required: boolean;
-                        default: unknown;
-                        validation: {
-                            /** @description number: lowest value; multiSelect: fewest choices. */
-                            min?: number;
-                            /** @description number: highest value; multiSelect: most choices. */
-                            max?: number;
-                            minLength?: number;
-                            maxLength?: number;
-                            /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
-                            pattern?: string;
-                        } | null;
-                        position: number;
-                        filterable: boolean;
-                        sortable: boolean;
-                        active: boolean;
-                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
-                        valueCount?: number;
-                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
-                        deletedValueCount?: number;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Records hold values the change would break (custom_field_in_use). */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -13646,6 +13116,1110 @@ export interface operations {
             };
         };
     };
+    NotificationTestController_test_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description The notification, delivered to you shortly.
+                         */
+                        id: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An administrator acting as someone. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SubscriptionsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: subject = */
+                subject?: string;
+                /** @description Filter: subject in */
+                "subject.in"?: string;
+                /** @description Filter: recordId = */
+                recordId?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); recordId (eq); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: subject, recordId, createdAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @example Note */
+                            subject: string;
+                            /** @example 0199a3f2-… */
+                            recordId: string;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SubscriptionsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                subject: string;
+                recordId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You were not watching it. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ImportMapping"][];
+                    };
+                };
+            };
+            /** @description Nothing to import by that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example CRM export */
+                    name: string;
+                    /**
+                     * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
+                     * @example {
+                     *       "Title": "title",
+                     *       "Internal": null
+                     *     }
+                     */
+                    mapping: {
+                        [key: string]: string | null;
+                    };
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportMapping"];
+                };
+            };
+            /** @description A target you cannot import, a target twice, or too many saved. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Nothing to import by that name. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The name is taken (conflict). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ImportMappingsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                name: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PeopleController_list_v1: {
+        parameters: {
+            query?: {
+                /** @description Part of the name, any case (`%` and `_` are themselves). Absent: the first by name. Not with `key`. */
+                q?: string;
+                /** @description Principal keys to name instead of a search, comma-separated, 20 at most: `user:<id>` (a member, or a former member: they still own records) or `client:<id>` (an API client of your tenant). A key with no name in your tenant is left out of the answer. Not with `q`; `limit` doesn't apply. */
+                key?: string;
+                limit?: number;
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * @description The principal key, `user:<id>` (`client:<id>` only when asked for by `key`): mention a user with `@user:<id>`; the key comments (`author`), revisions (`changedBy`) and records (`ownerId`) hold.
+                             * @example user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d
+                             */
+                            key: string;
+                            /** @example Maya Patel */
+                            name: string;
+                            /** @description Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address. */
+                            avatarUrl: string | null;
+                        }[];
+                    };
+                };
+            };
+            /** @description `q` empty or longer than 100 characters, `limit` over 20, a `key` that is not `user:<uuid>` or `client:<uuid>`, more than 20 keys, or `q` with `key` (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PeopleController_avatar_v1: {
+        parameters: {
+            query?: {
+                /** @description The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read. */
+                v?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The picture: a PNG, JPEG, WebP or GIF. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/png": string;
+                    "image/jpeg": string;
+                    "image/webp": string;
+                    "image/gif": string;
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UnitDirectoryController_list_v1: {
+        parameters: {
+            query?: {
+                /** @description Part of the unit name, any case (`%` and `_` are themselves). */
+                q?: string;
+                /** @description Unit ids to name, comma-separated, 100 at most: an id your tenant has no unit of is left out of the answer. */
+                id?: string;
+                /** @description Units a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids. */
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `q` and `id`). */
+                cursor?: string;
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /**
+                             * Format: uuid
+                             * @description What a record's `unitId` holds.
+                             */
+                            id: string;
+                            /** @enum {string} */
+                            type: "division" | "department" | "team";
+                            /** @example North */
+                            name: string;
+                            /**
+                             * Format: uuid
+                             * @description The unit it is under; null for a top-level unit.
+                             */
+                            parentId: string | null;
+                            /** @description 0 for a top-level unit. */
+                            depth: number;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                    };
+                };
+            };
+            /** @description `q` empty or longer than 100 characters, an `id` that is no UUID, more than 100 ids, `limit` over 100 (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Your session acts in no tenant (tenant_required). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BulkController_list_v1: {
+        parameters: {
+            query?: {
+                /** @description Only those in this state: queued (waiting for a worker), running, completed or failed. Default: all. */
+                status?: "queued" | "running" | "completed" | "failed";
+                /** @description Only runs of this action: delete, restore or update (the one the record routes call change). Default: all. A run's `action` is what it matches. */
+                kind?: "delete" | "restore" | "update";
+                limit?: number;
+                /** @description `nextCursor` of the previous page. */
+                cursor?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            id: string;
+                            name: string;
+                            action: string;
+                            /** @enum {string} */
+                            status: "queued" | "running" | "completed" | "failed";
+                            /** @description processed, done, failed: every 100 items. */
+                            progress: {
+                                [key: string]: number;
+                            };
+                            /**
+                             * Format: date-time
+                             * @description When it was handed to the workers.
+                             */
+                            createdAt: string;
+                            /**
+                             * Format: date-time
+                             * @description When a worker took it up; null while it is queued.
+                             */
+                            startedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description When it completed or failed; null while it waits or runs.
+                             */
+                            finishedAt: string | null;
+                            /** @description The counts; GET /v1/bulk/{id} has the result per item. */
+                            result?: {
+                                done: number;
+                                failed: number;
+                                /** @description Ids not found, or not yours to act on (code not_found). */
+                                skipped: number;
+                                /** @description A background job keeps 10000 results; true when there were more. */
+                                truncated?: boolean;
+                            };
+                            error?: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+        };
+    };
+    BulkController_status_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        name: string;
+                        action: string;
+                        /** @enum {string} */
+                        status: "queued" | "running" | "completed" | "failed";
+                        /** @description processed, done, failed: every 100 items. */
+                        progress: {
+                            [key: string]: number;
+                        };
+                        /**
+                         * Format: date-time
+                         * @description When it was handed to the workers.
+                         */
+                        createdAt: string;
+                        /**
+                         * Format: date-time
+                         * @description When a worker took it up; null while it is queued.
+                         */
+                        startedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description When it completed or failed; null while it waits or runs.
+                         */
+                        finishedAt: string | null;
+                        result?: {
+                            done: number;
+                            failed: number;
+                            /** @description Ids not found, or not yours to act on (code not_found). */
+                            skipped: number;
+                            results: {
+                                id: string;
+                                /** @enum {string} */
+                                status: "done" | "failed" | "skipped";
+                                /** @description Why it failed: the problem the record's own route would have answered. */
+                                error?: {
+                                    /** @example field_forbidden */
+                                    code: string;
+                                    message: string;
+                                    errors?: {
+                                        path: string;
+                                        message: string;
+                                    }[];
+                                };
+                            }[];
+                            /** @description A background job keeps 10000 results; true when there were more. */
+                            truncated?: boolean;
+                        };
+                        error?: string;
+                    };
+                };
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomFieldsController_subjects_v1: {
+        parameters: {
+            query?: {
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** @example Note */
+                            subject: string;
+                            /** @description How the subject is named, in the response's language: one record and several. */
+                            label: {
+                                /** @example Note */
+                                singular: string;
+                                /** @example Notes */
+                                plural: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomFieldsController_list_v1: {
+        parameters: {
+            query: {
+                subject: string;
+                includeInactive?: "true" | "false";
+                /** @description counts: add valueCount and deletedValueCount to each field (how many records hold a value; needs Access.manageCustomFields). */
+                include?: "counts";
+                lang?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            subject: string;
+                            key: string;
+                            label: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
+                            options: {
+                                value: string;
+                                label: string;
+                            }[] | null;
+                            required: boolean;
+                            default: unknown;
+                            validation: {
+                                /** @description number: lowest value; multiSelect: fewest choices. */
+                                min?: number;
+                                /** @description number: highest value; multiSelect: most choices. */
+                                max?: number;
+                                minLength?: number;
+                                maxLength?: number;
+                                /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
+                                pattern?: string;
+                            } | null;
+                            position: number;
+                            filterable: boolean;
+                            sortable: boolean;
+                            active: boolean;
+                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                            valueCount?: number;
+                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                            deletedValueCount?: number;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The subject takes no custom fields. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomFieldsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Note */
+                    subject: string;
+                    /**
+                     * @description The JSON key of the value; never changes.
+                     * @example region
+                     */
+                    key: string;
+                    /** @example Region */
+                    label: string;
+                    description?: string | null;
+                    /**
+                     * @example select
+                     * @enum {string}
+                     */
+                    type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
+                    /**
+                     * @description The choices of select and multiSelect.
+                     * @example [
+                     *       {
+                     *         "value": "eu",
+                     *         "label": "Europe"
+                     *       },
+                     *       {
+                     *         "value": "us",
+                     *         "label": "Americas"
+                     *       }
+                     *     ]
+                     */
+                    options?: {
+                        value: string;
+                        label: string;
+                    }[];
+                    required?: boolean;
+                    /** @description Filled in on create when the value is left out. */
+                    default?: unknown;
+                    validation?: {
+                        /** @description number: lowest value; multiSelect: fewest choices. */
+                        min?: number;
+                        /** @description number: highest value; multiSelect: most choices. */
+                        max?: number;
+                        minLength?: number;
+                        maxLength?: number;
+                        /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
+                        pattern?: string;
+                    };
+                    /** @description Default: after the others. */
+                    position?: number;
+                    filterable?: boolean;
+                    sortable?: boolean;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        subject: string;
+                        key: string;
+                        label: string;
+                        description: string | null;
+                        /** @enum {string} */
+                        type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
+                        options: {
+                            value: string;
+                            label: string;
+                        }[] | null;
+                        required: boolean;
+                        default: unknown;
+                        validation: {
+                            /** @description number: lowest value; multiSelect: fewest choices. */
+                            min?: number;
+                            /** @description number: highest value; multiSelect: most choices. */
+                            max?: number;
+                            minLength?: number;
+                            maxLength?: number;
+                            /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
+                            pattern?: string;
+                        } | null;
+                        position: number;
+                        filterable: boolean;
+                        sortable: boolean;
+                        active: boolean;
+                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                        valueCount?: number;
+                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                        deletedValueCount?: number;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description Invalid definition: options, validation or default that the type does not take. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The key exists (custom_field_exists), or the subject has 100 active fields (custom_field_limit). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomFieldsController_reorder_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    subject: string;
+                    /** @description These fields first, in this order; the others follow. */
+                    ids: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            subject: string;
+                            key: string;
+                            label: string;
+                            description: string | null;
+                            /** @enum {string} */
+                            type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
+                            options: {
+                                value: string;
+                                label: string;
+                            }[] | null;
+                            required: boolean;
+                            default: unknown;
+                            validation: {
+                                /** @description number: lowest value; multiSelect: fewest choices. */
+                                min?: number;
+                                /** @description number: highest value; multiSelect: most choices. */
+                                max?: number;
+                                minLength?: number;
+                                maxLength?: number;
+                                /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
+                                pattern?: string;
+                            } | null;
+                            position: number;
+                            filterable: boolean;
+                            sortable: boolean;
+                            active: boolean;
+                            /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                            valueCount?: number;
+                            /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                            deletedValueCount?: number;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomFieldsController_deactivate_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CustomFieldsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Region */
+                    label?: string;
+                    description?: string | null;
+                    /**
+                     * @example select
+                     * @enum {string}
+                     */
+                    type?: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
+                    options?: {
+                        value: string;
+                        label: string;
+                    }[] | null;
+                    required?: boolean;
+                    /** @description null: no default. */
+                    default?: unknown;
+                    validation?: {
+                        /** @description number: lowest value; multiSelect: fewest choices. */
+                        min?: number;
+                        /** @description number: highest value; multiSelect: most choices. */
+                        max?: number;
+                        minLength?: number;
+                        maxLength?: number;
+                        /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
+                        pattern?: string;
+                    } | null;
+                    filterable?: boolean;
+                    sortable?: boolean;
+                    /** @description false deactivates (values kept), true brings it back. */
+                    active?: boolean;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        subject: string;
+                        key: string;
+                        label: string;
+                        description: string | null;
+                        /** @enum {string} */
+                        type: "text" | "longText" | "number" | "boolean" | "date" | "select" | "multiSelect" | "email" | "url";
+                        options: {
+                            value: string;
+                            label: string;
+                        }[] | null;
+                        required: boolean;
+                        default: unknown;
+                        validation: {
+                            /** @description number: lowest value; multiSelect: fewest choices. */
+                            min?: number;
+                            /** @description number: highest value; multiSelect: most choices. */
+                            max?: number;
+                            minLength?: number;
+                            maxLength?: number;
+                            /** @description A regular expression the whole value must match (text types), in RE2 syntax: no lookaround, no backreferences. */
+                            pattern?: string;
+                        } | null;
+                        position: number;
+                        filterable: boolean;
+                        sortable: boolean;
+                        active: boolean;
+                        /** @description Only with ?include=counts: the records of your tenant holding a value for this field (those in the recycle bin apart: deletedValueCount). Values of a deactivated field count too: they are kept. */
+                        valueCount?: number;
+                        /** @description Only with ?include=counts: the same, among the records in the recycle bin (0 for a subject without one). They block a type change or a removed choice like any other. */
+                        deletedValueCount?: number;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Records hold values the change would break (custom_field_in_use). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     MessagingController_devices_v1: {
         parameters: {
             query?: never;
@@ -14052,45 +14626,6 @@ export interface operations {
             };
             /** @description That provider is not the configured one. */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    NotificationTestController_test_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /**
-                         * Format: uuid
-                         * @description The notification, delivered to you shortly.
-                         */
-                        id: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description An administrator acting as someone. */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -15823,714 +16358,6 @@ export interface operations {
             };
         };
     };
-    BrandingController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description `#rrggbb`, or null: the default theme. */
-                        primaryColor: string | null;
-                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
-                        darkPrimaryColor: string | null;
-                        /** @description The name mail is sent under, or null: the deployment’s. */
-                        mailFromName: string | null;
-                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
-                        logoUrl: string | null;
-                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
-                        darkLogoUrl: string | null;
-                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
-                        locked: boolean;
-                        /** @description The caller may change it (and it is not locked). */
-                        canEdit: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingController_update_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    primaryColor?: string | null;
-                    darkPrimaryColor?: string | null;
-                    mailFromName?: string | null;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description `#rrggbb`, or null: the default theme. */
-                        primaryColor: string | null;
-                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
-                        darkPrimaryColor: string | null;
-                        /** @description The name mail is sent under, or null: the deployment’s. */
-                        mailFromName: string | null;
-                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
-                        logoUrl: string | null;
-                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
-                        darkLogoUrl: string | null;
-                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
-                        locked: boolean;
-                        /** @description The caller may change it (and it is not locked). */
-                        canEdit: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Locked by the operators (branding_locked). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingController_upload_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /**
-                     * Format: binary
-                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
-                     */
-                    file?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description `#rrggbb`, or null: the default theme. */
-                        primaryColor: string | null;
-                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
-                        darkPrimaryColor: string | null;
-                        /** @description The name mail is sent under, or null: the deployment’s. */
-                        mailFromName: string | null;
-                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
-                        logoUrl: string | null;
-                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
-                        darkLogoUrl: string | null;
-                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
-                        locked: boolean;
-                        /** @description The caller may change it (and it is not locked). */
-                        canEdit: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Locked by the operators (branding_locked). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Larger than 512 KB (payload_too_large). */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
-            415: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description There is no logo. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Locked by the operators (branding_locked). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingController_uploadDark_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "multipart/form-data": {
-                    /**
-                     * Format: binary
-                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
-                     */
-                    file?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description `#rrggbb`, or null: the default theme. */
-                        primaryColor: string | null;
-                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
-                        darkPrimaryColor: string | null;
-                        /** @description The name mail is sent under, or null: the deployment’s. */
-                        mailFromName: string | null;
-                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
-                        logoUrl: string | null;
-                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
-                        darkLogoUrl: string | null;
-                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
-                        locked: boolean;
-                        /** @description The caller may change it (and it is not locked). */
-                        canEdit: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Locked by the operators (branding_locked). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Larger than 512 KB (payload_too_large). */
-            413: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
-            415: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingController_removeDark_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description There is no dark-mode logo. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Locked by the operators (branding_locked). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PublicBrandingController_logo_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tenantId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The image. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The tenant has no logo. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PublicBrandingController_darkLogo_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                tenantId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The image. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The tenant has no dark-mode logo. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingDomainsController_list_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Whether this deployment serves custom domains (CUSTOM_DOMAINS). */
-                        enabled: boolean;
-                        domains: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @description Lower case, ASCII (punycode). */
-                            hostname: string;
-                            /** @description Its TXT record was found at the last check: the host routes to the tenant. */
-                            verified: boolean;
-                            /** Format: date-time */
-                            verifiedAt: string | null;
-                            /** Format: date-time */
-                            lastCheckedAt: string | null;
-                            lastError: string | null;
-                            /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
-                            record: {
-                                /** @enum {string} */
-                                type: "TXT";
-                                name: string;
-                                value: string;
-                            };
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                    };
-                };
-            };
-        };
-    };
-    BrandingDomainsController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description A hostname such as app.example.com: no scheme, port or path; an internationalized name is stored in punycode. */
-                    hostname: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description Lower case, ASCII (punycode). */
-                        hostname: string;
-                        /** @description Its TXT record was found at the last check: the host routes to the tenant. */
-                        verified: boolean;
-                        /** Format: date-time */
-                        verifiedAt: string | null;
-                        /** Format: date-time */
-                        lastCheckedAt: string | null;
-                        lastError: string | null;
-                        /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
-                        record: {
-                            /** @enum {string} */
-                            type: "TXT";
-                            name: string;
-                            value: string;
-                        };
-                        /** Format: date-time */
-                        createdAt: string;
-                    };
-                };
-            };
-            /** @description `invalid_hostname`. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `custom_domains_off`. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `domain_exists`, `branding_locked`. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingDomainsController_verify_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @enum {boolean} */
-                        accepted: true;
-                    };
-                };
-            };
-            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `branding_locked`. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    BrandingDomainsController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    HostBrandingController_host_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description `#rrggbb`, or null: the default theme. */
-                        primaryColor: string | null;
-                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
-                        darkPrimaryColor: string | null;
-                        /** @description The name mail is sent under, or null: the deployment’s. */
-                        mailFromName: string | null;
-                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
-                        logoUrl: string | null;
-                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
-                        darkLogoUrl: string | null;
-                    };
-                };
-            };
-        };
-    };
-    SubscriptionsController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: subject = */
-                subject?: string;
-                /** @description Filter: subject in */
-                "subject.in"?: string;
-                /** @description Filter: recordId = */
-                recordId?: string;
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); recordId (eq); createdAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -createdAt. Sortable: createdAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,recordId. Fields: subject, recordId, createdAt. */
-                fields?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** @example Note */
-                            subject: string;
-                            /** @example 0199a3f2-… */
-                            recordId: string;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    SubscriptionsController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                subject: string;
-                recordId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You were not watching it. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     SearchController_search_v1: {
         parameters: {
             query: {
@@ -16833,21 +16660,21 @@ export interface operations {
             };
         };
     };
-    PeopleController_list_v1: {
+    MailEventsController_handle_v1: {
         parameters: {
-            query?: {
-                /** @description Part of the name, any case (`%` and `_` are themselves). Absent: the first by name. Not with `key`. */
-                q?: string;
-                /** @description Principal keys to name instead of a search, comma-separated, 20 at most: `user:<id>` (a member, or a former member: they still own records) or `client:<id>` (an API client of your tenant). A key with no name in your tenant is left out of the answer. Not with `q`; `limit` doesn't apply. */
-                key?: string;
-                limit?: number;
-                lang?: string;
-            };
+            query?: never;
             header?: never;
-            path?: never;
+            path: {
+                provider: string;
+            };
             cookie?: never;
         };
-        requestBody?: never;
+        /** @description The provider’s notification, as it sends it. */
+        requestBody: {
+            content: {
+                "application/json": string;
+            };
+        };
         responses: {
             200: {
                 headers: {
@@ -16855,833 +16682,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        items: {
-                            /**
-                             * @description The principal key, `user:<id>` (`client:<id>` only when asked for by `key`): mention a user with `@user:<id>`; the key comments (`author`), revisions (`changedBy`) and records (`ownerId`) hold.
-                             * @example user:0198c2a4-6f1e-7c3a-9d2b-5e8f1a2b3c4d
-                             */
-                            key: string;
-                            /** @example Maya Patel */
-                            name: string;
-                            /** @description Their picture: a path on this API for an `<img>` (GET /v1/people/{id}/avatar; sign-in required); null: none, and always for an API client. A new picture is a new address. */
-                            avatarUrl: string | null;
-                        }[];
-                    };
-                };
-            };
-            /** @description `q` empty or longer than 100 characters, `limit` over 20, a `key` that is not `user:<uuid>` or `client:<uuid>`, more than 20 keys, or `q` with `key` (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Your session acts in no tenant (tenant_required). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    PeopleController_avatar_v1: {
-        parameters: {
-            query?: {
-                /** @description The version in `avatarUrl`: it only tells a new picture from the one a browser kept, and is not read. */
-                v?: string;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description The picture: a PNG, JPEG, WebP or GIF. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "image/png": string;
-                    "image/jpeg": string;
-                    "image/webp": string;
-                    "image/gif": string;
-                };
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Your session acts in no tenant (tenant_required). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    UnitDirectoryController_list_v1: {
-        parameters: {
-            query?: {
-                /** @description Part of the unit name, any case (`%` and `_` are themselves). */
-                q?: string;
-                /** @description Unit ids to name, comma-separated, 100 at most: an id your tenant has no unit of is left out of the answer. */
-                id?: string;
-                /** @description Units a page holds: 50 without it, 100 at most (more is a 400). It applies with `id` too: send at least as many as the ids. */
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `q` and `id`). */
-                cursor?: string;
-                lang?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /**
-                             * Format: uuid
-                             * @description What a record's `unitId` holds.
-                             */
-                            id: string;
-                            /** @enum {string} */
-                            type: "division" | "department" | "team";
-                            /** @example North */
-                            name: string;
-                            /**
-                             * Format: uuid
-                             * @description The unit it is under; null for a top-level unit.
-                             */
-                            parentId: string | null;
-                            /** @description 0 for a top-level unit. */
-                            depth: number;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                    };
-                };
-            };
-            /** @description `q` empty or longer than 100 characters, an `id` that is no UUID, more than 100 ids, `limit` over 100 (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Your session acts in no tenant (tenant_required). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentsController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Attachment"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentsController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not yours, and you may not change its record. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description An issued document (attachment_locked): it stays with its record. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentsController_listVersions_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AttachmentVersionList"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentsController_downloadVersion_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description To the file (a signed link). */
-            302: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such attachment, or version (attachment_version_not_found). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentsController_restoreVersion_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                id: string;
-                version: number;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Why the file changed, kept with the version. */
-                    note?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Attachment"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not change its record. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such attachment, or version (attachment_version_not_found). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description An issued document (attachment_locked), still being scanned or processed (attachment_busy), or at the limit of versions. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description It changed since you read it (precondition_failed). */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentsController_download_v1: {
-        parameters: {
-            query?: {
-                /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
-                inline?: "true" | "false";
-                /** @description An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed. */
-                rendition?: "thumb" | "preview";
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description To the file (a signed link). */
-            302: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The malware scan has not finished (attachment_scan_pending): try again shortly. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentAcknowledgmentsController_request_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description The people asked, as `user:<id>` (GET /v1/people). */
-                    recipients: string[];
-                    /**
-                     * Format: date-time
-                     * @description The deadline; in the future. Asking again replaces it.
-                     */
-                    dueAt?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocumentAcknowledgment"][];
-                };
-            };
-            /** @description A recipient is not a member who may read it (acknowledgment_recipient_invalid), or the deadline is past (acknowledgment_due_in_past). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not change its record. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such document, or its record may not be read. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description More than 500 people for one version (acknowledgment_limit). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentAcknowledgmentsController_status_v1: {
-        parameters: {
-            query?: {
-                version?: number;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocumentAcknowledgmentStatus"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not change its record. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such document, or its record may not be read. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentAcknowledgmentsController_remind_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description Only these; default: everyone who has not acknowledged. */
-                    recipients?: string[];
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocumentAcknowledgmentReminders"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description You may not change its record. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such document, or its record may not be read. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentAcknowledgmentsController_withdraw_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-                acknowledgmentId: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such document, or its record may not be read. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Already acknowledged (acknowledgment_answered). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AttachmentAcknowledgmentsController_acknowledge_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DocumentAcknowledgment"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such document, or its record may not be read. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    MyAcknowledgmentsController_mine_v1: {
-        parameters: {
-            query?: {
-                status?: "pending" | "acknowledged";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MyDocumentAcknowledgmentList"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DocumentsController_status_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /**
-                         * @description What kind of document.
-                         * @example note
-                         */
-                        source: string;
-                        /** @example Note */
-                        subject: string;
-                        /** Format: uuid */
-                        recordId: string;
-                        /**
-                         * @description The language it is written in.
-                         * @example en
-                         */
-                        locale: string;
-                        /**
-                         * @description queued → rendering → completed, or failed (then `error`).
-                         * @enum {string}
-                         */
-                        status: "queued" | "rendering" | "completed" | "failed";
-                        /**
-                         * Format: uuid
-                         * @description Once completed: the PDF, an attachment of the record (GET /v1/attachments/{id}/download).
-                         */
-                        attachmentId: string | null;
-                        /** @description Why it failed, written for people. */
-                        error: string | null;
-                        /** Format: date-time */
-                        issuedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    AiController_request_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description The kind of record: a name the features register (`note`).
-                     * @example note
-                     */
-                    source: string;
-                    /** Format: uuid */
-                    recordId: string;
-                    /**
-                     * @description `summarize` or `classify`; each has its own answer shape.
-                     * @enum {string}
-                     */
-                    task: "summarize" | "classify";
-                };
-            };
-        };
-        responses: {
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
+                        /** @enum {boolean} */
+                        received: true;
                         /** @enum {string} */
-                        status: "queued";
+                        kind: "events" | "handshake" | "ignored";
+                        events: number;
                     };
                 };
             };
-            /** @description No valid API key or session. */
+            /** @description Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed, resend_malformed, resend_stale). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, resend_signature_invalid, resend_signature_missing, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused). */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description You may not use it on this record, or the tenant has not turned it on (ai_disabled). */
+            /** @description The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured, resend_not_configured). */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description No such kind of record. */
+            /** @description No such provider. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Yours is still running for this record and task (ai_pending). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description More than 20 a minute from one user (rate_limited), or the tenant's daily token quota is used up (ai_quota_exceeded). */
-            429: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The helper is not set up on this server (ai_unavailable). */
+            /** @description The signing certificate could not be fetched (sns_certificate_unavailable): the provider retries. */
             503: {
                 headers: {
                     [name: string]: unknown;
@@ -17690,71 +16727,7 @@ export interface operations {
             };
         };
     };
-    AiController_status_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        source: string;
-                        subject: string;
-                        /** Format: uuid */
-                        recordId: string;
-                        task: string;
-                        /** @example v1 */
-                        promptVersion: string;
-                        /** @description The model id that answered (null until it did). */
-                        model: string | null;
-                        /**
-                         * @description queued → running → completed, or failed (then `error`).
-                         * @enum {string}
-                         */
-                        status: "queued" | "running" | "completed" | "failed";
-                        /** @description Once completed: the task's answer, validated against its schema. Kept for an hour; null after that (ask again). */
-                        output: {
-                            [key: string]: unknown;
-                        } | null;
-                        inputTokens: number;
-                        outputTokens: number;
-                        cached: boolean;
-                        /** @description Why it failed, written for people. */
-                        error: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TagsController_list_v1: {
+    SuppressionsController_list_v1: {
         parameters: {
             query?: {
                 limit?: number;
@@ -17765,16 +16738,36 @@ export interface operations {
                 /** @description true: add `total` (counted up to a cap; `totalCapped`). */
                 count?: "true" | "false";
                 lang?: string;
-                /** @description Filter: subject = */
-                subject?: string;
-                /** @description Filter: subject in */
-                "subject.in"?: string;
-                /** @description Filter: name = */
-                name?: string;
-                /** @description Filter: name contains */
-                "name.contains"?: string;
-                /** @description Filter: name startsWith */
-                "name.startsWith"?: string;
+                /** @description Filter: address = */
+                address?: string;
+                /** @description Filter: address contains */
+                "address.contains"?: string;
+                /** @description Filter: address endsWith */
+                "address.endsWith"?: string;
+                /** @description Filter: reason = */
+                reason?: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                /** @description Filter: reason in */
+                "reason.in"?: string;
+                /** @description Filter: reason notIn */
+                "reason.notIn"?: string;
+                /** @description Filter: source = */
+                source?: string;
+                /** @description Filter: source in */
+                "source.in"?: string;
+                /** @description Filter: suppressedAt gte */
+                "suppressedAt.gte"?: string;
+                /** @description Filter: suppressedAt lt */
+                "suppressedAt.lt"?: string;
+                /** @description Filter: suppressedAt between */
+                "suppressedAt.between"?: string;
+                /** @description Filter: suppressedAt isNull */
+                "suppressedAt.isNull"?: "true" | "false";
+                /** @description Filter: lastSeenAt gte */
+                "lastSeenAt.gte"?: string;
+                /** @description Filter: lastSeenAt lt */
+                "lastSeenAt.lt"?: string;
+                /** @description Filter: lastSeenAt between */
+                "lastSeenAt.between"?: string;
                 /** @description Filter: createdAt gt */
                 "createdAt.gt"?: string;
                 /** @description Filter: createdAt gte */
@@ -17795,11 +16788,11 @@ export interface operations {
                 "updatedAt.lte"?: string;
                 /** @description Filter: updatedAt between */
                 "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); name (eq, contains, startsWith); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"address","op":"eq","value":…},{…}]}. Fields and operators: address (eq, contains, endsWith); reason (eq, in, notIn); source (eq, in); suppressedAt (gte, lt, between, isNull); lastSeenAt (gte, lt, between); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
                 filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -address. Sortable: address, suppressedAt, lastSeenAt, createdAt, updatedAt. */
                 sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, usageCount, createdAt, updatedAt. */
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: address,reason. Fields: id, address, reason, source, note, lastDetail, events, softBounces, firstSeenAt, lastSeenAt, suppressedAt, skipped, lastSkippedAt, createdBy, createdAt, updatedAt. */
                 fields?: string;
             };
             header?: never;
@@ -17813,17 +16806,71 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["TagPage"];
+                    "application/json": {
+                        items: {
+                            id: string;
+                            /** @example ada@example.com */
+                            address: string;
+                            /**
+                             * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
+                             * @enum {string}
+                             */
+                            reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                            /** @description The provider that reported it (`ses`), or `manual`. */
+                            source: string;
+                            note: string | null;
+                            /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
+                            lastDetail: string | null;
+                            /** @description Bounces and complaints reported for it. */
+                            events: number;
+                            /** @description Transient bounces in a row. */
+                            softBounces: number;
+                            /** Format: date-time */
+                            firstSeenAt: string;
+                            /** Format: date-time */
+                            lastSeenAt: string;
+                            /**
+                             * Format: date-time
+                             * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
+                             */
+                            suppressedAt: string | null;
+                            /** @description Mails not sent to it since. */
+                            skipped: number;
+                            /** Format: date-time */
+                            lastSkippedAt: string | null;
+                            createdBy: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
                 };
             };
-            /** @description No valid API key or session. */
+            /** @description No valid session or token. */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -17832,7 +16879,7 @@ export interface operations {
             };
         };
     };
-    TagsController_create_v1: {
+    SuppressionsController_create_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -17843,15 +16890,11 @@ export interface operations {
             content: {
                 "application/json": {
                     /**
-                     * @description A subject whose records take tags: `Note`.
-                     * @example Note
+                     * Format: email
+                     * @example ada@example.com
                      */
-                    subject: string;
-                    /** @example Urgent */
-                    name: string;
-                    /** @example #3b82f6 */
-                    color?: string;
-                    description?: string;
+                    address: string;
+                    note?: string;
                 };
             };
         };
@@ -17861,31 +16904,71 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Tag"];
+                    "application/json": {
+                        id: string;
+                        /** @example ada@example.com */
+                        address: string;
+                        /**
+                         * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
+                         * @enum {string}
+                         */
+                        reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                        /** @description The provider that reported it (`ses`), or `manual`. */
+                        source: string;
+                        note: string | null;
+                        /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
+                        lastDetail: string | null;
+                        /** @description Bounces and complaints reported for it. */
+                        events: number;
+                        /** @description Transient bounces in a row. */
+                        softBounces: number;
+                        /** Format: date-time */
+                        firstSeenAt: string;
+                        /** Format: date-time */
+                        lastSeenAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
+                         */
+                        suppressedAt: string | null;
+                        /** @description Mails not sent to it since. */
+                        skipped: number;
+                        /** Format: date-time */
+                        lastSkippedAt: string | null;
+                        createdBy: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
                 };
             };
-            /** @description A subject that takes no tags, a colour that is not #rrggbb, a name too long (validation_failed). */
+            /** @description Not an email address. */
             400: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description No valid API key or session. */
+            /** @description No valid session or token. */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The subject has a tag of this name. */
+            /** @description The address is listed already. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -17894,7 +16977,88 @@ export interface operations {
             };
         };
     };
-    TagsController_remove_v1: {
+    SuppressionsController_findOne_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        id: string;
+                        /** @example ada@example.com */
+                        address: string;
+                        /**
+                         * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
+                         * @enum {string}
+                         */
+                        reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
+                        /** @description The provider that reported it (`ses`), or `manual`. */
+                        source: string;
+                        note: string | null;
+                        /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
+                        lastDetail: string | null;
+                        /** @description Bounces and complaints reported for it. */
+                        events: number;
+                        /** @description Transient bounces in a row. */
+                        softBounces: number;
+                        /** Format: date-time */
+                        firstSeenAt: string;
+                        /** Format: date-time */
+                        lastSeenAt: string;
+                        /**
+                         * Format: date-time
+                         * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
+                         */
+                        suppressedAt: string | null;
+                        /** @description Mails not sent to it since. */
+                        skipped: number;
+                        /** Format: date-time */
+                        lastSkippedAt: string | null;
+                        createdBy: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid session or token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SuppressionsController_remove_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -17911,14 +17075,18 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No valid API key or session. */
+            /** @description No valid session or token. */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Not allowed by your permissions. */
+            /**
+             * @description operator_required: the caller does not act in the operator tenant.
+             *
+             *     Not allowed by your permissions.
+             */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -17926,71 +17094,6 @@ export interface operations {
                 content?: never;
             };
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    TagsController_update_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Urgent */
-                    name?: string;
-                    /** @example #3b82f6 */
-                    color?: string | null;
-                    description?: string | null;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["Tag"];
-                };
-            };
-            /** @description An invalid body (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The subject has a tag of this name. */
-            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -18542,9 +17645,726 @@ export interface operations {
             };
         };
     };
-    CalendarsController_list_v1: {
+    AttachmentsController_get_v1: {
         parameters: {
             query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not yours, and you may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An issued document (attachment_locked): it stays with its record. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_listVersions_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AttachmentVersionList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_downloadVersion_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the file (a signed link). */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such attachment, or version (attachment_version_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_restoreVersion_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+                version: number;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Why the file changed, kept with the version. */
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Attachment"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such attachment, or version (attachment_version_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description An issued document (attachment_locked), still being scanned or processed (attachment_busy), or at the limit of versions. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentsController_download_v1: {
+        parameters: {
+            query?: {
+                /** @description `true`: a PDF is shown in the browser (`Content-Disposition: inline`); any other type is still a download. */
+                inline?: "true" | "false";
+                /** @description An image attachment's smaller copy instead of the file: `thumb` (fits in 256 × 256 pixels) or `preview` (1600 × 1600), WebP, upright, without metadata. Shown inline whatever `inline` says. 404 (`attachment_rendition_not_found`) when there is none: not an image, not made yet (`renditionStatus` `pending`), or it could not be processed. */
+                rendition?: "thumb" | "preview";
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description To the file (a signed link). */
+            302: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such attachment, or with `rendition`: it has no such copy (attachment_rendition_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The malware scan has not finished (attachment_scan_pending): try again shortly. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DocumentsController_status_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /**
+                         * @description What kind of document.
+                         * @example note
+                         */
+                        source: string;
+                        /** @example Note */
+                        subject: string;
+                        /** Format: uuid */
+                        recordId: string;
+                        /**
+                         * @description The language it is written in.
+                         * @example en
+                         */
+                        locale: string;
+                        /**
+                         * @description queued → rendering → completed, or failed (then `error`).
+                         * @enum {string}
+                         */
+                        status: "queued" | "rendering" | "completed" | "failed";
+                        /**
+                         * Format: uuid
+                         * @description Once completed: the PDF, an attachment of the record (GET /v1/attachments/{id}/download).
+                         */
+                        attachmentId: string | null;
+                        /** @description Why it failed, written for people. */
+                        error: string | null;
+                        /** Format: date-time */
+                        issuedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_request_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description The kind of record: a name the features register (`note`).
+                     * @example note
+                     */
+                    source: string;
+                    /** Format: uuid */
+                    recordId: string;
+                    /**
+                     * @description `summarize` or `classify`; each has its own answer shape.
+                     * @enum {string}
+                     */
+                    task: "summarize" | "classify";
+                };
+            };
+        };
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @enum {string} */
+                        status: "queued";
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not use it on this record, or the tenant has not turned it on (ai_disabled). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such kind of record. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Yours is still running for this record and task (ai_pending). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 20 a minute from one user (rate_limited), or the tenant's daily token quota is used up (ai_quota_exceeded). */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The helper is not set up on this server (ai_unavailable). */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AiController_status_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        source: string;
+                        subject: string;
+                        /** Format: uuid */
+                        recordId: string;
+                        task: string;
+                        /** @example v1 */
+                        promptVersion: string;
+                        /** @description The model id that answered (null until it did). */
+                        model: string | null;
+                        /**
+                         * @description queued → running → completed, or failed (then `error`).
+                         * @enum {string}
+                         */
+                        status: "queued" | "running" | "completed" | "failed";
+                        /** @description Once completed: the task's answer, validated against its schema. Kept for an hour; null after that (ask again). */
+                        output: {
+                            [key: string]: unknown;
+                        } | null;
+                        inputTokens: number;
+                        outputTokens: number;
+                        cached: boolean;
+                        /** @description Why it failed, written for people. */
+                        error: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_request_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description The people asked, as `user:<id>` (GET /v1/people). */
+                    recipients: string[];
+                    /**
+                     * Format: date-time
+                     * @description The deadline; in the future. Asking again replaces it.
+                     */
+                    dueAt?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgment"][];
+                };
+            };
+            /** @description A recipient is not a member who may read it (acknowledgment_recipient_invalid), or the deadline is past (acknowledgment_due_in_past). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description More than 500 people for one version (acknowledgment_limit). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_status_v1: {
+        parameters: {
+            query?: {
+                version?: number;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgmentStatus"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_remind_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description Only these; default: everyone who has not acknowledged. */
+                    recipients?: string[];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgmentReminders"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description You may not change its record. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_withdraw_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                acknowledgmentId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Already acknowledged (acknowledgment_answered). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AttachmentAcknowledgmentsController_acknowledge_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DocumentAcknowledgment"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such document, or its record may not be read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    MyAcknowledgmentsController_mine_v1: {
+        parameters: {
+            query?: {
+                status?: "pending" | "acknowledged";
+            };
             header?: never;
             path?: never;
             cookie?: never;
@@ -18556,7 +18376,78 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BusinessCalendarList"];
+                    "application/json": components["schemas"]["MyDocumentAcknowledgmentList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    TagsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: subject = */
+                subject?: string;
+                /** @description Filter: subject in */
+                "subject.in"?: string;
+                /** @description Filter: name = */
+                name?: string;
+                /** @description Filter: name contains */
+                "name.contains"?: string;
+                /** @description Filter: name startsWith */
+                "name.startsWith"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Filter: updatedAt gt */
+                "updatedAt.gt"?: string;
+                /** @description Filter: updatedAt gte */
+                "updatedAt.gte"?: string;
+                /** @description Filter: updatedAt lt */
+                "updatedAt.lt"?: string;
+                /** @description Filter: updatedAt lte */
+                "updatedAt.lte"?: string;
+                /** @description Filter: updatedAt between */
+                "updatedAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"subject","op":"eq","value":…},{…}]}. Fields and operators: subject (eq, in); name (eq, contains, startsWith); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, createdAt, updatedAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: subject,name. Fields: id, subject, name, color, description, usageCount, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TagPage"];
                 };
             };
             /** @description No valid API key or session. */
@@ -18575,7 +18466,7 @@ export interface operations {
             };
         };
     };
-    CalendarsController_create_v1: {
+    TagsController_create_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -18585,20 +18476,16 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /**
+                     * @description A subject whose records take tags: `Note`.
+                     * @example Note
+                     */
+                    subject: string;
+                    /** @example Urgent */
                     name: string;
-                    /** @example Europe/Berlin */
-                    timezone: string;
-                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
-                    hours: {
-                        /** @example 09:00 */
-                        start: string;
-                        /** @example 17:00 */
-                        end: string;
-                        /** @description 0 Sunday … 6 Saturday. */
-                        weekday: number;
-                    }[];
-                    /** @default [] */
-                    exceptions?: components["schemas"]["CalendarException"][];
+                    /** @example #3b82f6 */
+                    color?: string;
+                    description?: string;
                 };
             };
         };
@@ -18608,10 +18495,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BusinessCalendar"];
+                    "application/json": components["schemas"]["Tag"];
                 };
             };
-            /** @description An unknown time zone, a bad or overlapping span, a date twice, more than 50 calendars (validation_failed). */
+            /** @description A subject that takes no tags, a colour that is not #rrggbb, a name too long (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -18632,7 +18519,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A calendar has this name. */
+            /** @description The subject has a tag of this name. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -18641,48 +18528,7 @@ export interface operations {
             };
         };
     };
-    CalendarsController_findOne_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["BusinessCalendar"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CalendarsController_remove_v1: {
+    TagsController_remove_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -18719,16 +18565,9 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A recurring schedule still follows it. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
-    CalendarsController_update_v1: {
+    TagsController_update_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -18740,19 +18579,11 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": {
+                    /** @example Urgent */
                     name?: string;
-                    /** @example Europe/Berlin */
-                    timezone?: string;
-                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
-                    hours?: {
-                        /** @example 09:00 */
-                        start: string;
-                        /** @example 17:00 */
-                        end: string;
-                        /** @description 0 Sunday … 6 Saturday. */
-                        weekday: number;
-                    }[];
-                    exceptions?: components["schemas"]["CalendarException"][];
+                    /** @example #3b82f6 */
+                    color?: string | null;
+                    description?: string | null;
                 };
             };
         };
@@ -18762,7 +18593,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["BusinessCalendar"];
+                    "application/json": components["schemas"]["Tag"];
                 };
             };
             /** @description An invalid body (validation_failed). */
@@ -18792,582 +18623,8 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description A calendar has this name. */
+            /** @description The subject has a tag of this name. */
             409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    CalendarsController_deadline_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * Format: date-time
-                     * @example 2026-10-23T14:00:00Z
-                     */
-                    from: string;
-                    /**
-                     * @description Working minutes to add; 0: the first working moment at or after `from`.
-                     * @example 480
-                     */
-                    minutes: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["CalendarDeadline"];
-                };
-            };
-            /** @description The calendar has no working time in the next ten years (calendar_has_no_working_time). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: importer = */
-                importer?: string;
-                /** @description Filter: importer in */
-                "importer.in"?: string;
-                /** @description Filter: status = */
-                status?: string;
-                /** @description Filter: status in */
-                "status.in"?: string;
-                /** @description Filter: name = */
-                name?: string;
-                /** @description Filter: name contains */
-                "name.contains"?: string;
-                /** @description Filter: nextRunAt gte */
-                "nextRunAt.gte"?: string;
-                /** @description Filter: nextRunAt lt */
-                "nextRunAt.lt"?: string;
-                /** @description Filter: nextRunAt between */
-                "nextRunAt.between"?: string;
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"importer","op":"eq","value":…},{…}]}. Fields and operators: importer (eq, in); status (eq, in); name (eq, contains); nextRunAt (gte, lt, between); createdAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, nextRunAt, createdAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: name,importer. Fields: id, name, importer, template, rrule, startDate, time, timezone, calendarId, status, endReason, occurrences, maxOccurrences, failures, lastError, lastRunAt, lastStatus, nextRunAt, createdAt, updatedAt. */
-                fields?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["RecordSchedule"][];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Weekly review */
-                    name: string;
-                    /**
-                     * @description The importer whose rows are created (`GET /v1/data`).
-                     * @example notes
-                     */
-                    importer: string;
-                    /**
-                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
-                     * @example {
-                     *       "title": "Weekly review",
-                     *       "body": "Check the board."
-                     *     }
-                     */
-                    template: {
-                        [key: string]: unknown;
-                    };
-                    /**
-                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
-                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
-                     */
-                    rrule: string;
-                    /**
-                     * Format: date
-                     * @description The first date that may occur, in the schedule's zone.
-                     * @example 2026-11-02
-                     */
-                    startDate: string;
-                    /**
-                     * @description Time of day of each occurrence, in the schedule's zone.
-                     * @example 08:30
-                     */
-                    time: string;
-                    /**
-                     * @description Default: your own time zone, else the server's (APP_TIMEZONE).
-                     * @example Europe/Berlin
-                     */
-                    timezone?: string;
-                    /**
-                     * Format: uuid
-                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
-                     */
-                    calendarId?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordSchedule"];
-                };
-            };
-            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The template sets a field your permissions hide (field_forbidden), or the session is impersonating a user. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_preview_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
-                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
-                     */
-                    rrule: string;
-                    /**
-                     * Format: date
-                     * @description The first date that may occur, in the schedule's zone.
-                     * @example 2026-11-02
-                     */
-                    startDate: string;
-                    /**
-                     * @description Time of day of each occurrence, in the schedule's zone.
-                     * @example 08:30
-                     */
-                    time: string;
-                    /** @example Europe/Berlin */
-                    timezone?: string;
-                    /**
-                     * Format: uuid
-                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
-                     */
-                    calendarId?: string;
-                    /** @default 5 */
-                    count?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordSchedulePreview"];
-                };
-            };
-            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordSchedule"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_update_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example Weekly review */
-                    name?: string;
-                    /**
-                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
-                     * @example {
-                     *       "title": "Weekly review",
-                     *       "body": "Check the board."
-                     *     }
-                     */
-                    template?: {
-                        [key: string]: unknown;
-                    };
-                    /**
-                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
-                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
-                     */
-                    rrule?: string;
-                    /**
-                     * Format: date
-                     * @description The first date that may occur, in the schedule's zone.
-                     * @example 2026-11-02
-                     */
-                    startDate?: string;
-                    /**
-                     * @description Time of day of each occurrence, in the schedule's zone.
-                     * @example 08:30
-                     */
-                    time?: string;
-                    /** @example Europe/Berlin */
-                    timezone?: string;
-                    /**
-                     * Format: uuid
-                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
-                     */
-                    calendarId?: string | null;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordSchedule"];
-                };
-            };
-            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The schedule has ended. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_pause_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordSchedule"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The schedule has ended. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_resume_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordSchedule"];
-                };
-            };
-            /** @description More than 20 active schedules. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The schedule has ended. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RecordSchedulesController_end_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RecordSchedule"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -20909,6 +20166,2408 @@ export interface operations {
             };
             /** @description Not an item of yours. */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalDelegationsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** Format: uuid */
+                            fromUserId: string;
+                            fromName: string;
+                            /** Format: uuid */
+                            toUserId: string;
+                            toName: string;
+                            /** Format: date-time */
+                            startsAt: string;
+                            /** Format: date-time */
+                            endsAt: string;
+                            subject: string | null;
+                            /** @description Whether it applies now. */
+                            active: boolean;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalDelegationsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    toUserId: string;
+                    /** Format: date-time */
+                    startsAt: string;
+                    /** Format: date-time */
+                    endsAt: string;
+                    /** @description Only requests of this subject (`Note`); all when left out. */
+                    subject?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** Format: uuid */
+                        fromUserId: string;
+                        fromName: string;
+                        /** Format: uuid */
+                        toUserId: string;
+                        toName: string;
+                        /** Format: date-time */
+                        startsAt: string;
+                        /** Format: date-time */
+                        endsAt: string;
+                        subject: string | null;
+                        /** @description Whether it applies now. */
+                        active: boolean;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                    };
+                };
+            };
+            /** @description Yourself, an unknown or inactive user, or a period that ends before it starts (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalDelegationsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a delegation you gave. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalPoliciesController_types_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        approverRules: {
+                            type: string;
+                            label: string;
+                            /** @description The JSON Schema of its parameters. */
+                            params: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                        modes: {
+                            type: string;
+                            label: string;
+                            /** @description The JSON Schema of its parameters. */
+                            params: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                        conditions: {
+                            type: string;
+                            label: string;
+                            /** @description The JSON Schema of its parameters. */
+                            params: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Changing approval policies needs Approval.managePolicies. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalPoliciesController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            key: string;
+                            subject: string;
+                            action: string;
+                            label: string;
+                            description: string | null;
+                            /** @description 0: the code default, never changed. */
+                            version: number;
+                            /** @enum {string} */
+                            source: "code" | "override";
+                            policy: {
+                                /** @default true */
+                                enabled: boolean;
+                                /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                                when?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                }) | null;
+                                stages: {
+                                    /** @example Editor review */
+                                    name: string;
+                                    /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                    approvers: ({
+                                        type: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    })[];
+                                    /**
+                                     * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                     * @default {
+                                     *       "type": "any"
+                                     *     }
+                                     */
+                                    mode: {
+                                        type: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    };
+                                    /**
+                                     * @description Remind the approvers who have not decided after this long.
+                                     * @example 2d
+                                     */
+                                    remindAfter?: string;
+                                    /**
+                                     * @description The stage is overdue after this long: then `onOverdue`.
+                                     * @example 2d
+                                     */
+                                    dueAfter?: string;
+                                    /**
+                                     * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                     * @default expire
+                                     * @enum {string}
+                                     */
+                                    onOverdue: "expire" | "escalate";
+                                    /** @description With `onOverdue: escalate`: the approvers added. */
+                                    escalateTo?: ({
+                                        type: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    })[];
+                                    /**
+                                     * @description After an escalation, the request expires after this long.
+                                     * @example 2d
+                                     */
+                                    escalationDueAfter?: string;
+                                }[];
+                                /**
+                                 * @default 30d
+                                 * @example 2d
+                                 */
+                                resubmitWithin: string;
+                            };
+                            /** @description The code's default policy. */
+                            default: {
+                                /** @default true */
+                                enabled: boolean;
+                                /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                                when?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                }) | null;
+                                stages: {
+                                    /** @example Editor review */
+                                    name: string;
+                                    /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                    approvers: ({
+                                        type: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    })[];
+                                    /**
+                                     * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                     * @default {
+                                     *       "type": "any"
+                                     *     }
+                                     */
+                                    mode: {
+                                        type: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    };
+                                    /**
+                                     * @description Remind the approvers who have not decided after this long.
+                                     * @example 2d
+                                     */
+                                    remindAfter?: string;
+                                    /**
+                                     * @description The stage is overdue after this long: then `onOverdue`.
+                                     * @example 2d
+                                     */
+                                    dueAfter?: string;
+                                    /**
+                                     * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                     * @default expire
+                                     * @enum {string}
+                                     */
+                                    onOverdue: "expire" | "escalate";
+                                    /** @description With `onOverdue: escalate`: the approvers added. */
+                                    escalateTo?: ({
+                                        type: string;
+                                    } & {
+                                        [key: string]: unknown;
+                                    })[];
+                                    /**
+                                     * @description After an escalation, the request expires after this long.
+                                     * @example 2d
+                                     */
+                                    escalationDueAfter?: string;
+                                }[];
+                                /**
+                                 * @default 30d
+                                 * @example 2d
+                                 */
+                                resubmitWithin: string;
+                            };
+                            /** @description The setting that switches approval on (GET /v1/settings). */
+                            setting: string | null;
+                            /** @description The JSON Schema of the requests' payload. */
+                            payloadSchema: {
+                                [key: string]: unknown;
+                            };
+                        }[];
+                    };
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Changing approval policies needs Approval.managePolicies. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalPoliciesController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag you have: 304 and no body when it is still current. */
+                "If-None-Match"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        key: string;
+                        subject: string;
+                        action: string;
+                        label: string;
+                        description: string | null;
+                        /** @description 0: the code default, never changed. */
+                        version: number;
+                        /** @enum {string} */
+                        source: "code" | "override";
+                        policy: {
+                            /** @default true */
+                            enabled: boolean;
+                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                            when?: ({
+                                type: string;
+                            } & {
+                                [key: string]: unknown;
+                            }) | null;
+                            stages: {
+                                /** @example Editor review */
+                                name: string;
+                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                approvers: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                 * @default {
+                                 *       "type": "any"
+                                 *     }
+                                 */
+                                mode: {
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                                /**
+                                 * @description Remind the approvers who have not decided after this long.
+                                 * @example 2d
+                                 */
+                                remindAfter?: string;
+                                /**
+                                 * @description The stage is overdue after this long: then `onOverdue`.
+                                 * @example 2d
+                                 */
+                                dueAfter?: string;
+                                /**
+                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                 * @default expire
+                                 * @enum {string}
+                                 */
+                                onOverdue: "expire" | "escalate";
+                                /** @description With `onOverdue: escalate`: the approvers added. */
+                                escalateTo?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description After an escalation, the request expires after this long.
+                                 * @example 2d
+                                 */
+                                escalationDueAfter?: string;
+                            }[];
+                            /**
+                             * @default 30d
+                             * @example 2d
+                             */
+                            resubmitWithin: string;
+                        };
+                        /** @description The code's default policy. */
+                        default: {
+                            /** @default true */
+                            enabled: boolean;
+                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                            when?: ({
+                                type: string;
+                            } & {
+                                [key: string]: unknown;
+                            }) | null;
+                            stages: {
+                                /** @example Editor review */
+                                name: string;
+                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                approvers: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                 * @default {
+                                 *       "type": "any"
+                                 *     }
+                                 */
+                                mode: {
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                                /**
+                                 * @description Remind the approvers who have not decided after this long.
+                                 * @example 2d
+                                 */
+                                remindAfter?: string;
+                                /**
+                                 * @description The stage is overdue after this long: then `onOverdue`.
+                                 * @example 2d
+                                 */
+                                dueAfter?: string;
+                                /**
+                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                 * @default expire
+                                 * @enum {string}
+                                 */
+                                onOverdue: "expire" | "escalate";
+                                /** @description With `onOverdue: escalate`: the approvers added. */
+                                escalateTo?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description After an escalation, the request expires after this long.
+                                 * @example 2d
+                                 */
+                                escalationDueAfter?: string;
+                            }[];
+                            /**
+                             * @default 30d
+                             * @example 2d
+                             */
+                            resubmitWithin: string;
+                        };
+                        /** @description The setting that switches approval on (GET /v1/settings). */
+                        setting: string | null;
+                        /** @description The JSON Schema of the requests' payload. */
+                        payloadSchema: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Changing approval policies needs Approval.managePolicies. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No approvable action has this key. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalPoliciesController_set_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @default true */
+                    enabled?: boolean;
+                    /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                    when?: ({
+                        type: string;
+                    } & {
+                        [key: string]: unknown;
+                    }) | null;
+                    stages: {
+                        /** @example Editor review */
+                        name: string;
+                        /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                        approvers: ({
+                            type: string;
+                        } & {
+                            [key: string]: unknown;
+                        })[];
+                        /**
+                         * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                         * @default {
+                         *       "type": "any"
+                         *     }
+                         */
+                        mode?: {
+                            type: string;
+                        } & {
+                            [key: string]: unknown;
+                        };
+                        /**
+                         * @description Remind the approvers who have not decided after this long.
+                         * @example 2d
+                         */
+                        remindAfter?: string;
+                        /**
+                         * @description The stage is overdue after this long: then `onOverdue`.
+                         * @example 2d
+                         */
+                        dueAfter?: string;
+                        /**
+                         * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                         * @default expire
+                         * @enum {string}
+                         */
+                        onOverdue?: "expire" | "escalate";
+                        /** @description With `onOverdue: escalate`: the approvers added. */
+                        escalateTo?: ({
+                            type: string;
+                        } & {
+                            [key: string]: unknown;
+                        })[];
+                        /**
+                         * @description After an escalation, the request expires after this long.
+                         * @example 2d
+                         */
+                        escalationDueAfter?: string;
+                    }[];
+                    /**
+                     * @default 30d
+                     * @example 2d
+                     */
+                    resubmitWithin?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        key: string;
+                        subject: string;
+                        action: string;
+                        label: string;
+                        description: string | null;
+                        /** @description 0: the code default, never changed. */
+                        version: number;
+                        /** @enum {string} */
+                        source: "code" | "override";
+                        policy: {
+                            /** @default true */
+                            enabled: boolean;
+                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                            when?: ({
+                                type: string;
+                            } & {
+                                [key: string]: unknown;
+                            }) | null;
+                            stages: {
+                                /** @example Editor review */
+                                name: string;
+                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                approvers: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                 * @default {
+                                 *       "type": "any"
+                                 *     }
+                                 */
+                                mode: {
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                                /**
+                                 * @description Remind the approvers who have not decided after this long.
+                                 * @example 2d
+                                 */
+                                remindAfter?: string;
+                                /**
+                                 * @description The stage is overdue after this long: then `onOverdue`.
+                                 * @example 2d
+                                 */
+                                dueAfter?: string;
+                                /**
+                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                 * @default expire
+                                 * @enum {string}
+                                 */
+                                onOverdue: "expire" | "escalate";
+                                /** @description With `onOverdue: escalate`: the approvers added. */
+                                escalateTo?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description After an escalation, the request expires after this long.
+                                 * @example 2d
+                                 */
+                                escalationDueAfter?: string;
+                            }[];
+                            /**
+                             * @default 30d
+                             * @example 2d
+                             */
+                            resubmitWithin: string;
+                        };
+                        /** @description The code's default policy. */
+                        default: {
+                            /** @default true */
+                            enabled: boolean;
+                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                            when?: ({
+                                type: string;
+                            } & {
+                                [key: string]: unknown;
+                            }) | null;
+                            stages: {
+                                /** @example Editor review */
+                                name: string;
+                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                approvers: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                 * @default {
+                                 *       "type": "any"
+                                 *     }
+                                 */
+                                mode: {
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                                /**
+                                 * @description Remind the approvers who have not decided after this long.
+                                 * @example 2d
+                                 */
+                                remindAfter?: string;
+                                /**
+                                 * @description The stage is overdue after this long: then `onOverdue`.
+                                 * @example 2d
+                                 */
+                                dueAfter?: string;
+                                /**
+                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                 * @default expire
+                                 * @enum {string}
+                                 */
+                                onOverdue: "expire" | "escalate";
+                                /** @description With `onOverdue: escalate`: the approvers added. */
+                                escalateTo?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description After an escalation, the request expires after this long.
+                                 * @example 2d
+                                 */
+                                escalationDueAfter?: string;
+                            }[];
+                            /**
+                             * @default 30d
+                             * @example 2d
+                             */
+                            resubmitWithin: string;
+                        };
+                        /** @description The setting that switches approval on (GET /v1/settings). */
+                        setting: string | null;
+                        /** @description The JSON Schema of the requests' payload. */
+                        payloadSchema: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            /** @description An unknown type, or parameters its schema refuses (validation_failed, each error naming its path: `stages.0.approvers.1.role`). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Changing approval policies needs Approval.managePolicies. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No approvable action has this key. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalPoliciesController_reset_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        key: string;
+                        subject: string;
+                        action: string;
+                        label: string;
+                        description: string | null;
+                        /** @description 0: the code default, never changed. */
+                        version: number;
+                        /** @enum {string} */
+                        source: "code" | "override";
+                        policy: {
+                            /** @default true */
+                            enabled: boolean;
+                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                            when?: ({
+                                type: string;
+                            } & {
+                                [key: string]: unknown;
+                            }) | null;
+                            stages: {
+                                /** @example Editor review */
+                                name: string;
+                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                approvers: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                 * @default {
+                                 *       "type": "any"
+                                 *     }
+                                 */
+                                mode: {
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                                /**
+                                 * @description Remind the approvers who have not decided after this long.
+                                 * @example 2d
+                                 */
+                                remindAfter?: string;
+                                /**
+                                 * @description The stage is overdue after this long: then `onOverdue`.
+                                 * @example 2d
+                                 */
+                                dueAfter?: string;
+                                /**
+                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                 * @default expire
+                                 * @enum {string}
+                                 */
+                                onOverdue: "expire" | "escalate";
+                                /** @description With `onOverdue: escalate`: the approvers added. */
+                                escalateTo?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description After an escalation, the request expires after this long.
+                                 * @example 2d
+                                 */
+                                escalationDueAfter?: string;
+                            }[];
+                            /**
+                             * @default 30d
+                             * @example 2d
+                             */
+                            resubmitWithin: string;
+                        };
+                        /** @description The code's default policy. */
+                        default: {
+                            /** @default true */
+                            enabled: boolean;
+                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
+                            when?: ({
+                                type: string;
+                            } & {
+                                [key: string]: unknown;
+                            }) | null;
+                            stages: {
+                                /** @example Editor review */
+                                name: string;
+                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
+                                approvers: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
+                                 * @default {
+                                 *       "type": "any"
+                                 *     }
+                                 */
+                                mode: {
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                };
+                                /**
+                                 * @description Remind the approvers who have not decided after this long.
+                                 * @example 2d
+                                 */
+                                remindAfter?: string;
+                                /**
+                                 * @description The stage is overdue after this long: then `onOverdue`.
+                                 * @example 2d
+                                 */
+                                dueAfter?: string;
+                                /**
+                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
+                                 * @default expire
+                                 * @enum {string}
+                                 */
+                                onOverdue: "expire" | "escalate";
+                                /** @description With `onOverdue: escalate`: the approvers added. */
+                                escalateTo?: ({
+                                    type: string;
+                                } & {
+                                    [key: string]: unknown;
+                                })[];
+                                /**
+                                 * @description After an escalation, the request expires after this long.
+                                 * @example 2d
+                                 */
+                                escalationDueAfter?: string;
+                            }[];
+                            /**
+                             * @default 30d
+                             * @example 2d
+                             */
+                            resubmitWithin: string;
+                        };
+                        /** @description The setting that switches approval on (GET /v1/settings). */
+                        setting: string | null;
+                        /** @description The JSON Schema of the requests' payload. */
+                        payloadSchema: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            /** @description No valid session or user token. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Changing approval policies needs Approval.managePolicies. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No approvable action has this key. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                /** @description The language of the answer. */
+                lang?: string;
+                /** @description Filter: assignedToMe = */
+                assignedToMe?: "true" | "false";
+                /** @description Filter: requestedByMe = */
+                requestedByMe?: "true" | "false";
+                /** @description Filter: decidedByMe = */
+                decidedByMe?: "true" | "false";
+                /** @description Filter: status = */
+                status?: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: status notIn */
+                "status.notIn"?: string;
+                /** @description Filter: subject = */
+                subject?: string;
+                /** @description Filter: subject in */
+                "subject.in"?: string;
+                /** @description Filter: action = */
+                action?: string;
+                /** @description Filter: action in */
+                "action.in"?: string;
+                /** @description Filter: recordId = */
+                recordId?: string;
+                /** @description Filter: requester = */
+                requester?: string;
+                /** @description Filter: dueAt lt */
+                "dueAt.lt"?: string;
+                /** @description Filter: dueAt lte */
+                "dueAt.lte"?: string;
+                /** @description Filter: dueAt gte */
+                "dueAt.gte"?: string;
+                /** @description Filter: dueAt isNull */
+                "dueAt.isNull"?: "true" | "false";
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Filter: updatedAt gt */
+                "updatedAt.gt"?: string;
+                /** @description Filter: updatedAt gte */
+                "updatedAt.gte"?: string;
+                /** @description Filter: updatedAt lt */
+                "updatedAt.lt"?: string;
+                /** @description Filter: updatedAt lte */
+                "updatedAt.lte"?: string;
+                /** @description Filter: updatedAt between */
+                "updatedAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"assignedToMe","op":"eq","value":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); decidedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, outcomeAppliedAt, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                            key: string;
+                            /** @example Note */
+                            subject: string;
+                            recordId: string;
+                            /** @example publish */
+                            action: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                            /** @description `user:<id>` or `client:<id>`. */
+                            requester: string;
+                            requesterName: string;
+                            /** @description What the record is called. */
+                            title: string;
+                            /** @description The record in the web app. */
+                            link: string | null;
+                            /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                            payload: {
+                                [key: string]: unknown;
+                            };
+                            /** @description The policy version it runs under (0: the code's default). */
+                            policyVersion: number;
+                            /** @description Resubmissions so far. */
+                            round: number;
+                            currentStage: number;
+                            stageCount: number;
+                            stageName: string;
+                            /**
+                             * Format: date-time
+                             * @description The current stage's deadline.
+                             */
+                            dueAt: string | null;
+                            /** @description The requester's note. */
+                            comment: string | null;
+                            /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                            outcomeReason: string | null;
+                            /** Format: date-time */
+                            endedAt: string | null;
+                            /**
+                             * Format: date-time
+                             * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                             */
+                            outcomeAppliedAt: string | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                            /** Format: date-time */
+                            updatedAt: string;
+                            /** @description What you may do with it now. */
+                            can: {
+                                decide: boolean;
+                                cancel: boolean;
+                                resubmit: boolean;
+                                abandon: boolean;
+                            };
+                            /**
+                             * @description The ETag `GET /v1/approvals/{id}` would send you now (it covers the request's stages, assignments, timeline and your `can`): send it as `If-Match` on a decision.
+                             * @example "mZ1k…"
+                             */
+                            etag: string;
+                        }[];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag you have: 304 and no body when it is still current. */
+                "If-None-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                        key: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example publish */
+                        action: string;
+                        /** @enum {string} */
+                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                        /** @description `user:<id>` or `client:<id>`. */
+                        requester: string;
+                        requesterName: string;
+                        /** @description What the record is called. */
+                        title: string;
+                        /** @description The record in the web app. */
+                        link: string | null;
+                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                        /** @description The policy version it runs under (0: the code's default). */
+                        policyVersion: number;
+                        /** @description Resubmissions so far. */
+                        round: number;
+                        currentStage: number;
+                        stageCount: number;
+                        stageName: string;
+                        /**
+                         * Format: date-time
+                         * @description The current stage's deadline.
+                         */
+                        dueAt: string | null;
+                        /** @description The requester's note. */
+                        comment: string | null;
+                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                        outcomeReason: string | null;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description The policy's stages, as they stand in the current round. */
+                        stages: {
+                            index: number;
+                            name: string;
+                            mode: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
+                        }[];
+                        /** @description Every assignment of every round, oldest first. */
+                        assignments: {
+                            /** Format: uuid */
+                            id: string;
+                            round: number;
+                            stage: number;
+                            /** Format: uuid */
+                            approverId: string;
+                            approverName: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
+                            comment: string | null;
+                            /** Format: date-time */
+                            decidedAt: string | null;
+                            /** Format: uuid */
+                            decidedBy: string | null;
+                            decidedByName: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Set when a delegate decided for the approver.
+                             */
+                            onBehalfOf: string | null;
+                            escalated: boolean;
+                        }[];
+                        timeline: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @example stage_started */
+                            type: string;
+                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
+                            actor: string | null;
+                            actorName: string | null;
+                            round: number;
+                            stage: number | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description What you may do with it now. */
+                        can: {
+                            decide: boolean;
+                            cancel: boolean;
+                            resubmit: boolean;
+                            abandon: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_approve_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    comment?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                        key: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example publish */
+                        action: string;
+                        /** @enum {string} */
+                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                        /** @description `user:<id>` or `client:<id>`. */
+                        requester: string;
+                        requesterName: string;
+                        /** @description What the record is called. */
+                        title: string;
+                        /** @description The record in the web app. */
+                        link: string | null;
+                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                        /** @description The policy version it runs under (0: the code's default). */
+                        policyVersion: number;
+                        /** @description Resubmissions so far. */
+                        round: number;
+                        currentStage: number;
+                        stageCount: number;
+                        stageName: string;
+                        /**
+                         * Format: date-time
+                         * @description The current stage's deadline.
+                         */
+                        dueAt: string | null;
+                        /** @description The requester's note. */
+                        comment: string | null;
+                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                        outcomeReason: string | null;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description The policy's stages, as they stand in the current round. */
+                        stages: {
+                            index: number;
+                            name: string;
+                            mode: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
+                        }[];
+                        /** @description Every assignment of every round, oldest first. */
+                        assignments: {
+                            /** Format: uuid */
+                            id: string;
+                            round: number;
+                            stage: number;
+                            /** Format: uuid */
+                            approverId: string;
+                            approverName: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
+                            comment: string | null;
+                            /** Format: date-time */
+                            decidedAt: string | null;
+                            /** Format: uuid */
+                            decidedBy: string | null;
+                            decidedByName: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Set when a delegate decided for the approver.
+                             */
+                            onBehalfOf: string | null;
+                            escalated: boolean;
+                        }[];
+                        timeline: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @example stage_started */
+                            type: string;
+                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
+                            actor: string | null;
+                            actorName: string | null;
+                            round: number;
+                            stage: number | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description What you may do with it now. */
+                        can: {
+                            decide: boolean;
+                            cancel: boolean;
+                            resubmit: boolean;
+                            abandon: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an approver of the current stage, nor standing in for one (approval_not_assignee), or your own request (approval_self_approval). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such request that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The stage was decided by someone else, or you decided otherwise (approval_already_decided); the request has ended (approval_closed). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_reject_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    comment: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                        key: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example publish */
+                        action: string;
+                        /** @enum {string} */
+                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                        /** @description `user:<id>` or `client:<id>`. */
+                        requester: string;
+                        requesterName: string;
+                        /** @description What the record is called. */
+                        title: string;
+                        /** @description The record in the web app. */
+                        link: string | null;
+                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                        /** @description The policy version it runs under (0: the code's default). */
+                        policyVersion: number;
+                        /** @description Resubmissions so far. */
+                        round: number;
+                        currentStage: number;
+                        stageCount: number;
+                        stageName: string;
+                        /**
+                         * Format: date-time
+                         * @description The current stage's deadline.
+                         */
+                        dueAt: string | null;
+                        /** @description The requester's note. */
+                        comment: string | null;
+                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                        outcomeReason: string | null;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description The policy's stages, as they stand in the current round. */
+                        stages: {
+                            index: number;
+                            name: string;
+                            mode: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
+                        }[];
+                        /** @description Every assignment of every round, oldest first. */
+                        assignments: {
+                            /** Format: uuid */
+                            id: string;
+                            round: number;
+                            stage: number;
+                            /** Format: uuid */
+                            approverId: string;
+                            approverName: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
+                            comment: string | null;
+                            /** Format: date-time */
+                            decidedAt: string | null;
+                            /** Format: uuid */
+                            decidedBy: string | null;
+                            decidedByName: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Set when a delegate decided for the approver.
+                             */
+                            onBehalfOf: string | null;
+                            escalated: boolean;
+                        }[];
+                        timeline: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @example stage_started */
+                            type: string;
+                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
+                            actor: string | null;
+                            actorName: string | null;
+                            round: number;
+                            stage: number | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description What you may do with it now. */
+                        can: {
+                            decide: boolean;
+                            cancel: boolean;
+                            resubmit: boolean;
+                            abandon: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No comment (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an approver of the current stage, nor standing in for one (approval_not_assignee), or your own request (approval_self_approval). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such request that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The stage was decided by someone else, or you decided otherwise (approval_already_decided); the request has ended (approval_closed). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_requestChanges_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    comment: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                        key: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example publish */
+                        action: string;
+                        /** @enum {string} */
+                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                        /** @description `user:<id>` or `client:<id>`. */
+                        requester: string;
+                        requesterName: string;
+                        /** @description What the record is called. */
+                        title: string;
+                        /** @description The record in the web app. */
+                        link: string | null;
+                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                        /** @description The policy version it runs under (0: the code's default). */
+                        policyVersion: number;
+                        /** @description Resubmissions so far. */
+                        round: number;
+                        currentStage: number;
+                        stageCount: number;
+                        stageName: string;
+                        /**
+                         * Format: date-time
+                         * @description The current stage's deadline.
+                         */
+                        dueAt: string | null;
+                        /** @description The requester's note. */
+                        comment: string | null;
+                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                        outcomeReason: string | null;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description The policy's stages, as they stand in the current round. */
+                        stages: {
+                            index: number;
+                            name: string;
+                            mode: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
+                        }[];
+                        /** @description Every assignment of every round, oldest first. */
+                        assignments: {
+                            /** Format: uuid */
+                            id: string;
+                            round: number;
+                            stage: number;
+                            /** Format: uuid */
+                            approverId: string;
+                            approverName: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
+                            comment: string | null;
+                            /** Format: date-time */
+                            decidedAt: string | null;
+                            /** Format: uuid */
+                            decidedBy: string | null;
+                            decidedByName: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Set when a delegate decided for the approver.
+                             */
+                            onBehalfOf: string | null;
+                            escalated: boolean;
+                        }[];
+                        timeline: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @example stage_started */
+                            type: string;
+                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
+                            actor: string | null;
+                            actorName: string | null;
+                            round: number;
+                            stage: number | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description What you may do with it now. */
+                        can: {
+                            decide: boolean;
+                            cancel: boolean;
+                            resubmit: boolean;
+                            abandon: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No comment (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not an approver of the current stage, nor standing in for one (approval_not_assignee), or your own request (approval_self_approval). */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No such request that you may read. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The stage was decided by someone else, or you decided otherwise (approval_already_decided); the request has ended (approval_closed). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The request changed since you read it (precondition_failed). */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_cancel_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                        key: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example publish */
+                        action: string;
+                        /** @enum {string} */
+                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                        /** @description `user:<id>` or `client:<id>`. */
+                        requester: string;
+                        requesterName: string;
+                        /** @description What the record is called. */
+                        title: string;
+                        /** @description The record in the web app. */
+                        link: string | null;
+                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                        /** @description The policy version it runs under (0: the code's default). */
+                        policyVersion: number;
+                        /** @description Resubmissions so far. */
+                        round: number;
+                        currentStage: number;
+                        stageCount: number;
+                        stageName: string;
+                        /**
+                         * Format: date-time
+                         * @description The current stage's deadline.
+                         */
+                        dueAt: string | null;
+                        /** @description The requester's note. */
+                        comment: string | null;
+                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                        outcomeReason: string | null;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description The policy's stages, as they stand in the current round. */
+                        stages: {
+                            index: number;
+                            name: string;
+                            mode: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
+                        }[];
+                        /** @description Every assignment of every round, oldest first. */
+                        assignments: {
+                            /** Format: uuid */
+                            id: string;
+                            round: number;
+                            stage: number;
+                            /** Format: uuid */
+                            approverId: string;
+                            approverName: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
+                            comment: string | null;
+                            /** Format: date-time */
+                            decidedAt: string | null;
+                            /** Format: uuid */
+                            decidedBy: string | null;
+                            decidedByName: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Set when a delegate decided for the approver.
+                             */
+                            onBehalfOf: string | null;
+                            escalated: boolean;
+                        }[];
+                        timeline: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @example stage_started */
+                            type: string;
+                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
+                            actor: string | null;
+                            actorName: string | null;
+                            round: number;
+                            stage: number | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description What you may do with it now. */
+                        can: {
+                            decide: boolean;
+                            cancel: boolean;
+                            resubmit: boolean;
+                            abandon: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Neither the requester nor allowed to cancel it. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description It has ended (approval_closed). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description precondition_failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_abandon_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    reason?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                        key: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example publish */
+                        action: string;
+                        /** @enum {string} */
+                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                        /** @description `user:<id>` or `client:<id>`. */
+                        requester: string;
+                        requesterName: string;
+                        /** @description What the record is called. */
+                        title: string;
+                        /** @description The record in the web app. */
+                        link: string | null;
+                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                        /** @description The policy version it runs under (0: the code's default). */
+                        policyVersion: number;
+                        /** @description Resubmissions so far. */
+                        round: number;
+                        currentStage: number;
+                        stageCount: number;
+                        stageName: string;
+                        /**
+                         * Format: date-time
+                         * @description The current stage's deadline.
+                         */
+                        dueAt: string | null;
+                        /** @description The requester's note. */
+                        comment: string | null;
+                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                        outcomeReason: string | null;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description The policy's stages, as they stand in the current round. */
+                        stages: {
+                            index: number;
+                            name: string;
+                            mode: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
+                        }[];
+                        /** @description Every assignment of every round, oldest first. */
+                        assignments: {
+                            /** Format: uuid */
+                            id: string;
+                            round: number;
+                            stage: number;
+                            /** Format: uuid */
+                            approverId: string;
+                            approverName: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
+                            comment: string | null;
+                            /** Format: date-time */
+                            decidedAt: string | null;
+                            /** Format: uuid */
+                            decidedBy: string | null;
+                            decidedByName: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Set when a delegate decided for the approver.
+                             */
+                            onBehalfOf: string | null;
+                            escalated: boolean;
+                        }[];
+                        timeline: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @example stage_started */
+                            type: string;
+                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
+                            actor: string | null;
+                            actorName: string | null;
+                            round: number;
+                            stage: number | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description What you may do with it now. */
+                        can: {
+                            decide: boolean;
+                            cancel: boolean;
+                            resubmit: boolean;
+                            abandon: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed to manage approvals, or impersonating. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not approved, applied already, or its workflow still runs or retries (approval_not_stuck). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description precondition_failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ApprovalsController_resubmit_v1: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
+                "If-Match"?: string;
+            };
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A new proposed change; checked by the action's schema. */
+                    payload?: {
+                        [key: string]: unknown;
+                    };
+                    comment?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
+                        key: string;
+                        /** @example Note */
+                        subject: string;
+                        recordId: string;
+                        /** @example publish */
+                        action: string;
+                        /** @enum {string} */
+                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
+                        /** @description `user:<id>` or `client:<id>`. */
+                        requester: string;
+                        requesterName: string;
+                        /** @description What the record is called. */
+                        title: string;
+                        /** @description The record in the web app. */
+                        link: string | null;
+                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
+                        payload: {
+                            [key: string]: unknown;
+                        };
+                        /** @description The policy version it runs under (0: the code's default). */
+                        policyVersion: number;
+                        /** @description Resubmissions so far. */
+                        round: number;
+                        currentStage: number;
+                        stageCount: number;
+                        stageName: string;
+                        /**
+                         * Format: date-time
+                         * @description The current stage's deadline.
+                         */
+                        dueAt: string | null;
+                        /** @description The requester's note. */
+                        comment: string | null;
+                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
+                        outcomeReason: string | null;
+                        /** Format: date-time */
+                        endedAt: string | null;
+                        /**
+                         * Format: date-time
+                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
+                         */
+                        outcomeAppliedAt: string | null;
+                        /** Format: date-time */
+                        createdAt: string;
+                        /** Format: date-time */
+                        updatedAt: string;
+                        /** @description The policy's stages, as they stand in the current round. */
+                        stages: {
+                            index: number;
+                            name: string;
+                            mode: {
+                                [key: string]: unknown;
+                            };
+                            /** @enum {string} */
+                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
+                        }[];
+                        /** @description Every assignment of every round, oldest first. */
+                        assignments: {
+                            /** Format: uuid */
+                            id: string;
+                            round: number;
+                            stage: number;
+                            /** Format: uuid */
+                            approverId: string;
+                            approverName: string;
+                            /** @enum {string} */
+                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
+                            comment: string | null;
+                            /** Format: date-time */
+                            decidedAt: string | null;
+                            /** Format: uuid */
+                            decidedBy: string | null;
+                            decidedByName: string | null;
+                            /**
+                             * Format: uuid
+                             * @description Set when a delegate decided for the approver.
+                             */
+                            onBehalfOf: string | null;
+                            escalated: boolean;
+                        }[];
+                        timeline: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @example stage_started */
+                            type: string;
+                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
+                            actor: string | null;
+                            actorName: string | null;
+                            round: number;
+                            stage: number | null;
+                            details: {
+                                [key: string]: unknown;
+                            } | null;
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                        /** @description What you may do with it now. */
+                        can: {
+                            decide: boolean;
+                            cancel: boolean;
+                            resubmit: boolean;
+                            abandon: boolean;
+                        };
+                    };
+                };
+            };
+            /** @description The payload fails the action’s schema. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not the requester. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not sent back for changes (approval_not_changes_requested). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description precondition_failed. */
+            412: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A stage would find no approver (approval_no_approvers). */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -23836,6 +25495,839 @@ export interface operations {
             };
         };
     };
+    CalendarsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendarList"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @example Europe/Berlin */
+                    timezone: string;
+                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+                    hours: {
+                        /** @example 09:00 */
+                        start: string;
+                        /** @example 17:00 */
+                        end: string;
+                        /** @description 0 Sunday … 6 Saturday. */
+                        weekday: number;
+                    }[];
+                    /** @default [] */
+                    exceptions?: components["schemas"]["CalendarException"][];
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description An unknown time zone, a bad or overlapping span, a date twice, more than 50 calendars (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A calendar has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_findOne_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A recurring schedule still follows it. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /** @description The spans worked each weekday, in `timezone`; a weekday with none is closed. A span ends by 24:00 and does not cross midnight: split it over two days. */
+                    hours?: {
+                        /** @example 09:00 */
+                        start: string;
+                        /** @example 17:00 */
+                        end: string;
+                        /** @description 0 Sunday … 6 Saturday. */
+                        weekday: number;
+                    }[];
+                    exceptions?: components["schemas"]["CalendarException"][];
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BusinessCalendar"];
+                };
+            };
+            /** @description An invalid body (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A calendar has this name. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    CalendarsController_deadline_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: date-time
+                     * @example 2026-10-23T14:00:00Z
+                     */
+                    from: string;
+                    /**
+                     * @description Working minutes to add; 0: the first working moment at or after `from`.
+                     * @example 480
+                     */
+                    minutes: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CalendarDeadline"];
+                };
+            };
+            /** @description The calendar has no working time in the next ten years (calendar_has_no_working_time). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_list_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
+                page?: number;
+                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
+                count?: "true" | "false";
+                lang?: string;
+                /** @description Filter: importer = */
+                importer?: string;
+                /** @description Filter: importer in */
+                "importer.in"?: string;
+                /** @description Filter: status = */
+                status?: string;
+                /** @description Filter: status in */
+                "status.in"?: string;
+                /** @description Filter: name = */
+                name?: string;
+                /** @description Filter: name contains */
+                "name.contains"?: string;
+                /** @description Filter: nextRunAt gte */
+                "nextRunAt.gte"?: string;
+                /** @description Filter: nextRunAt lt */
+                "nextRunAt.lt"?: string;
+                /** @description Filter: nextRunAt between */
+                "nextRunAt.between"?: string;
+                /** @description Filter: createdAt gt */
+                "createdAt.gt"?: string;
+                /** @description Filter: createdAt gte */
+                "createdAt.gte"?: string;
+                /** @description Filter: createdAt lt */
+                "createdAt.lt"?: string;
+                /** @description Filter: createdAt lte */
+                "createdAt.lte"?: string;
+                /** @description Filter: createdAt between */
+                "createdAt.between"?: string;
+                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"importer","op":"eq","value":…},{…}]}. Fields and operators: importer (eq, in); status (eq, in); name (eq, contains); nextRunAt (gte, lt, between); createdAt (gt, gte, lt, lte, between). */
+                filter?: string;
+                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -name. Sortable: name, nextRunAt, createdAt. */
+                sort?: string;
+                /** @description Only these fields in each item, comma-separated; id always comes. Example: name,importer. Fields: id, name, importer, template, rrule, startDate, time, timezone, calendarId, status, endReason, occurrences, maxOccurrences, failures, lastError, lastRunAt, lastStatus, nextRunAt, createdAt, updatedAt. */
+                fields?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["RecordSchedule"][];
+                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
+                        nextCursor: string | null;
+                        /** @description With `page`: this page. */
+                        page?: number;
+                        /** @description With `page`: the next page; null: no more. */
+                        nextPage?: number | null;
+                        /** @description With `page` and `count=true`: ceil(total / limit). */
+                        pageCount?: number;
+                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
+                        total?: number;
+                        /** @description true: there are more than `total` (show "10,000+"). */
+                        totalCapped?: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Weekly review */
+                    name: string;
+                    /**
+                     * @description The importer whose rows are created (`GET /v1/data`).
+                     * @example notes
+                     */
+                    importer: string;
+                    /**
+                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+                     * @example {
+                     *       "title": "Weekly review",
+                     *       "body": "Check the board."
+                     *     }
+                     */
+                    template: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time: string;
+                    /**
+                     * @description Default: your own time zone, else the server's (APP_TIMEZONE).
+                     * @example Europe/Berlin
+                     */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The template sets a field your permissions hide (field_forbidden), or the session is impersonating a user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_preview_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string;
+                    /** @default 5 */
+                    count?: number;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedulePreview"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_get_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example Weekly review */
+                    name?: string;
+                    /**
+                     * @description One row of the importer, as its file import takes it (`GET /v1/data/imports/{name}/template` lists the columns); checked on create and again at every occurrence, as the owner. The same values are used each time.
+                     * @example {
+                     *       "title": "Weekly review",
+                     *       "body": "Check the board."
+                     *     }
+                     */
+                    template?: {
+                        [key: string]: unknown;
+                    };
+                    /**
+                     * @description An RFC 5545 RRULE, a subset: FREQ (DAILY, WEEKLY, MONTHLY, YEARLY), INTERVAL, BYDAY (weekly: MO,WE), BYMONTHDAY (monthly), and COUNT or UNTIL (20261231). At most 1000 records per schedule. A month without the day (the 31st) has no occurrence.
+                     * @example FREQ=WEEKLY;BYDAY=MO;COUNT=26
+                     */
+                    rrule?: string;
+                    /**
+                     * Format: date
+                     * @description The first date that may occur, in the schedule's zone.
+                     * @example 2026-11-02
+                     */
+                    startDate?: string;
+                    /**
+                     * @description Time of day of each occurrence, in the schedule's zone.
+                     * @example 08:30
+                     */
+                    time?: string;
+                    /** @example Europe/Berlin */
+                    timezone?: string;
+                    /**
+                     * Format: uuid
+                     * @description A business calendar (`GET /v1/calendars`): an occurrence outside its working time moves to its next working moment; occurrences that land on the same moment make one record.
+                     */
+                    calendarId?: string | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description An import you may not run (`importer`), a template it refuses (`template.<field>`), a bad rule, time zone or calendar, no occurrence to come, more than 20 active schedules (validation_failed). */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_pause_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_resume_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description More than 20 active schedules. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The schedule has ended. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RecordSchedulesController_end_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordSchedule"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     SharedController_open_v1: {
         parameters: {
             query?: never;
@@ -23964,6 +26456,214 @@ export interface operations {
                 content?: never;
             };
             /** @description The link does not work, or does not share this file. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_summary_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualitySummary"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_scan_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityScan"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description A scan is already running (scan_running). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_findings_v1: {
+        parameters: {
+            query?: {
+                limit?: number;
+                /** @description `nextCursor` of the previous page (the same `sort`). */
+                cursor?: string;
+                severity?: "error" | "suggestion";
+                check?: "missing" | "reference" | "duplicate";
+                /** @description true: the dismissed ones instead of the open ones. */
+                dismissed?: "true" | "false";
+                lang?: string;
+            };
+            header?: never;
+            path: {
+                subject: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityFindingPage"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No checks for this subject (subject_not_found). */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_dismiss_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityFinding"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No finding with this id that you may see. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    DataQualityController_recheck_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DataQualityRecheck"];
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No finding with this id that you may see. */
             404: {
                 headers: {
                     [name: string]: unknown;
@@ -25059,419 +27759,6 @@ export interface operations {
             };
         };
     };
-    DataQualityController_summary_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DataQualitySummary"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DataQualityController_scan_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DataQualityScan"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A scan is already running (scan_running). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DataQualityController_findings_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                severity?: "error" | "suggestion";
-                check?: "missing" | "reference" | "duplicate";
-                /** @description true: the dismissed ones instead of the open ones. */
-                dismissed?: "true" | "false";
-                lang?: string;
-            };
-            header?: never;
-            path: {
-                subject: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DataQualityFindingPage"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No checks for this subject (subject_not_found). */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DataQualityController_dismiss_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DataQualityFinding"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No finding with this id that you may see. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    DataQualityController_recheck_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DataQualityRecheck"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No finding with this id that you may see. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ImportMappingsController_list_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: components["schemas"]["ImportMapping"][];
-                    };
-                };
-            };
-            /** @description Nothing to import by that name. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ImportMappingsController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @example CRM export */
-                    name: string;
-                    /**
-                     * @description The file's headers to the template's columns: `{ "Surname": "lastName", "Notes": null }` (null: ignore the column). A header not named keeps its own name. A date-time column takes the zone of the file's times as the template's header does: `{ "When": "dueAt (Asia/Dubai)" }`.
-                     * @example {
-                     *       "Title": "title",
-                     *       "Internal": null
-                     *     }
-                     */
-                    mapping: {
-                        [key: string]: string | null;
-                    };
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportMapping"];
-                };
-            };
-            /** @description A target you cannot import, a target twice, or too many saved. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Nothing to import by that name. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The name is taken (conflict). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ImportMappingsController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RetentionController_list_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RetentionRuleList"];
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    RetentionController_set_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    enabled: boolean;
-                    /** @description Left out: the days already in force. */
-                    days?: number;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RetentionRule"];
-                };
-            };
-            /** @description An invalid body, or days below the minimum (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No rule of this name is declared. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
     ReportsController_list_v1: {
         parameters: {
             query?: {
@@ -26273,315 +28560,532 @@ export interface operations {
             };
         };
     };
-    MailEventsController_handle_v1: {
+    BrandingController_get_v1: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                provider: string;
-            };
+            path?: never;
             cookie?: never;
         };
-        /** @description The provider’s notification, as it sends it. */
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_update_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
         requestBody: {
             content: {
-                "application/json": string;
+                "application/json": {
+                    primaryColor?: string | null;
+                    darkPrimaryColor?: string | null;
+                    mailFromName?: string | null;
+                };
             };
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_upload_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than 512 KB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_remove_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description There is no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_uploadDark_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * Format: binary
+                     * @description Required. A PNG, JPEG or WebP image of at most 512 KB, recognized by its bytes.
+                     */
+                    file?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
+                        /** @description The operators locked it: `PUT` and the logo routes answer 409. */
+                        locked: boolean;
+                        /** @description The caller may change it (and it is not locked). */
+                        canEdit: boolean;
+                    };
+                };
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Larger than 512 KB (payload_too_large). */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not a PNG, JPEG or WebP (unsupported_media_type). */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingController_removeDark_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description There is no dark-mode logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Locked by the operators (branding_locked). */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicBrandingController_logo_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has no logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PublicBrandingController_darkLogo_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                tenantId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description The image. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description The tenant has no dark-mode logo. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingDomainsController_list_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** @description Whether this deployment serves custom domains (CUSTOM_DOMAINS). */
+                        enabled: boolean;
+                        domains: {
+                            /** Format: uuid */
+                            id: string;
+                            /** @description Lower case, ASCII (punycode). */
+                            hostname: string;
+                            /** @description Its TXT record was found at the last check: the host routes to the tenant. */
+                            verified: boolean;
+                            /** Format: date-time */
+                            verifiedAt: string | null;
+                            /** Format: date-time */
+                            lastCheckedAt: string | null;
+                            lastError: string | null;
+                            /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
+                            record: {
+                                /** @enum {string} */
+                                type: "TXT";
+                                name: string;
+                                value: string;
+                            };
+                            /** Format: date-time */
+                            createdAt: string;
+                        }[];
+                    };
+                };
+            };
+        };
+    };
+    BrandingDomainsController_create_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @description A hostname such as app.example.com: no scheme, port or path; an internationalized name is stored in punycode. */
+                    hostname: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        id: string;
+                        /** @description Lower case, ASCII (punycode). */
+                        hostname: string;
+                        /** @description Its TXT record was found at the last check: the host routes to the tenant. */
+                        verified: boolean;
+                        /** Format: date-time */
+                        verifiedAt: string | null;
+                        /** Format: date-time */
+                        lastCheckedAt: string | null;
+                        lastError: string | null;
+                        /** @description The DNS record that proves the domain is the tenant’s; keep it published. */
+                        record: {
+                            /** @enum {string} */
+                            type: "TXT";
+                            name: string;
+                            value: string;
+                        };
+                        /** Format: date-time */
+                        createdAt: string;
+                    };
+                };
+            };
+            /** @description `invalid_hostname`. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `custom_domains_off`. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description `domain_exists`, `branding_locked`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    BrandingDomainsController_verify_v1: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
                     "application/json": {
                         /** @enum {boolean} */
-                        received: true;
-                        /** @enum {string} */
-                        kind: "events" | "handshake" | "ignored";
-                        events: number;
+                        accepted: true;
                     };
                 };
             };
-            /** @description Not the provider’s format (sns_malformed, postmark_malformed, sendgrid_malformed, resend_malformed, resend_stale). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The signature or secret does not verify (sns_signature_invalid, sendgrid_signature_invalid, resend_signature_invalid, resend_signature_missing, postmark_secret_invalid), or the certificate or subscribe URL is not an SNS host (sns_certificate_refused, sns_subscribe_url_refused). */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The topic is not in SES_SNS_TOPIC_ARNS (sns_topic_not_allowed), or the provider is not configured (postmark_not_configured, sendgrid_not_configured, resend_not_configured). */
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description No such provider. */
             404: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description The signing certificate could not be fetched (sns_certificate_unavailable): the provider retries. */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    SuppressionsController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                lang?: string;
-                /** @description Filter: address = */
-                address?: string;
-                /** @description Filter: address contains */
-                "address.contains"?: string;
-                /** @description Filter: address endsWith */
-                "address.endsWith"?: string;
-                /** @description Filter: reason = */
-                reason?: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
-                /** @description Filter: reason in */
-                "reason.in"?: string;
-                /** @description Filter: reason notIn */
-                "reason.notIn"?: string;
-                /** @description Filter: source = */
-                source?: string;
-                /** @description Filter: source in */
-                "source.in"?: string;
-                /** @description Filter: suppressedAt gte */
-                "suppressedAt.gte"?: string;
-                /** @description Filter: suppressedAt lt */
-                "suppressedAt.lt"?: string;
-                /** @description Filter: suppressedAt between */
-                "suppressedAt.between"?: string;
-                /** @description Filter: suppressedAt isNull */
-                "suppressedAt.isNull"?: "true" | "false";
-                /** @description Filter: lastSeenAt gte */
-                "lastSeenAt.gte"?: string;
-                /** @description Filter: lastSeenAt lt */
-                "lastSeenAt.lt"?: string;
-                /** @description Filter: lastSeenAt between */
-                "lastSeenAt.between"?: string;
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Filter: updatedAt gt */
-                "updatedAt.gt"?: string;
-                /** @description Filter: updatedAt gte */
-                "updatedAt.gte"?: string;
-                /** @description Filter: updatedAt lt */
-                "updatedAt.lt"?: string;
-                /** @description Filter: updatedAt lte */
-                "updatedAt.lte"?: string;
-                /** @description Filter: updatedAt between */
-                "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"address","op":"eq","value":…},{…}]}. Fields and operators: address (eq, contains, endsWith); reason (eq, in, notIn); source (eq, in); suppressedAt (gte, lt, between, isNull); lastSeenAt (gte, lt, between); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -address. Sortable: address, suppressedAt, lastSeenAt, createdAt, updatedAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: address,reason. Fields: id, address, reason, source, note, lastDetail, events, softBounces, firstSeenAt, lastSeenAt, suppressedAt, skipped, lastSkippedAt, createdBy, createdAt, updatedAt. */
-                fields?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            id: string;
-                            /** @example ada@example.com */
-                            address: string;
-                            /**
-                             * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
-                             * @enum {string}
-                             */
-                            reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
-                            /** @description The provider that reported it (`ses`), or `manual`. */
-                            source: string;
-                            note: string | null;
-                            /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
-                            lastDetail: string | null;
-                            /** @description Bounces and complaints reported for it. */
-                            events: number;
-                            /** @description Transient bounces in a row. */
-                            softBounces: number;
-                            /** Format: date-time */
-                            firstSeenAt: string;
-                            /** Format: date-time */
-                            lastSeenAt: string;
-                            /**
-                             * Format: date-time
-                             * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
-                             */
-                            suppressedAt: string | null;
-                            /** @description Mails not sent to it since. */
-                            skipped: number;
-                            /** Format: date-time */
-                            lastSkippedAt: string | null;
-                            createdBy: string | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid session or token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    SuppressionsController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /**
-                     * Format: email
-                     * @example ada@example.com
-                     */
-                    address: string;
-                    note?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        /** @example ada@example.com */
-                        address: string;
-                        /**
-                         * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
-                         * @enum {string}
-                         */
-                        reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
-                        /** @description The provider that reported it (`ses`), or `manual`. */
-                        source: string;
-                        note: string | null;
-                        /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
-                        lastDetail: string | null;
-                        /** @description Bounces and complaints reported for it. */
-                        events: number;
-                        /** @description Transient bounces in a row. */
-                        softBounces: number;
-                        /** Format: date-time */
-                        firstSeenAt: string;
-                        /** Format: date-time */
-                        lastSeenAt: string;
-                        /**
-                         * Format: date-time
-                         * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
-                         */
-                        suppressedAt: string | null;
-                        /** @description Mails not sent to it since. */
-                        skipped: number;
-                        /** Format: date-time */
-                        lastSkippedAt: string | null;
-                        createdBy: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description Not an email address. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session or token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The address is listed already. */
+            /** @description `branding_locked`. */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -26590,88 +29094,7 @@ export interface operations {
             };
         };
     };
-    SuppressionsController_findOne_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        id: string;
-                        /** @example ada@example.com */
-                        address: string;
-                        /**
-                         * @description `hard_bounce` (no such mailbox), `soft_bounce` (refused MAIL_SOFT_BOUNCE_THRESHOLD times in a row), `complaint` (reported as spam), `manual`.
-                         * @enum {string}
-                         */
-                        reason: "hard_bounce" | "soft_bounce" | "complaint" | "manual";
-                        /** @description The provider that reported it (`ses`), or `manual`. */
-                        source: string;
-                        note: string | null;
-                        /** @description The provider’s last word: a bounce sub-type, a diagnostic code. */
-                        lastDetail: string | null;
-                        /** @description Bounces and complaints reported for it. */
-                        events: number;
-                        /** @description Transient bounces in a row. */
-                        softBounces: number;
-                        /** Format: date-time */
-                        firstSeenAt: string;
-                        /** Format: date-time */
-                        lastSeenAt: string;
-                        /**
-                         * Format: date-time
-                         * @description Null: only watched (soft bounces under the threshold); set: mail is not sent to it.
-                         */
-                        suppressedAt: string | null;
-                        /** @description Mails not sent to it since. */
-                        skipped: number;
-                        /** Format: date-time */
-                        lastSkippedAt: string | null;
-                        createdBy: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description No valid session or token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    SuppressionsController_remove_v1: {
+    BrandingDomainsController_remove_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -26688,18 +29111,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description No valid session or token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /**
-             * @description operator_required: the caller does not act in the operator tenant.
-             *
-             *     Not allowed by your permissions.
-             */
+            /** @description `reauthentication_required`: no sign-in in the last REAUTHENTICATION_MAX_AGE_MINUTES: re-authenticate (POST /auth/reauthenticate, or sign in again: the problem lists `methods`) and retry. Or not allowed: your permissions, or acting as another user. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -26714,7 +29126,7 @@ export interface operations {
             };
         };
     };
-    ApprovalDelegationsController_list_v1: {
+    HostBrandingController_host_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -26729,139 +29141,22 @@ export interface operations {
                 };
                 content: {
                     "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            /** Format: uuid */
-                            fromUserId: string;
-                            fromName: string;
-                            /** Format: uuid */
-                            toUserId: string;
-                            toName: string;
-                            /** Format: date-time */
-                            startsAt: string;
-                            /** Format: date-time */
-                            endsAt: string;
-                            subject: string | null;
-                            /** @description Whether it applies now. */
-                            active: boolean;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                        }[];
+                        /** @description `#rrggbb`, or null: the default theme. */
+                        primaryColor: string | null;
+                        /** @description `#rrggbb` for the dark theme of the web app, or null: `primaryColor` holds. */
+                        darkPrimaryColor: string | null;
+                        /** @description The name mail is sent under, or null: the deployment’s. */
+                        mailFromName: string | null;
+                        /** @description The path of the logo (`/v1/branding/{tenantId}/logo`, public), or null. */
+                        logoUrl: string | null;
+                        /** @description The path of the dark-mode logo (`/v1/branding/{tenantId}/logo/dark`, public), or null: the logo holds. */
+                        darkLogoUrl: string | null;
                     };
                 };
             };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
         };
     };
-    ApprovalDelegationsController_create_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** Format: uuid */
-                    toUserId: string;
-                    /** Format: date-time */
-                    startsAt: string;
-                    /** Format: date-time */
-                    endsAt: string;
-                    /** @description Only requests of this subject (`Note`); all when left out. */
-                    subject?: string;
-                };
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** Format: uuid */
-                        fromUserId: string;
-                        fromName: string;
-                        /** Format: uuid */
-                        toUserId: string;
-                        toName: string;
-                        /** Format: date-time */
-                        startsAt: string;
-                        /** Format: date-time */
-                        endsAt: string;
-                        subject: string | null;
-                        /** @description Whether it applies now. */
-                        active: boolean;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                    };
-                };
-            };
-            /** @description Yourself, an unknown or inactive user, or a period that ends before it starts (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalDelegationsController_remove_v1: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not a delegation you gave. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalPoliciesController_types_v1: {
+    RetentionController_list_v1: {
         parameters: {
             query?: never;
             header?: never;
@@ -26875,42 +29170,17 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        approverRules: {
-                            type: string;
-                            label: string;
-                            /** @description The JSON Schema of its parameters. */
-                            params: {
-                                [key: string]: unknown;
-                            };
-                        }[];
-                        modes: {
-                            type: string;
-                            label: string;
-                            /** @description The JSON Schema of its parameters. */
-                            params: {
-                                [key: string]: unknown;
-                            };
-                        }[];
-                        conditions: {
-                            type: string;
-                            label: string;
-                            /** @description The JSON Schema of its parameters. */
-                            params: {
-                                [key: string]: unknown;
-                            };
-                        }[];
-                    };
+                    "application/json": components["schemas"]["RetentionRuleList"];
                 };
             };
-            /** @description No valid session or user token. */
+            /** @description No valid API key or session. */
             401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description Changing approval policies needs Approval.managePolicies. */
+            /** @description Not allowed by your permissions. */
             403: {
                 headers: {
                     [name: string]: unknown;
@@ -26919,448 +29189,21 @@ export interface operations {
             };
         };
     };
-    ApprovalPoliciesController_list_v1: {
+    RetentionController_set_v1: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            key: string;
-                            subject: string;
-                            action: string;
-                            label: string;
-                            description: string | null;
-                            /** @description 0: the code default, never changed. */
-                            version: number;
-                            /** @enum {string} */
-                            source: "code" | "override";
-                            policy: {
-                                /** @default true */
-                                enabled: boolean;
-                                /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                                when?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                }) | null;
-                                stages: {
-                                    /** @example Editor review */
-                                    name: string;
-                                    /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                    approvers: ({
-                                        type: string;
-                                    } & {
-                                        [key: string]: unknown;
-                                    })[];
-                                    /**
-                                     * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                     * @default {
-                                     *       "type": "any"
-                                     *     }
-                                     */
-                                    mode: {
-                                        type: string;
-                                    } & {
-                                        [key: string]: unknown;
-                                    };
-                                    /**
-                                     * @description Remind the approvers who have not decided after this long.
-                                     * @example 2d
-                                     */
-                                    remindAfter?: string;
-                                    /**
-                                     * @description The stage is overdue after this long: then `onOverdue`.
-                                     * @example 2d
-                                     */
-                                    dueAfter?: string;
-                                    /**
-                                     * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                     * @default expire
-                                     * @enum {string}
-                                     */
-                                    onOverdue: "expire" | "escalate";
-                                    /** @description With `onOverdue: escalate`: the approvers added. */
-                                    escalateTo?: ({
-                                        type: string;
-                                    } & {
-                                        [key: string]: unknown;
-                                    })[];
-                                    /**
-                                     * @description After an escalation, the request expires after this long.
-                                     * @example 2d
-                                     */
-                                    escalationDueAfter?: string;
-                                }[];
-                                /**
-                                 * @default 30d
-                                 * @example 2d
-                                 */
-                                resubmitWithin: string;
-                            };
-                            /** @description The code's default policy. */
-                            default: {
-                                /** @default true */
-                                enabled: boolean;
-                                /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                                when?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                }) | null;
-                                stages: {
-                                    /** @example Editor review */
-                                    name: string;
-                                    /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                    approvers: ({
-                                        type: string;
-                                    } & {
-                                        [key: string]: unknown;
-                                    })[];
-                                    /**
-                                     * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                     * @default {
-                                     *       "type": "any"
-                                     *     }
-                                     */
-                                    mode: {
-                                        type: string;
-                                    } & {
-                                        [key: string]: unknown;
-                                    };
-                                    /**
-                                     * @description Remind the approvers who have not decided after this long.
-                                     * @example 2d
-                                     */
-                                    remindAfter?: string;
-                                    /**
-                                     * @description The stage is overdue after this long: then `onOverdue`.
-                                     * @example 2d
-                                     */
-                                    dueAfter?: string;
-                                    /**
-                                     * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                     * @default expire
-                                     * @enum {string}
-                                     */
-                                    onOverdue: "expire" | "escalate";
-                                    /** @description With `onOverdue: escalate`: the approvers added. */
-                                    escalateTo?: ({
-                                        type: string;
-                                    } & {
-                                        [key: string]: unknown;
-                                    })[];
-                                    /**
-                                     * @description After an escalation, the request expires after this long.
-                                     * @example 2d
-                                     */
-                                    escalationDueAfter?: string;
-                                }[];
-                                /**
-                                 * @default 30d
-                                 * @example 2d
-                                 */
-                                resubmitWithin: string;
-                            };
-                            /** @description The setting that switches approval on (GET /v1/settings). */
-                            setting: string | null;
-                            /** @description The JSON Schema of the requests' payload. */
-                            payloadSchema: {
-                                [key: string]: unknown;
-                            };
-                        }[];
-                    };
-                };
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Changing approval policies needs Approval.managePolicies. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalPoliciesController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag you have: 304 and no body when it is still current. */
-                "If-None-Match"?: string;
-            };
             path: {
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        key: string;
-                        subject: string;
-                        action: string;
-                        label: string;
-                        description: string | null;
-                        /** @description 0: the code default, never changed. */
-                        version: number;
-                        /** @enum {string} */
-                        source: "code" | "override";
-                        policy: {
-                            /** @default true */
-                            enabled: boolean;
-                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                            when?: ({
-                                type: string;
-                            } & {
-                                [key: string]: unknown;
-                            }) | null;
-                            stages: {
-                                /** @example Editor review */
-                                name: string;
-                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                approvers: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                 * @default {
-                                 *       "type": "any"
-                                 *     }
-                                 */
-                                mode: {
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                };
-                                /**
-                                 * @description Remind the approvers who have not decided after this long.
-                                 * @example 2d
-                                 */
-                                remindAfter?: string;
-                                /**
-                                 * @description The stage is overdue after this long: then `onOverdue`.
-                                 * @example 2d
-                                 */
-                                dueAfter?: string;
-                                /**
-                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                 * @default expire
-                                 * @enum {string}
-                                 */
-                                onOverdue: "expire" | "escalate";
-                                /** @description With `onOverdue: escalate`: the approvers added. */
-                                escalateTo?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description After an escalation, the request expires after this long.
-                                 * @example 2d
-                                 */
-                                escalationDueAfter?: string;
-                            }[];
-                            /**
-                             * @default 30d
-                             * @example 2d
-                             */
-                            resubmitWithin: string;
-                        };
-                        /** @description The code's default policy. */
-                        default: {
-                            /** @default true */
-                            enabled: boolean;
-                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                            when?: ({
-                                type: string;
-                            } & {
-                                [key: string]: unknown;
-                            }) | null;
-                            stages: {
-                                /** @example Editor review */
-                                name: string;
-                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                approvers: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                 * @default {
-                                 *       "type": "any"
-                                 *     }
-                                 */
-                                mode: {
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                };
-                                /**
-                                 * @description Remind the approvers who have not decided after this long.
-                                 * @example 2d
-                                 */
-                                remindAfter?: string;
-                                /**
-                                 * @description The stage is overdue after this long: then `onOverdue`.
-                                 * @example 2d
-                                 */
-                                dueAfter?: string;
-                                /**
-                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                 * @default expire
-                                 * @enum {string}
-                                 */
-                                onOverdue: "expire" | "escalate";
-                                /** @description With `onOverdue: escalate`: the approvers added. */
-                                escalateTo?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description After an escalation, the request expires after this long.
-                                 * @example 2d
-                                 */
-                                escalationDueAfter?: string;
-                            }[];
-                            /**
-                             * @default 30d
-                             * @example 2d
-                             */
-                            resubmitWithin: string;
-                        };
-                        /** @description The setting that switches approval on (GET /v1/settings). */
-                        setting: string | null;
-                        /** @description The JSON Schema of the requests' payload. */
-                        payloadSchema: {
-                            [key: string]: unknown;
-                        };
-                    };
-                };
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Changing approval policies needs Approval.managePolicies. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No approvable action has this key. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalPoliciesController_set_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                key: string;
+                name: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
                 "application/json": {
-                    /** @default true */
-                    enabled?: boolean;
-                    /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                    when?: ({
-                        type: string;
-                    } & {
-                        [key: string]: unknown;
-                    }) | null;
-                    stages: {
-                        /** @example Editor review */
-                        name: string;
-                        /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                        approvers: ({
-                            type: string;
-                        } & {
-                            [key: string]: unknown;
-                        })[];
-                        /**
-                         * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                         * @default {
-                         *       "type": "any"
-                         *     }
-                         */
-                        mode?: {
-                            type: string;
-                        } & {
-                            [key: string]: unknown;
-                        };
-                        /**
-                         * @description Remind the approvers who have not decided after this long.
-                         * @example 2d
-                         */
-                        remindAfter?: string;
-                        /**
-                         * @description The stage is overdue after this long: then `onOverdue`.
-                         * @example 2d
-                         */
-                        dueAfter?: string;
-                        /**
-                         * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                         * @default expire
-                         * @enum {string}
-                         */
-                        onOverdue?: "expire" | "escalate";
-                        /** @description With `onOverdue: escalate`: the approvers added. */
-                        escalateTo?: ({
-                            type: string;
-                        } & {
-                            [key: string]: unknown;
-                        })[];
-                        /**
-                         * @description After an escalation, the request expires after this long.
-                         * @example 2d
-                         */
-                        escalationDueAfter?: string;
-                    }[];
-                    /**
-                     * @default 30d
-                     * @example 2d
-                     */
-                    resubmitWithin?: string;
+                    enabled: boolean;
+                    /** @description Left out: the days already in force. */
+                    days?: number;
                 };
             };
         };
@@ -27370,999 +29213,10 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        key: string;
-                        subject: string;
-                        action: string;
-                        label: string;
-                        description: string | null;
-                        /** @description 0: the code default, never changed. */
-                        version: number;
-                        /** @enum {string} */
-                        source: "code" | "override";
-                        policy: {
-                            /** @default true */
-                            enabled: boolean;
-                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                            when?: ({
-                                type: string;
-                            } & {
-                                [key: string]: unknown;
-                            }) | null;
-                            stages: {
-                                /** @example Editor review */
-                                name: string;
-                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                approvers: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                 * @default {
-                                 *       "type": "any"
-                                 *     }
-                                 */
-                                mode: {
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                };
-                                /**
-                                 * @description Remind the approvers who have not decided after this long.
-                                 * @example 2d
-                                 */
-                                remindAfter?: string;
-                                /**
-                                 * @description The stage is overdue after this long: then `onOverdue`.
-                                 * @example 2d
-                                 */
-                                dueAfter?: string;
-                                /**
-                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                 * @default expire
-                                 * @enum {string}
-                                 */
-                                onOverdue: "expire" | "escalate";
-                                /** @description With `onOverdue: escalate`: the approvers added. */
-                                escalateTo?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description After an escalation, the request expires after this long.
-                                 * @example 2d
-                                 */
-                                escalationDueAfter?: string;
-                            }[];
-                            /**
-                             * @default 30d
-                             * @example 2d
-                             */
-                            resubmitWithin: string;
-                        };
-                        /** @description The code's default policy. */
-                        default: {
-                            /** @default true */
-                            enabled: boolean;
-                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                            when?: ({
-                                type: string;
-                            } & {
-                                [key: string]: unknown;
-                            }) | null;
-                            stages: {
-                                /** @example Editor review */
-                                name: string;
-                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                approvers: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                 * @default {
-                                 *       "type": "any"
-                                 *     }
-                                 */
-                                mode: {
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                };
-                                /**
-                                 * @description Remind the approvers who have not decided after this long.
-                                 * @example 2d
-                                 */
-                                remindAfter?: string;
-                                /**
-                                 * @description The stage is overdue after this long: then `onOverdue`.
-                                 * @example 2d
-                                 */
-                                dueAfter?: string;
-                                /**
-                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                 * @default expire
-                                 * @enum {string}
-                                 */
-                                onOverdue: "expire" | "escalate";
-                                /** @description With `onOverdue: escalate`: the approvers added. */
-                                escalateTo?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description After an escalation, the request expires after this long.
-                                 * @example 2d
-                                 */
-                                escalationDueAfter?: string;
-                            }[];
-                            /**
-                             * @default 30d
-                             * @example 2d
-                             */
-                            resubmitWithin: string;
-                        };
-                        /** @description The setting that switches approval on (GET /v1/settings). */
-                        setting: string | null;
-                        /** @description The JSON Schema of the requests' payload. */
-                        payloadSchema: {
-                            [key: string]: unknown;
-                        };
-                    };
+                    "application/json": components["schemas"]["RetentionRule"];
                 };
             };
-            /** @description An unknown type, or parameters its schema refuses (validation_failed, each error naming its path: `stages.0.approvers.1.role`). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Changing approval policies needs Approval.managePolicies. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No approvable action has this key. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description It changed since you read it (precondition_failed). */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalPoliciesController_reset_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                key: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        key: string;
-                        subject: string;
-                        action: string;
-                        label: string;
-                        description: string | null;
-                        /** @description 0: the code default, never changed. */
-                        version: number;
-                        /** @enum {string} */
-                        source: "code" | "override";
-                        policy: {
-                            /** @default true */
-                            enabled: boolean;
-                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                            when?: ({
-                                type: string;
-                            } & {
-                                [key: string]: unknown;
-                            }) | null;
-                            stages: {
-                                /** @example Editor review */
-                                name: string;
-                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                approvers: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                 * @default {
-                                 *       "type": "any"
-                                 *     }
-                                 */
-                                mode: {
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                };
-                                /**
-                                 * @description Remind the approvers who have not decided after this long.
-                                 * @example 2d
-                                 */
-                                remindAfter?: string;
-                                /**
-                                 * @description The stage is overdue after this long: then `onOverdue`.
-                                 * @example 2d
-                                 */
-                                dueAfter?: string;
-                                /**
-                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                 * @default expire
-                                 * @enum {string}
-                                 */
-                                onOverdue: "expire" | "escalate";
-                                /** @description With `onOverdue: escalate`: the approvers added. */
-                                escalateTo?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description After an escalation, the request expires after this long.
-                                 * @example 2d
-                                 */
-                                escalationDueAfter?: string;
-                            }[];
-                            /**
-                             * @default 30d
-                             * @example 2d
-                             */
-                            resubmitWithin: string;
-                        };
-                        /** @description The code's default policy. */
-                        default: {
-                            /** @default true */
-                            enabled: boolean;
-                            /** @description Approval is needed only when this condition holds: `{ "type": "payload", "path": "amount", "op": "gt", "value": 1000 }`, `all`/`any`/`not` of others, or a registered condition. */
-                            when?: ({
-                                type: string;
-                            } & {
-                                [key: string]: unknown;
-                            }) | null;
-                            stages: {
-                                /** @example Editor review */
-                                name: string;
-                                /** @description Approver rules (GET /v1/approvals/policy-types): every user any of them names is assigned when the stage starts. */
-                                approvers: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description How the stage completes: `{ "type": "any" }` (the first decision), `{ "type": "all" }`, `{ "type": "quorum", "n": 2 }`, or a registered mode.
-                                 * @default {
-                                 *       "type": "any"
-                                 *     }
-                                 */
-                                mode: {
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                };
-                                /**
-                                 * @description Remind the approvers who have not decided after this long.
-                                 * @example 2d
-                                 */
-                                remindAfter?: string;
-                                /**
-                                 * @description The stage is overdue after this long: then `onOverdue`.
-                                 * @example 2d
-                                 */
-                                dueAfter?: string;
-                                /**
-                                 * @description expire: the request expires; escalate: the `escalateTo` approvers are added.
-                                 * @default expire
-                                 * @enum {string}
-                                 */
-                                onOverdue: "expire" | "escalate";
-                                /** @description With `onOverdue: escalate`: the approvers added. */
-                                escalateTo?: ({
-                                    type: string;
-                                } & {
-                                    [key: string]: unknown;
-                                })[];
-                                /**
-                                 * @description After an escalation, the request expires after this long.
-                                 * @example 2d
-                                 */
-                                escalationDueAfter?: string;
-                            }[];
-                            /**
-                             * @default 30d
-                             * @example 2d
-                             */
-                            resubmitWithin: string;
-                        };
-                        /** @description The setting that switches approval on (GET /v1/settings). */
-                        setting: string | null;
-                        /** @description The JSON Schema of the requests' payload. */
-                        payloadSchema: {
-                            [key: string]: unknown;
-                        };
-                    };
-                };
-            };
-            /** @description No valid session or user token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Changing approval policies needs Approval.managePolicies. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No approvable action has this key. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_list_v1: {
-        parameters: {
-            query?: {
-                limit?: number;
-                /** @description `nextCursor` of the previous page (the same `sort`). */
-                cursor?: string;
-                /** @description Pages by number instead of cursor: 1 for the first, `limit` rows a page. Example: `page=3&limit=20&count=true`. */
-                page?: number;
-                /** @description true: add `total` (counted up to a cap; `totalCapped`). */
-                count?: "true" | "false";
-                /** @description The language of the answer. */
-                lang?: string;
-                /** @description Filter: assignedToMe = */
-                assignedToMe?: "true" | "false";
-                /** @description Filter: requestedByMe = */
-                requestedByMe?: "true" | "false";
-                /** @description Filter: decidedByMe = */
-                decidedByMe?: "true" | "false";
-                /** @description Filter: status = */
-                status?: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                /** @description Filter: status in */
-                "status.in"?: string;
-                /** @description Filter: status notIn */
-                "status.notIn"?: string;
-                /** @description Filter: subject = */
-                subject?: string;
-                /** @description Filter: subject in */
-                "subject.in"?: string;
-                /** @description Filter: action = */
-                action?: string;
-                /** @description Filter: action in */
-                "action.in"?: string;
-                /** @description Filter: recordId = */
-                recordId?: string;
-                /** @description Filter: requester = */
-                requester?: string;
-                /** @description Filter: dueAt lt */
-                "dueAt.lt"?: string;
-                /** @description Filter: dueAt lte */
-                "dueAt.lte"?: string;
-                /** @description Filter: dueAt gte */
-                "dueAt.gte"?: string;
-                /** @description Filter: dueAt isNull */
-                "dueAt.isNull"?: "true" | "false";
-                /** @description Filter: createdAt gt */
-                "createdAt.gt"?: string;
-                /** @description Filter: createdAt gte */
-                "createdAt.gte"?: string;
-                /** @description Filter: createdAt lt */
-                "createdAt.lt"?: string;
-                /** @description Filter: createdAt lte */
-                "createdAt.lte"?: string;
-                /** @description Filter: createdAt between */
-                "createdAt.between"?: string;
-                /** @description Filter: updatedAt gt */
-                "updatedAt.gt"?: string;
-                /** @description Filter: updatedAt gte */
-                "updatedAt.gte"?: string;
-                /** @description Filter: updatedAt lt */
-                "updatedAt.lt"?: string;
-                /** @description Filter: updatedAt lte */
-                "updatedAt.lte"?: string;
-                /** @description Filter: updatedAt between */
-                "updatedAt.between"?: string;
-                /** @description Conditions in and/or groups, JSON: a condition { field, op, value } or a group { "and": [...] } / { "or": [...] }, 3 groups deep and 30 conditions at most. Example: {"or":[{"field":"assignedToMe","op":"eq","value":…},{…}]}. Fields and operators: assignedToMe (eq); requestedByMe (eq); decidedByMe (eq); status (eq, in, notIn); subject (eq, in); action (eq, in); recordId (eq); requester (eq); dueAt (lt, lte, gte, isNull); createdAt (gt, gte, lt, lte, between); updatedAt (gt, gte, lt, lte, between). */
-                filter?: string;
-                /** @description The order: fields comma-separated, - for descending; the newest first on ties. Example: -dueAt. Sortable: dueAt, createdAt, updatedAt. */
-                sort?: string;
-                /** @description Only these fields in each item, comma-separated; id always comes. Example: key,subject. Fields: id, key, subject, recordId, action, status, requester, requesterName, title, link, payload, policyVersion, round, currentStage, stageCount, stageName, dueAt, comment, outcomeReason, endedAt, outcomeAppliedAt, createdAt, updatedAt. */
-                fields?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        items: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                            key: string;
-                            /** @example Note */
-                            subject: string;
-                            recordId: string;
-                            /** @example publish */
-                            action: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                            /** @description `user:<id>` or `client:<id>`. */
-                            requester: string;
-                            requesterName: string;
-                            /** @description What the record is called. */
-                            title: string;
-                            /** @description The record in the web app. */
-                            link: string | null;
-                            /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                            payload: {
-                                [key: string]: unknown;
-                            };
-                            /** @description The policy version it runs under (0: the code's default). */
-                            policyVersion: number;
-                            /** @description Resubmissions so far. */
-                            round: number;
-                            currentStage: number;
-                            stageCount: number;
-                            stageName: string;
-                            /**
-                             * Format: date-time
-                             * @description The current stage's deadline.
-                             */
-                            dueAt: string | null;
-                            /** @description The requester's note. */
-                            comment: string | null;
-                            /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                            outcomeReason: string | null;
-                            /** Format: date-time */
-                            endedAt: string | null;
-                            /**
-                             * Format: date-time
-                             * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                             */
-                            outcomeAppliedAt: string | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                            /** Format: date-time */
-                            updatedAt: string;
-                            /** @description What you may do with it now. */
-                            can: {
-                                decide: boolean;
-                                cancel: boolean;
-                                resubmit: boolean;
-                                abandon: boolean;
-                            };
-                            /**
-                             * @description The ETag `GET /v1/approvals/{id}` would send you now (it covers the request's stages, assignments, timeline and your `can`): send it as `If-Match` on a decision.
-                             * @example "mZ1k…"
-                             */
-                            etag: string;
-                        }[];
-                        /** @description Pass it as `cursor` for the next page; null: no more (and with `page`). */
-                        nextCursor: string | null;
-                        /** @description With `page`: this page. */
-                        page?: number;
-                        /** @description With `page`: the next page; null: no more. */
-                        nextPage?: number | null;
-                        /** @description With `page` and `count=true`: ceil(total / limit). */
-                        pageCount?: number;
-                        /** @description With `count=true`: the rows matching the filters, all pages; the cap when totalCapped. */
-                        total?: number;
-                        /** @description true: there are more than `total` (show "10,000+"). */
-                        totalCapped?: boolean;
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_get_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag you have: 304 and no body when it is still current. */
-                "If-None-Match"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                        key: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @example publish */
-                        action: string;
-                        /** @enum {string} */
-                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                        /** @description `user:<id>` or `client:<id>`. */
-                        requester: string;
-                        requesterName: string;
-                        /** @description What the record is called. */
-                        title: string;
-                        /** @description The record in the web app. */
-                        link: string | null;
-                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                        payload: {
-                            [key: string]: unknown;
-                        };
-                        /** @description The policy version it runs under (0: the code's default). */
-                        policyVersion: number;
-                        /** @description Resubmissions so far. */
-                        round: number;
-                        currentStage: number;
-                        stageCount: number;
-                        stageName: string;
-                        /**
-                         * Format: date-time
-                         * @description The current stage's deadline.
-                         */
-                        dueAt: string | null;
-                        /** @description The requester's note. */
-                        comment: string | null;
-                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                        outcomeReason: string | null;
-                        /** Format: date-time */
-                        endedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                         */
-                        outcomeAppliedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description The policy's stages, as they stand in the current round. */
-                        stages: {
-                            index: number;
-                            name: string;
-                            mode: {
-                                [key: string]: unknown;
-                            };
-                            /** @enum {string} */
-                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
-                        }[];
-                        /** @description Every assignment of every round, oldest first. */
-                        assignments: {
-                            /** Format: uuid */
-                            id: string;
-                            round: number;
-                            stage: number;
-                            /** Format: uuid */
-                            approverId: string;
-                            approverName: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
-                            comment: string | null;
-                            /** Format: date-time */
-                            decidedAt: string | null;
-                            /** Format: uuid */
-                            decidedBy: string | null;
-                            decidedByName: string | null;
-                            /**
-                             * Format: uuid
-                             * @description Set when a delegate decided for the approver.
-                             */
-                            onBehalfOf: string | null;
-                            escalated: boolean;
-                        }[];
-                        timeline: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example stage_started */
-                            type: string;
-                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
-                            actor: string | null;
-                            actorName: string | null;
-                            round: number;
-                            stage: number | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description What you may do with it now. */
-                        can: {
-                            decide: boolean;
-                            cancel: boolean;
-                            resubmit: boolean;
-                            abandon: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_approve_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    comment?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                        key: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @example publish */
-                        action: string;
-                        /** @enum {string} */
-                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                        /** @description `user:<id>` or `client:<id>`. */
-                        requester: string;
-                        requesterName: string;
-                        /** @description What the record is called. */
-                        title: string;
-                        /** @description The record in the web app. */
-                        link: string | null;
-                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                        payload: {
-                            [key: string]: unknown;
-                        };
-                        /** @description The policy version it runs under (0: the code's default). */
-                        policyVersion: number;
-                        /** @description Resubmissions so far. */
-                        round: number;
-                        currentStage: number;
-                        stageCount: number;
-                        stageName: string;
-                        /**
-                         * Format: date-time
-                         * @description The current stage's deadline.
-                         */
-                        dueAt: string | null;
-                        /** @description The requester's note. */
-                        comment: string | null;
-                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                        outcomeReason: string | null;
-                        /** Format: date-time */
-                        endedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                         */
-                        outcomeAppliedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description The policy's stages, as they stand in the current round. */
-                        stages: {
-                            index: number;
-                            name: string;
-                            mode: {
-                                [key: string]: unknown;
-                            };
-                            /** @enum {string} */
-                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
-                        }[];
-                        /** @description Every assignment of every round, oldest first. */
-                        assignments: {
-                            /** Format: uuid */
-                            id: string;
-                            round: number;
-                            stage: number;
-                            /** Format: uuid */
-                            approverId: string;
-                            approverName: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
-                            comment: string | null;
-                            /** Format: date-time */
-                            decidedAt: string | null;
-                            /** Format: uuid */
-                            decidedBy: string | null;
-                            decidedByName: string | null;
-                            /**
-                             * Format: uuid
-                             * @description Set when a delegate decided for the approver.
-                             */
-                            onBehalfOf: string | null;
-                            escalated: boolean;
-                        }[];
-                        timeline: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example stage_started */
-                            type: string;
-                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
-                            actor: string | null;
-                            actorName: string | null;
-                            round: number;
-                            stage: number | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description What you may do with it now. */
-                        can: {
-                            decide: boolean;
-                            cancel: boolean;
-                            resubmit: boolean;
-                            abandon: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not an approver of the current stage, nor standing in for one (approval_not_assignee), or your own request (approval_self_approval). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such request that you may read. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The stage was decided by someone else, or you decided otherwise (approval_already_decided); the request has ended (approval_closed). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request changed since you read it (precondition_failed). */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_reject_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    comment: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                        key: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @example publish */
-                        action: string;
-                        /** @enum {string} */
-                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                        /** @description `user:<id>` or `client:<id>`. */
-                        requester: string;
-                        requesterName: string;
-                        /** @description What the record is called. */
-                        title: string;
-                        /** @description The record in the web app. */
-                        link: string | null;
-                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                        payload: {
-                            [key: string]: unknown;
-                        };
-                        /** @description The policy version it runs under (0: the code's default). */
-                        policyVersion: number;
-                        /** @description Resubmissions so far. */
-                        round: number;
-                        currentStage: number;
-                        stageCount: number;
-                        stageName: string;
-                        /**
-                         * Format: date-time
-                         * @description The current stage's deadline.
-                         */
-                        dueAt: string | null;
-                        /** @description The requester's note. */
-                        comment: string | null;
-                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                        outcomeReason: string | null;
-                        /** Format: date-time */
-                        endedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                         */
-                        outcomeAppliedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description The policy's stages, as they stand in the current round. */
-                        stages: {
-                            index: number;
-                            name: string;
-                            mode: {
-                                [key: string]: unknown;
-                            };
-                            /** @enum {string} */
-                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
-                        }[];
-                        /** @description Every assignment of every round, oldest first. */
-                        assignments: {
-                            /** Format: uuid */
-                            id: string;
-                            round: number;
-                            stage: number;
-                            /** Format: uuid */
-                            approverId: string;
-                            approverName: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
-                            comment: string | null;
-                            /** Format: date-time */
-                            decidedAt: string | null;
-                            /** Format: uuid */
-                            decidedBy: string | null;
-                            decidedByName: string | null;
-                            /**
-                             * Format: uuid
-                             * @description Set when a delegate decided for the approver.
-                             */
-                            onBehalfOf: string | null;
-                            escalated: boolean;
-                        }[];
-                        timeline: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example stage_started */
-                            type: string;
-                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
-                            actor: string | null;
-                            actorName: string | null;
-                            round: number;
-                            stage: number | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description What you may do with it now. */
-                        can: {
-                            decide: boolean;
-                            cancel: boolean;
-                            resubmit: boolean;
-                            abandon: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description No comment (validation_failed). */
+            /** @description An invalid body, or days below the minimum (validation_failed). */
             400: {
                 headers: {
                     [name: string]: unknown;
@@ -28376,869 +29230,15 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Not an approver of the current stage, nor standing in for one (approval_not_assignee), or your own request (approval_self_approval). */
+            /** @description Not allowed by your permissions. */
             403: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content?: never;
             };
-            /** @description No such request that you may read. */
+            /** @description No rule of this name is declared. */
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The stage was decided by someone else, or you decided otherwise (approval_already_decided); the request has ended (approval_closed). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request changed since you read it (precondition_failed). */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_requestChanges_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    comment: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                        key: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @example publish */
-                        action: string;
-                        /** @enum {string} */
-                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                        /** @description `user:<id>` or `client:<id>`. */
-                        requester: string;
-                        requesterName: string;
-                        /** @description What the record is called. */
-                        title: string;
-                        /** @description The record in the web app. */
-                        link: string | null;
-                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                        payload: {
-                            [key: string]: unknown;
-                        };
-                        /** @description The policy version it runs under (0: the code's default). */
-                        policyVersion: number;
-                        /** @description Resubmissions so far. */
-                        round: number;
-                        currentStage: number;
-                        stageCount: number;
-                        stageName: string;
-                        /**
-                         * Format: date-time
-                         * @description The current stage's deadline.
-                         */
-                        dueAt: string | null;
-                        /** @description The requester's note. */
-                        comment: string | null;
-                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                        outcomeReason: string | null;
-                        /** Format: date-time */
-                        endedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                         */
-                        outcomeAppliedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description The policy's stages, as they stand in the current round. */
-                        stages: {
-                            index: number;
-                            name: string;
-                            mode: {
-                                [key: string]: unknown;
-                            };
-                            /** @enum {string} */
-                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
-                        }[];
-                        /** @description Every assignment of every round, oldest first. */
-                        assignments: {
-                            /** Format: uuid */
-                            id: string;
-                            round: number;
-                            stage: number;
-                            /** Format: uuid */
-                            approverId: string;
-                            approverName: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
-                            comment: string | null;
-                            /** Format: date-time */
-                            decidedAt: string | null;
-                            /** Format: uuid */
-                            decidedBy: string | null;
-                            decidedByName: string | null;
-                            /**
-                             * Format: uuid
-                             * @description Set when a delegate decided for the approver.
-                             */
-                            onBehalfOf: string | null;
-                            escalated: boolean;
-                        }[];
-                        timeline: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example stage_started */
-                            type: string;
-                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
-                            actor: string | null;
-                            actorName: string | null;
-                            round: number;
-                            stage: number | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description What you may do with it now. */
-                        can: {
-                            decide: boolean;
-                            cancel: boolean;
-                            resubmit: boolean;
-                            abandon: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description No comment (validation_failed). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not an approver of the current stage, nor standing in for one (approval_not_assignee), or your own request (approval_self_approval). */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No such request that you may read. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The stage was decided by someone else, or you decided otherwise (approval_already_decided); the request has ended (approval_closed). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description The request changed since you read it (precondition_failed). */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_cancel_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    reason?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                        key: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @example publish */
-                        action: string;
-                        /** @enum {string} */
-                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                        /** @description `user:<id>` or `client:<id>`. */
-                        requester: string;
-                        requesterName: string;
-                        /** @description What the record is called. */
-                        title: string;
-                        /** @description The record in the web app. */
-                        link: string | null;
-                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                        payload: {
-                            [key: string]: unknown;
-                        };
-                        /** @description The policy version it runs under (0: the code's default). */
-                        policyVersion: number;
-                        /** @description Resubmissions so far. */
-                        round: number;
-                        currentStage: number;
-                        stageCount: number;
-                        stageName: string;
-                        /**
-                         * Format: date-time
-                         * @description The current stage's deadline.
-                         */
-                        dueAt: string | null;
-                        /** @description The requester's note. */
-                        comment: string | null;
-                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                        outcomeReason: string | null;
-                        /** Format: date-time */
-                        endedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                         */
-                        outcomeAppliedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description The policy's stages, as they stand in the current round. */
-                        stages: {
-                            index: number;
-                            name: string;
-                            mode: {
-                                [key: string]: unknown;
-                            };
-                            /** @enum {string} */
-                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
-                        }[];
-                        /** @description Every assignment of every round, oldest first. */
-                        assignments: {
-                            /** Format: uuid */
-                            id: string;
-                            round: number;
-                            stage: number;
-                            /** Format: uuid */
-                            approverId: string;
-                            approverName: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
-                            comment: string | null;
-                            /** Format: date-time */
-                            decidedAt: string | null;
-                            /** Format: uuid */
-                            decidedBy: string | null;
-                            decidedByName: string | null;
-                            /**
-                             * Format: uuid
-                             * @description Set when a delegate decided for the approver.
-                             */
-                            onBehalfOf: string | null;
-                            escalated: boolean;
-                        }[];
-                        timeline: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example stage_started */
-                            type: string;
-                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
-                            actor: string | null;
-                            actorName: string | null;
-                            round: number;
-                            stage: number | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description What you may do with it now. */
-                        can: {
-                            decide: boolean;
-                            cancel: boolean;
-                            resubmit: boolean;
-                            abandon: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Neither the requester nor allowed to cancel it. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description It has ended (approval_closed). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description precondition_failed. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_abandon_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    reason?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                        key: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @example publish */
-                        action: string;
-                        /** @enum {string} */
-                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                        /** @description `user:<id>` or `client:<id>`. */
-                        requester: string;
-                        requesterName: string;
-                        /** @description What the record is called. */
-                        title: string;
-                        /** @description The record in the web app. */
-                        link: string | null;
-                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                        payload: {
-                            [key: string]: unknown;
-                        };
-                        /** @description The policy version it runs under (0: the code's default). */
-                        policyVersion: number;
-                        /** @description Resubmissions so far. */
-                        round: number;
-                        currentStage: number;
-                        stageCount: number;
-                        stageName: string;
-                        /**
-                         * Format: date-time
-                         * @description The current stage's deadline.
-                         */
-                        dueAt: string | null;
-                        /** @description The requester's note. */
-                        comment: string | null;
-                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                        outcomeReason: string | null;
-                        /** Format: date-time */
-                        endedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                         */
-                        outcomeAppliedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description The policy's stages, as they stand in the current round. */
-                        stages: {
-                            index: number;
-                            name: string;
-                            mode: {
-                                [key: string]: unknown;
-                            };
-                            /** @enum {string} */
-                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
-                        }[];
-                        /** @description Every assignment of every round, oldest first. */
-                        assignments: {
-                            /** Format: uuid */
-                            id: string;
-                            round: number;
-                            stage: number;
-                            /** Format: uuid */
-                            approverId: string;
-                            approverName: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
-                            comment: string | null;
-                            /** Format: date-time */
-                            decidedAt: string | null;
-                            /** Format: uuid */
-                            decidedBy: string | null;
-                            decidedByName: string | null;
-                            /**
-                             * Format: uuid
-                             * @description Set when a delegate decided for the approver.
-                             */
-                            onBehalfOf: string | null;
-                            escalated: boolean;
-                        }[];
-                        timeline: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example stage_started */
-                            type: string;
-                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
-                            actor: string | null;
-                            actorName: string | null;
-                            round: number;
-                            stage: number | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description What you may do with it now. */
-                        can: {
-                            decide: boolean;
-                            cancel: boolean;
-                            resubmit: boolean;
-                            abandon: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed to manage approvals, or impersonating. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not approved, applied already, or its workflow still runs or retries (approval_not_stuck). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description precondition_failed. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    ApprovalsController_resubmit_v1: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description The ETag the record had when you read it: the write is refused with 412 if it changed since (optimistic concurrency). Leave it out to write regardless; `*` means the same. */
-                "If-Match"?: string;
-            };
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": {
-                    /** @description A new proposed change; checked by the action's schema. */
-                    payload?: {
-                        [key: string]: unknown;
-                    };
-                    comment?: string;
-                };
-            };
-        };
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        id: string;
-                        /** @description The action: `<subject>.<action>`, `Note.publish`. */
-                        key: string;
-                        /** @example Note */
-                        subject: string;
-                        recordId: string;
-                        /** @example publish */
-                        action: string;
-                        /** @enum {string} */
-                        status: "pending" | "approved" | "rejected" | "changes_requested" | "cancelled" | "expired" | "failed";
-                        /** @description `user:<id>` or `client:<id>`. */
-                        requester: string;
-                        requesterName: string;
-                        /** @description What the record is called. */
-                        title: string;
-                        /** @description The record in the web app. */
-                        link: string | null;
-                        /** @description The proposed change; its schema is the action's `payloadSchema` (GET /v1/approvals/policies). */
-                        payload: {
-                            [key: string]: unknown;
-                        };
-                        /** @description The policy version it runs under (0: the code's default). */
-                        policyVersion: number;
-                        /** @description Resubmissions so far. */
-                        round: number;
-                        currentStage: number;
-                        stageCount: number;
-                        stageName: string;
-                        /**
-                         * Format: date-time
-                         * @description The current stage's deadline.
-                         */
-                        dueAt: string | null;
-                        /** @description The requester's note. */
-                        comment: string | null;
-                        /** @description Why it ended without a decision: `overdue`, `not_resubmitted`, `no_approvers`. */
-                        outcomeReason: string | null;
-                        /** Format: date-time */
-                        endedAt: string | null;
-                        /**
-                         * Format: date-time
-                         * @description Null until the request's outcome has been applied (an approved request's handler has run, e.g. the note is published), and again after a resubmission. A banner shows "approved, applying" while `status` is `approved` and this is null.
-                         */
-                        outcomeAppliedAt: string | null;
-                        /** Format: date-time */
-                        createdAt: string;
-                        /** Format: date-time */
-                        updatedAt: string;
-                        /** @description The policy's stages, as they stand in the current round. */
-                        stages: {
-                            index: number;
-                            name: string;
-                            mode: {
-                                [key: string]: unknown;
-                            };
-                            /** @enum {string} */
-                            state: "waiting" | "active" | "approved" | "rejected" | "changes_requested" | "closed";
-                        }[];
-                        /** @description Every assignment of every round, oldest first. */
-                        assignments: {
-                            /** Format: uuid */
-                            id: string;
-                            round: number;
-                            stage: number;
-                            /** Format: uuid */
-                            approverId: string;
-                            approverName: string;
-                            /** @enum {string} */
-                            status: "pending" | "approved" | "rejected" | "changes_requested" | "closed";
-                            comment: string | null;
-                            /** Format: date-time */
-                            decidedAt: string | null;
-                            /** Format: uuid */
-                            decidedBy: string | null;
-                            decidedByName: string | null;
-                            /**
-                             * Format: uuid
-                             * @description Set when a delegate decided for the approver.
-                             */
-                            onBehalfOf: string | null;
-                            escalated: boolean;
-                        }[];
-                        timeline: {
-                            /** Format: uuid */
-                            id: string;
-                            /** @example stage_started */
-                            type: string;
-                            /** @description Who did it: `user:<id>`, `client:<id>`, or the system (`system:approvals`: the workflow's timers; `system:<job>`: a job that ended it). Null only on events recorded before the system principal. */
-                            actor: string | null;
-                            actorName: string | null;
-                            round: number;
-                            stage: number | null;
-                            details: {
-                                [key: string]: unknown;
-                            } | null;
-                            /** Format: date-time */
-                            createdAt: string;
-                        }[];
-                        /** @description What you may do with it now. */
-                        can: {
-                            decide: boolean;
-                            cancel: boolean;
-                            resubmit: boolean;
-                            abandon: boolean;
-                        };
-                    };
-                };
-            };
-            /** @description The payload fails the action’s schema. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not the requester. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not sent back for changes (approval_not_changes_requested). */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description precondition_failed. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description A stage would find no approver (approval_no_approvers). */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    MoneyController_ratesOn_v1: {
-        parameters: {
-            query?: {
-                /** @description A day (yyyy-mm-dd): the rates of the newest working day on or before it. Default: today (UTC). */
-                date?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description Whose rates: `ecb`. */
-                        source: string;
-                        /** @description The currency the rates are quoted against: EUR. */
-                        base: string;
-                        /**
-                         * Format: date
-                         * @description The day of these rates.
-                         */
-                        day: string;
-                        /** @description Units of each currency per one `base`, as decimal strings: { "USD": "1.1652" }. */
-                        rates: {
-                            [key: string]: string;
-                        };
-                    };
-                };
-            };
-            /** @description A malformed date. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid credentials. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `rates_unavailable`: no rates on or before that day. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    MoneyController_convert_v1: {
-        parameters: {
-            query: {
-                /** @description The amount to convert, in major units: "12.34". */
-                amount: string;
-                /** @description The amount’s currency. */
-                currency: string;
-                /** @description The currency to convert to. */
-                to: string;
-                /** @description A day (yyyy-mm-dd): the rates of the newest working day on or before it. Default: today (UTC). */
-                date?: string;
-                /** @description How a result between two minor units is rounded: half-up (ties away from zero, the default), half-even (banker’s), half-down, up, down, ceiling, floor. */
-                rounding?: "half-up" | "half-even" | "half-down" | "up" | "down" | "ceiling" | "floor";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** @description The amount asked for. */
-                        from: components["schemas"]["Money"];
-                        /** @description The converted amount, rounded once to the target’s minor unit. */
-                        amount: components["schemas"]["Money"];
-                        /** @description Target units per source unit, to 10 decimals (half-up), to show and store. The amount is computed from the exact legs, not from it. */
-                        rate: string;
-                        /**
-                         * Format: date
-                         * @description The day of the rates used: the newest with both currencies on or before `date`.
-                         */
-                        rateDate: string;
-                        /** @description Whose rates: `ecb` (`identity` for the same currency). */
-                        source: string;
-                        /** @description The currency both legs are quoted against. */
-                        base: string;
-                        /** @description Units of the source and the target currency per one `base` (1 for the base). */
-                        legs: {
-                            from: string;
-                            to: string;
-                        };
-                        rounding: string;
-                    };
-                };
-            };
-            /** @description An unknown currency, a malformed amount, or more decimals than the currency has. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid credentials. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description `rate_unavailable`: no rate for a currency on or before that day (the ECB doesn’t publish it, or none was fetched yet). */
-            422: {
                 headers: {
                     [name: string]: unknown;
                 };
