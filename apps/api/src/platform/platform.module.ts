@@ -26,24 +26,14 @@ import { ConfigBundlesController } from './config-bundles/config-bundles.control
 import type { PlatformEnv } from './platform.env.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from './platform.options.js';
 import { AiController } from './ai/ai.controller.js';
-import { AiProcessor } from './ai/ai.processor.js';
-import { AiProvider, DisabledAiProvider } from './ai/ai-provider.js';
-import { AiRegistry } from './ai/ai.registry.js';
-import { AiService } from './ai/ai.service.js';
 import { AI_SETTINGS } from './ai/ai-settings.js';
 import { FORM_SETTINGS } from './forms/form-settings.js';
-import { FormPolicy } from './forms/form.policy.js';
 import { FormsController } from './forms/forms.controller.js';
-import { FormsService } from './forms/forms.service.js';
-import { FormOptionSourcesService } from './forms/form-option-sources.service.js';
 import {
   FormPublicLinksController,
   PublicFormsController,
 } from './forms/form-public-links.controller.js';
-import { FormPublicLinksService } from './forms/form-public-links.service.js';
 import { FormSubmissionsController } from './forms/form-submissions.controller.js';
-import { FormSubmissionsService } from './forms/form-submissions.service.js';
-import { AnthropicProvider } from './ai/anthropic.provider.js';
 import { AUTH_SETTINGS } from './auth-policy/auth-settings.js';
 import { DASHBOARD_SETTINGS } from './settings/dashboard.setting.js';
 import { WebhookDeliveryRetentionJob } from './webhooks/webhook-delivery-retention.job.js';
@@ -115,7 +105,6 @@ import {
   ConsentKindsController,
 } from './account/account.controller.js';
 import { AvatarController } from './account/avatar.controller.js';
-import { TenantCleanup } from './tenants/tenant-cleanup.js';
 import {
   BrandingController,
   PublicBrandingController,
@@ -136,8 +125,6 @@ import {
   TenantQuotasController,
 } from './quotas/quotas.controller.js';
 import { TenantExportController } from './tenants/tenant-export.controller.js';
-import { TenantExports } from './tenants/tenant-exports.service.js';
-import { TenantTransfer } from './tenants/tenant.transfer.js';
 import { SubscriptionsController } from './subscriptions/subscriptions.controller.js';
 import { SearchController } from './search/search.controller.js';
 import { ListsController } from './lists/lists.controller.js';
@@ -154,45 +141,16 @@ import {
 } from './acknowledgments/acknowledgments.controller.js';
 import { AcknowledgmentsService } from './acknowledgments/acknowledgments.service.js';
 import { ACKNOWLEDGMENT_NOTIFICATIONS } from './acknowledgments/acknowledgment-notifications.js';
-import { AttachmentImagesProcessor } from './attachments/attachment-images.processor.js';
-import { AttachmentImagesRetryJob } from './attachments/attachment-images-retry.job.js';
-import { AttachmentSearch } from './attachments/attachment.search.js';
-import { AttachmentTextProcessor } from './attachments/attachment-text.processor.js';
-import { AttachmentTextQueue } from './attachments/attachment-text.queue.js';
-import { AttachmentTextRetryJob } from './attachments/attachment-text-retry.job.js';
-import { AttachmentTextService } from './attachments/attachment-text.service.js';
-import { TextExtractor } from './attachments/text-extractor.js';
-import { AttachmentImagesQueue } from './attachments/attachment-images.queue.js';
-import { AttachmentImagesService } from './attachments/attachment-images.service.js';
-import { AttachmentScanProcessor } from './attachments/attachment-scan.processor.js';
-import { AttachmentScanRetryJob } from './attachments/attachment-scan-retry.job.js';
-import {
-  ATTACHMENT_NOTIFICATIONS,
-  AttachmentScanQueue,
-} from './attachments/attachment-scan.queue.js';
-import { AttachmentScanService } from './attachments/attachment-scan.service.js';
-import { MalwareScanner } from './attachments/malware-scanner.js';
-import { malwareScanner } from './attachments/malware-scanner.factory.js';
-import { AttachmentUploadsService } from './attachments/attachment-uploads.service.js';
-import { AttachmentVersionsService } from './attachments/attachment-versions.service.js';
+import { ATTACHMENT_NOTIFICATIONS } from './attachments/attachment-scan.queue.js';
 import { AttachmentsController } from './attachments/attachments.controller.js';
-import { AttachmentsRegistry } from './attachments/attachments.registry.js';
-import { AttachmentsService } from './attachments/attachments.service.js';
-import { AttachmentSweepJob } from './attachments/attachment-sweep.job.js';
 import { COMMENT_NOTIFICATIONS } from './comments/comment-notifications.js';
-import { CommentsRegistry } from './comments/comments.registry.js';
-import { CommentsService } from './comments/comments.service.js';
 import { TagsController } from './tags/tags.controller.js';
 import { ImportMappingsController } from './data-transfer/import-mappings.controller.js';
 import { FavoritesController } from './favorites/favorites.controller.js';
 import { FavoritesService } from './favorites/favorites.service.js';
 import { InboxController } from './inbox/inbox.controller.js';
-import { ApprovalInboxSource } from './approvals/approval.inbox.js';
-import { MentionInboxSource } from './comments/mention.inbox.js';
 import { PresenceController } from './presence/presence.controller.js';
 import { RecentsController } from './recents/recents.controller.js';
-import { RecentsRetentionJob } from './recents/recents-retention.job.js';
-import { RecentsService } from './recents/recents.service.js';
 import { SharedController } from './shares/shared.controller.js';
 import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
 import { AutomationsController } from './automations/automations.controller.js';
@@ -202,53 +160,25 @@ import { SharesRegistry } from './shares/shares.registry.js';
 import { SharesService } from './shares/shares.service.js';
 import { ChoicesController } from './choices/choices.controller.js';
 import { TemplatesController } from './templates/templates.controller.js';
-import { TemplatesRegistry } from './templates/templates.registry.js';
-import { TemplatesService } from './templates/templates.service.js';
 import { ViewsController } from './views/views.controller.js';
 import { ViewsService } from './views/views.service.js';
 import { CalendarsController } from './calendars/calendars.controller.js';
-import { RecordScheduleRunnerJob } from './recurrence/record-schedule-runner.job.js';
 import { RecordSchedulesController } from './recurrence/record-schedules.controller.js';
-import { RecordSchedulesService } from './recurrence/record-schedules.service.js';
-import { ReportRunnerJob } from './reports/report-runner.job.js';
-import { ReportFailedMail, ReportReadyMail } from './reports/report.mails.js';
 import { ReportsController } from './reports/reports.controller.js';
-import { ReportsService } from './reports/reports.service.js';
 import { UsageController } from './usage/usage.controller.js';
 import { UsageInterceptor } from './usage/usage.interceptor.js';
-import { RevisionRetentionJob } from './revisions/revision-retention.job.js';
-import { RevisionsRegistry } from './revisions/revisions.registry.js';
-import { RevisionsService } from './revisions/revisions.service.js';
 import { ApprovalsController } from './approvals/approvals.controller.js';
 import {
   ApprovalDelegationsController,
   ApprovalPoliciesController,
 } from './approvals/approval-admin.controllers.js';
-import { ApprovalDelegationsService } from './approvals/approval-delegations.service.js';
-import { ApprovalEngine } from './approvals/approval-engine.service.js';
 import { ModeGuard } from './mode/mode.guard.js';
-import { ModeService } from './mode/mode.service.js';
 import { MODE_SETTINGS } from './mode/mode.setting.js';
 import { APPROVAL_NOTIFICATIONS } from './approvals/approval-events.js';
 import { APPROVAL_SETTINGS } from './approvals/approval-settings.js';
-import { ApprovalPoliciesService } from './approvals/approval-policies.service.js';
-import { ApprovalAccessPolicy } from './approvals/approval.policy.js';
-import { BUILT_IN_RULES } from './approvals/approval-rules.js';
-import { ApprovalWorkflow } from './approvals/approval.workflow.js';
-import { ApprovalsRegistry } from './approvals/approvals.registry.js';
-import { ApprovalsService } from './approvals/approvals.service.js';
-import { ApprovalMetrics } from './approvals/approval-metrics.js';
 import { MessagingController } from './messaging/messaging.controller.js';
 import { SmsInboundController } from './messaging/sms-inbound.controller.js';
-import { MessagingService } from './messaging/messaging.service.js';
-import { MessagingLimits } from './messaging/messaging-limits.service.js';
-import { MessagingProcessor } from './messaging/messaging.processor.js';
-import { MessagingRetentionJob } from './messaging/messaging.retention.job.js';
-import { MessagingMetrics } from './messaging/messaging.metrics.js';
-import { pushProvider, smsProvider } from './messaging/messaging.providers.js';
 import { MESSAGING_SETTINGS } from './messaging/messaging.settings.js';
-import { SmsChannel } from './messaging/channels/sms.channel.js';
-import { PushChannel } from './messaging/channels/push.channel.js';
 import { RetentionController } from './retention/retention.controller.js';
 import { DocumentTemplates } from './documents/document-templates.js';
 import { DocumentsController } from './documents/documents.controller.js';
@@ -261,27 +191,40 @@ import { MoneyModule } from './money/money.module.js';
 import { PlatformOpsModule } from './ops/ops.module.js';
 import { ConfigBundlesModule } from './config-bundles/config-bundles.module.js';
 import { PlatformIdempotencyModule } from './idempotency/idempotency.module.js';
+import { ModeModule } from './mode/mode.module.js';
 import { PlatformKernelModule } from './platform-kernel.module.js';
 import { PeopleModule } from './people/people.module.js';
 import { QueuesModule } from './queues/queues.module.js';
 import { BulkModule } from './bulk/bulk.module.js';
 import { CustomFieldsModule } from './custom-fields/custom-fields.module.js';
+import { MessagingModule } from './messaging/messaging.module.js';
 import { SettingsModule } from './settings/settings.module.js';
 import { AuthPolicyModule } from './auth-policy/auth-policy.module.js';
 import { AccountModule } from './account/account.module.js';
+import { TenantsModule } from './tenants/tenants.module.js';
 import { QuotasModule } from './quotas/quotas.module.js';
 import { SearchModule } from './search/search.module.js';
 import { SequencesModule } from './sequences/sequences.module.js';
+import { AttachmentsModule } from './attachments/attachments.module.js';
 import { ImagesModule } from './images/images.module.js';
+import { AiModule } from './ai/ai.module.js';
+import { CommentsModule } from './comments/comments.module.js';
 import { TagsModule } from './tags/tags.module.js';
+import { TemplatesModule } from './templates/templates.module.js';
 import { ChoicesModule } from './choices/choices.module.js';
+import { RecentsModule } from './recents/recents.module.js';
 import { PresenceModule } from './presence/presence.module.js';
 import { InboxModule } from './inbox/inbox.module.js';
+import { ApprovalsModule } from './approvals/approvals.module.js';
+import { FormsModule } from './forms/forms.module.js';
 import { CalendarsModule } from './calendars/calendars.module.js';
+import { RecurrenceModule } from './recurrence/recurrence.module.js';
 import { DataQualityModule } from './data-quality/data-quality.module.js';
 import { AutomationsModule } from './automations/automations.module.js';
+import { ReportsModule } from './reports/reports.module.js';
 import { UsageModule } from './usage/usage.module.js';
 import { AnalyticsModule } from './analytics/analytics.module.js';
+import { RevisionsModule } from './revisions/revisions.module.js';
 import { ClientErrorsModule } from './client-errors/client-errors.module.js';
 import { BrandingModule } from './branding/branding.module.js';
 import { EncryptionModule } from './encryption/encryption.module.js';
@@ -492,27 +435,40 @@ export class PlatformModule {
         PlatformOpsModule,
         ConfigBundlesModule,
         PlatformIdempotencyModule,
+        ModeModule,
         PlatformKernelModule,
         PeopleModule,
         QueuesModule,
         BulkModule,
         CustomFieldsModule,
+        MessagingModule,
         SettingsModule,
         AuthPolicyModule,
         AccountModule,
+        TenantsModule,
         QuotasModule,
         SearchModule,
         SequencesModule,
+        AttachmentsModule,
         ImagesModule,
+        AiModule,
+        CommentsModule,
         TagsModule,
+        TemplatesModule,
         ChoicesModule,
+        RecentsModule,
         PresenceModule,
         InboxModule,
+        ApprovalsModule,
+        FormsModule,
         CalendarsModule,
+        RecurrenceModule,
         DataQualityModule,
         AutomationsModule,
+        ReportsModule,
         UsageModule,
         AnalyticsModule,
+        RevisionsModule,
         ClientErrorsModule,
         BrandingModule,
         EncryptionModule,
@@ -657,23 +613,9 @@ export class PlatformModule {
         TenantSenderGuard,
         // Which switches are on, for clients (GET /v1/features).
         FeaturesService,
-        // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md).
-        ModeService,
+        // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md);
+        // ModeService is ModeModule's. A global guard: here, in this module's order.
         { provide: APP_GUARD, useClass: ModeGuard },
-        // Push and SMS (docs/notifications.md): channels that queue, a worker that sends within the caps.
-        smsProvider,
-        pushProvider,
-        MessagingService,
-        MessagingLimits,
-        MessagingProcessor,
-        MessagingRetentionJob,
-        MessagingMetrics,
-        SmsChannel,
-        PushChannel,
-        // A tenant's export (the operators'), and what its erase removes besides its rows.
-        TenantTransfer,
-        TenantExports,
-        TenantCleanup,
         // Lists described at runtime (GET /v1/lists/{subject}): features register their list.
         ListsRegistry,
         ListsService,
@@ -686,108 +628,22 @@ export class PlatformModule {
         TenantListSource,
         // The suppression list (GET /v1/lists/MailSuppression), for the operators.
         MailSuppressionListSource,
-        // Files attached to records: features register an AttachmentTarget.
-        AttachmentsRegistry,
-        // Malware scanning of uploads (MALWARE_SCANNER, off by default): a queue job per upload.
-        {
-          provide: MalwareScanner,
-          inject: [ConfigService],
-          useFactory: malwareScanner,
-        },
-        AttachmentScanQueue,
-        AttachmentScanService,
-        AttachmentScanProcessor,
-        AttachmentScanRetryJob,
-        AttachmentImagesQueue,
-        AttachmentImagesService,
-        AttachmentImagesProcessor,
-        AttachmentImagesRetryJob,
-        // Search inside files (ATTACHMENT_TEXT_SEARCH, off by default): a queue job extracts a clean upload's text in a sandboxed thread.
-        {
-          provide: TextExtractor,
-          inject: [ConfigService],
-          useFactory: (config: ConfigService<PlatformEnv, true>) =>
-            new TextExtractor({
-              maxBytes:
-                config.get('ATTACHMENT_TEXT_MAX_MB', { infer: true }) *
-                1024 *
-                1024,
-              timeoutMs: config.get('ATTACHMENT_TEXT_TIMEOUT_MS', {
-                infer: true,
-              }),
-            }),
-        },
-        AttachmentTextQueue,
-        AttachmentTextService,
-        AttachmentTextProcessor,
-        AttachmentTextRetryJob,
-        AttachmentSearch,
-        AttachmentsService,
-        // Uploads straight to the object store (STORAGE_DRIVER=s3): presign, then complete through AttachmentsService.upload().
-        AttachmentUploadsService,
-        AttachmentVersionsService,
-        AttachmentSweepJob,
         // PDF documents of records: features register a DocumentSource and call DocumentsService.request().
         DocumentsRegistry,
         DocumentTemplates,
         PdfRenderer,
         DocumentsService,
         DocumentsProcessor,
-        // The AI helper: features register an AiSource; Anthropic unless another AiProvider is provided.
-        AiRegistry,
-        {
-          provide: AiProvider,
-          inject: [ConfigService],
-          useFactory: (config: ConfigService<PlatformEnv, true>) => {
-            const apiKey = config.get('ANTHROPIC_API_KEY', { infer: true });
-            return apiKey
-              ? new AnthropicProvider({
-                  apiKey,
-                  baseURL: config.get('AI_BASE_URL', { infer: true }),
-                })
-              : new DisabledAiProvider();
-          },
-        },
-        AiService,
-        AiProcessor,
-        // Comments and mentions: features register a CommentTarget and call CommentsService.
-        CommentsRegistry,
-        CommentsService,
         // Acknowledgments of an attachment's version.
         AcknowledgmentsService,
         // Saved views: a list's filters, sort and columns under a name (private, unit, tenant).
         ViewsService,
-        // Record templates: values to prefill a create, checked again at preview (private, unit, tenant).
-        TemplatesRegistry,
-        TemplatesService,
         // Favorites: a person's pinned records, pages and saved views, in their order.
         FavoritesService,
-        // Recently opened records: a person's bounded, expiring history.
-        RecentsService,
-        ApprovalInboxSource,
-        MentionInboxSource,
-        RecentsRetentionJob,
-        // Runtime forms: definitions, published versions, submissions.
-        FormPolicy,
-        FormsService,
-        FormSubmissionsService,
-        FormOptionSourcesService,
-        FormPublicLinksService,
-        // Recurring record schedules: records created from a template at each occurrence of a rule.
-        RecordSchedulesService,
-        RecordScheduleRunnerJob,
         // Read-only links to records: features register a ShareTarget (the `share` capability).
         SharesRegistry,
         SharesService,
         ShareCodeMail,
-        // Scheduled reports: exports run on a schedule, mailed to their recipients.
-        ...whenOn<Provider>(
-          'REPORTS',
-          ReportsService,
-          ReportRunnerJob,
-          ReportReadyMail,
-          ReportFailedMail,
-        ),
         // USAGE=on: the metering interceptor (UsageService: UsageModule's), here among the
         // platform's global enhancers, whose order is this module's (app.module.ts).
         ...whenOn<Provider>('USAGE', {
@@ -796,22 +652,6 @@ export class PlatformModule {
         }),
         // Finished outgoing webhook deliveries older than WEBHOOKS_DELIVERY_RETENTION_DAYS, nightly.
         ...whenOn<Provider>('WEBHOOKS', WebhookDeliveryRetentionJob),
-        // Record revisions: features register a RevisionTarget and call RevisionsService.record().
-        RevisionsRegistry,
-        RevisionsService,
-        RevisionRetentionJob,
-        // Approvals: features declare actions (options.approvals) and register their
-        // handlers, rules, modes, conditions and listeners into ApprovalsRegistry.
-        ApprovalsRegistry,
-        ...BUILT_IN_RULES,
-        ApprovalPoliciesService,
-        ApprovalEngine,
-        ApprovalWorkflow,
-        ApprovalsService,
-        ApprovalDelegationsService,
-        ApprovalAccessPolicy,
-        // Open and overdue requests on /metrics.
-        ApprovalMetrics,
         // Email deliverability (docs/deliverability.md): intakes register
         // themselves (SES through SNS); the queue applies their events to
         // the suppression list, which the core's mail queue asks through
@@ -847,24 +687,18 @@ export class PlatformModule {
         SearchModule,
         ListsRegistry,
         SequencesModule,
-        AttachmentsRegistry,
-        AttachmentsService,
-        AttachmentUploadsService,
-        AttachmentVersionsService,
+        AttachmentsModule,
         AcknowledgmentsService,
         // A record's templates register here (record-parts.ts).
-        TemplatesRegistry,
+        TemplatesModule,
         DocumentsRegistry,
         DocumentsService,
-        AiRegistry,
-        CommentsRegistry,
-        CommentsService,
+        AiModule,
+        CommentsModule,
         TagsModule,
         RetentionModule,
-        RevisionsRegistry,
-        RevisionsService,
-        ApprovalsRegistry,
-        ApprovalsService,
+        RevisionsModule,
+        ApprovalsModule,
         // ExchangeRatesService, to the features.
         MoneyModule,
         MAIL_SUPPRESSION,
