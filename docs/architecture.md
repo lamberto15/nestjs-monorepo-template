@@ -172,7 +172,8 @@ the API uses (`req.ip`, `req.get()`, `res.cookie()`, `res.redirect()`,
   table behind row-level security; a request, job, workflow step or cron
   run acts in one tenant, and per-principal keys carry it.
 - **Module order** in `app.module.ts` matters: `PlatformModule` first (the
-  idempotency interceptor must be outermost), then `CoreModule` (the rate
+  idempotency interceptor is outermost of the rest; with USAGE on, the usage
+  meter wraps it, so a replay is still metered), then `CoreModule` (the rate
   limit guards before authentication), then `IamModule`. It orders the
   global guards, interceptors, pipes and filters, and
   `test/global-enhancers.e2e-spec.ts` checks that order: moving an import
