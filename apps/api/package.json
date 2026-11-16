@@ -50,7 +50,7 @@
     "@nestjs/idempotency": "0.0.4",
     "@nestjs/locks": "0.0.6",
     "@nestjs/mail": "0.0.2",
-    "@nestjs/observe": "0.3.24",
+    "@nestjs/observe": "0.3.26",
     "@nestjs/outbox": "0.1.4",
     "@nestjs/platform-node": "12.5.0",
     "@nestjs/platform-socket.io": "12.5.0",
