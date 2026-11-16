@@ -544,10 +544,21 @@ jobs:
           DATABASE_URL: postgres://app_runtime:app_runtime@localhost:5432/app
       # The unit tests with coverage and the thresholds in each package's
       # vitest.config.ts (`test:cov`: one run). The web app's, the longest
-      # (jsdom), have a job of their own: unit-web.
+      # (jsdom), have a job of their own: unit-web. The API's also leave a
+      # blob report, merged with the e2e shards' in the CI gate job, which
+      # holds the API's real coverage threshold (docs/development.md, "Coverage").
       - name: The API's unit tests (coverage and its thresholds)
         if: needs.changes.outputs.api == 'true'
-        run: pnpm turbo run test:cov --filter=@nestjs-monorepo-template/api
+        run: pnpm turbo run test:cov --filter=@nestjs-monorepo-template/api -- --reporter=default --reporter=blob
+      - name: The API's unit coverage blob, for the merged gate
+        if: needs.changes.outputs.api == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-api-unit
+          path: apps/api/.vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
       - name: The packages' unit tests (the typed client, the components)
         if: needs.changes.outputs.web == 'true'
         run: pnpm turbo run test:cov --filter='!@nestjs-monorepo-template/api' --filter='!@nestjs-monorepo-template/web'
@@ -650,11 +661,21 @@ jobs:
           cache: true
       - name: Turborepo cache (GitHub Actions cache service)
         uses: rharkor/caching-for-turbo@760158c05c47e7a764f78e9a22ca3b5a6ed8c52e # v2.5.2
-      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2
+      # With coverage and a blob report: the CI gate job merges the shards' and
+      # the unit run's blobs and enforces the API's threshold there.
+      - run: pnpm test:e2e --shard=${{ matrix.shard }}/2 --coverage --reporter=default --reporter=blob
         env:
           REDIS_URL: redis://localhost:6379
           # The tests create their databases here (a template, then a copy per app).
           TEST_DATABASE_URL: postgres://app:app@localhost:5432/postgres
+      - name: The shard's coverage blob, for the merged gate
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-api-e2e-${{ matrix.shard }}
+          path: apps/api/.vitest/blob/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 1
 
   # The browser tests (apps/web-e2e, docs/development.md, "Browser tests"):
   # Playwright drives the built web app on the built API with the demo data,
@@ -1350,7 +1371,7 @@ jobs:
         gotenberg-image,
       ]
     runs-on: ubuntu-24.04
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
       - name: Require the classified checks
@@ -1358,6 +1379,27 @@ jobs:
           EXPECTED: ${{ needs.changes.outputs.expected }}
           NEEDS: ${{ toJSON(needs) }}
         run: node tools/ci/gate.mjs
+      # The API's coverage over the unit run and both e2e shards together, with
+      # its threshold (apps/api/vitest.config.merge.ts). Here rather than in a
+      # job of its own: the gate already waits for check and e2e, and a pull
+      # request takes no further runner. Reached only once the step above found
+      # every expected job green, so every blob exists.
+      - name: Install pnpm, Node.js and the dependencies
+        if: needs.changes.outputs.api == 'true'
+        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
+        with:
+          runtime: node@26
+          cache: true
+      - name: Download the coverage blobs
+        if: needs.changes.outputs.api == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-api-*
+          merge-multiple: true
+          path: apps/api/.vitest/blob
+      - name: The API's merged coverage (unit and e2e) and its threshold
+        if: needs.changes.outputs.api == 'true'
+        run: pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage --config vitest.config.merge.ts
 
   publish:
     name: Publish app
@@ -1566,14 +1608,7 @@ jobs:
     name: Verify release manifest
     if: >-
       !cancelled() && needs.ci-gate.result == 'success' && needs.changes.outputs.publish == 'true'
-    needs:
-      [
-        changes,
-        ci-gate,
-        publish,
-        publish-caddy,
-        publish-backup,
-      ]
+    needs: [changes, ci-gate, publish, publish-caddy, publish-backup]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:
