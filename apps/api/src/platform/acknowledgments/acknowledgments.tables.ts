@@ -21,7 +21,7 @@ import { attachments } from '../attachments/attachments.tables.js';
  * (a removed document has nothing left to acknowledge; the audit log keeps
  * who confirmed what).
  */
-export const documentAcknowledgments = pgTable(
+export const documentAcknowledgments = pgTable.withRLS(
   'document_acknowledgments',
   {
     id: uuidPk(),
@@ -57,7 +57,7 @@ export const documentAcknowledgments = pgTable(
       [attachments.tenantId, attachments.id],
     ),
   ],
-).enableRLS();
+);
 
 export type DocumentAcknowledgment =
   typeof documentAcknowledgments.$inferSelect;

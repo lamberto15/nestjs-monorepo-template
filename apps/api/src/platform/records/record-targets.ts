@@ -7,7 +7,7 @@ import {
 import { I18nService } from '@nestjs/i18n';
 import { AuthorizationService } from '@nestjs/authorization';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
+import { and, desc, eq, getColumns, inArray, lt } from 'drizzle-orm';
 import {
   headline,
   matches,
@@ -565,9 +565,7 @@ export class RecordSearch {
       db
         // The whole row: the permission conditions (`mine`) read it.
         .select({
-          ...getTableColumns(
-            table as unknown as Parameters<typeof getTableColumns>[0],
-          ),
+          ...getColumns(table as unknown as Parameters<typeof getColumns>[0]),
           score,
           // A snippet of each searchable field, its own key next to the row's.
           ...Object.fromEntries(
@@ -1038,7 +1036,7 @@ export class RecordTransfer {
       async ({ after, orderBy, limit }) =>
         (await this.c.service.query((db) =>
           db
-            .select({ ...getTableColumns(pgTable), ...extra })
+            .select({ ...getColumns(pgTable), ...extra })
             .from(pgTable)
             .where(and(where, after))
             .orderBy(...orderBy)

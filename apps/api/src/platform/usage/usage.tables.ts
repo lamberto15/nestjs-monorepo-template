@@ -21,7 +21,7 @@ import { apiClients } from '../../iam/iam.tables.js';
  * (`GET /v1/notes/{id}`); a day's total is their sum. Kept
  * USAGE_RETENTION_DAYS.
  */
-export const apiUsage = pgTable(
+export const apiUsage = pgTable.withRLS(
   'api_usage',
   {
     id: uuidPk(),
@@ -47,4 +47,4 @@ export const apiUsage = pgTable(
       [apiClients.tenantId, apiClients.id],
     ),
   ],
-).enableRLS();
+);

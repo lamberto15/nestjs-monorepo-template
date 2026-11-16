@@ -170,12 +170,12 @@ export function tenantSettingsStatement(scope: TenantScope) {
  * is none (TenantScopeMissingError): a forgotten tenant fails instead of
  * landing in a default one, and the `WITH CHECK` policy proves the value
  * is the context's. With `tenantTable()` in the table's extras and
- * `.enableRLS()` on it:
+ * declared with `pgTable.withRLS()`:
  *
  * ```ts
- * export const invoices = pgTable('invoices', { id: uuidPk(), tenantId: tenantColumn(), … },
+ * export const invoices = pgTable.withRLS('invoices', { id: uuidPk(), tenantId: tenantColumn(), … },
  *   (t) => [...tenantTable('invoices', t), index('invoices_tenant_number_idx').on(t.tenantId, t.number)],
- * ).enableRLS();
+ * );
  * ```
  */
 export const tenantColumn = () =>

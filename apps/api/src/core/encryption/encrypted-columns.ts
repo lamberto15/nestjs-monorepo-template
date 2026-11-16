@@ -1,4 +1,4 @@
-import { getColumnTable, getTableColumns, getTableName } from 'drizzle-orm';
+import { getColumnTable, getColumns, getTableName } from 'drizzle-orm';
 import { type PgColumn, type PgTable, text } from 'drizzle-orm/pg-core';
 import { logRedaction } from '../logging/redaction.js';
 import type { Normalizer } from './data-cipher.js';
@@ -11,13 +11,13 @@ import type { Normalizer } from './data-cipher.js';
  * metric walk it, and the log redaction learns each column's name from it.
  *
  * ```ts
- * export const customers = pgTable('customers', {
+ * export const customers = pgTable.withRLS('customers', {
  *   id: uuidPk(),
  *   tenantId: tenantColumn(),
  *   taxNumber: encryptedText('tax_number'),
  *   taxNumberIndex: blindIndexText('tax_number_index'),
  *   ...timestamps(),
- * }, (t) => [...tenantTable('customers', t), index('customers_tax_number_idx').on(t.tenantId, t.taxNumberIndex)]).enableRLS();
+ * }, (t) => [...tenantTable('customers', t), index('customers_tax_number_idx').on(t.tenantId, t.taxNumberIndex)]);
  *
  * encrypted(customers.taxNumber, { blindIndex: customers.taxNumberIndex, normalize: normalizers.exact });
  * ```
@@ -66,7 +66,7 @@ export interface EncryptedColumn {
 const registry = new Map<PgColumn, EncryptedColumn>();
 
 const propertyOf = (table: PgTable, column: PgColumn) => {
-  const entry = Object.entries(getTableColumns(table)).find(
+  const entry = Object.entries(getColumns(table)).find(
     ([, candidate]) => candidate === column,
   );
   if (!entry) {
@@ -106,7 +106,7 @@ export function encrypted(
   ) {
     throw new Error(`${where}: its blind index must be in the same table.`);
   }
-  const columns = getTableColumns(table);
+  const columns = getColumns(table);
   const id = columns.id as PgColumn | undefined;
   if (!id) {
     throw new Error(

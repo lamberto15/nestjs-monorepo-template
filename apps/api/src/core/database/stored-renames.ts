@@ -2,7 +2,7 @@ import {
   count,
   eq,
   getColumnTable,
-  getTableColumns,
+  getColumns,
   getTableName,
   like,
   sql,
@@ -170,7 +170,7 @@ async function scopeToTenant(
 
 /** The property a column has in its table (`set()` takes properties, not column names). */
 function keyOf(table: PgTable, column: PgColumn) {
-  const entry = Object.entries(getTableColumns(table)).find(
+  const entry = Object.entries(getColumns(table)).find(
     ([, candidate]) => candidate === column,
   );
   if (!entry) {

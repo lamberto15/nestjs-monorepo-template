@@ -22,7 +22,7 @@ import type {
  * deleted, only deactivated, so its key can't be reused for another type
  * while old values hold it.
  */
-export const customFieldDefinitions = pgTable(
+export const customFieldDefinitions = pgTable.withRLS(
   'custom_field_definitions',
   {
     id: uuidPk(),
@@ -62,4 +62,4 @@ export const customFieldDefinitions = pgTable(
     ),
     ...tenantTable('custom_field_definitions', table),
   ],
-).enableRLS();
+);

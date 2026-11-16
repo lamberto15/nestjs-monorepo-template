@@ -1,4 +1,4 @@
-import { getTableColumns } from 'drizzle-orm';
+import { getColumns } from 'drizzle-orm';
 import { pgTable } from 'drizzle-orm/pg-core';
 import { uuidPk } from '../../core/database/columns.js';
 import {
@@ -19,7 +19,7 @@ const invoices = pgTable('invoices', {
 
 describe('money columns', () => {
   it('adds snake_case columns: bigint minor units and a char(3) code, NOT NULL unless nullable', () => {
-    const columns = getTableColumns(invoices);
+    const columns = getColumns(invoices);
     expect(columns.totalMinor.name).toBe('total_minor');
     expect(columns.totalMinor.getSQLType()).toBe('bigint');
     expect(columns.totalMinor.notNull).toBe(true);
@@ -36,7 +36,7 @@ describe('money columns', () => {
     // Runtime checks on the column config: vitest doesn't type-check specs.
     // Drizzle 1.0 maps the driver's values in its codecs, by data type (the
     // round trip: test/money.e2e-spec.ts).
-    const columns = getTableColumns(invoices);
+    const columns = getColumns(invoices);
     expect(columns.totalMinor.dataType).toBe('bigint int64');
     expect(columns.totalMinor.columnType).toBe('PgBigInt64');
     expect(columns.unitDiscountMinor.dataType).toBe('bigint int64');

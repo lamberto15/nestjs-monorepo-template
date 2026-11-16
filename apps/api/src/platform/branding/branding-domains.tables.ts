@@ -10,7 +10,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * hostname it does not control blocks nobody (the one that proves it in
  * DNS routes it, `tenant_domain_routes`).
  */
-export const tenantDomains = pgTable(
+export const tenantDomains = pgTable.withRLS(
   'tenant_domains',
   {
     id: uuidPk(),
@@ -33,7 +33,7 @@ export const tenantDomains = pgTable(
       table.hostname,
     ),
   ],
-).enableRLS();
+);
 
 /**
  * Which tenant a verified hostname routes to: read before there is a

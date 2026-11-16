@@ -23,7 +23,7 @@ export type AttachmentTextStatus = 'ready' | 'failed';
  * replaced) never matches and is extracted again; it goes with its attachment
  * (deleted, swept, purged by retention).
  */
-export const attachmentTexts = pgTable(
+export const attachmentTexts = pgTable.withRLS(
   'attachment_texts',
   {
     id: uuidPk(),
@@ -47,4 +47,4 @@ export const attachmentTexts = pgTable(
       [attachments.tenantId, attachments.id],
     ),
   ],
-).enableRLS();
+);

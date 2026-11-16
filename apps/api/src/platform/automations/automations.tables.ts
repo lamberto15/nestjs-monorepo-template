@@ -22,7 +22,7 @@ import type {
  * changes of what it does; a change takes effect once it is activated
  * again. It runs as `owner`, the user who activated it.
  */
-export const automationRules = pgTable(
+export const automationRules = pgTable.withRLS(
   'automation_rules',
   {
     id: uuidPk(),
@@ -62,12 +62,12 @@ export const automationRules = pgTable(
       .on(table.tenantId, table.subject)
       .where(sql`status = 'active'`),
   ],
-).enableRLS();
+);
 
 export type AutomationRuleRow = typeof automationRules.$inferSelect;
 
 /** What each run of a rule did (or why it failed), newest first. */
-export const automationRuns = pgTable(
+export const automationRuns = pgTable.withRLS(
   'automation_runs',
   {
     id: uuidPk(),
@@ -86,6 +86,6 @@ export const automationRuns = pgTable(
     ...tenantTable('automation_runs', table),
     index('automation_runs_rule_idx').on(table.ruleId, table.id),
   ],
-).enableRLS();
+);
 
 export type AutomationRunRow = typeof automationRuns.$inferSelect;

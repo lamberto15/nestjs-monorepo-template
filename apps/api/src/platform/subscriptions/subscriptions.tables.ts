@@ -7,7 +7,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * (its permission subject and id). Features notify the watchers of a
  * record when it changes (`SubscriptionsService.notifyWatchers`).
  */
-export const recordSubscriptions = pgTable(
+export const recordSubscriptions = pgTable.withRLS(
   'record_subscriptions',
   {
     id: uuidPk(),
@@ -33,4 +33,4 @@ export const recordSubscriptions = pgTable(
     ),
     ...tenantTable('record_subscriptions', table),
   ],
-).enableRLS();
+);

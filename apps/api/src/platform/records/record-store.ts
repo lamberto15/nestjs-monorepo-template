@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, getTableColumns, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, eq, getColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
@@ -195,7 +195,7 @@ export class RecordStore {
     const extra = list.sortSelect(query);
     const [rows, total] = await Promise.all([
       this.db
-        .select({ ...getTableColumns(table), ...extra })
+        .select({ ...getColumns(table), ...extra })
         .from(table)
         .where(and(where, afterCursor(table.id!, query)))
         .orderBy(...pageOrder(table.id!, query))
