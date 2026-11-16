@@ -1401,6 +1401,13 @@ jobs:
         if: needs.changes.outputs.api == 'true'
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage --config vitest.config.merge.ts
 
+  # The three publish jobs (publish, publish-caddy, publish-backup) repeat the
+  # same steps on purpose and are not one matrix job: a job's `if:` cannot read
+  # the matrix, so each image's own flag (api_image, caddy, backup) could not
+  # skip its leg, and tools/ci/publication-gate.mjs reads one result per image
+  # (success when its flag is set, else skipped). A matrix job has one result
+  # and its legs cannot expose separate outputs, which release-manifest reads as
+  # needs.<job>.outputs.digest. Change the three together.
   publish:
     name: Publish app
     if: >-
