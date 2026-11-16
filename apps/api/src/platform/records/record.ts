@@ -432,18 +432,18 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
         : []),
     ];
   }).enableRLS();
-  return registered(declaration, built);
+  registered(declaration, built as unknown as PgTable);
+  return built;
 }
 
 /** Makes `table` the declaration's: what the platform reads its columns from, and the relations of its `ref` fields (record-relations.ts). */
-function registered<T extends PgTable>(
-  declaration: RecordDeclaration,
-  table: T,
-) {
+function registered(declaration: RecordDeclaration, table: PgTable) {
   TABLES.set(declaration, table);
   tableHolds(table, declaration.subject);
-  relate(declaration, table as PgTable & Record<string, AnyPgColumn>);
-  return table;
+  relate(
+    declaration,
+    table as unknown as PgTable & Record<string, AnyPgColumn>,
+  );
 }
 
 /**
@@ -472,7 +472,8 @@ export function handWrittenTable<T extends PgTable>(
       `${declaration.subject}: its hand-written table lacks the column${missing.length > 1 ? 's' : ''} of ${missing.join(', ')}.`,
     );
   }
-  return registered(declaration, table);
+  registered(declaration, table);
+  return table;
 }
 
 /** The tables `recordTable()` made, by declaration: what the platform reads a record's columns from. */
