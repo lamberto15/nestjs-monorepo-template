@@ -10,13 +10,19 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import {
+  AiModelError,
+  AiOutputError,
+  type AiSchema,
+  AiService as Models,
+} from '@nestjs/ai';
 import { InjectQueue } from '@nestjs/bullmq';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
+import { APICallError } from 'ai';
 import { type Queue, UnrecoverableError } from 'bullmq';
 import { and, desc, eq, gte, inArray, lt, sql } from 'drizzle-orm';
 import type { Redis } from 'ioredis';
-import { z } from 'zod';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
@@ -44,11 +50,7 @@ import type { PlatformEnv } from '../platform.env.js';
 import { Realtime } from '../realtime/realtime.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { AI_ENABLED } from './ai-settings.js';
-import {
-  AiProvider,
-  AiProviderRejected,
-  AiProviderUnavailable,
-} from './ai-provider.js';
+import { aiEnabled } from './ai-models.js';
 import { AiRegistry } from './ai.registry.js';
 import type { AiRequest, AiRunView } from './ai.schemas.js';
 import { type AiRunRow, type AiRunStatus, aiRuns } from './ai.tables.js';
@@ -85,8 +87,8 @@ class AiFailure extends UnrecoverableError {}
 
 /**
  * The AI helper: a feature's AiSource gives a record's fields as the
- * requester may read them, a queue worker asks the provider for a structured
- * answer (a tool call validated with Zod), and the requester follows the run
+ * requester may read them, a queue worker asks the model for a structured
+ * answer (@nestjs/ai, validated with Zod), and the requester follows the run
  * at GET /v1/ai/runs/{id} and hears `ai.ready` over realtime. The row is the
  * usage record (model id, prompt version, tokens): it keeps no prompt and no
  * output, which are the record's personal data. The output lives in the
@@ -106,7 +108,7 @@ export class AiService implements PersonalDataSource {
     @InjectQueue(AI) private readonly queue: Queue<AiJob>,
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly registry: AiRegistry,
-    private readonly provider: AiProvider,
+    private readonly models: Models,
     private readonly audit: AuditService,
     private readonly realtime: Realtime,
     private readonly settings: SettingsService,
@@ -125,7 +127,7 @@ export class AiService implements PersonalDataSource {
    * run of the record and task is open.
    */
   async request(principal: RequestPrincipal, request: AiRequest, ip?: string) {
-    if (!this.provider.enabled) {
+    if (!aiEnabled(this.config)) {
       throw new ServiceUnavailableException({
         code: 'ai_unavailable',
         message: 'The AI helper is not set up on this server.',
@@ -330,40 +332,68 @@ export class AiService implements PersonalDataSource {
       }
     }
     if (!output) {
-      let completion;
+      // What the provider reported, even for an answer that is then refused.
+      const spent = { inputTokens: 0, outputTokens: 0 };
+      let result;
       try {
-        completion = await this.provider.complete({
-          model,
-          system: task.system,
+        // The answer is validated by the task's schema (the model is sent its JSON Schema).
+        result = await this.models.generateObject({
+          model: task.tier === 'cheap' ? 'cheap' : 'default',
+          label: task.name,
+          instructions: task.system,
           prompt,
-          tool: {
-            name: 'answer',
-            description: task.description,
-            schema: z.toJSONSchema(task.schema) as Record<string, unknown>,
+          schema: unvalidated(task.schema),
+          schemaName: 'answer',
+          schemaDescription: task.description,
+          maxOutputTokens: this.config.get('AI_MAX_OUTPUT_TOKENS', {
+            infer: true,
+          }),
+          onUsage: (event) => {
+            spent.inputTokens += event.usage.inputTokens;
+            spent.outputTokens += event.usage.outputTokens;
           },
-          maxTokens: this.config.get('AI_MAX_OUTPUT_TOKENS', { infer: true }),
-          timeoutMs: this.config.get('AI_TIMEOUT_MS', { infer: true }),
         });
       } catch (error) {
-        if (error instanceof AiProviderRejected) {
-          throw new AiFailure(AI_ERRORS.rejected);
+        if (error instanceof AiOutputError) {
+          // Not JSON at all. Spent, but unusable: never retried (it would be paid twice).
+          await this.complete(row, principal, {
+            status: 'failed',
+            usage: spent,
+            model,
+            error: AI_ERRORS.invalid,
+          });
+          throw new AiFailure(AI_ERRORS.invalid);
         }
-        throw error; // unavailable: retried
+        // Rate limit, overload, network, timeout: the queue retries the run.
+        if (
+          error instanceof AiModelError &&
+          !(APICallError.isInstance(error.cause) && !error.cause.isRetryable)
+        ) {
+          throw new Error(AI_ERRORS.unavailable, { cause: error });
+        }
+        this.logger.warn('The AI provider refused a run', {
+          id: row.id,
+          error: String(error),
+        });
+        throw new AiFailure(AI_ERRORS.rejected);
       }
-      const parsed = task.schema.safeParse(completion.output);
+      usage = {
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+      };
+      answeredBy = result.model.modelId;
+      const parsed = task.schema.safeParse(result.object);
       if (!parsed.success) {
         // Spent, but unusable: never retried (it would be paid twice).
         await this.complete(row, principal, {
           status: 'failed',
-          usage: completion.usage,
-          model: completion.model,
+          usage,
+          model: answeredBy,
           error: AI_ERRORS.invalid,
         });
         throw new AiFailure(AI_ERRORS.invalid);
       }
       output = parsed.data as Record<string, unknown>;
-      usage = completion.usage;
-      answeredBy = completion.model;
       if (ttl > 0) {
         await this.redis
           .set(cacheKey, JSON.stringify(output), 'EX', ttl)
@@ -512,12 +542,21 @@ export class AiService implements PersonalDataSource {
       .set({ requestedBy: ANONYMIZED_UPLOADER })
       .where(eq(aiRuns.requestedBy, principalKey(user)));
   }
-
-  /** Whether a failure is final for the processor: a transient provider error is retried. */
-  static transient(error: unknown) {
-    return error instanceof AiProviderUnavailable;
-  }
 }
+
+/**
+ * The task's schema as the model is sent it (its JSON Schema), but without
+ * the package's validation: an answer that does not match rejects with an
+ * AiOutputError that carries no token usage, and the run must still count
+ * the tokens it spent against the tenant's quota. The run validates the
+ * answer itself, right after. Custom code: the package has no option for it.
+ */
+const unvalidated = (schema: AiTask['schema']): AiSchema => ({
+  '~standard': {
+    ...schema['~standard'],
+    validate: (value: unknown) => ({ value }),
+  },
+});
 
 const startOfUtcDay = () => {
   const now = new Date();

@@ -3,7 +3,7 @@
 `platform/ai`: ask a model about a record (summarize it, classify it) and get
 a structured answer. Off unless `ANTHROPIC_API_KEY` is set, and then off for a
 tenant until an administrator sets `ai.enabled`. The real API is never called
-in tests: they use a fake provider.
+in tests: they use `FakeModel` from `@nestjs/ai/testing`.
 
 A client learns whether it is on without clicking: `GET /v1/features` `ai` is
 true with a provider, and `ai.enabled` is a public setting, so every signed-in
@@ -18,12 +18,13 @@ user reads it in `GET /v1/settings`. The web app hides its panel on either.
 
 - **On a queue worker, never in the request.** The `ai` queue
   (`AiProcessor`, two at a time per worker) restores the tenant and the
-  requester, checks the requester is still active, and calls the provider.
+  requester, checks the requester is still active, and calls the model.
   `lockDuration` is 3 minutes, longer than the longest call (`AI_TIMEOUT_MS`
   is at most 2 minutes), so a slow call is never seen as stalled and paid for
   twice. The queue retries a transient failure (`AI_ATTEMPTS` tries, backoff
-  from 2 s); the SDK's own retries are off, so two layers never retry the
-  same call.
+  from 2 s); a failure that is not
+  retryable (a 400, a refusal) fails the run at once, and the package's own
+  retries are off, so two layers never retry the same call.
 - **The requester hears** `ai.ready { id, subject, recordId, task }` or
   `ai.failed { id, subject, recordId, error }` over realtime.
 - **Features register a source.** An `AiSource` (`ai.registry.ts`, like a
@@ -35,22 +36,31 @@ user reads it in `GET /v1/settings`. The web app hides its panel on either.
 - **Audited:** `ai.requested`, `ai.completed`, `ai.failed`, with source,
   record, task, model, prompt version and tokens, never prompt or output.
 
-## Provider
+## Model
 
-`AiProvider` is an abstract class; the Anthropic adapter
-(`anthropic.provider.ts`, `@anthropic-ai/sdk`) is the default, a disabled
-provider stands in without a key, and a project swaps in another by providing
-`AiProvider`. The adapter forces the answer through one tool call whose
-`input_schema` is the task's JSON Schema (`tool_choice: { type: 'tool' }`).
-The model ids are pinned in the environment (`AI_MODEL` for normal tasks,
-`AI_MODEL_CHEAP` for cheap ones), never `latest`.
+`AiModule` from [`@nestjs/ai`](https://docs.nestjs.com/ai/overview) is
+registered in `PlatformModule` with two Anthropic models from
+`@ai-sdk/anthropic` (`ai-models.ts`): `default` (`AI_MODEL`) and `cheap`
+(`AI_MODEL_CHEAP`), pinned ids, never `latest`. `AiService` here calls the
+package's `generateObject()` with the task's Zod schema: the model is sent its
+JSON Schema and answers as structured output. The package's retries are off
+and each attempt is limited by `AI_TIMEOUT_MS`; `AI_BASE_URL` is the host of
+an Anthropic-compatible endpoint (`/v1` is added). The helper is on while
+`ANTHROPIC_API_KEY` is set (`aiEnabled()`); unset, nothing is sent and
+requests get 503 `ai_unavailable`. Tokens come from the call's `usage`.
+Failures: a retryable provider error (429, 5xx, network, timeout) is
+retried by the queue; a non-retryable one fails the run as `rejected`. The
+package's own schema check is bypassed on purpose: an answer that does not
+match its schema carries no token count, and the run must still count the
+tokens it spent, so the run validates the answer itself.
+A project that wants another provider changes `aiModuleOptions()`.
 
 ## Prompt injection
 
 The record's content is data: it is framed between `<record>` tags with `<`
 escaped so it can't close the tag, and the system prompt says to ignore
-instructions inside it. The real mitigation is structural: the model can only
-answer through the tool, the input is validated again with the task's **Zod
+instructions inside it. The real mitigation is structural: the model is sent only
+the answer schema, and its answer is validated again with the task's **Zod
 schema** (`ai-tasks.ts`), and what fails is a failed run (`AI_ERRORS.invalid`,
 not retried, tokens still counted). The output is only ever shown to the
 requester; nothing the model says is executed or followed.
