@@ -4,6 +4,46 @@
  */
 
 export interface paths {
+    "/v1/access/clients/{id}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * An API client's requests per day and route
+         * @description UTC days from `from` to `to`, both included (default: the last 30 days, at most 400). Today counts live.
+         */
+        get: operations["UsageController_clientUsage_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Your requests per day and route (API clients)
+         * @description UTC days from `from` to `to`, both included (default: the last 30 days, at most 400). Today counts live. With a daily quota, every response carries X-Quota-Limit and X-Quota-Remaining.
+         */
+        get: operations["UsageController_ownUsage_v1"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/money/rates": {
         parameters: {
             query?: never;
@@ -4053,46 +4093,6 @@ export interface paths {
          * @description Starts its export (a background job; `GET /v1/data/transfers/{id}` follows it); the recipients get the link when it is done. The schedule is unchanged. Audited (`report.ran`).
          */
         post: operations["ReportsController_run_v1"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/access/clients/{id}/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * An API client's requests per day and route
-         * @description UTC days from `from` to `to`, both included (default: the last 30 days, at most 400). Today counts live.
-         */
-        get: operations["UsageController_clientUsage_v1"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/v1/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Your requests per day and route (API clients)
-         * @description UTC days from `from` to `to`, both included (default: the last 30 days, at most 400). Today counts live. With a daily quota, every response carries X-Quota-Limit and X-Quota-Remaining.
-         */
-        get: operations["UsageController_ownUsage_v1"];
-        put?: never;
-        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -8380,6 +8380,137 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
+    UsageController_clientUsage_v1: {
+        parameters: {
+            query?: {
+                /** @description The first UTC day (yyyy-mm-dd), included; default: 29 days before `to`. */
+                from?: string;
+                /** @description The last UTC day, included; default: today. */
+                to?: string;
+            };
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date */
+                        from: string;
+                        /** Format: date */
+                        to: string;
+                        /** @description Every day of the range, oldest first, today with its live count. */
+                        days: {
+                            /** Format: date */
+                            day: string;
+                            total: number;
+                            /** @description Requests per route: `<METHOD> <pattern>`, as `GET /v1/notes/{id}`. */
+                            routes: {
+                                [key: string]: number;
+                            };
+                        }[];
+                        total: number;
+                    };
+                };
+            };
+            /** @description A range that ends before it starts, or is longer than 400 days. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not allowed by your permissions. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description feature_off: API_CLIENTS=off in this deployment. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    UsageController_ownUsage_v1: {
+        parameters: {
+            query?: {
+                /** @description The first UTC day (yyyy-mm-dd), included; default: 29 days before `to`. */
+                from?: string;
+                /** @description The last UTC day, included; default: today. */
+                to?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date */
+                        from: string;
+                        /** Format: date */
+                        to: string;
+                        /** @description Every day of the range, oldest first, today with its live count. */
+                        days: {
+                            /** Format: date */
+                            day: string;
+                            total: number;
+                            /** @description Requests per route: `<METHOD> <pattern>`, as `GET /v1/notes/{id}`. */
+                            routes: {
+                                [key: string]: number;
+                            };
+                        }[];
+                        total: number;
+                    };
+                };
+            };
+            /** @description A range that ends before it starts, or is longer than 400 days. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description No valid API key or session. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Only API clients have usage: a user gets a 403. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     MoneyController_ratesOn_v1: {
         parameters: {
             query?: {
@@ -28393,137 +28524,6 @@ export interface operations {
                 content?: never;
             };
             404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    UsageController_clientUsage_v1: {
-        parameters: {
-            query?: {
-                /** @description The first UTC day (yyyy-mm-dd), included; default: 29 days before `to`. */
-                from?: string;
-                /** @description The last UTC day, included; default: today. */
-                to?: string;
-            };
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: date */
-                        from: string;
-                        /** Format: date */
-                        to: string;
-                        /** @description Every day of the range, oldest first, today with its live count. */
-                        days: {
-                            /** Format: date */
-                            day: string;
-                            total: number;
-                            /** @description Requests per route: `<METHOD> <pattern>`, as `GET /v1/notes/{id}`. */
-                            routes: {
-                                [key: string]: number;
-                            };
-                        }[];
-                        total: number;
-                    };
-                };
-            };
-            /** @description A range that ends before it starts, or is longer than 400 days. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Not allowed by your permissions. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description feature_off: API_CLIENTS=off in this deployment. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-        };
-    };
-    UsageController_ownUsage_v1: {
-        parameters: {
-            query?: {
-                /** @description The first UTC day (yyyy-mm-dd), included; default: 29 days before `to`. */
-                from?: string;
-                /** @description The last UTC day, included; default: today. */
-                to?: string;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        /** Format: date */
-                        from: string;
-                        /** Format: date */
-                        to: string;
-                        /** @description Every day of the range, oldest first, today with its live count. */
-                        days: {
-                            /** Format: date */
-                            day: string;
-                            total: number;
-                            /** @description Requests per route: `<METHOD> <pattern>`, as `GET /v1/notes/{id}`. */
-                            routes: {
-                                [key: string]: number;
-                            };
-                        }[];
-                        total: number;
-                    };
-                };
-            };
-            /** @description A range that ends before it starts, or is longer than 400 days. */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description No valid API key or session. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Only API clients have usage: a user gets a 403. */
-            403: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
-import { type DynamicModule, Module, type Provider } from '@nestjs/common';
+import { type DynamicModule, Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
-import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { ConfigService } from '@nestjs/config';
 import { IdempotencyModule } from '@nestjs/idempotency';
@@ -24,7 +24,6 @@ import { RecordingWebhookTransport } from './webhooks/recording.transport.js';
 // Maps the webhooks package's errors to problem details.
 import './webhooks/webhooks-error.filter.js';
 import { webhooksOptions } from './webhooks/webhooks.config.js';
-import { whenOn } from './switches.js';
 import { storage } from './storage/storage.config.js';
 import { platformQueues, queues } from './queues/queues.js';
 import { DATA_TRANSFER_SETTINGS } from './data-transfer/data-transfer.settings.js';
@@ -41,7 +40,6 @@ import { ACKNOWLEDGMENT_NOTIFICATIONS } from './acknowledgments/acknowledgment-n
 import { ATTACHMENT_NOTIFICATIONS } from './attachments/attachment-scan.queue.js';
 import { COMMENT_NOTIFICATIONS } from './comments/comment-notifications.js';
 import { AUTOMATION_NOTIFICATIONS } from './automations/automation-events.js';
-import { UsageInterceptor } from './usage/usage.interceptor.js';
 import { ModeGuard } from './mode/mode.guard.js';
 import { MODE_SETTINGS } from './mode/mode.setting.js';
 import { APPROVAL_NOTIFICATIONS } from './approvals/approval-events.js';
@@ -223,10 +221,11 @@ export class PlatformModule {
       imports: [
         // Idempotency-Key on the routes marked @Idempotent(): a retry gets the
         // first response instead of running the handler again. Its interceptor
-        // is global, outermost but for UsageInterceptor (this module's own
-        // providers register before its imports'): a 403 is stored and
-        // replayed like any other 4xx, a client past its quota gets the 429
-        // before any replay, and a replay is metered. Guards run before every interceptor, so the scope sees the caller.
+        // is global and outermost (this module has no global interceptor of its
+        // own, and this is its first import): a replay passes through no other
+        // interceptor, so it is neither metered nor held to the quota, and a
+        // 403 is stored and replayed like any other 4xx. Guards run before
+        // every interceptor, so the scope sees the caller.
         IdempotencyModule.forRootAsync({
           imports: [secretsModule],
           inject: [PLATFORM_SECRETS, ConfigService],
@@ -241,11 +240,18 @@ export class PlatformModule {
             ttl: '24h', // longer than any client keeps retrying
             lockTtl: '60s', // how long a crashed instance blocks a key
             retryAfter: '1s',
+            // A 429 is not an outcome: the quota's (UsageInterceptor, inside
+            // this one) ends at midnight UTC, and the retry must run then.
+            storeIf: (status) => status < 500 && status !== 429,
             // Stored responses can hold an endpoint's secret: seal them at rest.
             encryption: { keys: platform.idempotency },
           }),
         }),
-        // After IdempotencyModule, whose interceptor must come first.
+        // After IdempotencyModule, whose interceptor must come first, and
+        // before every other module with a global interceptor: USAGE=on, its
+        // meter is the second, so it counts a request once whatever the
+        // route's retries (ResilienceModule, below) do.
+        UsageModule,
         // Private file storage (local or S3) behind signed URLs.
         storage(),
         // The options and the queues, for every module below (global).
@@ -336,7 +342,6 @@ export class PlatformModule {
         DataQualityModule,
         AutomationsModule,
         ReportsModule,
-        UsageModule,
         AnalyticsModule,
         RevisionsModule,
         ClientErrorsModule,
@@ -378,12 +383,6 @@ export class PlatformModule {
         // platform.mode / APP_MODE: read-only and maintenance (docs/settings.md);
         // ModeService is ModeModule's. A global guard: here, in this module's order.
         { provide: APP_GUARD, useClass: ModeGuard },
-        // USAGE=on: the metering interceptor (UsageService: UsageModule's), here among the
-        // platform's global enhancers, whose order is this module's (app.module.ts).
-        ...whenOn<Provider>('USAGE', {
-          provide: APP_INTERCEPTOR,
-          useClass: UsageInterceptor,
-        }),
       ],
       exports: [
         PlatformKernelModule,

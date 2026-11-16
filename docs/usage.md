@@ -38,9 +38,9 @@ days (400 `validation_failed` otherwise, or when `from` is after `to`).
   entry, atomically, so parallel requests never pass it; a refused one is
   given back. Redis unreachable (or slower than 500 ms) lets requests
   through, logged.
-  Metering runs before idempotency: a replayed `Idempotency-Key` response
-  is counted, and past the quota answers 429 too; a quota 429 is never
-  stored, so the retry after the reset runs.
+  Idempotency runs before metering: a replayed `Idempotency-Key` response
+  is not counted and is answered past the quota too; a 429 is never stored
+  for its key, so the retry after the reset runs.
 - **Roll-up** (`UsageRollupJob`, cron `usage-rollup`, 00:20 UTC, one
   instance): copies every day before today still in Redis into `api_usage`
   (one row per client, day and route; a rerun overwrites), tenant by
