@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "332cc067-39f6-40d9-8aed-c89452117165",
+  "prevIds": [
+    "fd91693d-67db-47f9-ad8e-e1ea9ab59fb1"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "approval_requests",
+        "fingerprint"
+      ],
+      "writes": [
+        "s|col|public.approval_requests.fingerprint",
+        "n|col|public.approval_requests.fingerprint",
+        "e|col|public.approval_requests.fingerprint"
+      ],
+      "reads": [
+        "n|tbl|public.approval_requests",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "approval_requests",
+        "name": "fingerprint",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

@@ -12,7 +12,7 @@ Code: `apps/api/src/core/encryption/` (the cipher, the column registry,
 
 ```ts
 // customers.tables.ts
-export const customers = pgTable(
+export const customers = pgTable.withRLS(
   'customers',
   {
     id: uuidPk(),
@@ -25,7 +25,7 @@ export const customers = pgTable(
     ...tenantTable('customers', t),
     index('customers_tax_number_idx').on(t.tenantId, t.taxNumberIndex),
   ],
-).enableRLS();
+);
 
 encrypted(customers.taxNumber, {
   blindIndex: customers.taxNumberIndex,

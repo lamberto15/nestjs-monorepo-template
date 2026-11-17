@@ -1,0 +1,515 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "425691da-8fd1-45b5-8778-97db1d6e7bc4",
+  "prevIds": [
+    "950003b9-c79a-421f-ba63-433657fbe255"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_texts"
+      ],
+      "writes": [
+        "s|tbl|public.attachment_texts",
+        "n|tbl|public.attachment_texts",
+        "e|tbl|public.attachment_texts",
+        "n|rel|public.attachment_texts",
+        "n|type|public.attachment_texts",
+        "n|rel|public.attachment_texts_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "attachment_texts",
+        "attachment_texts_attachment_idx"
+      ],
+      "writes": [
+        "s|idx|public.attachment_texts_attachment_idx",
+        "n|idx|public.attachment_texts_attachment_idx",
+        "e|idx|public.attachment_texts_attachment_idx",
+        "n|rel|public.attachment_texts_attachment_idx"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "n|col|public.attachment_texts.attachment_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "attachment_texts",
+        "attachment_texts_search_idx"
+      ],
+      "writes": [
+        "s|idx|public.attachment_texts_search_idx",
+        "n|idx|public.attachment_texts_search_idx",
+        "e|idx|public.attachment_texts_search_idx",
+        "n|rel|public.attachment_texts_search_idx"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "n|col|public.attachment_texts.search"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_texts"
+      ],
+      "writes": [
+        "s|fk|public.attachment_texts.attachment_texts_tenant_id_tenants_id_fk",
+        "n|fk|public.attachment_texts.attachment_texts_tenant_id_tenants_id_fk",
+        "e|fk|public.attachment_texts.attachment_texts_tenant_id_tenants_id_fk",
+        "n|con|public.attachment_texts.attachment_texts_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.attachment_texts.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_texts"
+      ],
+      "writes": [
+        "s|fk|public.attachment_texts.attachment_texts_attachment_fk",
+        "n|fk|public.attachment_texts.attachment_texts_attachment_fk",
+        "e|fk|public.attachment_texts.attachment_texts_attachment_fk",
+        "n|con|public.attachment_texts.attachment_texts_attachment_fk"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "n|tbl|public.attachments",
+        "n|sch|public",
+        "n|col|public.attachment_texts.tenant_id",
+        "n|col|public.attachment_texts.attachment_id",
+        "n|col|public.attachments.tenant_id",
+        "n|col|public.attachments.id",
+        "e|uniqueness|public.attachments.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_texts"
+      ],
+      "writes": [
+        "s|pol|public.attachment_texts.attachment_texts_tenant_select",
+        "n|pol|public.attachment_texts.attachment_texts_tenant_select",
+        "e|pol|public.attachment_texts.attachment_texts_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "e|rls|public.attachment_texts"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_texts"
+      ],
+      "writes": [
+        "s|pol|public.attachment_texts.attachment_texts_tenant_insert",
+        "n|pol|public.attachment_texts.attachment_texts_tenant_insert",
+        "e|pol|public.attachment_texts.attachment_texts_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "e|rls|public.attachment_texts"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_texts"
+      ],
+      "writes": [
+        "s|pol|public.attachment_texts.attachment_texts_tenant_update",
+        "n|pol|public.attachment_texts.attachment_texts_tenant_update",
+        "e|pol|public.attachment_texts.attachment_texts_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "e|rls|public.attachment_texts"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "attachment_texts"
+      ],
+      "writes": [
+        "s|pol|public.attachment_texts.attachment_texts_tenant_delete",
+        "n|pol|public.attachment_texts.attachment_texts_tenant_delete",
+        "e|pol|public.attachment_texts.attachment_texts_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.attachment_texts",
+        "n|sch|public",
+        "e|rls|public.attachment_texts"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "attachment_texts",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "key",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "text",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "search",
+        "type": "tsvector",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": {
+          "as": "to_tsvector('simple', coalesce(\"attachment_texts\".\"text\", ''))",
+          "type": "stored"
+        },
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_attachment_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "attachment_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_search_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "search",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "gin",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_attachment_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "attachment_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "attachments",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "attachment_texts",
+        "name": "attachment_texts_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"attachment_texts\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

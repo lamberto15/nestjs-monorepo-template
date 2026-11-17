@@ -1,0 +1,248 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "4e499c9b-bbda-4871-b9de-72ec71d6e57c",
+  "prevIds": [
+    "8433c11b-ef08-4bb7-afeb-2875d89b5e4b"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|fk|public.team_tree.team_tree_ancestor_fk",
+        "n|fk|public.team_tree.team_tree_ancestor_fk",
+        "e|fk|public.team_tree.team_tree_ancestor_fk",
+        "n|con|public.team_tree.team_tree_ancestor_fk"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.team_tree.tenant_id",
+        "n|col|public.team_tree.ancestor_id",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id",
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "team_tree"
+      ],
+      "writes": [
+        "s|fk|public.team_tree.team_tree_descendant_fk",
+        "n|fk|public.team_tree.team_tree_descendant_fk",
+        "e|fk|public.team_tree.team_tree_descendant_fk",
+        "n|con|public.team_tree.team_tree_descendant_fk"
+      ],
+      "reads": [
+        "n|tbl|public.team_tree",
+        "n|sch|public",
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.team_tree.tenant_id",
+        "n|col|public.team_tree.descendant_id",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id",
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "teams"
+      ],
+      "writes": [
+        "s|fk|public.teams.teams_parent_fk",
+        "n|fk|public.teams.teams_parent_fk",
+        "e|fk|public.teams.teams_parent_fk",
+        "n|con|public.teams.teams_parent_fk"
+      ],
+      "reads": [
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.parent_id",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id",
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_teams"
+      ],
+      "writes": [
+        "s|fk|public.user_teams.user_teams_team_fk",
+        "n|fk|public.user_teams.user_teams_team_fk",
+        "e|fk|public.user_teams.user_teams_team_fk",
+        "n|con|public.user_teams.user_teams_team_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_teams",
+        "n|sch|public",
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.user_teams.tenant_id",
+        "n|col|public.user_teams.team_id",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id",
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notes"
+      ],
+      "writes": [
+        "s|fk|public.notes.notes_team_fk",
+        "n|fk|public.notes.notes_team_fk",
+        "e|fk|public.notes.notes_team_fk",
+        "n|con|public.notes.notes_team_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.team_id",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id",
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_ancestor_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "ancestor_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "teams",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "team_tree",
+        "name": "team_tree_descendant_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "descendant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "teams",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "teams",
+        "name": "teams_parent_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "parent_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "teams",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_teams",
+        "name": "user_teams_team_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "team_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "teams",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_team_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "team_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "teams",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "SET NULL",
+        "entityType": "fks"
+      }
+    }
+  ]
+}

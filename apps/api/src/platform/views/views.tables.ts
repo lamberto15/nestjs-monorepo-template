@@ -27,7 +27,7 @@ export type ViewVisibility = (typeof VIEW_VISIBILITIES)[number];
  * `columns` the item fields to show (`fields=`). Both are validated against
  * the list when saved and again when applied.
  */
-export const savedViews = pgTable(
+export const savedViews = pgTable.withRLS(
   'saved_views',
   {
     id: uuidPk(),
@@ -77,6 +77,6 @@ export const savedViews = pgTable(
       'restrict',
     ),
   ],
-).enableRLS();
+);
 
 export type SavedViewRow = typeof savedViews.$inferSelect;

@@ -18,7 +18,7 @@ import {
   asc,
   count,
   eq,
-  getTableColumns,
+  getColumns,
   max,
   sql,
   type SQL,
@@ -403,7 +403,7 @@ export class CustomFieldsService {
    */
   async visible<T extends object>(subject: string, records: T[]): Promise<T[]> {
     const { table, column } = this.declaration(subject);
-    const name = Object.entries(getTableColumns(table)).find(
+    const name = Object.entries(getColumns(table)).find(
       ([, value]) => value === column,
     )?.[0];
     if (!name) {
@@ -459,7 +459,7 @@ export class CustomFieldsService {
   async valueCounts(subject: string) {
     const { table, column } = this.declaration(subject);
     const deletedAt = (
-      getTableColumns(table) as Record<string, AnyPgColumn | undefined>
+      getColumns(table) as Record<string, AnyPgColumn | undefined>
     ).deletedAt;
     // `Database` is typed over any driver's result; node-postgres' is `{ rows }`.
     const { rows } = (await this.db.execute(sql`

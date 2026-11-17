@@ -9,7 +9,7 @@ import {
   and,
   count,
   eq,
-  getTableColumns,
+  getColumns,
   inArray,
   or,
   type SQL,
@@ -161,7 +161,7 @@ export class ViewsService implements PersonalDataSource {
       this.db
         // With the sort values the cursor needs (lower(name)); pick() drops them.
         .select({
-          ...getTableColumns(savedViews),
+          ...getColumns(savedViews),
           ...VIEW_LIST.sortSelect(query),
         })
         .from(savedViews)

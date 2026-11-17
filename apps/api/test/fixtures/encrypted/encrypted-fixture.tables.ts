@@ -17,7 +17,7 @@ import {
  * declares no encrypted column yet. Importing this file declares it, so
  * only the suites that import it need the keys.
  */
-export const testEncryptedRecords = pgTable(
+export const testEncryptedRecords = pgTable.withRLS(
   'test_encrypted_records',
   {
     id: uuidPk(),
@@ -27,7 +27,7 @@ export const testEncryptedRecords = pgTable(
     ...timestamps(),
   },
   (t) => [...tenantTable('test_encrypted_records', t)],
-).enableRLS();
+);
 
 export const TEST_TAX_NUMBER = encrypted(testEncryptedRecords.taxNumber, {
   blindIndex: testEncryptedRecords.taxNumberIndex,

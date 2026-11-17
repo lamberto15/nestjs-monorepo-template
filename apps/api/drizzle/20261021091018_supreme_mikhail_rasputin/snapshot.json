@@ -1,0 +1,47 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "80def971-e4bf-437d-b6e6-92ce1462d01d",
+  "prevIds": [
+    "d6b1cde2-e07d-4202-b0a4-3b51591232ac"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "api_clients",
+        "allowed_cidrs"
+      ],
+      "writes": [
+        "s|col|public.api_clients.allowed_cidrs",
+        "n|col|public.api_clients.allowed_cidrs",
+        "e|col|public.api_clients.allowed_cidrs"
+      ],
+      "reads": [
+        "n|tbl|public.api_clients",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "api_clients",
+        "name": "allowed_cidrs",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 1,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

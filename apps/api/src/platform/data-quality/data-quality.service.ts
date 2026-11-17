@@ -12,7 +12,7 @@ import {
   count,
   desc,
   eq,
-  getTableColumns,
+  getColumns,
   gt,
   inArray,
   isNotNull,
@@ -82,7 +82,7 @@ const findings = dataQualityFindings;
 
 /** A column's key in its table (`deletedAt`): what an alias of the table names it by. */
 const keyOf = (table: PgTable, column: AnyPgColumn) =>
-  Object.entries(getTableColumns(table)).find(([, c]) => c === column)![0];
+  Object.entries(getColumns(table)).find(([, c]) => c === column)![0];
 
 /** Text that is empty once trimmed counts as missing, as null does. */
 const isText = (column: AnyPgColumn) =>
@@ -158,7 +158,7 @@ export class DataQualityService {
   async findings(principal: Principal, subject: string, query: FindingsQuery) {
     const target = this.target(subject);
     const rows = await this.db
-      .select(getTableColumns(findings))
+      .select(getColumns(findings))
       .from(findings)
       .innerJoin(target.table, eq(target.id, findings.recordId))
       .where(

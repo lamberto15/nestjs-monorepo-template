@@ -399,7 +399,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
     }),
   } as unknown as RecordColumns<D>;
   const name = declaration.table;
-  const built = pgTable(name as D['table'], columns, (table) => {
+  const built = pgTable.withRLS(name as D['table'], columns, (table) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const t = table as any;
     return [
@@ -431,7 +431,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
         ? [index(`${name}_custom_idx`).using('gin', t.custom)]
         : []),
     ];
-  }).enableRLS();
+  });
   TABLES.set(declaration, built as unknown as PgTable);
   tableHolds(built, declaration.subject);
   // Its `ref` fields' relations (record-relations.ts): what refers to what.

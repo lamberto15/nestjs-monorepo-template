@@ -23,7 +23,7 @@ import { organizationalUnits } from '../../iam/iam.tables.js';
 import type { NoteStatus } from './note.schemas.js';
 
 /** Notes: the example resource. `ownerId` is the principal that created it, `user:<id>` or `client:<id>`. */
-export const notes = pgTable(
+export const notes = pgTable.withRLS(
   'notes',
   {
     id: uuidPk(),
@@ -123,4 +123,4 @@ export const notes = pgTable(
       'restrict',
     ),
   ],
-).enableRLS();
+);

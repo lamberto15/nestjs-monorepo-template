@@ -95,7 +95,7 @@ encrypted(phoneNumbers.phone, {
  * `user:<id>`), for the toll-fraud caps: incremented before each SMS, so a
  * cap holds under concurrent workers.
  */
-export const messagingUsage = pgTable(
+export const messagingUsage = pgTable.withRLS(
   'messaging_usage',
   {
     id: uuidPk(),
@@ -114,4 +114,4 @@ export const messagingUsage = pgTable(
     index('messaging_usage_day_idx').on(table.day),
     ...tenantTable('messaging_usage', table),
   ],
-).enableRLS();
+);

@@ -28,7 +28,7 @@ export type TemplateVisibility = (typeof TEMPLATE_VISIBILITIES)[number];
  * are now) and the client then creates the record through the subject's
  * own route, which validates and authorizes it as any create.
  */
-export const recordTemplates = pgTable(
+export const recordTemplates = pgTable.withRLS(
   'record_templates',
   {
     id: uuidPk(),
@@ -76,6 +76,6 @@ export const recordTemplates = pgTable(
       'restrict',
     ),
   ],
-).enableRLS();
+);
 
 export type RecordTemplateRow = typeof recordTemplates.$inferSelect;

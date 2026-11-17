@@ -13,7 +13,7 @@ import { WorkflowClient } from '@nestjs/workflows';
 import {
   and,
   eq,
-  getTableColumns,
+  getColumns,
   isNotNull,
   isNull,
   inArray,
@@ -379,7 +379,7 @@ export class NotesService {
     const extra = list.sortSelect(query);
     const [rows, total] = await Promise.all([
       this.db
-        .select({ ...getTableColumns(notes), ...extra })
+        .select({ ...getColumns(notes), ...extra })
         .from(notes)
         .where(
           and(inTenant(notes.tenantId, where), afterCursor(notes.id, query)),

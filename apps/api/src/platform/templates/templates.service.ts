@@ -9,7 +9,7 @@ import {
   and,
   count,
   eq,
-  getTableColumns,
+  getColumns,
   inArray,
   or,
   type SQL,
@@ -191,7 +191,7 @@ export class TemplatesService implements PersonalDataSource {
       this.db
         // With the sort values the cursor needs (lower(name)); pick() drops them.
         .select({
-          ...getTableColumns(recordTemplates),
+          ...getColumns(recordTemplates),
           ...TEMPLATE_LIST.sortSelect(query),
         })
         .from(recordTemplates)

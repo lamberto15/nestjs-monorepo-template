@@ -371,15 +371,14 @@ UPDATE` (not those kept for later: a rule's action, a `BEGIN ATOMIC`
   `-- squawk-ignore-file`) would make squawk skip statements, and squawk has
   no option to refuse them. The lint blanks them before squawk reads the
   file and fails on them, report-only or not: a generated migration has none.
-- **A merged migration is never edited, deleted or renamed**, and its journal
-  entry (`apps/api/drizzle/meta/_journal.json`) never changes: databases that
-  applied it keep the old version, new ones get the new, and nobody notices.
-  A new entry must also be later than the base branch's last one: drizzle's
-  migrator skips a migration older than the last it applied, which is what a
-  hand-merged journal after a conflict produces. Delete your migration and run
-  `pnpm db:generate` again on top of `main`. The lint fails on all of these
-  whether blocking or not; only the label (a deliberate reset of the history)
-  lets them through.
+- **A merged migration is never edited, deleted or renamed** (its folder
+  under `apps/api/drizzle/` included): databases that applied it keep the
+  old version, new ones get the new, and nobody notices; a renamed folder
+  is a new migration, applied again. The lint fails on these whether
+  blocking or not; only the label (a deliberate reset of the history) lets
+  them through. Two branches' migrations of the same tables are
+  `pnpm db:check`'s (`drizzle-kit check`): delete your migration and run
+  `pnpm db:generate` again on top of `main`.
 - **Early stage:** until the first project is built on the template, breaking
   changes are accepted ([roadmap](roadmap.md), "Early stage"): one release
   may drop or rename, disposable demo data is reset at the breaking migrations, and

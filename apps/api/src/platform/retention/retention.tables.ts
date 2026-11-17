@@ -15,7 +15,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * rule runs at all. A declared rule does nothing in a tenant until the
  * tenant has a row here with `enabled`.
  */
-export const retentionPolicies = pgTable(
+export const retentionPolicies = pgTable.withRLS(
   'retention_policies',
   {
     id: uuidPk(),
@@ -36,6 +36,6 @@ export const retentionPolicies = pgTable(
     index('retention_policies_enabled_idx').on(table.tenantId, table.enabled),
     ...tenantTable('retention_policies', table),
   ],
-).enableRLS();
+);
 
 export type RetentionPolicyRow = typeof retentionPolicies.$inferSelect;

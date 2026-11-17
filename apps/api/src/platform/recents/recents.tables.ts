@@ -8,7 +8,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * title it showed, never a field's content; the list checks the person still
  * sees the record before it shows the title.
  */
-export const recentRecords = pgTable(
+export const recentRecords = pgTable.withRLS(
   'recent_records',
   {
     id: uuidPk(),
@@ -36,4 +36,4 @@ export const recentRecords = pgTable(
     index('recent_records_viewed_at_idx').on(table.viewedAt),
     ...tenantTable('recent_records', table),
   ],
-).enableRLS();
+);

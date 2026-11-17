@@ -1,0 +1,949 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "fdec8111-b4b7-449b-ba5d-217af7e0201b",
+  "prevIds": [
+    "8780213a-02b3-46f3-b181-9e54261c4a31"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_findings"
+      ],
+      "writes": [
+        "s|tbl|public.data_quality_findings",
+        "n|tbl|public.data_quality_findings",
+        "e|tbl|public.data_quality_findings",
+        "n|rel|public.data_quality_findings",
+        "n|type|public.data_quality_findings",
+        "n|rel|public.data_quality_findings_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_scans"
+      ],
+      "writes": [
+        "s|tbl|public.data_quality_scans",
+        "n|tbl|public.data_quality_scans",
+        "e|tbl|public.data_quality_scans",
+        "n|rel|public.data_quality_scans",
+        "n|type|public.data_quality_scans",
+        "n|rel|public.data_quality_scans_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "data_quality_findings",
+        "data_quality_findings_key_idx"
+      ],
+      "writes": [
+        "s|idx|public.data_quality_findings_key_idx",
+        "n|idx|public.data_quality_findings_key_idx",
+        "e|idx|public.data_quality_findings_key_idx",
+        "n|rel|public.data_quality_findings_key_idx"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_findings",
+        "n|sch|public",
+        "n|col|public.data_quality_findings.tenant_id",
+        "n|col|public.data_quality_findings.subject",
+        "n|col|public.data_quality_findings.record_id",
+        "n|col|public.data_quality_findings.check",
+        "n|col|public.data_quality_findings.field"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "data_quality_scans",
+        "data_quality_scans_tenant_idx"
+      ],
+      "writes": [
+        "s|idx|public.data_quality_scans_tenant_idx",
+        "n|idx|public.data_quality_scans_tenant_idx",
+        "e|idx|public.data_quality_scans_tenant_idx",
+        "n|rel|public.data_quality_scans_tenant_idx"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_scans",
+        "n|sch|public",
+        "n|col|public.data_quality_scans.tenant_id",
+        "n|col|public.data_quality_scans.created_at"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_findings"
+      ],
+      "writes": [
+        "s|fk|public.data_quality_findings.data_quality_findings_tenant_id_tenants_id_fk",
+        "n|fk|public.data_quality_findings.data_quality_findings_tenant_id_tenants_id_fk",
+        "e|fk|public.data_quality_findings.data_quality_findings_tenant_id_tenants_id_fk",
+        "n|con|public.data_quality_findings.data_quality_findings_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_findings",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.data_quality_findings.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_scans"
+      ],
+      "writes": [
+        "s|fk|public.data_quality_scans.data_quality_scans_tenant_id_tenants_id_fk",
+        "n|fk|public.data_quality_scans.data_quality_scans_tenant_id_tenants_id_fk",
+        "e|fk|public.data_quality_scans.data_quality_scans_tenant_id_tenants_id_fk",
+        "n|con|public.data_quality_scans.data_quality_scans_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_scans",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.data_quality_scans.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_findings"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_findings.data_quality_findings_tenant_select",
+        "n|pol|public.data_quality_findings.data_quality_findings_tenant_select",
+        "e|pol|public.data_quality_findings.data_quality_findings_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_findings",
+        "n|sch|public",
+        "e|rls|public.data_quality_findings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_findings"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_findings.data_quality_findings_tenant_insert",
+        "n|pol|public.data_quality_findings.data_quality_findings_tenant_insert",
+        "e|pol|public.data_quality_findings.data_quality_findings_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_findings",
+        "n|sch|public",
+        "e|rls|public.data_quality_findings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_findings"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_findings.data_quality_findings_tenant_update",
+        "n|pol|public.data_quality_findings.data_quality_findings_tenant_update",
+        "e|pol|public.data_quality_findings.data_quality_findings_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_findings",
+        "n|sch|public",
+        "e|rls|public.data_quality_findings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_findings"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_findings.data_quality_findings_tenant_delete",
+        "n|pol|public.data_quality_findings.data_quality_findings_tenant_delete",
+        "e|pol|public.data_quality_findings.data_quality_findings_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_findings",
+        "n|sch|public",
+        "e|rls|public.data_quality_findings"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_scans"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_scans.data_quality_scans_tenant_select",
+        "n|pol|public.data_quality_scans.data_quality_scans_tenant_select",
+        "e|pol|public.data_quality_scans.data_quality_scans_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_scans",
+        "n|sch|public",
+        "e|rls|public.data_quality_scans"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_scans"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_scans.data_quality_scans_tenant_insert",
+        "n|pol|public.data_quality_scans.data_quality_scans_tenant_insert",
+        "e|pol|public.data_quality_scans.data_quality_scans_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_scans",
+        "n|sch|public",
+        "e|rls|public.data_quality_scans"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_scans"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_scans.data_quality_scans_tenant_update",
+        "n|pol|public.data_quality_scans.data_quality_scans_tenant_update",
+        "e|pol|public.data_quality_scans.data_quality_scans_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_scans",
+        "n|sch|public",
+        "e|rls|public.data_quality_scans"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "data_quality_scans"
+      ],
+      "writes": [
+        "s|pol|public.data_quality_scans.data_quality_scans_tenant_delete",
+        "n|pol|public.data_quality_scans.data_quality_scans_tenant_delete",
+        "e|pol|public.data_quality_scans.data_quality_scans_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.data_quality_scans",
+        "n|sch|public",
+        "e|rls|public.data_quality_scans"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "data_quality_findings",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "data_quality_scans",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "subject",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "record_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "check",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "field",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "severity",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "detail",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "checked_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "dismissed_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "dismissed_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "status",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'queued'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "total",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "scanned",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "findings",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "started_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "finished_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "data_quality_findings_key_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "subject",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "record_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "check",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "field",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "data_quality_scans_tenant_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "created_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "data_quality_findings_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "data_quality_scans_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "data_quality_findings_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "data_quality_scans_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "data_quality_findings_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "data_quality_findings_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "data_quality_findings_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_findings",
+        "name": "data_quality_findings_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"data_quality_findings\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "data_quality_scans_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "data_quality_scans_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "data_quality_scans_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "data_quality_scans",
+        "name": "data_quality_scans_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"data_quality_scans\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

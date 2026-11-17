@@ -25,7 +25,7 @@ export type FormStatus = (typeof FORM_STATUSES)[number];
  * of the version submitters fill in now (`published_version`). Publishing
  * copies the draft into `form_versions`, never edited again.
  */
-export const forms = pgTable(
+export const forms = pgTable.withRLS(
   'forms',
   {
     id: uuidPk(),
@@ -53,12 +53,12 @@ export const forms = pgTable(
     unique('forms_slug_key').on(table.tenantId, table.slug),
     ...tenantTable('forms', table, { referenced: true }),
   ],
-).enableRLS();
+);
 
 export type FormRow = typeof forms.$inferSelect;
 
 /** Published versions: immutable snapshots, 1, 2, 3… per form. */
-export const formVersions = pgTable(
+export const formVersions = pgTable.withRLS(
   'form_versions',
   {
     id: uuidPk(),
@@ -80,7 +80,7 @@ export const formVersions = pgTable(
       'cascade',
     ),
   ],
-).enableRLS();
+);
 
 export type FormVersionRow = typeof formVersions.$inferSelect;
 
@@ -89,7 +89,7 @@ export type FormVersionRow = typeof formVersions.$inferSelect;
  * version is the one they were checked against, for good: a later version
  * never reinterprets them.
  */
-export const formSubmissions = pgTable(
+export const formSubmissions = pgTable.withRLS(
   'form_submissions',
   {
     id: uuidPk(),
@@ -124,7 +124,7 @@ export const formSubmissions = pgTable(
       'cascade',
     ),
   ],
-).enableRLS();
+);
 
 export type FormSubmissionRow = typeof formSubmissions.$inferSelect;
 
@@ -135,7 +135,7 @@ export type FormSubmissionRow = typeof formSubmissions.$inferSelect;
  * Only the token's hash is kept (the link is shown once). A tenant table:
  * the token names its tenant, so it is looked up in that tenant's scope.
  */
-export const formPublicLinks = pgTable(
+export const formPublicLinks = pgTable.withRLS(
   'form_public_links',
   {
     id: uuidPk(),
@@ -168,6 +168,6 @@ export const formPublicLinks = pgTable(
       'cascade',
     ),
   ],
-).enableRLS();
+);
 
 export type FormPublicLinkRow = typeof formPublicLinks.$inferSelect;

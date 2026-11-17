@@ -8,7 +8,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * for the transaction that takes a number, so numbers are gapless:
  * a rollback takes none. Per tenant: each numbers its own series.
  */
-export const sequences = pgTable(
+export const sequences = pgTable.withRLS(
   'sequences',
   {
     id: uuidPk(),
@@ -28,4 +28,4 @@ export const sequences = pgTable(
     ),
     ...tenantTable('sequences', table),
   ],
-).enableRLS();
+);

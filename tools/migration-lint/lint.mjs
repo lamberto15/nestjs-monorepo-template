@@ -14,7 +14,7 @@
 // Its version is pinned here and raised by hand (Dependabot doesn't see it).
 //
 //   node tools/migration-lint/lint.mjs --base origin/main     # this branch's migrations (Docker)
-//   node tools/migration-lint/lint.mjs apps/api/drizzle/*.sql # given files, no history check
+//   node tools/migration-lint/lint.mjs apps/api/drizzle/*/migration.sql # given files, no history check
 //   node --test tools/migration-lint/lint.test.mjs            # its tests (Docker too)
 //
 // CI (.github/workflows/migrations.yml) also passes --summary, --annotations,
@@ -25,7 +25,6 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import {
   appendFileSync,
   chmodSync,
-  existsSync,
   mkdtempSync,
   readFileSync,
   rmSync,
@@ -34,7 +33,7 @@ import {
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { isDeepStrictEqual, parseArgs } from 'node:util';
+import { parseArgs } from 'node:util';
 import { fileRoots, outputFile, tempRoots, within } from '../cli-paths.mjs';
 
 /** squawk's release, tag and digest (linux/amd64 only: Docker emulates it on arm64). */
@@ -42,7 +41,6 @@ export const SQUAWK_IMAGE =
   'ghcr.io/sbdchd/squawk:2.70.0@sha256:95707f5660dfadbc61cf9d9565384b54d157dcb4e8d3c30db78dd7056be293e9';
 
 export const MIGRATIONS = 'apps/api/drizzle';
-export const JOURNAL = `${MIGRATIONS}/meta/_journal.json`;
 
 /**
  * The pull request label that accepts what the lint reports (a reviewed
@@ -379,47 +377,43 @@ function git(cwd, args) {
   });
 }
 
-function readJournal(text, where, history) {
-  try {
-    const journal = JSON.parse(text);
-    if (!Array.isArray(journal?.entries)) throw new Error('no entries');
-    return journal.entries;
-  } catch {
-    history.push({
-      file: JOURNAL,
-      message: `The journal ${where} is not a drizzle journal (JSON with entries).`,
-    });
-    return null;
-  }
-}
+/** A migration: drizzle-kit's <MIGRATIONS>/<timestamp>_<name>/migration.sql. */
+export const isMigration = (p) =>
+  path.posix.dirname(path.posix.dirname(p)) === MIGRATIONS &&
+  path.posix.basename(p) === 'migration.sql';
 
-function journalAt(cwd, commit, history) {
-  if (git(cwd, ['ls-tree', '--name-only', commit, '--', JOURNAL]).trim() === '')
-    return null;
-  return readJournal(
-    git(cwd, ['show', `${commit}:${JOURNAL}`]),
-    'on the base branch',
-    history,
-  );
-}
+/** A migration of drizzle-kit 0.x's layout, <MIGRATIONS>/NNNN_<name>.sql. */
+export const isOldMigration = (p) =>
+  path.posix.dirname(p) === MIGRATIONS &&
+  /^\d{4}_.+\.sql$/.test(path.posix.basename(p));
 
 /**
- * Compared with `base` (the branch the work goes into): the migration files
- * the working tree adds (committed or not), and the changes to merged
- * migrations that drizzle can't apply: an edited, deleted or renamed
- * migration (databases that ran it keep the old one; new ones get the new),
- * a changed or removed journal entry, a new entry not later than the base's
- * last (drizzle's migrator skips a migration older than the last it applied).
+ * Drizzle 1.0's `drizzle-kit up` moved each NNNN_<name>.sql of the old
+ * layout to <timestamp>_<name>/migration.sql, its text unchanged (`from`
+ * and `to` are a rename git found at 100%): a move, neither an edit nor a
+ * new migration.
+ */
+export const movedByUp = (from, to) =>
+  isOldMigration(from) &&
+  isMigration(to) &&
+  path.posix.basename(path.posix.dirname(to)).replace(/^\d{14}_/, '') ===
+    path.posix.basename(from).replace(/^\d{4}_|\.sql$/g, '');
+
+/**
+ * Compared with `base` (the branch the work goes into): the migrations the
+ * working tree adds (committed or not), and the changes to merged ones that
+ * drizzle can't apply: an edited, deleted or renamed migration (databases
+ * that ran it keep the old one; new ones get the new). The rest of the
+ * history (a snapshot chain left broken, two branches' migrations that
+ * don't commute) is drizzle-kit's own check (`pnpm db:check`, in CI).
  *
- * Files and entries are compared with the merge base, so a branch behind
- * `base` isn't charged with what `base` added since (in CI, the merge base
- * is the base itself); the order of new entries, with `base`'s last.
+ * Files are compared with the merge base, so a branch behind `base` isn't
+ * charged with what `base` added since (in CI, the merge base is the base
+ * itself).
  */
 export function changes({ base, cwd = process.cwd() }) {
   const added = [];
   const history = [];
-  const isMigration = (p) =>
-    path.posix.dirname(p) === MIGRATIONS && p.endsWith('.sql');
   const fork = git(cwd, [
     'merge-base',
     '--end-of-options',
@@ -427,18 +421,27 @@ export function changes({ base, cwd = process.cwd() }) {
     'HEAD',
   ]).trim();
 
+  // Renames only when the text is the same (R100): drizzle-kit up's moves.
   const diff = git(cwd, [
     'diff',
     '--name-status',
-    '--no-renames',
+    '--find-renames=100%',
     '-z',
     fork,
     '--',
     `${MIGRATIONS}/`,
   ]).split('\0');
   for (let i = 0; i + 1 < diff.length; i += 2) {
-    const [status, file] = [diff[i], diff[i + 1]];
-    if (!isMigration(file)) continue;
+    let [status, file] = [diff[i], diff[i + 1]];
+    if (status.startsWith('R')) {
+      const to = diff[i + 2];
+      i++;
+      if (movedByUp(file, to)) continue;
+      if (isMigration(to)) added.push(to);
+      status = 'D';
+    }
+    if (!isMigration(file) && !(status === 'D' && isOldMigration(file)))
+      continue;
     if (status === 'A') added.push(file);
     else if (status === 'D')
       history.push({
@@ -462,50 +465,6 @@ export function changes({ base, cwd = process.cwd() }) {
     `${MIGRATIONS}/`,
   ]).split('\0');
   added.push(...untracked.filter(isMigration));
-
-  const headPath = path.join(cwd, JOURNAL);
-  const before = journalAt(cwd, fork, history);
-  if (before && !existsSync(headPath)) {
-    history.push({
-      file: JOURNAL,
-      message:
-        'The journal is deleted: drizzle applies no migration without it.',
-    });
-  } else if (before) {
-    const after = readJournal(
-      readFileSync(headPath, 'utf8'),
-      'of this branch',
-      history,
-    );
-    const target =
-      fork === git(cwd, ['rev-parse', base]).trim()
-        ? before
-        : journalAt(cwd, base, history);
-    if (after) {
-      before.forEach((entry, i) => {
-        if (!isDeepStrictEqual(entry, after[i])) {
-          history.push({
-            file: JOURNAL,
-            message: `The journal's merged entry ${i} (${String(entry?.tag)}) is ${after[i] === undefined ? 'removed' : 'changed'}. Merged entries never change; new ones are appended.`,
-          });
-        }
-      });
-      let last = Math.max(
-        ...[...before, ...(target ?? [])].map((e) => Number(e?.when) || 0),
-        0,
-      );
-      for (const entry of after.slice(before.length)) {
-        const when = Number(entry?.when);
-        if (!(when > last)) {
-          history.push({
-            file: JOURNAL,
-            message: `The new entry ${String(entry?.tag)} is not later than the base branch's last one: drizzle skips it on databases that applied that one. Delete the migration and generate it again on top of the base branch.`,
-          });
-        }
-        last = Math.max(last, when || 0);
-      }
-    }
-  }
   return { added: [...new Set(added)].sort(), history };
 }
 
@@ -629,7 +588,7 @@ export function code(s) {
     .replace(/[^\p{L}\p{N} -]/gu, entity)}</code>`;
 }
 
-/** A sentence that may quote the pull request (a journal tag): markdown's, HTML's and links' signs encoded. */
+/** A sentence that may quote the pull request (a migration's name): markdown's, HTML's and links' signs encoded. */
 export function text(s) {
   return String(s)
     .replace(/[\r\n]+/g, ' ')
@@ -647,6 +606,12 @@ function fenced(text) {
 }
 
 const MAX_ROWS = 200;
+
+/** A migration as the summary names it: its folder (all are migration.sql), or a given file's name. */
+export const migrationName = (file) =>
+  file.startsWith(`${MIGRATIONS}/`)
+    ? path.posix.relative(MIGRATIONS, file)
+    : path.posix.basename(file);
 
 /**
  * The job's summary, its annotations and its exit code. `fail`: blocking
@@ -681,7 +646,7 @@ export function report({ added, findings, history, fail, ack, note = '' }) {
   }
   if (added.length)
     out.push(
-      `New: ${added.map((f) => code(path.posix.basename(f))).join(', ')}.`,
+      `New: ${added.map((f) => code(migrationName(f))).join(', ')}.`,
       '',
     );
   const mode = fail ? 'blocking' : 'report-only';
@@ -711,14 +676,14 @@ export function report({ added, findings, history, fail, ack, note = '' }) {
           ? `[\`${f.rule}\`](https://squawkhq.com/docs/${f.rule})`
           : `\`${f.rule}\``;
       out.push(
-        `| ${code(`${path.posix.basename(f.file)}:${f.line}`)} | ${rule} | ${RULES[f.rule]} |`,
+        `| ${code(`${migrationName(f.file)}:${f.line}`)} | ${rule} | ${RULES[f.rule]} |`,
       );
     }
     if (findings.length > MAX_ROWS)
       out.push('', `And ${findings.length - MAX_ROWS} more.`);
     const statements = findings
       .slice(0, MAX_ROWS)
-      .map((f) => `${path.posix.basename(f.file)}:${f.line}: ${f.statement}`);
+      .map((f) => `${migrationName(f.file)}:${f.line}: ${f.statement}`);
     out.push(
       '',
       '<details><summary>The statements</summary>',

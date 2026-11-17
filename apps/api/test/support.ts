@@ -30,7 +30,6 @@ import request from 'supertest';
 import { getDrizzleToken } from '@nestjs/drizzle';
 import { Client, Pool } from 'pg';
 import { drizzle as drizzleNodePg } from 'drizzle-orm/node-postgres';
-import * as schema from '../src/schema.js';
 import type { Database } from '../src/core/database/drizzle.js';
 import { inject } from 'vitest';
 import { TestAppModule } from './fixtures/test-app.module.js';
@@ -493,7 +492,7 @@ export async function bootApp(
     }
     console.warn(`Test pool: ${error.message}`);
   });
-  const db = drizzleNodePg({ client: testPool, schema }) as unknown as Database;
+  const db: Database = drizzleNodePg({ client: testPool });
 
   /**
    * Audit entries of every tenant and of none (an account's own, which no

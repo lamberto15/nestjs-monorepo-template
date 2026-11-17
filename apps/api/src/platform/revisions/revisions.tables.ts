@@ -17,7 +17,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * (`changes`, as the audit log's diff). Restoring one is a change like any
  * other: a new revision, marked `restoredFrom`.
  */
-export const revisions = pgTable(
+export const revisions = pgTable.withRLS(
   'revisions',
   {
     id: uuidPk(),
@@ -57,4 +57,4 @@ export const revisions = pgTable(
     index('revisions_changed_at_idx').on(table.changedAt),
     ...tenantTable('revisions', table),
   ],
-).enableRLS();
+);
