@@ -28,7 +28,7 @@ No fixed monthly cost is specified: it depends on traffic, uptime requirements, 
 
 ## Hosting shape
 
-Development uses local Docker services. Production deployment is documented with Docker Compose (including a rolling pattern) and Docker Swarm. Those are deployment options, **not** evidence that every option is equally appropriate for your environment. Read [deployment](../deployment.md) and [Swarm](../deploy-swarm.md) before selecting one.
+Development uses local Docker services. Production deployment is documented with Docker Compose on one host. That is a reference, **not** evidence that it is appropriate for your environment. Read [deployment](../deployment.md) before deciding.
 
 ## Risk and release policy
 

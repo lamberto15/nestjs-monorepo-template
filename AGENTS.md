@@ -91,11 +91,10 @@ migrations): [apps/api/AGENTS.md](apps/api/AGENTS.md); `apps/web` and
   by `apps/api/test/fixtures/test-items`) is the reference for new features;
   `features/notes` is the hand-written showcase of every add-on, not a template
   to copy.
-- **Releases and deploys only through Actions.** Merging the Release Please
-  pull request is the only way to release: never push a `v*` tag by hand.
-  Staging deploys itself from `main`; production only by a Deploy run with a
-  published release tag. Never deploy by hand on a server
-  (docs/releases.md, docs/deploy-swarm.md).
+- **Releases only through Actions.** Merging the Release Please pull request
+  is the only way to release: never push a `v*` tag by hand
+  (docs/releases.md). The template ships no deploy pipeline: CI validates,
+  deploying is each project's own.
 - **Newest versions, pinned** (never `:latest`); Dependabot proposes updates.
 - `.env*` files must not be written directly by agents: the owner copies the template
   (`pnpm run setup` writes them, or `cp env.example .env` at the root and fills it, or `cp
@@ -135,11 +134,8 @@ Everything is in `docs/`; a name below is its file (`tags` is
   (and feature flags), `branding`, `i18n-and-time`, `money`, `usage`
   (quotas), `build-version`.
 - **Deploy and operate:** `deployment` (Compose, CI and its scans, images,
-  the operator CLI `pnpm ops`, log redaction, metrics, alerts,
-  zero-downtime overview), `deploy-rolling`,
-  `deploy-swarm` (our staging and production: CI deploys, host setup,
-  sizing), `ci-runtime`, `releases` (Release Please; production takes
-  releases only), `upgrading`.
+  the operator CLI `pnpm ops`, log redaction, metrics), `ci-runtime`,
+  `releases` (Release Please), `upgrading`.
 - **This docs site:** `documentation-tooling`, `documentation-maintenance`.
 
 ## Validation in CI

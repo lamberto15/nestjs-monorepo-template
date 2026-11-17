@@ -22,7 +22,7 @@ const declared = new Set(
 const offered = [...example.matchAll(/^(?:# )?([A-Z][A-Z0-9_]+)=/gm)].map(
   (match) => match[1],
 );
-// Never for a deployment: compose.loadtest.yaml sets the first, and
+// Never for a deployment: a load test's stack sets the first, and
 // development and tests the second.
 const notForADeployment = new Set([
   'RATE_LIMIT_MULTIPLIER',

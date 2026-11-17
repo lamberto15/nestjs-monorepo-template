@@ -24,9 +24,8 @@ its work to the packages:
 | `pnpm dev`, `pnpm dev:api`, `pnpm dev:web`                                                                                         | `turbo run dev --env-mode=loose` in every app, or `--filter` one: the API's `nest start --watch` and the web's `vite` (the client builds first) |
 | `pnpm start:dev`, `pnpm start:debug`, `pnpm db:*`, `pnpm migrate`, `pnpm openapi:dump`                                             | `pnpm --filter @nestjs-monorepo-template/api <script>`, in `apps/api`                                                                           |
 | `pnpm client:generate`, `pnpm client:check`                                                                                        | the API's dump, then the client's generator                                                                                                     |
-| `pnpm release:notes`                                                                                                               | a template release's notes ([releases](releases.md))                                                                                            |
 | `pnpm services:up` / `services:down`, `pnpm format`, `pnpm format:check` | at the root                                                                                                                                     |
-| `pnpm run setup`, `pnpm feature:add` / `feature:sync` / `feature:remove`, `pnpm deploy:rolling` / `deploy:swarm` | Node scripts in `tools/` (the first-run wizard, the feature generator, the zero-downtime deploys)                                               |
+| `pnpm run setup`, `pnpm feature:add` / `feature:sync` / `feature:remove` | Node scripts in `tools/` (the first-run wizard, the feature generator)                                               |
 
 - **One package:** `pnpm --filter <name> <script>`, e.g. `pnpm --filter
 @nestjs-monorepo-template/api test src/core/http/route-key.spec.ts`.
@@ -86,7 +85,7 @@ manual chunk boundary instead of raising Vite's warning limit blindly.
 ### Running it
 
 ```bash
-pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci, Gotenberg
+pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci
 pnpm dev                  # the API on :3000 and the web app on http://localhost:5173
 pnpm db:seed:demo         # optional, from a second terminal: the demo tenant and its members
 ```

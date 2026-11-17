@@ -368,7 +368,7 @@ describe('defaults', () => {
     assert.equal(env.get('TENANCY'), 'multi');
     assert.equal(env.get('MAIL_TRANSPORT'), 'ses');
     assert.equal(env.get('STORAGE_DRIVER'), 's3');
-    assert.ok(env.get('GOTENBERG_URL'));
+    assert.equal(env.get('GOTENBERG_URL'), undefined);
     const template = readFileSync(
       path.join(root, TEMPLATES.development),
       'utf8',

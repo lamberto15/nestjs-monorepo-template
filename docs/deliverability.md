@@ -240,11 +240,8 @@ again, it is listed again.
 Metrics (`GET /metrics`, [deployment.md](deployment.md#metrics)):
 `mail_sent_total` (the workers), `mail_suppressed_total{reason}`,
 `mail_events_total{provider,type}` (the api, as received),
-`mail_suppressions{reason}` (the list's size). Alerts
-(`monitoring/prometheus/alerts.yml`): `MailBounceRateHigh` (over 5% of
-the mails sent in an hour bounced hard, at least 20 sent, for 15 min)
-and `MailComplaints` (any complaint in the last hour: each one is worth a
-look).
+`mail_suppressions{reason}` (the list's size). Worth alerting on in your Prometheus: a hard-bounce rate
+over 5% of the mails sent in an hour, and any complaint.
 
 ## Postmark, Resend and SendGrid
 

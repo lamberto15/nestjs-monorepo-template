@@ -29,8 +29,7 @@ Filling `.env` (each step is commented in `env.example`):
   secrets can be files instead: [Secrets in files](#secrets-in-files).
 - **Recommended:** `REDIS_PASSWORD` (`openssl rand -hex 24`) and
   `WEBHOOKS_ENCRYPTION_KEYS` (`openssl rand -base64 32`; unset, webhook
-  endpoint secrets are stored unencrypted), and `BACKUP_S3_*` (unset, the
-  backups stay on this host: [Backups and restore](#backups-and-restore)).
+  endpoint secrets are stored unencrypted).
 - **Required:** `MFA_ENCRYPTION_KEYS` (the app refuses to start without it, unless an
   older deployment still holds it in `app_secrets`: move it to the environment).
 - **Required once a column is encrypted** (an SSO connection's client secret is;
@@ -154,7 +153,6 @@ Filling `.env` (each step is commented in `env.example`):
     then shows its own notice: the API answers 503 `maintenance`, which the app turns
     into a full-page notice ([monorepo](monorepo.md), "Maintenance and read-only
     mode"). Only first visits and other clients see Caddy's page.
-  - **Swarm** gets the flag through the same service environment.
   - **Test:** `CADDY_BIN=/path/to/caddy node --test caddy/caddyfile.test.mjs` runs
     the real Caddyfile (the TLS block and Docker names edited out) under a real Caddy;
     CI's `caddy-image` job runs it with the image's own binary.
@@ -169,12 +167,9 @@ Filling `.env` (each step is commented in `env.example`):
 | `migrate`   | `node dist/migrate`, once per deploy, before api and worker: the migrations as the owner, then the app role                    | one-off               |
 | `postgres`  | PostgreSQL 18                                                                                                                  | 1                     |
 | `redis`     | Redis 8 (append-only, `noeviction`); the app needs 7.0 or newer ([below](#redis))                                              | 1                     |
-| `backup`    | `pg_dump` and the uploaded files on a schedule, copied off the host ([below](#backups-and-restore))                            | 1                     |
-| `gotenberg` | HTML to PDF (Chromium) for the workers' documents, on a network of its own with no way out ([below](#gotenberg-pdf-documents)) | 1                     |
 
 - **Resource limits** on every service (`API_CPUS`, `API_MEMORY`,
-  `WORKER_CPUS`, `WORKER_MEMORY`, `POSTGRES_*`, `REDIS_*`, `BACKUP_*`,
-  `GOTENBERG_*`): none can starve the
+  `WORKER_CPUS`, `WORKER_MEMORY`, `POSTGRES_*`, `REDIS_*`): none can starve the
   others. The Node heap (`API_HEAP_MB`, `WORKER_HEAP_MB`) and Redis'
   `maxmemory` stay below their limits. Limits don't add capacity: keep their
   sum within the host's. See [Resource limits](#resource-limits) for how
@@ -201,22 +196,6 @@ Filling `.env` (each step is commented in `env.example`):
   included: a few seconds' pause). Older logs are not kept: ship them
   somewhere if you need them for longer.
 
-### Zero-downtime deploys: two ways
-
-Each keeps the old version serving until the new one is healthy, and both
-need the same three things: expand/contract migrations (old and new code run
-against the same database), graceful shutdown (in place: a replica finishes
-its requests and exits), and pinned images (`APP_IMAGE` by commit SHA, so a
-rollback is one command).
-
-| Method               | Command                  | Rollback                                                             | Choose it when                                                                                                                           |
-| ----------------- | --------------------- | ------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                      | one host, the default: new replicas start beside the old, which stop once the new are healthy ([deploy-rolling.md](deploy-rolling.md))   |
-| Docker Swarm      | `pnpm deploy:swarm`   | automatic on a failed health check, or `pnpm deploy:swarm rollback` | one or more nodes, updates and rollback by the orchestrator; how our staging and production deploy ([deploy-swarm.md](deploy-swarm.md)) |
-
-A plain `docker compose up -d --build` is not one of them: it recreates the
-replicas in place (below, what Caddy does about that).
-
 ### Redeploying without downtime
 
 `docker compose up -d --build` recreates both `api` replicas at once, and a
@@ -225,7 +204,7 @@ replica answers only after it boots (the image's health check starts after
 update, so for that window no replica is up. What the stack does about it:
 
 - **Caddy holds the request** (`lb_try_duration 30s`, `lb_try_interval 250ms`
-  in `caddy/Caddyfile`, and the load test's copy): with no healthy upstream
+  in `caddy/Caddyfile`): with no healthy upstream
   it tries again every 250 ms for up to 30 s instead of answering 503. A
   browser pinned (cookie `lb_replica`) to a replica that is gone is moved to
   a live one at the next try, and gets a new cookie. Replicas come and go
@@ -269,16 +248,14 @@ reads.
 
 | `.env`                                                                                                                                                                                                                                                                                                                                                                                        | Read by                                                                                                                                               | Instead of                                          |
 | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
-| `POSTGRES_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                      | PostgreSQL (the image itself, when it creates the database), the backup (`backup/lib.sh`)                                                             | `POSTGRES_PASSWORD`                                 |
-| `POSTGRES_MONITOR_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                              | `migrate` (creates the monitoring role with it) and the PostgreSQL exporter (`compose.monitoring.yaml`): one file                                     | `POSTGRES_MONITOR_PASSWORD`                         |
+| `POSTGRES_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                      | PostgreSQL (the image itself, when it creates the database)                                                             | `POSTGRES_PASSWORD`                                 |
+| `POSTGRES_MONITOR_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                              | `migrate` (creates the monitoring role with it)                                     | `POSTGRES_MONITOR_PASSWORD`                         |
 | `DATABASE_OWNER_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                     | `migrate` only (the owner's URL with that password: `postgres://app:<password>@postgres:5432/app`); the secret is mounted on no other service         | the URL Compose builds from `POSTGRES_PASSWORD`     |
 | `DATABASE_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                           | the app (api, worker) and `migrate` (the app role's URL: `postgres://app_runtime:<password>@postgres:5432/app`, with `POSTGRES_APP_PASSWORD`'s value) | the URL Compose builds from `POSTGRES_APP_PASSWORD` |
-| `REDIS_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                         | Redis, its healthcheck and the Redis exporter (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file                                            | `REDIS_PASSWORD`                                    |
+| `REDIS_PASSWORD_FILE`                                                                                                                                                                                                                                                                                                                                                                         | Redis and its healthcheck (`redis/redis.sh`), and the app (`REDIS_PASSWORD`): one file                                            | `REDIS_PASSWORD`                                    |
 | `DATABASE_MAINTENANCE_URL_FILE` | `migrate` (creates the role) and `worker` (the maintenance role's URL: `postgres://app_maintenance:<password>@postgres:5432/app`) | the URL Compose builds from `POSTGRES_MAINTENANCE_PASSWORD` |
 | `POSTGRES_REPORTING_PASSWORD_FILE` | `migrate` only (creates the reporting role with it) | `POSTGRES_REPORTING_PASSWORD` |
 | `CLOUDFLARE_API_TOKEN_FILE`                                                                                                                                                                                                                                                                                                                                                                   | Caddy (`caddy/entrypoint.sh`)                                                                                                                         | `CLOUDFLARE_API_TOKEN`                              |
-| `BACKUP_S3_SECRET_ACCESS_KEY_FILE`                                                                                                                                                                                                                                                                                                                                                            | the backup                                                                                                                                            | `BACKUP_S3_SECRET_ACCESS_KEY`                       |
-| `BACKUP_ENCRYPTION_KEY_FILE` | the backup (the age recipients, public keys, one per line) | `BACKUP_ENCRYPTION_KEY` |
 | `SMTP_URL_FILE`                                                                                                                                                                                                                                                                                                                                                                               | the app, and Alertmanager (its default `ALERT_SMTP_URL`)                                                                                              | `SMTP_URL`                                          |
 | `ANTHROPIC_API_KEY_FILE` | the app (api, worker; not `migrate`) | `ANTHROPIC_API_KEY` |
 | `POSTMARK_WEBHOOK_SECRET_FILE` | the app (api, worker; not `migrate`) | `POSTMARK_WEBHOOK_SECRET` |
@@ -293,13 +270,12 @@ reads.
 
 Not in this list, so they stay variables in Compose:
 
-- `METRICS_TOKEN`: `compose.monitoring.yaml` gives Prometheus its secret from the variable.
+- `METRICS_TOKEN`.
 - `AWS_SESSION_TOKEN`: a temporary credential, which a file mounted at deploy time can't renew.
 - `OBSERVE_APP_KEY`.
 - `POSTGRES_APP_PASSWORD`: it only builds `DATABASE_URL`, and the whole URL
   is the secret (`DATABASE_URL_FILE`); a file for the password alone would
   still have to be read into a URL by Compose, in a variable.
-- The alerting stack's own `ALERT_*` URLs.
 
 The app reads a `_FILE` for every secret (configuration.md, "Secrets"), so
 outside Compose all of these work as files too.
@@ -307,9 +283,8 @@ outside Compose all of these work as files too.
 In `.env`, `X_FILE` is the file's absolute path on the host. Compose hands
 the containers `X_FILE=/run/secrets/x`.
 
-- **The file or the variable, never both.** The app, Redis, Caddy, the
-  backup, Alertmanager and PostgreSQL's image each refuse to start when both
-  are set.
+- **The file or the variable, never both.** The app, Redis, Caddy
+  and PostgreSQL's image each refuse to start when both are set.
 - **Trailing line breaks are dropped**, a CRLF too. The exception is
   `POSTGRES_PASSWORD_FILE`: write it with LF only, because PostgreSQL's image
   keeps a trailing `\r` as part of the password.
@@ -347,19 +322,18 @@ Compose builds now; `docker compose run --rm migrate printenv
 DATABASE_OWNER_URL` the owner's) and to the other secrets.
 
 - **The owner's password takes two files** holding the same password:
-  `POSTGRES_PASSWORD_FILE` (PostgreSQL, the backup) and
+  `POSTGRES_PASSWORD_FILE` (PostgreSQL) and
   `DATABASE_OWNER_URL_FILE` (`migrate`). Then set `POSTGRES_PASSWORD=` empty
-  and recreate `migrate backup`. **The monitoring role's** moves to
-  `POSTGRES_MONITOR_PASSWORD_FILE` (`migrate` and `postgres-exporter`
-  read the one file); set `POSTGRES_MONITOR_PASSWORD=` empty, recreate
-  `migrate postgres-exporter`. PostgreSQL reads
+  and recreate `migrate`. **The monitoring role's** moves to
+  `POSTGRES_MONITOR_PASSWORD_FILE` (`migrate` reads it); set
+  `POSTGRES_MONITOR_PASSWORD=` empty, recreate `migrate`. PostgreSQL reads
   its file only when it creates a database: a running one already has its
   password.
 - **The app role's password** moves to `DATABASE_URL_FILE` (the whole URL,
   `postgres://app_runtime:<password>@postgres:5432/app`). Then set
   `POSTGRES_APP_PASSWORD=` empty and recreate `migrate api worker`.
 - **Redis' password** moves to `REDIS_PASSWORD_FILE`. Set `REDIS_PASSWORD=`
-  empty, then recreate `redis api worker` (and `redis-exporter`).
+  empty, then recreate `redis api worker`.
 - Rotation, per secret: [configuration](configuration.md#secrets).
 
 **When something doesn't start.** Without `CLOUDFLARE_API_TOKEN`,
@@ -418,51 +392,14 @@ the Caddyfile's last site, `https://`, every hostname `APP_DOMAIN` isn't:
 ### Gotenberg (PDF documents)
 
 The workers render [documents](documents.md) with
-[Gotenberg](https://gotenberg.dev) (its Chromium-only image): a container of
-its own, never Chromium in the worker's image, so a browser that runs out of
-memory, or is attacked through a page, doesn't take the queues, workflows and
-database credentials with it.
-
-- **The image:** the official `gotenberg/gotenberg:<version>-chromium`,
-  pinned by version and digest in `compose.prod.yaml` (and the same in
-  `compose.dev.yaml`). Nothing is built or published here: every
-  deployment pulls that image from Docker Hub, and a release runs the one
-  its commit pins. Fonts are the official image's: Noto for Latin, Arabic,
-  Chinese, Japanese, Korean, and emoji.
-- **Checked by CI** (job `gotenberg-image`), on every change to the two
-  Compose files and every night: the two pin the same image with the same
-  flags, it renders a PDF that opens, and Trivy finds no fixable high or
-  critical vulnerability in it. Gotenberg publishes an image per release
-  only, so a fix in Debian (Chromium's above all) reaches it with the next
-  release: when the nightly scan fails, raise the pin to a release that has
-  the fix, or wait for one. Chromium here runs no JavaScript and reaches
-  nothing but the page it is given (below), which keeps that window small.
-- **The network:** `documents`, `internal: true`: no gateway, so nothing on
-  it reaches the internet, the host or the other networks; no port is
-  published. Only `worker` joins it (besides `default`); `api` never talks
-  to Gotenberg (it only checks that `GOTENBERG_URL` is set).
-- **What Chromium may load:** `--chromium-allow-list=^file:///tmp/` (the
-  page Gotenberg writes; nothing else matches, the default deny list stays),
-  `--chromium-deny-private-ips` and `--chromium-deny-public-ips` (every
-  http(s) host refused, if the list ever allowed one),
-  `--chromium-disable-javascript`, and at most 20 renders waiting
-  (`--chromium-max-queue-size`: more answer 429, and the job retries
-  later). Gotenberg's own outgoing calls are off:
-  `--api-disable-download-from`, `--webhook-disable`. The templates add a
-  Content-Security-Policy that allows inline styles and `data:` images and
-  fonts only.
-- **The container:** read-only, its `/tmp` (`GOTENBERG_TMP_SIZE`, 512m) and
-  home in memory, no capabilities, `no-new-privileges`, healthy when
-  `/health` answers. Limits: `GOTENBERG_CPUS` (1), `GOTENBERG_MEMORY` (1G,
-  `/tmp` included). `--api-timeout=60s`, longer than the app's
-  `GOTENBERG_TIMEOUT_MS` (30 s), after which the job tries again.
-- **Off:** `GOTENBERG_URL=` (empty) in `.env` turns documents off (503
-  `documents_unavailable`); leave the service out with it if you like
-  (`docker compose up -d --scale gotenberg=0`). The app starts either way:
-  nothing calls Gotenberg until a document is asked for.
-- **Raising its version:** Dependabot (`docker-compose`) proposes the new
-  release in both Compose files in one pull request (`gotenberg-image`
-  fails while they differ, or while their flags do).
+[Gotenberg](https://gotenberg.dev), which the stack does not run: documents
+are off (503 `documents_unavailable`) until `GOTENBERG_URL` names one you
+run. Keep Chromium out of the worker's image and off the public network: a
+container of its own, reachable by the workers only, started with
+`--chromium-allow-list=^file:///tmp/`, `--chromium-deny-private-ips`,
+`--chromium-deny-public-ips`, `--chromium-disable-javascript`,
+`--api-disable-download-from` and `--webhook-disable`, and an
+`--api-timeout` longer than the app's `GOTENBERG_TIMEOUT_MS` (30 s).
 
 ### Resource limits
 
@@ -537,10 +474,9 @@ at 5 sign-ins/s (the load test); every sign-in queued on it failed. So:
 
 ### Container hardening
 
-Every service of compose.prod.yaml, and of the optional overlays
-`compose.clamav.yaml` and `compose.monitoring.yaml` (log shipping included),
+Every service of compose.prod.yaml
 runs with `read_only: true`, `cap_drop: [ALL]` and `no-new-privileges`, and a
-`tmpfs` for what it writes (Gotenberg's were the first). A compromised
+`tmpfs` for what it writes. A compromised
 process then can't change the image, plant a binary, or gain privileges.
 What each one may write, and the capabilities it gets back:
 
@@ -550,17 +486,6 @@ What each one may write, and the capabilities it gets back:
 | `postgres` | the `postgres_data` volume, `/tmp` (64m) and `/run/postgresql` (the socket) in memory | `CHOWN`, `DAC_OVERRIDE`, `FOWNER`, `SETGID`, `SETUID`: the image's entrypoint starts as root, fixes the data directory and drops to `postgres` |
 | `redis` | the `redis_data` volume, `/tmp` (16m) | `DAC_OVERRIDE`: the command is `sh redis.sh`, not `redis-server`, so the image's entrypoint never drops to `redis`; the server runs as root on a volume that is `redis`'s, which root can't write without it |
 | `caddy` | the `caddy_data` and `caddy_config` volumes, `/tmp` (16m, including generated `security.txt`) | none: UID/GID `10001:10001`; low ports allowed only in its network namespace |
-| `backup` | the `backups` volume, `/tmp` (16m); `app_storage` stays read only | none (a files restore adds three: [Restoring](#restoring), step 4) |
-| `gotenberg` | `/tmp` and its home, in memory (see above) | none |
-| `clamav` ([ClamAV](#clamav-malware-scanning)) | the `clamav_db` volume; `/tmp` (512m, `CLAMAV_TMP_SIZE`) and `/var/log/clamav` (8m) in memory | none: it runs as `clamav`, started by `clamav/entrypoint.sh` instead of the image's `/init` (see below) |
-| `prometheus` | the `prometheus_data` volume, `/tmp` (16m) in memory; **the root filesystem is writable: the one exception** (see below) | none |
-| `alertmanager` | the `alertmanager_data` volume, `/tmp` (16m) in memory: `render-config.sh` writes the configuration, with the SMTP password, there | none |
-| `postgres-exporter`, `redis-exporter`, `node-exporter` | `/tmp` (16m), unused | none |
-| `blackbox-exporter` | `/tmp` (16m): `render-config.sh` writes the module there | none: its HTTP probe needs no `NET_RAW` |
-| `backup-metrics` | `/www` (the metrics file) and `/tmp` (1m) in memory; `backups` is read only | none |
-| `loki` | the `loki_data` volume, `/tmp` (64m) in memory, unused | none |
-| `alloy` | the `alloy_data` volume (the read positions), `/tmp` (16m) in memory, unused | `DAC_OVERRIDE`: the process is root (it reads the Docker socket) and the volume's directory belongs to the image's `alloy` user, mode 770; root without it is neither owner nor in the group |
-| `grafana` | the `grafana_data` volume (the database, the plugins it downloads), `/tmp` (64m) in memory | none (`GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false`, below) |
 
 - **The tmpfs counts against the container's memory limit** once used, so
   `/tmp` is small. Raise it in the service's `tmpfs:` line if a feature
@@ -572,71 +497,14 @@ What each one may write, and the capabilities it gets back:
   (`docker compose logs <service>`): a `Read-only file system` error names
   the path to add. Add a capability only when the service fails without it,
   and say why in a comment.
-- **The exception:** `prometheus` keeps a writable root filesystem. Its
-  bearer token for the app's `/metrics` is a Compose secret made from the
-  `METRICS_TOKEN` variable, and Compose creates such a secret (one that is
-  not a file) by copying it into the container, which it refuses for a
-  read-only service (`cannot create secret "metrics_token" in read-only
-  service`). Everything else applies: it runs as `nobody`, writes
-  `/prometheus` only, has no capability and no way to gain one. A token in a
-  file (`secrets: file:`, as every other secret of the stack) would lift the
-  exception. CI's list of exceptions is in the "Every service is hardened"
-  step; it fails when an exception is no longer needed.
-- **ClamAV** can't run read-only as the image starts it: its `/init`
-  chowns the signatures, creates `/run/clamav` and edits `/etc/clamav/*.conf`
-  with `sed -i` from `CLAMD_CONF_*`. The image's `/init-unprivileged`
-  ([ClamAV's Docker documentation](https://docs.clamav.net/manual/Installing/Docker.html),
-  "Running ClamD using non-root user") does none of that, and none of the
-  variables either, so `clamav/entrypoint.sh` does what it does, after
-  applying `CLAMD_CONF_*` and `FRESHCLAM_CONF_*` to copies of the
-  configuration in `/tmp` (`--config-file`): the settings in
-  `compose.clamav.yaml` work as before. clamd writes every stream it scans to
-  `/tmp` first (and unpacks archives there): size `CLAMAV_TMP_SIZE` for the
-  largest attachment (`ATTACHMENT_MAX_MB`), with `CLAMAV_MEMORY` to match, as
-  a tmpfs counts against the memory limit once used. Its `/var/log/clamav`
-  tmpfs names the owner (`uid=100,gid=101`, the image's `clamav`): a tmpfs
-  belongs to root otherwise, and clamd cannot open its log.
-- **Grafana** installs a set of plugins when it starts (Explore Logs and
-  the like, into the `grafana_data` volume) and, by default, also replaces
-  the ones its image bundles (OpenTSDB, Elasticsearch, Cloud Monitoring)
-  with newer builds: it stops each, then fails to delete its directory from
-  the read-only image (`Failed to install plugin ... read-only file
-  system`). `GF_PLUGINS_PREINSTALL_AUTO_UPDATE=false` skips plugins that are
-  already there, so the image's version of a bundled plugin stays (the image
-  is the unit of update), and the ones in the volume stay at the version
-  first downloaded: remove `/var/lib/grafana/plugins` from the volume to get
-  newer ones.
-- **Not covered:** `compose.pgbouncer.yaml` and `compose.pitr.yaml` (their
-  services keep the images' defaults, and CI doesn't render them), and
-  `compose.yaml` / `compose.dev.yaml` alone (development).
-- **Swarm** ([deploy-swarm.md](deploy-swarm.md)) renders these files, so it
-  inherits `read_only` and the capabilities. `docker stack deploy` ignores a
-  service's `tmpfs:` list, so `tools/deploy/render.mjs` turns each entry into
-  a `type: tmpfs` volume (the size only: Gotenberg's `uid` and `gid` have no
-  Swarm equivalent, the mount is writable by anyone). `security_opt` is
-  dropped there.
-- **CI** (`.github/workflows/ci.yml`): `stack-config` fails when a service
-  lacks the keys (`read_only`, `cap_drop`, `no-new-privileges`, a `/tmp`
-  tmpfs), whichever service it is. It renders `compose.yaml` +
-  `compose.prod.yaml` alone, then with each overlay on top (`clamav`,
-  `monitoring` with every profile), and checks that the overlay's
-  services are in the render. The exceptions are a list in that step, by
-  service and key. The `image` job, after its Trivy scan, starts the stack on
-  new volumes (for API or stack changes) and fails when a container exits,
-  restarts, is unhealthy or logs `Read-only file system`. Not started there:
-  the production Caddy (its certificate needs a public name; the job runs
-  the stock Caddy image on plain HTTP, with the `caddy_data` and
-  `caddy_config` volumes `compose.loadtest.yaml` names: the
-  stock image has no `VOLUME` there, so under `read_only` they would be
-  read-only) and Gotenberg. The overlays have workflows of their own:
-  `.github/workflows/monitoring.yml` starts every service of
-  `compose.monitoring.yaml` (Loki, Alloy and Grafana included) and checks
-  that none restarts, logs `Read-only file system`, and that Alloy's lines
-  reach Loki; `.github/workflows/clamav.yml` starts `clamav`, checks its
-  user, capabilities and read-only image, and scans the EICAR test file and a
-  stream over `StreamMaxLength`. Neither runs on pull requests: `clamav.yml`
-  on pushes to `main` that touch the overlay and on demand, `monitoring.yml`
-  on demand only (run it on the branch before merging a change to them).
+- **Not covered:** `compose.yaml` / `compose.dev.yaml` alone (development).
+- **CI** (`.github/workflows/ci.yml`): `stack-config` renders `compose.yaml` +
+  `compose.prod.yaml` with every profile on and fails when a service lacks
+  the keys (`read_only`, `cap_drop`, `no-new-privileges`, a `/tmp` tmpfs),
+  whichever service it is. The exceptions are a list in that step, by
+  service and key (none today). CI does not start the stack: start it once
+  yourself after changing a service (`docker compose up -d`, then
+  `docker compose ps` and the logs).
 
 ## Staging
 
@@ -653,61 +521,14 @@ Compose scales on one host. Beyond it:
 - **Database:** a managed PostgreSQL 18 (`DATABASE_URL` for the app role,
   `DATABASE_OWNER_URL` for the admin account that owns the database:
   [Database roles](#database-roles)), with backups and point-in-time
-  recovery; drop `postgres` and `backup` from the stack.
+  recovery; drop `postgres` from the stack.
 - **Read replicas:** not built in ([Read replicas](#read-replicas)).
 - **Redis:** managed, or Sentinel (`REDIS_SENTINELS=host:26379,…`,
   `REDIS_SENTINEL_NAME`); drop `redis` from the stack.
 - **Files:** S3 or R2 (`STORAGE_DRIVER=s3`, `S3_*`).
-- **Hosts:** an orchestrator (Swarm, a managed platform) runs the
+- **Hosts:** an orchestrator (a managed platform, Kubernetes, Swarm) runs the
   same image with the same three commands. socket.io across hosts needs
   `transports: ['websocket']` on clients, or sticky sessions.
-
-### Upgrading Caddy to the non-root image
-
-Caddy runs as UID/GID `10001:10001`, including its entrypoint. The image owns
-`/data` and `/config`, so new named volumes work without an initialization
-container. Existing volumes retain their old ownership when the image changes:
-**migrate them before starting the new Caddy image**. Otherwise Caddy cannot read
-its existing certificates or renew them. Keep the volumes; do not recreate them.
-
-The production service drops all capabilities and keeps `no-new-privileges`.
-`net.ipv4.ip_unprivileged_port_start=0` applies only inside Caddy's network
-namespace, allowing TCP 80/443 and UDP 443 without `NET_BIND_SERVICE` or a host
-sysctl change. Its generated `security.txt` lives under `/tmp/caddy-security`
-on the existing tmpfs. Caddy's configuration and static web files remain read only.
-
-For an existing Compose deployment, select the new `CADDY_IMAGE` in `.env`, then
-run on the deployment host with its normal Compose project and files selected:
-
-```bash
-docker compose pull caddy
-# Take your normal volume backup, then stop the only writer.
-docker compose stop caddy
-# Administrative, one-time ownership change; not the runtime entrypoint.
-docker compose run --rm --no-deps --user 0:0 \
-  --cap-add CHOWN --cap-add DAC_OVERRIDE --entrypoint chown \
-  caddy -R 10001:10001 /data /config
-docker compose up -d --no-deps caddy
-docker compose exec caddy id
-docker compose logs --tail 50 caddy
-```
-
-When building locally instead of pulling published images, use
-`docker compose build caddy` for the first command. Check public HTTPS,
-`/.well-known/security.txt` (when configured), the healthcheck, and that the
-existing certificates are reused. The migration changes ownership only, preserving
-certificate contents and private-key modes. A Compose secret sourced from a host
-file must also be readable by UID `10001` (or its GID `10001`); grant access only
-to that user/group. Compose cannot change a bind-mounted file's owner through
-`secrets.uid`/`gid`. Swarm secrets use their configured ownership/mode instead.
-
-**Rollback:** stop Caddy, run the same administrative command with
-`caddy -R 0:0 /data /config`, select the previous root-based image and recreate
-Caddy. Restore host-secret permissions as needed. The previous image's restricted
-root process cannot necessarily read a non-root user's mode-600 private keys.
-This ownership change therefore needs a short Caddy maintenance window in either
-direction; API/worker containers keep running. For Swarm, follow
-[the node-local procedure](deploy-swarm.md#upgrading-caddys-runtime-user).
 
 ### Read replicas
 
@@ -735,8 +556,8 @@ the scheduled reports and exports only (the heavy, lag-tolerant reads), is the
 change to make: a second pool for the services behind them, with
 `DATABASE_READ_URL` unset meaning the primary. Not built here because it needs a
 replica to test against and a decision per query that only a real workload can
-make. For more reads before that: PgBouncer ([above](#pgbouncer)), indexes
-(`EXPLAIN` the slow list), a larger primary.
+make. For more reads before that: a connection pooler such as PgBouncer,
+indexes (`EXPLAIN` the slow list), a larger primary.
 
 ## Database roles
 
@@ -746,10 +567,10 @@ table's owner, and the postgres image's `POSTGRES_USER` is both.
 
 | Role            | Who                                                                             | Connects as                                                                                                                        | Gets                                                                                                                                                                                                                                                       |
 | --------------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **owner**       | `migrate`, `backup`; the app itself when `MIGRATE_ON_START` is on (development) | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser)                                              | owns every schema, table and sequence; runs the migrations                                                                                                                                                                                                 |
+| **owner**       | `migrate`; the app itself when `MIGRATE_ON_START` is on (development)           | `DATABASE_OWNER_URL` (Compose: `POSTGRES_USER`, default `app`, the image's superuser)                                              | owns every schema, table and sequence; runs the migrations                                                                                                                                                                                                 |
 | **app**         | `api`, `worker`                                                                 | `DATABASE_URL` (Compose: `POSTGRES_APP_USER`, default `app_runtime`, with `POSTGRES_APP_PASSWORD`)                                 | `NOSUPERUSER NOBYPASSRLS NOCREATEDB NOCREATEROLE`; a member of no other role; owns nothing; `USAGE` on the schemas, `SELECT, INSERT, UPDATE, DELETE` on every table, `USAGE` on every sequence; never `CREATE`                                             |
 | **maintenance** | `worker` (and `migrate`, which creates it)                                      | `DATABASE_MAINTENANCE_URL` (Compose: `POSTGRES_MAINTENANCE_USER`, default `app_maintenance`, with `POSTGRES_MAINTENANCE_PASSWORD`) | the app role's grants, and `BYPASSRLS`: the worker's sweeps across tenants and the metrics over every tenant ([tenancy](tenancy.md), "The bypass"); never on api                                                                                           |
-| **monitor**     | the postgres-exporter (`compose.monitoring.yaml`)                               | `POSTGRES_MONITOR_USER` (default `app_monitor`) with `POSTGRES_MONITOR_PASSWORD`; managed PostgreSQL: `DATABASE_MONITOR_URL`       | the same flags as the app role (`NOBYPASSRLS`: no tenant's rows, nor any table's); a member of `pg_monitor` and of nothing else (`pg_stat_*`, the settings, sizes); owns nothing; no privilege on any table: statistics, never rows                        |
+| **monitor**     | a PostgreSQL exporter you run, outside the stack                                | `POSTGRES_MONITOR_USER` (default `app_monitor`) with `POSTGRES_MONITOR_PASSWORD`; managed PostgreSQL: `DATABASE_MONITOR_URL`       | the same flags as the app role (`NOBYPASSRLS`: no tenant's rows, nor any table's); a member of `pg_monitor` and of nothing else (`pg_stat_*`, the settings, sizes); owns nothing; no privilege on any table: statistics, never rows                        |
 | **reporting**   | platform analytics: a BI tool, outside the stack                                | `POSTGRES_REPORTING_USER` (default `app_reporting`) with `POSTGRES_REPORTING_PASSWORD`                                             | the same flags as the app role; a member of nothing; owns nothing; `SELECT` on the `analytics` schema's tables (anonymized, suppressed aggregates) and no privilege on any other table: never a tenant's row ([tenancy](tenancy.md), "Platform analytics") |
 
 - **Extensions:** migrations create `pg_trgm` (trigram indexes for the lists'
@@ -789,19 +610,14 @@ deployment, not to the schema.
   creates exactly one role, a third would need its credentials somewhere
   anyway, and the owner never serves a request. Only `migrate` gets
   `DATABASE_OWNER_URL`; api and worker can't reach it.
-- **The exception: `backup`** also connects as the owner: it reads every
-  table and creates databases. It runs inside the Compose network and
-  serves no request.
 - **The monitoring role** (`ensureMonitorRole()`, the same file) exists
-  only with the monitoring stack: `compose.monitoring.yaml` hands `migrate`
-  `POSTGRES_MONITOR_PASSWORD` (or its `_FILE`, the same file the exporter
-  reads) and `migrate` creates `POSTGRES_MONITOR_USER` with it, grants it
+  only when `POSTGRES_MONITOR_PASSWORD` (or its `_FILE`) is set:
+  `migrate` creates `POSTGRES_MONITOR_USER` with it, grants it
   `pg_monitor`, and verifies before committing that it is a member of
   nothing else (`pg_read_all_data`, the owner or the app role would hand it
   the rows), owns nothing, creates nothing and holds no privilege on any
   application table; a password that fails is set, as for the app role.
-  Without the password, `migrate` says so and skips it (the exporter then
-  can't connect: `PostgresDown`). `GRANT pg_monitor` needs the owner to
+  Without the password, `migrate` says so and skips it. `GRANT pg_monitor` needs the owner to
   hold `pg_monitor` with `ADMIN OPTION`: a superuser does; a managed
   admin may need `GRANT pg_monitor TO <owner> WITH ADMIN OPTION` once (or
   run the `GRANT pg_monitor TO app_monitor` the error names), and then
@@ -883,8 +699,7 @@ ROW LEVEL SECURITY` on every tenant table (drizzle-kit emits only
   `DATABASE_URL` from `.env`, so Compose builds the app role's URL from
   `POSTGRES_APP_PASSWORD`, or point `DATABASE_URL` at a new role of your own
   for the app.
-- **Rolling back past this release** is not an image change alone
-  ([Publishing and rolling back images](#publishing-and-rolling-back-images)):
+- **Rolling back past this release** is not an image change alone:
   the previous image's `migrate` expects `DATABASE_URL` to be the owner's
   and creates the `drizzle` schema with it, which the app role may not, so
   it exits 1 and api and worker never start. Check out the previous
@@ -918,7 +733,7 @@ When a process's pool runs short:
   (`<SERVICE_NAME>:api`, `:worker`).
 
 Raising the pools: more API replicas need a smaller pool each, or
-[PgBouncer](#pgbouncer) (transaction mode) in front of PostgreSQL, or a larger
+PgBouncer (transaction mode) in front of PostgreSQL, or a larger
 `max_connections` (each connection costs PostgreSQL memory). Workers need a
 pool at least as large as what they run at once (workflow steps, job
 concurrency).
@@ -951,7 +766,7 @@ metadata and `pg_stat_activity`, never application tables or query text. It does
 replay statements, create indexes, cancel application queries, change pool limits, or restart services.
 
 The diagnostics pool has one connection per process, independently of application connections.
-Include these extra connections and the existing exporters in the deployment's PostgreSQL connection
+Include these extra connections in the deployment's PostgreSQL connection
 budget. Each snapshot has a one-second **overall** deadline and at most 20 sessions, with query and
 transaction ages, query IDs when PostgreSQL supplies them, wait events, and blocking PIDs. Capture
 starts asynchronously while slow statements are still running. A busy collector or the 30-second
@@ -960,120 +775,13 @@ Missing credentials produce `unconfigured`; connection, role, or deadline failur
 `database_snapshot` log with `captureStatus=unavailable`. Diagnostic failures never change the original
 request's result. Observed blockers/waits are evidence, not an automatically confirmed root cause.
 
-**Enable and verify:** inspect the deployed runtime before changing it. For Compose, check
-`docker compose ps`, active profiles, `/metrics` authentication, and Prometheus targets; enable the
-existing monitoring overlay with `logs,grafana` when needed. This repository's presence does not establish
-that any component is deployed. Keep credentials in the protected deployment secret store; agents
-must not edit live env files.
+Compose mounts `DATABASE_MONITOR_URL_FILE` for API/worker when configured.
+Snapshots remain available when the application pool is exhausted.
 
-Compose mounts `DATABASE_MONITOR_URL_FILE` for API/worker when configured. Compose provisions the **Database
-Incidents** dashboard through its existing Grafana provisioning mount. It shows pool usage/limit,
-acquisition and command p95, failures, incident triggers, and Loki evidence filterable by incident or
-request ID. Snapshots remain available when the application pool is exhausted.
-
-Prometheus exposes `db_connection_acquire_duration_seconds`, `db_query_duration_seconds`,
-`db_failures_total{code}`, `db_last_failure_timestamp_seconds{code}`, `db_incidents_total{trigger}`, and `db_pool_max_connections` alongside the
-existing pool gauge. `DatabaseFailures` uses the last-failure timestamp to detect events in the last five minutes,
-including a failure before the first counter scrape;
-`DatabasePoolSaturated` fires after 30 seconds of continuously observed waiting. Alerts group through
-the existing Alertmanager policy and resolve when the conditions clear. No external receiver is added;
-view alerts in Prometheus/Alertmanager and evidence in Grafana/logs. Enabling this feature does not
-send email, Slack messages, or webhook notifications.
-
-**Staging acceptance:** deploy the candidate and optional monitor credential, confirm API/worker
-scrapes and log shipping, then generate controlled slow statements, a lock wait, acquisition exhaustion,
-and a statement timeout against an isolated staging database. Confirm each incident log, its snapshot
-(or explicit unavailable reason), the metric increase, the alert in the UI, and recovery after the
-condition ends. Check the original request/health behavior remains unchanged, capture deadlines and
-cooldowns hold, and raw SQL/parameters never appear in evidence. Do not generate overload on production.
-
-### PgBouncer
-
-Optional, off by default: `compose.pgbouncer.yaml` puts PgBouncer between
-the app and PostgreSQL, in **transaction pooling** mode, so the apps' many
-client connections share a few server connections. Worth it when
-`API_REPLICAS × API_DATABASE_POOL_MAX + WORKER_REPLICAS × WORKER_DATABASE_POOL_MAX`
-no longer fits under `max_connections` (the sum above), or many replicas each
-keep a mostly idle pool. One host with two replicas does not need it.
-
-```bash
-# .env: add the file to COMPOSE_FILE
-COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pgbouncer.yaml
-docker compose up -d
-```
-
-- **What goes through it:** `api` and `worker` (`DATABASE_URL`, and the
-  worker's `DATABASE_MAINTENANCE_URL`): the overlay points both at host
-  `pgbouncer`. **What does not:** `migrate` (the owner: DDL, the role
-  grants), `backup` (`pg_dump` holds one snapshot across statements, which a
-  transaction-pooled connection cannot) and the monitoring exporter. They
-  keep their direct connections, and count against `max_connections` as
-  before.
-- **Pool sizes per role** (`pgbouncer/entrypoint.sh` writes the
-  configuration from the environment): `PGBOUNCER_POOL_SIZE` (20) server
-  connections for the app role, `PGBOUNCER_MAINTENANCE_POOL_SIZE` (3) for the
-  maintenance role, `PGBOUNCER_MAX_CLIENT_CONN` (400) client connections,
-  `PGBOUNCER_QUERY_WAIT_TIMEOUT` (10 s: how long a client waits for a server
-  connection). The new sum: `PGBOUNCER_POOL_SIZE +
-PGBOUNCER_MAINTENANCE_POOL_SIZE + migrate/backup/exporter < POSTGRES_MAX_CONNECTIONS − 10`.
-  The apps' own pools (`API_DATABASE_POOL_MAX`, `WORKER_DATABASE_POOL_MAX`)
-  now size how many requests run at once, no longer how many PostgreSQL
-  connections they cost; `max_client_conn` must hold their sum, workers'
-  maintenance pools (3 each) included.
-- **The image:** `edoburu/pgbouncer` (Alpine, rebuilt for each PgBouncer
-  release; PgBouncer publishes no image of its own), pinned by tag and digest;
-  Dependabot's `docker-compose` updater raises both. Resources:
-  `PGBOUNCER_CPUS` (0.5) and `PGBOUNCER_MEMORY` (128M).
-- **Passwords in the environment only:** the overlay builds the URLs from
-  `POSTGRES_APP_PASSWORD` and `POSTGRES_MAINTENANCE_PASSWORD`, as
-  compose.prod.yaml does. With `DATABASE_URL_FILE` secrets, change the host in
-  those files to `pgbouncer` yourself (and give the `pgbouncer` service the
-  passwords). A managed PostgreSQL behind it: `PGBOUNCER_DB_HOST` and
-  `PGBOUNCER_DB_PORT`, and leave `DATABASE_URL` pointing at `pgbouncer`.
-
-**What transaction pooling takes away, and what the app does about it**
-(read from the code, and exercised by `pgbouncer/check.sh`):
-
-| Session feature                                                                         | In this app                                                                                                         | Through PgBouncer                                                                                                                                                                                                                   |
-| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Tenant setting (`app.tenant_id`, [tenancy.md](tenancy.md))                             | `set_config(…, true)`: local to the transaction, sent with `begin` (`core/tenancy/tenant-pool.ts`)                  | Works, and it is the reason it can: nothing survives `COMMIT`, so a server connection never carries a tenant to the next client. A plain `SET` or `set_config(…, false)` would leak between clients: never add one                  |
-| Advisory locks (views, approvals, revisions, sequences, tags, the seeders, migrations…) | all `pg_advisory_xact_lock`: released at `COMMIT`                                                                   | Works. A session-level `pg_advisory_lock` would not (it stays on a server connection another client reuses): use the `xact` form                                                                                                    |
-| `LocksModule` (`@nestjs/locks`)                                                         | rows in a `locks` table with an owner and an expiry (`core/locks/drizzle-lock.store.ts`), not advisory locks        | Works                                                                                                                                                                                                                               |
-| Prepared statements                                                                     | node-postgres sends parameterized queries unnamed; the app prepares nothing by name                                 | Works. PgBouncer 1.21+ also rewrites named protocol-level statements (`max_prepared_statements`, 200); SQL-level `PREPARE` is not supported                                                                                         |
-| `statement_timeout`, `idle_in_transaction_session_timeout`                              | node-postgres sends both as **startup parameters** (`DATABASE_STATEMENT_TIMEOUT_MS`, `DATABASE_IDLE_TX_TIMEOUT_MS`) | PgBouncer refuses unknown startup parameters. `track_extra_parameters` lists both, so PgBouncer sets them on whichever server connection serves the client. Without that line the limits would be dropped or the connection refused |
-| `application_name`                                                                      | `<SERVICE_NAME>:api`, `:worker` in `pg_stat_activity`                                                               | Tracked by default, but `pg_stat_activity` shows the **PgBouncer** connections: the name of whoever used it last, not a per-process count                                                                                           |
-| `LISTEN`/`NOTIFY`, `WITH HOLD` cursors, session-level `SET`                             | not used (queues are in Redis; the outbox relay polls)                                                              | Would not work in transaction mode; a feature needing them connects to PostgreSQL directly                                                                                                                                          |
-
-**Caveats, honestly:**
-
-- **Errors when the pool is full differ.** The app's own pool answers
-  `503 database_busy` after `DATABASE_POOL_TIMEOUT_MS`. A request that gets
-  past it but waits at PgBouncer longer than `PGBOUNCER_QUERY_WAIT_TIMEOUT`
-  fails with a database error the app does not map to `database_busy` (a 500).
-  Keep `PGBOUNCER_POOL_SIZE` large enough for the apps' pools' busy peak, and
-  watch PgBouncer's log for `query_wait_timeout`.
-- **`GET /health`'s `databasePool` and the pool metrics** describe the
-  apps' pools, not PgBouncer's; PgBouncer's own statistics (`SHOW POOLS`)
-  are not exported by this stack (its admin console is off: `admin_users` is
-  empty).
-- **One more hop:** a few hundred microseconds per query, and a service that
-  must be up: the apps wait for it (`depends_on`) and fail their queries while
-  it restarts.
-- **No TLS inside the Compose network** between the apps, PgBouncer and
-  PostgreSQL, as without it. Across hosts, configure `client_tls_*` and
-  `server_tls_*` in `pgbouncer/entrypoint.sh`.
-- **A schema change that alters a result's type** can make PgBouncer's cached
-  statements fail with "cached plan must not change result type"; the
-  app prepares nothing by name, so it does not apply today. If you add a
-  driver that does, `RECONNECT` on the admin console clears it.
-- **Tested in CI on demand** (`.github/workflows/pgbouncer.yml`, manual
-  only: run it after changing these files or the database code): the load test's
-  stack with the overlay on, the k6 scenarios (sign-in, tenant-scoped list,
-  create, export) through PgBouncer, then `pgbouncer/check.sh`: the server
-  connections stay inside the pool, the two limits take effect, a tenant
-  setting and an advisory lock are gone after `COMMIT`. Locally:
-  `LOADTEST_PGBOUNCER=on loadtest/run.sh up && pgbouncer/check.sh` after
-  `loadtest/run.sh run`, then `LOADTEST_PGBOUNCER=on loadtest/run.sh down`.
+`/metrics` exposes `db_connection_acquire_duration_seconds`, `db_query_duration_seconds`,
+`db_failures_total{code}`, `db_last_failure_timestamp_seconds{code}`, `db_incidents_total{trigger}`, and
+`db_pool_max_connections` alongside the existing pool gauge, for the dashboards and alerts of a
+Prometheus you run. Enabling this feature sends no email, Slack message or webhook notification.
 
 ## Log redaction
 
@@ -1134,42 +842,17 @@ shape no pattern knows, is written as is. Log ids, not payloads.
 
 ### ClamAV (malware scanning)
 
-Optional: [attachments](attachments.md) can be scanned for malware.
-`compose.clamav.yaml` adds a `clamav` service (the official `clamav/clamav`
-image, pinned, which runs clamd and freshclam) and turns the scanner on for
-`api` and `worker`:
+Optional: [attachments](attachments.md) can be scanned for malware by a clamd
+you run (the stack ships none). Set `MALWARE_SCANNER=clamav` and
+`CLAMAV_HOST` (and `CLAMAV_PORT`, default 3310) for `api` and `worker`.
 
-```bash
-# .env
-COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml
-docker compose up -d
-```
-
-- **The network:** `scanning`, its own; only `worker` joins it (besides
-  `default`) and clamd's port 3310 is not published. It is not `internal`:
-  freshclam downloads the signatures (the first start takes a minute or
-  two; `clamav_db` keeps them across restarts). Until clamd answers, scans
+- **Size:** clamd refuses a stream over its `StreamMaxLength`: set it (and
+  `MaxFileSize`) to at least `ATTACHMENT_MAX_MB`. Until clamd answers, scans
   fail and are tried again, and uploads stay `pending`.
-- **Size:** clamd refuses a stream over `StreamMaxLength`; the file sets it
-  (and `MaxFileSize`) to `CLAMAV_STREAM_MAX_MB`, default `ATTACHMENT_MAX_MB`.
-  Raise `ATTACHMENT_MAX_MB` and it follows. Limits: `CLAMAV_CPUS` (1),
-  `CLAMAV_MEMORY` (3G: the loaded signatures are about 1.5 GB).
-- **Hardened** like the rest of the stack ([Container
-  hardening](#container-hardening)): read-only, as the user `clamav`, no
-  capability. `clamav/entrypoint.sh` starts freshclam and clamd (the image's
-  `/init-unprivileged`, with the settings above applied). clamd writes every
-  stream it scans, and the files it unpacks from an archive, to `/tmp`, a
-  tmpfs of `CLAMAV_TMP_SIZE` (512m) that counts against `CLAMAV_MEMORY`:
-  raise both with `ATTACHMENT_MAX_MB`, or the scan of a large upload fails
-  for lack of space and the file stays `pending`. An existing `clamav_db`
-  volume is used as it is. `.github/workflows/clamav.yml` starts
-  the container and scans the EICAR test file when the overlay changes on
-  `main`, and on demand.
-- **Off:** leave the file out of `COMPOSE_FILE` (`MALWARE_SCANNER=off`, the
-  default): no scan and no `pending` state, as without this feature. Turning
-  it on later leaves existing attachments `clean` (unscanned); turning it
-  back off releases the uploads still `pending` as `clean` within minutes
-  (nothing will scan them), audited as `attachments.released`.
+- **Off** (`MALWARE_SCANNER=off`, the default): no scan and no `pending`
+  state. Turning it on later leaves existing attachments `clean` (unscanned);
+  turning it back off releases the uploads still `pending` as `clean` within
+  minutes (nothing will scan them), audited as `attachments.released`.
 - **Metric:** `attachments_scanned_total{result}` ([below](#metrics)).
 
 ## Metrics
@@ -1212,8 +895,8 @@ not set to 0 or reused from an earlier snapshot.
   (`openssl rand -hex 24`, at least 16 characters); Prometheus then sends
   `Authorization: Bearer <token>` (`authorization: { credentials: ... }` in
   its scrape config), anything else gets 401.
-- **Inside the Compose network only:** run Prometheus as a service of the
-  stack (or on its network) and scrape every replica through Docker's DNS:
+- **Inside the Compose network only:** run your Prometheus on the stack's
+  network and scrape every replica through Docker's DNS:
 
   ```yaml
   scrape_configs:
@@ -1222,324 +905,12 @@ not set to 0 or reused from an earlier snapshot.
       dns_sd_configs: [{ names: [api, worker], type: A, port: 3000 }]
   ```
 
-  `compose.monitoring.yaml` does this for you (below).
-
 - **Not rate limited**, like `/health`: the limiter counts in Redis, and the
   scrape must keep working while Redis is away (its gauges then go absent).
 - **Never through Caddy:** `caddy/Caddyfile` answers `/metrics` with 404
   before the proxy (`respond /metrics* 404`), so the token is never the only
   thing between the internet and the metrics. Keep that line when editing
   the Caddyfile.
-
-### Alerting
-
-`monitoring/` holds Prometheus alert rules and an optional stack that runs
-them (`compose.monitoring.yaml`): Prometheus, Alertmanager, exporters for
-PostgreSQL, Redis and the host (`node-exporter`), `blackbox-exporter` (HTTPS and the certificate,
-through Caddy) and `backup-metrics` (the backup service's state). The
-default stack doesn't need it, and nothing in it becomes required.
-
-**Turn it on:** set `METRICS_TOKEN`, `POSTGRES_MONITOR_PASSWORD` (the
-exporter's role, made by `migrate`: [Database roles](#database-roles)) and a
-receiver (below) in `.env`, add the file to `COMPOSE_FILE`, deploy:
-
-```bash
-# .env: COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
-docker compose up -d
-```
-
-Prometheus scrapes every api and worker replica through Docker's DNS (the
-token is a Compose secret, `/run/secrets/metrics_token`), the two exporters,
-node-exporter (the host), the HTTPS probe, `backup-metrics`, itself and Alertmanager, every 15 s. Its data lives in the `prometheus_data`
-volume: 30 days, at most 4 GB (`monitoring/prometheus/prometheus.yml`).
-Limits: `PROMETHEUS_CPUS`, `PROMETHEUS_MEMORY`, `ALERTMANAGER_CPUS`,
-`ALERTMANAGER_MEMORY`; the exporters get 0.25 CPU and 128 MB each (the
-blackbox exporter 0.1 CPU and 64 MB). Logs are
-bounded like the rest of the stack (`DOCKER_LOG_*`). Every service runs
-hardened ([Container hardening](#container-hardening)): read-only (Prometheus
-excepted, and why is there), no capabilities, `no-new-privileges`.
-
-**The alerts** (54 rules in `monitoring/prometheus/alerts.yml`; critical: look now,
-warning: look today):
-
-| Alert                                                        | Fires when                                                                                                                                                                          | Severity          |
-| ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- |
-| `ApiDown`, `WorkerDown`                                      | no healthy api for 2 min; no worker for 5 min                                                                                                                                       | critical          |
-| `TargetDown`                                                 | one scrape target fails for 5 min (a replica, an exporter; a wrong `METRICS_TOKEN`)                                                                                                 | warning           |
-| `AppRestarting`                                              | a process never stays up 10 min within 30 min (crash loop, killed at its memory limit)                                                                                              | warning           |
-| `HighErrorRate`                                              | over 5% of requests answer 5xx for 10 min (at least 0.1 request/s)                                                                                                                  | critical          |
-| `HighLatency`                                                | api p95 above 1 s for 15 min (the SSE stream and unmatched requests left out)                                                                                                       | warning           |
-| `DatabasePoolSaturated`                                      | queries wait continuously for a pool connection for 30 s; correlated incident evidence is logged                                                                                            | warning           |
-| `DatabaseFailures` | a database failure (`db_last_failure_timestamp_seconds`) in the last 5 min | warning |
-| `PasswordHashingSaturated`                                   | a process refused password hashes (503 `server_busy`) in every 5 min for 10 min: a sign-in flood or too little capacity ([Resource limits](#resource-limits))                       | warning           |
-| `HeapNearLimit`                                              | heap above 85% of `API_HEAP_MB`/`WORKER_HEAP_MB` for 10 min                                                                                                                         | warning           |
-| `EventLoopLag`                                               | event loop p99 above 500 ms for 10 min                                                                                                                                              | warning           |
-| `QueueStalled`                                               | jobs wait and none runs for 10 min (no worker takes them, or the queue is paused)                                                                                                   | critical          |
-| `QueueBacklogGrowing`                                        | over 100 jobs wait and more than 30 min ago, for 30 min                                                                                                                             | warning           |
-| `JobsFailing`                                                | jobs failed after all their attempts in the last 15 min                                                                                                                             | warning           |
-| `MailBacklogHigh` | over 1,000 mails waiting or delayed for 10 min: a notification storm ([notifications.md](notifications.md#stopping-a-mail-storm)) | critical |
-| `QueueJobsWaitingLong` | a queue's oldest waiting job has waited over 30 min, for 10 min | warning |
-| `NotificationOutboxBacklog` | over 5,000 `notifications.deliver` outbox messages pending for 15 min ([notifications.md](notifications.md#stopping-a-mail-storm)) | warning |
-| `OutboxStuck`                                                | a due outbox message has waited over 5 min, for 5 min                                                                                                                               | critical          |
-| `OutboxDeadLetters`                                          | outbox dead letters wait for someone (requeue or purge in `/v1/ops`; purged nightly after `OUTBOX_DEAD_LETTER_RETENTION_DAYS`)                                                                                                                | warning           |
-| `WebhookDeliveriesLagging`, `WebhookDeliveriesFailing`       | a due delivery waits over 10 min; deliveries failed for good in the last hour                                                                                                       | warning           |
-| `TenantStorageNearLimit` | a tenant stores over 90% of its storage limit for 15 min (`tenant_storage_bytes` / `tenant_storage_limit_bytes`; [Quotas](tenancy.md#quotas)) | warning |
-| `ApprovalsOverdue`                                           | an approval stage is 15 min past its deadline (its workflow should have escalated or expired it)                                                                                    | warning           |
-| `ApprovalsNotApplied`                                        | an approved request's outcome hasn't been applied (or failed) after an hour: its record stays locked                                                                                | warning           |
-| `TelemetryRejected` | OTLP or Observe uploads were refused (401, 403, 429) for 5 min: a dead pipeline ([Telemetry](#telemetry)) | warning |
-| `ExchangeRatesStale`                                         | the newest stored ECB rates are more than six days old (or none was ever fetched), for 2 h ([money.md](money.md))                                                                   | warning           |
-| `SmsBlocked`, `SmsBudgetNearCap`                             | SMS refused today by a toll-fraud cap, the allowlist or the spend cap (any, by reason, for 5 min); a tenant used 80% of its monthly SMS budget ([notifications.md](notifications.md#push-and-sms)) | warning           |
-| `DatabaseUnreachableFromApp`, `RedisUnreachableFromApp`      | a process answers but can't read PostgreSQL / Redis, for 2 min (works with managed services too)                                                                                    | critical          |
-| `MailBounceRateHigh`, `MailComplaints`                       | over 5% of the mail sent in an hour bounced hard (at least 20 sent, for 15 min); any spam complaint in the last hour ([deliverability.md](deliverability.md))                       | warning           |
-| `MailBudgetNearCap` | 80% of the deployment's daily mail budget (`mail.dailyLimit`) queued today, for 5 min ([notifications.md](notifications.md#stopping-a-mail-storm)) | warning |
-| `CaptchaProviderUnavailable`                                 | challenge verifications fail (timeout, error, open circuit) for 5 min: the sign-in routes run fail-open under the strict tier, or answer 503 ([auth.md](auth.md), "Bot protection") | warning           |
-| `PostgresDown`, `RedisDown`                                  | the exporter can't reach it for 1 min                                                                                                                                               | critical          |
-| `PostgresConnectionsHigh`                                    | connections above 80% of `max_connections` for 5 min                                                                                                                                | warning           |
-| `RedisMemoryHigh`, `RedisPersistenceFailing`                 | above 85% of `maxmemory` (noeviction: writes fail at 100%); the AOF or a snapshot fails                                                                                             | critical          |
-| `HttpsProbeFailing`                                          | Caddy hasn't answered the HTTPS probe with 200 for 3 min (Caddy down, a bad certificate, no healthy api behind it)                                                                  | critical          |
-| `CertificateExpiring`                                        | the certificate expires within 14 days (warning) or 7 days (critical): Caddy's renewals fail                                                                                        | warning, critical |
-| `BackupFailed`, `BackupTooOld`, `BackupNeverSucceeded`       | the last backup run failed; none succeeded for `BACKUP_MAX_AGE_HOURS` + 1 h; none at all for a day                                                                                  | warning           |
-| `PrometheusRuleFailures`, `AlertmanagerNotificationsFailing` | the monitoring itself is broken (a rule, the SMTP settings, the Watchdog's URL)                                                                                                     | warning           |
-| `HostDiskSpaceLow`, `HostDiskSpaceCritical`                  | a file system has under 10% (warning, 10 min) or 5% (critical, 5 min) free                                                                                                          | warning, critical |
-| `HostDiskFillingUp`                                          | a disk over a third full is on course to fill within 24 h at the last six hours' pace (1 h)                                                                                         | warning           |
-| `HostMemoryLow`, `HostOomKilled`, `HostCpuHigh`              | under 10% of memory available (10 min); the kernel killed a process for memory; CPUs over 90% busy (15 min)                                                                         | warning           |
-| `Watchdog`                                                   | always: the dead man's switch (below), sent to its ping URL only                                                                                                                    | none              |
-
-The rules read `monitoring/prometheus/recording.yml` (rates, p95, queue
-numbers across replicas). Prometheus can't see Docker's healthchecks, so
-`backup-metrics` (busybox, `monitoring/backup-metrics/serve.sh`) turns the
-markers the backup service leaves in the `backups` volume (read only) into
-`backup_last_success_timestamp_seconds` and
-`backup_last_failure_timestamp_seconds`: the backup's own healthcheck, as
-alerts. Not covered by the Compose probe: reaching the API from outside
-(public DNS, the firewall); it runs inside the Compose network. That is the
-outside probe's job (below).
-
-**The host:** `node-exporter` (`prom/node-exporter`, pinned) mounts the
-host's root read only at `/host`, runs in the host's process namespace, is
-not published (Prometheus scrapes `node-exporter:9100`, job `node`) and gets
-0.1 CPU and 64 MB. Six alerts (group `host`, pseudo file systems left out):
-`HostDiskSpaceLow` (under 10% free, 10 min) and `HostDiskSpaceCritical`
-(under 5%), `HostDiskFillingUp` (at the last six hours' pace the disk is
-full within 24 h, once it is a third full), `HostMemoryLow` (under 10%
-available), `HostOomKilled` (the kernel killed a process) and `HostCpuHigh`
-(over 90% busy for 15 min). A host that is down is not one of them: nothing on it can report that, so
-the dead man's switch and the outside probe say so.
-
-- **Linux:** the numbers are the host's.
-- **Docker Desktop (a Mac):** the exporter sees the Linux VM, which is still
-  useful: `Docker.raw` is what fills, and `HostDiskSpaceLow` says so. The
-  Mac itself needs a Homebrew `node_exporter` (`brew install node_exporter`,
-  `brew services start node_exporter`, port 9100) and one more scrape job,
-  which is yours to add to `monitoring/prometheus/prometheus.yml`
-  (`host.docker.internal:9100`, job `mac`; the host rules read job `node`
-  only, copy them for it). It isn't shipped: without the Homebrew exporter it
-  would fire `TargetDown` for good.
-- Off like the rest of the file: nothing starts unless `compose.monitoring.yaml`
-  is in `COMPOSE_FILE`.
-
-**The outside probe:** the whole host down, DNS, the firewall: nothing on
-the host can report those, so the check comes from outside. Two ways, both
-without a paid key:
-
-1. **An uptime service's free tier** (UptimeRobot, healthchecks.io's own HTTP
-   checks) against `https://<your API>/health/live`. The URL must resolve
-   publicly. (The hourly GitHub Actions probe was removed in #1100: scheduled
-   runs can be late or dropped, and are disabled after 60 days without
-   repository activity.)
-2. **The dead man's switch** (below) already alarms when the host stops
-   sending: that covers a dead host without a public name.
-
-**The HTTPS probe:** `blackbox-exporter` fetches
-`https://caddy:443/health/live` every 15 s, by Caddy's Compose name, and
-sends `PROBE_HOST` (default: `APP_DOMAIN`) as the TLS server name and the
-`Host` header (`monitoring/blackbox/render-config.sh`). Caddy then serves
-the real site with its real certificate, which is checked against that
-name, and the answer must be the api's (`"status":"ok"`: Caddy answers an
-empty 200 for a host it doesn't serve). Going by Caddy's name, not the
-public one, works without public DNS (a host name that only `/etc/hosts` knows, and
-containers don't read the host's `/etc/hosts`). `probe_success` feeds
-`HttpsProbeFailing` (muted while `ApiDown`, `PostgresDown` or `RedisDown`
-fires: no replica answers then, so the probe fails too; never by
-an alert about one replica, which would hide a Caddy or certificate outage); `probe_ssl_earliest_cert_expiry` feeds
-`CertificateExpiring`. Why a probe fails:
-
-```bash
-docker compose exec blackbox-exporter wget -qO- \
-  'http://127.0.0.1:9115/probe?module=https_caddy&target=https://caddy:443/health/live&debug=true'
-```
-
-**The dead man's switch:** every alert above needs Prometheus, Alertmanager
-and the host to be up to be sent at all. `Watchdog` (`vector(1)`) always
-fires; Alertmanager sends it about once a minute to an outside check, on
-its own route and receiver, never to the receivers below and with no
-resolved message. When the pings stop, the outside check alarms. Off by
-default: without a URL, the Watchdog goes to a receiver that sends nothing
-(it still shows in the UIs), and the stack starts as before.
-
-1. At [healthchecks.io](https://healthchecks.io) (the free tier is enough):
-   add a check, schedule "Simple", **period 1 minute, grace 5 minutes**
-   (a restart of Prometheus or Alertmanager stays quiet), and set its
-   notifications (mail, Slack, a phone) there: they are what tells you the
-   monitoring is gone. Copy its ping URL (`https://hc-ping.com/<uuid>`).
-2. Put the URL in a file outside the repository, readable by the container
-   (Alertmanager runs as `nobody`; the directory around it keeps others out),
-   and point `.env` at it. Compose mounts it as the `alert_watchdog_url`
-   secret, which Alertmanager reads itself (`url_file`): the URL is in no
-   variable and no rendered file.
-
-   ```bash
-   install -d -m 700 ~/secrets
-   printf '%s\n' 'https://hc-ping.com/<uuid>' > ~/secrets/alert_watchdog_url
-   chmod 644 ~/secrets/alert_watchdog_url
-   # .env: ALERT_WATCHDOG_URL_FILE=/Users/<you>/secrets/alert_watchdog_url (absolute; Linux: /home/<you>/...)
-   # A changed secret file alone doesn't recreate the container: force it.
-   docker compose up -d --force-recreate alertmanager
-   ```
-
-   Or set `ALERT_WATCHDOG_URL` in `.env` instead (the secret file wins when
-   both are set). Without `ALERT_WATCHDOG_URL_FILE`, Compose mounts the empty
-   `monitoring/alertmanager/watchdog-url.empty`.
-
-3. The check turns green within a minute or two. To test it, stop
-   Alertmanager (`docker compose stop alertmanager`): healthchecks.io alarms
-   after the period plus the grace time.
-
-When Prometheus itself dies, Alertmanager keeps the Watchdog until its
-`endsAt` (about 4 minutes after the last evaluation) and pings until then:
-the alarm comes after about 4 minutes plus the period plus the grace.
-
-A URL that stops working (the check deleted) fires
-`AlertmanagerNotificationsFailing` (integration `webhook`).
-
-**Where they go:** Alertmanager writes its configuration from `.env` at
-start (`monitoring/alertmanager/render-config.sh`), so no secret is in git:
-
-- `ALERT_EMAIL_TO`: mail, through `ALERT_SMTP_URL` (default: the app's
-  `SMTP_URL`), from `ALERT_EMAIL_FROM` (default: `MAIL_FROM`). Mail through
-  Resend, Postmark or SendGrid's API isn't SMTP: set `ALERT_SMTP_URL` to
-  their SMTP relay.
-- `ALERT_WEBHOOK_URL`: Alertmanager's JSON, to anything that takes it.
-- `ALERT_SLACK_WEBHOOK_URL`: a Slack incoming webhook.
-
-Any of them, or several. None: alerts only show in the UIs. Alerts are
-grouped by name, sent after 30 s, repeated every 12 h while they fire
-(critical: every 2 h), and once more when resolved. A critical alert mutes
-the warning of the same name; `PostgresDown` and `RedisDown` mute the app's
-view of the same outage.
-
-**Looking at it:** the UIs listen on the host's loopback only
-(`PROMETHEUS_PORT` 9090, `ALERTMANAGER_PORT` 9093). From your machine:
-
-```bash
-ssh -L 9090:127.0.0.1:9090 -L 9093:127.0.0.1:9093 <host>
-# then http://localhost:9090/alerts (and /targets), http://localhost:9093
-```
-
-On the host itself, without a browser:
-`docker compose exec prometheus wget -qO- localhost:9090/api/v1/alerts`.
-
-**Silencing** (planned work, a known issue): "New Silence" in the
-Alertmanager UI, or amtool in its container. Silences survive restarts.
-
-```bash
-docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093 \
-  silence add alertname=HighLatency --duration=2h --comment="load test"
-docker compose exec alertmanager amtool --alertmanager.url=http://localhost:9093 silence query
-```
-
-**Changing the rules:** edit `monitoring/prometheus/alerts.yml`, add or
-adjust its test in `monitoring/prometheus/tests/`, then reload with
-`docker compose kill -s HUP prometheus`. `.github/workflows/monitoring.yml`
-runs `promtool check config`, `promtool check rules`, `promtool test rules`
-and `amtool check-config` when you run it (manual only: Actions > Monitoring
-> Run workflow, on the branch). Locally:
-
-```bash
-docker run --rm -v "$PWD/monitoring/prometheus:/etc/prometheus:ro" \
-  --entrypoint promtool prom/prometheus:v3.15.1 test rules /etc/prometheus/tests/alerts.test.yml
-```
-
-**Managed PostgreSQL or Redis:** the exporters follow `DATABASE_MONITOR_URL`
-(the monitoring role `migrate` made there, [Database roles](#database-roles))
-and `REDIS_URL`. With Redis
-Sentinel, remove `redis-exporter` and its scrape job; the app's own
-`RedisUnreachableFromApp` still covers Redis.
-
-### Logs
-
-Logs live in Docker's files, bounded by `DOCKER_LOG_*`. To search them
-across containers, `compose.monitoring.yaml` has an optional log pipeline:
-**Loki** (storage and queries) and **Grafana Alloy** (the collector), plus
-**Grafana** as the UI. All three have Compose profiles, so they are off even
-when the file is in `COMPOSE_FILE`:
-
-```bash
-# .env: COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.monitoring.yaml
-#       COMPOSE_PROFILES=logs            # Loki + Alloy
-#       COMPOSE_PROFILES=logs,grafana    # and Grafana (GRAFANA_ADMIN_PASSWORD required)
-docker compose up -d
-```
-
-- **Alloy, not Promtail.** Grafana ended Promtail's life on 2026-03-02; Alloy
-  is its documented successor. `monitoring/alloy/config.alloy` discovers this
-  Compose project's containers (`discovery.docker`, filtered by the project
-  label), reads them with `loki.source.docker` and pushes to Loki. Labels:
-  `service` (api, worker, caddy, ...), `container`, `job="docker"`, `level`.
-- **The log driver.** Alloy reads through the Docker API (the socket,
-  mounted read only), so it works with the default `local` driver and with
-  `json-file`: anything `docker logs` can print. Drivers Docker can't read
-  back (`syslog`, `gelf`, `awslogs`, `fluentd`, `none`) leave Alloy with
-  nothing, and then the shipper belongs to that driver, not here. Set
-  `DOCKER_LOG_DRIVER=json-file` only for a collector that tails the files in
-  `/var/lib/docker/containers` (Promtail-style, or Vector); Alloy doesn't
-  need it. The socket gives Alloy the whole Docker API, even read only, so it
-  runs as root (with `DAC_OVERRIDE` as its one capability, to write its
-  volume: [Container hardening](#container-hardening)); it is not published.
-- **Retention.** `LOKI_RETENTION` (default `720h`, 30 days), enforced by
-  Loki's compactor (`retention_enabled`, `monitoring/loki/loki.yml`). The
-  chunks live in the `loki_data` volume; budget the disk for it. Change the
-  value and `docker compose up -d loki`.
-- **Redaction is unchanged.** The app masks secrets before it writes a line
-  ([Log redaction](#log-redaction)); Alloy ships those lines as they are and
-  adds no parsing that could un-mask anything. Anything Caddy or PostgreSQL
-  log is shipped as written.
-- **Loki is not published** (no authentication: `auth_enabled: false`);
-  Alloy and Grafana reach it as `loki:3100`. Grafana listens on
-  `127.0.0.1:${GRAFANA_PORT:-3001}`: reach it through an SSH tunnel, like
-  Prometheus (`ssh -L 3001:127.0.0.1:3001 <host>`), sign in as `admin` with
-  `GRAFANA_ADMIN_PASSWORD`, open Explore. The Loki data source is
-  provisioned (`monitoring/grafana/provisioning/datasources/loki.yml`).
-  The **Capacity** dashboard (`dashboards/capacity.json`) shows Redis's
-  memory against maxmemory (redis_exporter), API and worker restarts
-  (`process_start_time_seconds`) and host OOM kills. The **Application**
-  dashboard (`dashboards/application.json`) shows API requests per second,
-  the 5xx share, p95 response time and requests in flight, the worker's queue
-  backlog, active and failed jobs, and the outbox delivery lag.
-- **Limits:** `LOKI_CPUS`/`LOKI_MEMORY` (0.5, 512 MB), `ALLOY_*` (0.25, 256
-  MB), `GRAFANA_*` (0.5, 256 MB).
-
-**Querying by `requestId`.** In production the app writes one JSON object per
-line (`LOG_FORMAT=json`), and every request carries an id: the
-`X-Request-Id` header, which the response returns and an error body's
-`requestId` repeats. Alloy turns `requestId` into structured metadata
-`request_id` (not a label: it is unbounded), and `level` into a label.
-In Grafana's Explore (LogQL):
-
-```logql
-{service=~"api|worker"} | request_id = "7c1b0f0e-6e0f-4a43-9d3c-2f1d0a9c1e55"
-{service="api", level="error"} | json | status >= 500
-{service="api"} |= "7c1b0f0e" | json
-```
-
-Without Grafana the UI is missing, not the data: it stays in Loki, and
-`logcli` works against an SSH tunnel to a port you publish yourself.
-
-**Checks.** `.github/workflows/monitoring.yml` verifies `loki.yml`
-(`loki -verify-config`) and parses `config.alloy` (`alloy fmt`) on a manual
-run, with the images `compose.monitoring.yaml` pins, then starts every
-service of the file under its hardening and checks that Alloy's lines reach
-Loki.
 
 ## Redis
 
@@ -1657,8 +1028,8 @@ by the validation, which stops the app.
   401/403 or 429: a revoked key, an exhausted plan) is counted as
   `telemetry_rejected_total{target="otlp|observe",status}` on `/metrics`
   (OTLP: the exporters' answers; Observe: its refusal log lines, "Telemetry
-  rate-limited (429)", because it has no hook), and the `TelemetryRejected`
-  alert fires after 5 minutes ([Alerting](#alerting)). The OTLP exporters
+  rate-limited (429)", because it has no hook), and alert on it
+  in your Prometheus. The OTLP exporters
   report a 429, 502, 503 or 504 whose retries ran out as one "retryable"
   failure without the status, counted as 429; other timeouts and 5xx are left
   to the exporters' retries. Every series starts at 0 (Prometheus' `increase()`
@@ -1752,9 +1123,9 @@ docker compose run --rm api node dist/cli setting:delete auth.requireMfa --tenan
 ```
 
 On the Compose deployment (`.env` sets `COMPOSE_FILE`), `api` is
-`compose.prod.yaml`'s service. On Swarm, run the image on the stack's
-network: `docker run --rm -it --network <stack>_default --env-file .env
-$APP_IMAGE node dist/cli …` ([Swarm](deploy-swarm.md)). The command needs
+`compose.prod.yaml`'s service. Elsewhere, run the image on the app's
+network: `docker run --rm -it --network <network> --env-file .env
+$APP_IMAGE node dist/cli …`. The command needs
 what the app starts with (`DATABASE_URL`, `REDIS_URL`, `DATA_ENCRYPTION_KEYS`,
 `MFA_ENCRYPTION_KEYS`, …: the same environment as `api`), nothing more, and runs against the live database: nothing is stopped.
 
@@ -1821,313 +1192,16 @@ or retype only a release after the code stopped using it
 ([pitfalls](pitfalls.md), "Migrations: expand/contract"). CI's
 `migration-lint` flags what breaks that.
 
-## Backups and restore
-
-The `backup` service (`backup/`) dumps the database on a schedule, keeps the
-dumps in the `backups` volume, and copies each one off the host when
-`BACKUP_S3_BUCKET` is set. Without it, a deploy works the same, with local
-copies only: a lost disk loses them too, so set it.
-
-- **What:** `pg_dump --format=custom` of `POSTGRES_DB`, one consistent
-  snapshot taken while the app runs, checked by reading its contents back
-  (`db-<time>.dump`). With `STORAGE_DRIVER=local`, the uploaded files too
-  (`files-<time>.tar.gz` of the `app_storage` volume, mounted read only).
-  The backup exports a PostgreSQL snapshot shared by the dump and a manifest
-  of persisted attachment originals and renditions, avatars, and tenant logos.
-  It checks every manifest key against the completed archive before sealing,
-  uploading or pruning. A concurrent deletion or an incomplete archive fails
-  the run; retry it after the file operation settles. Tenant logo uploads use
-  unique keys recorded in the database, so replacing a logo cannot change the
-  bytes for an earlier snapshot. With
-  `STORAGE_DRIVER=s3` the files stay in their bucket: turn on its
-  versioning. Each backup has a `.sha256` beside it.
-- **When:** `BACKUP_SCHEDULE` (cron, UTC; `0 3 * * *`). An hourly check
-  runs one when the last run failed or the newest backup is older than
-  `BACKUP_MAX_AGE_HOURS` (25): a host that was off or asleep catches up,
-  and a failed run is retried every hour. The same check runs once when
-  the container starts (after the database answers), so a new stack gets its
-  first backup at once instead of at the next schedule. With a less frequent schedule,
-  raise `BACKUP_MAX_AGE_HOURS` to match.
-- **The image** (`backup/Dockerfile`): `postgres:18.6-alpine` without `gosu`
-  (never used: it runs as `postgres`), and rclone and supercronic, both
-  built from their release tags with a current Go, so Go's fixes reach them
-  (the official rclone image's binary carries the Go of its release, which
-  a scan can flag before a new release exists). CI scans it like the app
-  image. Dependabot raises the base images, the Go builder stages included;
-  `SUPERCRONIC_VERSION` and `RCLONE_TAG` are raised by hand.
-- **Kept:** `BACKUP_RETENTION_DAYS` (14) in the volume, older ones removed
-  after each complete run (never after a failed one). Off the host, nothing
-  is deleted: give the bucket a lifecycle rule (delete after 90 days, say).
-- **Off the host:** `BACKUP_S3_BUCKET`, `BACKUP_S3_ENDPOINT` (R2:
-  `https://<account id>.r2.cloudflarestorage.com`; empty: AWS),
-  `BACKUP_S3_REGION` (R2: `auto`), `BACKUP_S3_ACCESS_KEY_ID`,
-  `BACKUP_S3_SECRET_ACCESS_KEY` (empty: the host's IAM role),
-  `BACKUP_S3_PREFIX` (`COMPOSE_PROJECT_NAME`), `BACKUP_S3_PROVIDER` (rclone's
-  name; it guesses from the endpoint). The bucket must exist.
-- **Its own bucket and keys**, not the app's `S3_*`: someone with the app's
-  keys must not be able to delete the backups. The backup needs only to
-  write and read back objects (S3: `s3:PutObject` and `s3:GetObject` on the
-  prefix; R2: an Object Read & Write token for that bucket alone). Versioning
-  or a lock (S3 Object Lock, R2 bucket locks) keeps them safe even from those
-  keys.
-- **Watching it:** each run logs one JSON line, `backup done` (file, bytes,
-  objects, files, offsite, seconds) or `backup failed` (the step: dump,
-  files, upload…); a failed run exits non-zero. `docker compose ps` shows
-  `unhealthy` after a failed run, or when no backup succeeded for
-  `BACKUP_MAX_AGE_HOURS` plus an hour.
-- **Cost:** one database connection while it runs (`<SERVICE_NAME>:backup`
-  in `pg_stat_activity`), within the margin above; `BACKUP_CPUS` (0.5) and
-  `BACKUP_MEMORY` (512M). It connects as the owner (`POSTGRES_USER`): the
-  role that owns every table reads every table, and a restore creates,
-  renames and drops databases. The password is the `PGPASSWORD` of its
-  environment, never in a command line. The dump carries no role, but its
-  tables carry the app role's grants and the owner's default privileges;
-  the script restores with `--no-owner` (everything becomes the owner's) and
-  `--no-privileges` (the grants are skipped, since a new cluster has no
-  `app_runtime` yet), and the `migrate` run of the next `docker compose up
--d` grants the app role everything again. A restore by hand (`pg_restore`
-  yourself) needs the same two flags, or the app role created first.
-- **Why pg_dump** (not pgBackRest or WAL-G): one host, one database. A dump is
-  one file that restores into any PostgreSQL 18 or newer, and the server
-  needs no change (no WAL archiving, no restart). The price: a restore
-  loses what happened since the last dump. To lose less, back up more often
-  (`0 */6 * * *`), turn on [point-in-time recovery](#point-in-time-recovery)
-  (off by default), or move to a managed PostgreSQL with its own (Scaling
-  further).
-- **Encrypted**, optionally: [Encryption](#encryption-of-backups) (`age`), so
-  the bucket never holds plaintext.
-- **Managed database** (`DATABASE_URL` elsewhere): use its backups and drop
-  `backup` from the stack (with `STORAGE_DRIVER=s3`, nothing else is on the
-  host).
-
-```bash
-docker compose exec backup backup             # a backup now (exit code 0: done)
-docker compose exec backup ls -l /backups     # the local ones
-docker compose exec backup backup-fetch       # the off-host ones, newest first
-docker compose logs backup                    # what each run did
-```
-
-### Restoring
-
-The dump is loaded into a new database first; only once that worked are the
-two swapped. The current database is kept, renamed
-`<POSTGRES_DB>_before_restore_<time>`, until you drop it.
-
-1. **Pick the backup:** `docker compose exec backup ls -l /backups`. On a new
-   host, deploy the stack with the old `.env` first (same
-   `COMPOSE_PROJECT_NAME`, so the same prefix), then list the off-host
-   copies with `docker compose exec backup backup-fetch` and copy one (with its
-   `.sha256`) into the volume with `docker compose exec backup backup-fetch
-db-<time>.dump` (and its `files-<time>.tar.gz`). Listing and reading the
-   bucket may need keys with more rights than the backup's own (`-e
-BACKUP_S3_ACCESS_KEY_ID=… -e BACKUP_S3_SECRET_ACCESS_KEY=…`).
-2. **Stop the app:** `docker compose stop api worker`.
-3. **The database:** `docker compose exec backup restore db-<time>.dump`.
-   It checks the checksum and asks you to type the database name (`--yes`
-   skips that); it ends sessions still connected.
-4. **The files** (`STORAGE_DRIVER=local`), from the same time: the service
-   mounts them read only, so mount the volume again, writable, as root (the
-   files keep the app's owner):
-
-   ```bash
-   docker compose run --rm --user root \
-     --cap-add CHOWN --cap-add DAC_OVERRIDE --cap-add FOWNER \
-     -v app_storage:/restore -e BACKUP_STORAGE_DIR=/restore \
-     backup restore files-<time>.tar.gz
-   ```
-
-   The `--cap-add`s: the service drops every capability, and root without
-   them can't write into a directory the app owns, nor read a backup that is
-   mode 600 and the `postgres` user's (`DAC_OVERRIDE`), keep the files'
-   owner (`CHOWN`) or set their modes and times (`FOWNER`).
-
-   They are extracted over what the volume holds; files no row points to
-   are removed later by the orphan sweep.
-
-5. **Start the app:** `docker compose up -d` (`migrate` runs first: it
-   brings an older dump up to this version and grants the app role what the
-   restore skipped, `--no-privileges`; until then api and worker can't read
-   the restored tables).
-6. **Check, then drop the previous database:**
-   `docker compose exec backup dropdb <POSTGRES_DB>_before_restore_<time>`.
-
-**Try a restore now and then**, without touching the app: `docker compose
-exec backup sh -c 'PGDATABASE=restore_check restore db-<time>.dump --yes'`
-loads it into a database `restore_check` beside the app's. Look at it
-(`docker compose exec backup psql -d restore_check -c '\dt'`), then
-`docker compose exec backup dropdb restore_check`.
-
-### Encryption of backups
-
-Off by default. With `BACKUP_ENCRYPTION_KEY` set, every dump, files archive,
-base backup and WAL segment is encrypted with [age](https://age-encryption.org)
-before it is kept or uploaded: the volume and the bucket hold `…​.age` files
-only (checksums are of the encrypted file). The key is a **public** recipient,
-so the server can encrypt and never decrypt: a stolen host or bucket gives
-away no backup. It is `age1…` (several on one line, separated by spaces, so a
-second person can decrypt too) or an SSH public key, a whole line
-(`BACKUP_ENCRYPTION_KEY="ssh-ed25519 AAAA… me@laptop"`). To mix them, or give
-several SSH keys, use `BACKUP_ENCRYPTION_KEY_FILE`: one recipient per line.
-
-```bash
-age-keygen -o backup.key        # keep it OFF the server (password manager, safe)
-# Public key: ... age1xxxxxxxx   -> BACKUP_ENCRYPTION_KEY in .env
-```
-
-Losing the identity (`AGE-SECRET-KEY-…` in `backup.key`) makes every encrypted
-backup unreadable: store it somewhere that outlives the host, and try a
-restore from the bucket now and then. Existing plaintext backups stay as they
-are (old ones age out by `BACKUP_RETENTION_DAYS`; the bucket's lifecycle rule
-removes the rest). `BACKUP_ENCRYPTION_KEY_FILE` is read too, for a mounted
-file (a Docker secret, [Secrets in files](#secrets-in-files)). To restore,
-give the identity for that one command only:
-
-```bash
-docker compose run --rm -e BACKUP_DECRYPTION_KEY="$(cat backup.key)" backup restore db-<time>.dump.age
-```
-
-(`BACKUP_DECRYPTION_KEY_FILE` names a file in the container instead.) `restore`
-decrypts into a private, temporary directory of the volume and removes it
-afterwards. `backup-fetch` copies encrypted names like any other.
-
-### Point-in-time recovery
-
-Off by default. A dump restores to the moment it was taken (up to a day
-back); with point-in-time recovery (PITR) a restore can stop at any moment
-after the oldest base backup kept, e.g. the minute before a bad deploy
-deleted rows. It uses what PostgreSQL itself documents (continuous
-archiving, `pg_basebackup`, `recovery_target_time`), not extra daemons:
-
-- **WAL archiving:** PostgreSQL's `archive_command` copies each finished WAL
-  segment to the `wal_archive` volume (`archive_timeout` 300 s,
-  `BACKUP_WAL_ARCHIVE_TIMEOUT`: a quiet database still closes a segment every
-  five minutes, the most a lost disk can cost besides the last minute).
-- **Base backups:** each scheduled `backup` run adds `base-<time>.tar.gz`
-  (`pg_basebackup`, plain tar of the cluster) and `base-<time>.walstart` (the
-  first segment it needs). Retention (`BACKUP_RETENTION_DAYS`) removes old base
-  backups, and the WAL before the oldest one kept.
-- **Off the host:** with `BACKUP_S3_BUCKET`, `backup-wal-ship` sends new segments
-  to `<prefix>/wal/` every minute (encrypted when the key is set); the
-  service turns `unhealthy` after 30 minutes without a pass.
-  Without a bucket the archive lives on the same disk as the database.
-
-Turn it on (needs a PostgreSQL restart, a few seconds of downtime):
-
-```bash
-# .env
-COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.pitr.yaml
-docker compose up -d --build
-docker compose exec postgres sh -c 'cat "$PGDATA/pg_hba.conf"'   # compare with backup/pg_hba.pitr.conf
-docker compose exec backup backup                                 # the first base backup, now
-```
-
-`compose.pitr.yaml` adds the volume, `archive_mode`/`archive_command`, a
-`wal-init` helper (it makes the volume writable for `postgres`), and a
-`pg_hba.conf` that also lets the backup service connect for base backups
-(the replication protocol, password-protected, on the stack's network only).
-**Compare that file with the running server's before relying on it**: it
-replaces the image's. It repeats compose.prod.yaml's `postgres` command
-(only `max_connections`): keep the two in step. WAL adds disk use: size the
-volume for `archive_timeout`'s segments (16 MB each) times the days kept, or
-more under write load, and watch `docker system df -v`.
-
-**Restoring to a moment** replaces the whole cluster (every database, not one),
-so it is the last resort after a dump restore isn't enough:
-
-1. **Pick the moment** (UTC) just before the damage, and the newest base backup
-   before it: `docker compose exec backup ls -l /backups | grep base-`. On a new host,
-   fetch it first (`backup-fetch base-<time>.tar.gz[.age]`).
-2. **Stop the stack:** `docker compose stop api worker postgres backup`.
-3. **Keep the old data, prepare the new** (as root, with the PostgreSQL volume
-   mounted; the recovered WAL goes beside the data, in the same volume):
-
-   ```bash
-   docker compose run --rm --no-deps --user root -v postgres_data:/var/lib/postgresql \
-     -e BACKUP_DECRYPTION_KEY="$(cat backup.key)" --entrypoint sh backup -c '
-       mv /var/lib/postgresql/18/docker /var/lib/postgresql/18/docker.before-pitr &&
-       restore-pitr base-<time>.tar.gz.age --pgdata /var/lib/postgresql/18/docker \
-         --wal-dir /var/lib/postgresql/pitr-wal --target-time "2026-10-21 09:30:00+00" --offsite'
-   ```
-
-   (Without encryption, drop the key and the `.age`; keep the key when the
-   bucket's WAL is encrypted, even for a plaintext base backup taken before
-   encryption was turned on. Without `--offsite`, the WAL comes from the
-   `wal_archive` volume: add `-v wal_archive:/wal`.)
-   `restore-pitr` unpacks the base backup, puts the WAL where the server
-   reads it, and writes `restore_command`, `recovery_target_time` and
-   `recovery.signal`.
-4. **Start PostgreSQL:** `docker compose up -d postgres`. It replays the WAL up
-   to the target (`docker compose logs postgres`: `recovery stopping before
-   commit of transaction …`), then opens.
-5. **Check the data, then start the app** (`docker compose up -d`) and take a
-   base backup at once (`docker compose exec backup backup`): the recovered
-   database runs on a new timeline, which older base backups don't follow.
-   Remove `docker.before-pitr` and `pitr-wal` (in the volume) when all is well.
-
-`recovery_target_action` is `promote`: a target after the last archived
-segment, or none, replays everything and opens. A target earlier than the base
-backup fails (use an older base backup).
-
-**Try it** like a dump restore, now and then: `scripts/test-backup-pitr.sh`
-runs the whole round trip (encrypted base backup and WAL, a target between two
-writes, a plaintext base backup with encrypted WAL, an encrypted dump) against a throwaway PostgreSQL in the backup image; CI
-runs it in `backup-image`.
-
-### Restore drill
-
-A backup nobody has restored is a hope. `scripts/restore-drill.sh` proves the
-whole chain on a throwaway stack, with the same scripts and the same
-procedure a real recovery uses (the load test's stack: `loadtest/run.sh`,
-`compose.loadtest.yaml` on top, its own Compose project and generated
-settings; the repository's `.env` is never read):
-
-1. start the production stack and the `backup` service; sign in as the seeded
-   administrator and write 12 notes;
-2. stop `api` and `worker`, count the rows of **every table**, take a backup
-   (`backup`, the scheduled run's own script);
-3. destroy PostgreSQL's volume: a new, empty cluster;
-4. `restore` the dump into it ([Restoring](#restoring)), then count again: the
-   two lists must be identical;
-5. start the stack (`migrate` grants the app role what the dump skipped), sign
-   in again and read the notes back through the API;
-6. report the durations and remove the stack.
-
-It fails loudly at the first step that does not work (the stack's logs are
-printed first) and when backup plus restore take longer than
-`RESTORE_DRILL_MAX_SECONDS` (600). `RESTORE_DRILL_PROJECT` names the Compose
-project (`loadtest-<name>` only: it removes the project's volumes),
-`RESTORE_DRILL_KEEP=on` leaves the stack running, `APP_IMAGE` skips the build.
-It needs Docker: `scripts/restore-drill.sh` locally, from the repository root.
-
-**In CI** (`.github/workflows/restore-drill.yml`): weekly (Mondays 03:17 UTC),
-and on demand (`workflow_dispatch`; dispatch it on the branch after a change
-to `backup/`, the drill or the load test's stack). The durations are in the job summary. A
-failed run is the alert: GitHub mails the repository's watchers and the run
-shows red.
-
-**What it does not prove:** the off-host copy (no `BACKUP_S3_BUCKET` in a
-throwaway stack: `backup-fetch` from your bucket needs your keys, so try it
-by hand now and then), or a restore of **your** data's size: the drill's database is
-a few hundred rows, so its durations show the procedure works, not how long
-yours takes. Time a restore of a real dump once and set
-`RESTORE_DRILL_MAX_SECONDS` and your own expectations from that.
-
 ## CI
 
-The **CI / CD** workflow (`.github/workflows/ci.yml`) validates changes and,
-for eligible releases, publishes images and release notes. Its filename remains
-stable because image signatures and provenance identify that workflow path.
-CI never deploys. The separate
-**Deploy** workflow (`.github/workflows/deploy.yml`) deploys a verified build to
-single-node Docker Swarm hosts: staging after every merge to `main` when
-`AUTO_DEPLOY` is on, production only by a manual run with a release tag
-([deploy-swarm.md](deploy-swarm.md), "Environments and CI deploys").
+The **CI** workflow (`.github/workflows/ci.yml`) validates changes. It builds
+and scans the two images, and neither publishes nor deploys them: pushing
+images to a registry and deploying are the adopting project's own workflows.
 
 Application validation stays centralized here. Workflows with different path
-triggers, permissions or schedules (monitoring, migrations, docs, restore
-drills) remain separate. PR concurrency groups include the
-workflow and PR ref, cancelling superseded runs without cancelling other PRs.
-Publication and production deployment keep their serialization.
+triggers, permissions or schedules (migrations, docs) remain separate. PR
+concurrency groups include the workflow and PR ref, cancelling superseded runs
+without cancelling other PRs.
 
 ### Which jobs a pull request runs
 
@@ -2137,20 +1211,19 @@ comparison, a capped list (300 compare files or 3000 PR files), inconsistent PR
 file counts, unknown paths and shared root dependencies trigger comprehensive
 validation. A failed compare never silently skips tests. A release commit
 (`CHANGELOG.md`, `.release-please-manifest.json` and only the version in the
-root `package.json`) runs no tests and reuses the previous images
-([releases](releases.md)). Sunday's scheduled run (03:17 UTC), manual full
+root `package.json`) runs no tests ([releases](releases.md)). Sunday's scheduled run (03:17 UTC), manual full
 runs and `v*` tags are comprehensive; weekday nights scan only the images and
 the dependencies for new advisories.
 
 | Change | Validation |
 | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| API | lint/build, API unit coverage, API E2E, browser/accessibility tests, migrations, security, API image and hardened runtime |
-| Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image/runtime checks |
+| API | lint/build, API unit coverage, API E2E, browser/accessibility tests, migrations, security, API image |
+| Web/UI | lint/build, web/package coverage, browser/accessibility tests, security and Caddy image checks |
 | Typed client/shared roots | dependent packages; shared root dependencies run comprehensive validation |
 | Tooling (`tools/`) | lint, Knip and the tools' own tests; the generator smoke runs on comprehensive runs only |
 | Compose service images | database/browser E2E on those images |
-| Stack/images | stack config (secrets, hardening, Swarm render) and image checks, with the hardened runtime |
-| CI orchestration | routing, gate, manifest and workflow syntax tests |
+| Stack/images | stack config (secrets, hardening) and image checks |
+| CI orchestration | routing, gate and workflow syntax tests |
 | Docs                         | the corresponding companion workflow                                                                                                                    |
 
 The classifier has explicit routes for infrastructure, generators, migrations and
@@ -2161,19 +1234,16 @@ the necessary tasks. Knip and translation parity still inspect the whole workspa
 
 | Job | Purpose |
 | --------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `changes` | classification, expected jobs and cumulative image rebuild plan |
+| `changes` | classification and expected jobs |
 | `check` | affected lint/build, API and package unit coverage, API client/migrations when relevant, bundle budget, the tools' tests, leftover-notes guard |
 | `unit-web` | web unit coverage, whole, thresholds enforced directly |
 | `e2e`, `e2e-web` | isolated API/database and browser/accessibility tests; `e2e-web` also runs the built app's trace check |
 | `feature-smoke` | generated features, schema/client generation and their E2E tests; comprehensive runs only |
 | `tooling-lint` | lint, Knip and the tools' tests for a change to tooling alone |
 | `template-without-notes` | exhaustive generated-template variant; manual runs only |
-| `stack-config` | shellcheck over the tracked shell scripts; Compose secrets, hardening and settings, then the Swarm stack render |
-| `security`, `image`, `backup-image`, `caddy-image`, `gotenberg-image` | dependency/secret/configuration scans and relevant image builds/scans/runtime checks (`image` also starts the production stack) |
+| `stack-config` | shellcheck over the tracked shell scripts; Compose secrets, hardening and settings |
+| `security`, `image`, `caddy-image` | dependency/secret/configuration scans and the image builds, scans and checks |
 | `ci-gate` (**CI gate**) | requires every classified job to succeed; rejects missing results, failures, cancellations and unexpected skips; for API changes then merges the unit and e2e coverage blobs and enforces the merged thresholds |
-| `publish`, `publish-caddy`, `publish-backup` | push the verified artifacts without rebuilding, scan the pushed digest, then sign/attest |
-| `release-manifest` | verify reuse evidence and preserve the complete immutable release image set |
-| `release` | version-tag notes and the existing complete image set |
 
 Require **CI gate** as the stable application status check, rather than individual
 matrix names that may not exist on an unaffected PR. Companion workflows retain
@@ -2190,8 +1260,7 @@ runner budget, the evidence and the chosen defaults.
 
 The bundle budget and the Storybook build run in `check` for frontend changes,
 and the browser tests in `e2e-web`. The Web workflow holds only report-only
-Lighthouse, which runs manually and for each release (release.yml
-starts it on the tag).
+Lighthouse, which runs manually.
 Migration lint retains its separate PR workflow and existing acceptance controls
 ([migrations](development.md#migrations)). Third-party actions remain pinned;
 Dependabot proposes updates. PostgreSQL and Redis are read from `compose.yaml`,
@@ -2208,136 +1277,3 @@ as before the monorepo, so `node dist/main`, `dist/worker` and
 Compose sets `NODE_ENV=production` for the containers; a bare `node
 dist/main` outside it must set it too, since what refuses development-only
 settings in production (the captcha stub, text logs) reads it.
-
-## Publishing and rolling back images
-
-On affected pushes to `main`, CI publishes verified images
-to `ghcr.io/<owner>/<repo>` (here `ghcr.io/lamberto15/nestjs-monorepo-template`).
-Each affected image is built once, scanned and runtime-validated. A Docker image
-archive, checksum and image config ID transfer that exact build to runtime and
-publish jobs; publication does
-not run another build or scan. The pushed immutable digest is signed, with its
-provenance and SBOM. Publication requires **CI gate** success.
-
-The versioned `release-manifest-v1` artifact contains `release-manifest.json`:
-`version: 1`, repository, source SHA, run ID and the API, Caddy/Web, Gotenberg and
-backup repositories/digests, plus each image's producer SHA/run. Unchanged images retain
-their producer evidence. Rebuild decisions include all component changes since
-the trusted manifest, so failed or skipped intervening releases cannot lose work.
-Those cumulative component changes are revalidated against the same Turbo base.
-Runtime-only infrastructure checks may build an API artifact without publishing
-an unchanged API image.
-
-Reuse requires a successful `main` CI run's manifest, source ancestry, registry
-availability, an exact main-workflow cosign identity, a signed CycloneDX SBOM and
-source-bound GitHub provenance. Invalid/missing/expired evidence blocks the release;
-mutable tags are never a fallback. The lookup is bounded to 1000 matching manifest artifacts.
-To bootstrap or recover expired evidence, explicitly dispatch CI on `main` with
-`bootstrap_release=true`: comprehensive validation and all four builds/publications,
-with deployment still disabled. Ordinary manual and nightly runs do not publish.
-Artifacts expire after 90 days; bootstrap again if no trusted artifact remains.
-A release whose run's artifact has expired can no longer be deployed by its
-tag: deploy a newer release instead.
-
-- **Tags:** the full commit SHA, always; `main` for a push to main; `1.2.3`
-  once release `v1.2.3` is promoted (release.yml tags the same digests, it
-  never rebuilds). Never `latest`: a deploy names the image it runs. The
-  release's GitHub notes name the images by version and digest, list the
-  migrations since the previous release, and say how to roll back to it
-  ([releases](releases.md)).
-- **Caddy's image** (job `publish-caddy`) is published the same way, to
-  `ghcr.io/<owner>/<repo>/caddy` with the same tags. It carries Caddy with the
-  Cloudflare DNS plugin (pinned, `caddy/Dockerfile`) and the web app
-  (`apps/web`, built into `/srv/web`), and nothing of one deployment: the
-  domain, the ACME email and the Cloudflare token come from the environment
-  at run time (`Caddyfile`), the web app has no build-time variables and
-  calls the API on its own origin, and the Turnstile site key comes from the
-  API. So one published image serves every deployment, and its tag pins a web
-  build to its producer commit. Use the complete manifest
-  when a release mixes rebuilt and reused components.
-- **Inside:** `GIT_SHA` is the commit (NestJS Observe reports it as the
-  version), and the OCI labels name the source repository and producer commit.
-- **Private:** the package belongs to the repository and follows its
-  access. Pulling needs a login (below).
-
-Logging in once on the host, with a classic personal access token that has
-`read:packages` (GitHub Packages doesn't take fine-grained tokens):
-
-```bash
-echo "$GHCR_TOKEN" | docker login ghcr.io -u <github user> --password-stdin
-```
-
-Deploying a published image: set `APP_IMAGE` (and `CADDY_IMAGE`, using
-both immutable references from one release manifest) in `.env`, then pull
-and start (Gotenberg's image is the official one the Compose file pins). Without
-`--build`: a build would replace the pulled images with local ones.
-
-```bash
-# .env
-APP_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template:<full commit SHA>
-CADDY_IMAGE=ghcr.io/lamberto15/nestjs-monorepo-template/caddy:<full commit SHA>
-
-docker compose pull migrate api worker gotenberg caddy
-docker compose up -d --remove-orphans
-```
-
-Rolling back: set `APP_IMAGE` (and `CADDY_IMAGE`) to the previous commit's SHA, then the same
-two commands. `git log --format=%H main` lists the SHAs; the package's page
-on GitHub lists the published ones. The Compose files must fit the image:
-when a release changed them, check them out at that SHA too (`git checkout
-<SHA> -- compose.yaml compose.prod.yaml`), and read the release's notes for
-what else it needs. The database roles release (roadmap 1a) is one: its
-previous image needs `DATABASE_URL` to be the owner's ([Database
-roles](#database-roles), "Rolling back past this release").
-
-- **Migrations don't roll back.** The older image runs on the newer schema,
-  so a release's migrations only add (columns, tables) and leave dropping,
-  renaming and retyping to a later release: expand/contract
-  ([pitfalls](pitfalls.md), "Migrations: expand/contract"), which CI's
-  `migration-lint` checks.
-- **Unset `CADDY_IMAGE`** builds Caddy and the web app on the host
-  (`docker compose up -d --build caddy`), as before.
-- **Unset `APP_IMAGE`** (or leave it out): `docker compose up -d --build`
-  builds from the checkout, as before.
-
-### Signing and verifying images
-
-Each publish job (app, Gotenberg, Caddy) signs what it pushed, by digest, with
-the composite action `.github/actions/sign-image`:
-
-- **Signature:** `cosign sign`, keyless (GitHub OIDC: no key to keep). The
-  certificate names the workflow that signed, `ci.yml` on `main` or a `v*`
-  tag, and is logged in the public Rekor log.
-- **Provenance:** a SLSA build provenance attestation
-  (`actions/attest-build-provenance`), pushed to the registry next to the
-  image and listed under the repository's Attestations.
-- **SBOM:** a CycloneDX SBOM of the pushed image (Trivy, which CI already
-  installs), signed as an attestation (`cosign attest --type cyclonedx`).
-
-Only the publishing jobs get `id-token: write` and `attestations: write`;
-every other job keeps read-only permissions. Signatures and attestations are
-stored as extra tags in the same package (`sha256-<digest>.sig`, `.att`).
-
-Verify before pulling (needs [cosign](https://docs.sigstore.dev/cosign/system_config/installation/)
-and, for provenance, the `gh` CLI):
-
-```bash
-scripts/verify-image.sh                # APP_IMAGE, CADDY_IMAGE
-scripts/verify-image.sh ghcr.io/<owner>/<repo>:<full commit SHA>
-
-# what it runs, per image:
-cosign verify <image> \
-  --certificate-oidc-issuer https://token.actions.githubusercontent.com \
-  --certificate-identity-regexp '^https://github\.com/<owner>/<repo>/\.github/workflows/ci\.yml@refs/(heads/main|tags/v.+)$'
-cosign verify-attestation <image> --type cyclonedx  # same two flags
-gh attestation verify oci://<image> --owner <owner>
-```
-
-Set `VERIFY_IDENTITY_REGEXP` to accept a different signer (a fork's workflow, say). A failure exits
-non-zero and prints cosign's reason; do not deploy that image.
-
-**In the deploy scripts:** `VERIFY_IMAGES=1` makes `pnpm deploy:rolling`
-(before it pulls `APP_IMAGE`) and
-`deploy:swarm deploy` run the script first and stop when it fails. Off by
-default, because it needs cosign on the deploy host; the plain
-`docker compose pull` path above is unchanged.

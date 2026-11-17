@@ -4,7 +4,6 @@ import { githubCli } from './github-cli.mjs';
 import { appendFileSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
-import { releasePlan } from './release-manifest.mjs';
 
 export const keys = [
   'code',
@@ -15,12 +14,9 @@ export const keys = [
   'tools',
   'stack',
   'services',
-  'backup',
-  'gotenberg',
   'caddy',
   'ci',
   'image',
-  'api_image',
   'full',
 ];
 const roots =
@@ -29,9 +25,7 @@ const inert =
   /^(docs\/|\.claude\/|\.github\/(ISSUE_TEMPLATE\/|CODEOWNERS$|dependabot\.yml$|PULL_REQUEST_TEMPLATE\.md$)|LICENSE$|\.editorconfig$|[^/]*\.md$|packages\/[^/]+\/[^/]*\.md$)/;
 
 // Release Please's own files. A release commit (these, the changelog and the
-// root package.json's version) changes no code and no image: it runs no tests,
-// and on main publishes a manifest that reuses the previous images, so staging
-// deploys the release commit and production's staging gate finds it.
+// root package.json's version) changes no code and no image: it runs no tests.
 const releaseFiles = /^\.release-please-manifest\.json$/;
 
 export function classify({
@@ -63,8 +57,6 @@ export function classify({
         full: false,
         stack: false,
         services: false,
-        backup: false,
-        gotenberg: false,
       };
       for (const [key, needed] of Object.entries(application))
         if (needed) flags[key] = true;
@@ -76,40 +68,28 @@ export function classify({
     if (/^(tools\/|knip\.jsonc$)/.test(file)) {
       flags.lint = true;
       flags.tools ||= file.startsWith('tools/');
-      flags.stack ||= file.startsWith('tools/deploy/');
-      flags.image ||= file.startsWith('tools/deploy/');
       continue;
     }
     if (/^(apps\/api\/|packages\/api-client\/|\.dockerignore$)/.test(file)) {
-      flags.app = flags.api = flags.image = flags.api_image = true;
+      flags.app = flags.api = flags.image = true;
       if (file.startsWith('packages/') || file === 'apps/api/package.json')
         flags.web = flags.caddy = true;
     } else if (/^(apps\/web\/|apps\/web-e2e\/|packages\/ui\/)/.test(file)) {
       flags.app = flags.web = true;
       flags.caddy ||= !file.startsWith('apps/web-e2e/');
     } else if (
-      /^(compose[^/]*\.yaml$|secret\.empty$|swarm\.placeholder$|scripts\/|loadtest\/|redis\/|caddy\/|backup\/|gotenberg\/|monitoring\/|clamav\/|pgbouncer\/)/.test(
+      /^(compose[^/]*\.yaml$|secret\.empty$|scripts\/|redis\/|caddy\/)/.test(
         file,
       )
     ) {
       flags.stack = true;
-      flags.image = true; // The hardened runtime needs the API artifact.
       flags.services ||= file === 'compose.yaml';
-      flags.backup ||= /^(backup\/|scripts\/test-backup-pitr\.sh$)/.test(file);
-      flags.gotenberg ||= /^(gotenberg\/|compose\.(dev|prod)\.yaml$)/.test(
-        file,
-      );
       flags.caddy ||= file.startsWith('caddy/');
       flags.web ||= file === 'caddy/Caddyfile';
     } else if (/^(env\.example|\.prettierrc|\.prettierignore)$/.test(file)) {
       flags.tools = flags.lint = true;
     } else if (file === '.trivyignore.yaml') {
-      flags.image =
-        flags.api_image =
-        flags.backup =
-        flags.gotenberg =
-        flags.caddy =
-          true;
+      flags.image = flags.caddy = true;
     } else return all(); // Unknown paths fail towards comprehensive validation.
   }
   return flags;
@@ -150,8 +130,8 @@ export function comparisonFiles(data, { pr = false, expected } = {}) {
 }
 
 // The jobs a run must pass (ci.yml's ci-gate), by the classified paths. A
-// check folded into a job (the bundle budget in check, the hardened stack in
-// image) runs as one of its steps, under the same flags.
+// check folded into a job (the bundle budget in check) runs as one of its
+// steps, under the same flags.
 // The weekday scheduled run that only scans for advisories (ci.yml's `on:`).
 export const NIGHTLY_CRON = '17 3 * * 1-6';
 
@@ -175,9 +155,7 @@ export function expectedJobs(f) {
     // .trivyignore.yaml, which both scans read, never skips them.
     security: f.app || f.tools || f.nightly || f.image,
     image: f.image,
-    'backup-image': f.backup,
     'caddy-image': f.caddy,
-    'gotenberg-image': f.gotenberg,
   };
   return Object.entries(rules)
     .filter(([, needed]) => needed)
@@ -221,18 +199,11 @@ export function versionBump(base, head, run = execFileSync) {
 
 // Weekday nights look for new advisories only: the images (Trivy, in each
 // image job) and the dependencies (security). Sunday's run validates all.
-const nightlyKeys = new Set([
-  'image',
-  'api_image',
-  'backup',
-  'gotenberg',
-  'caddy',
-]);
+const nightlyKeys = new Set(['image', 'caddy']);
 
 export function runChanges(
   env = process.env,
   gh = (args) => execFileSync(githubCli(), args, { encoding: 'utf8' }),
-  planning = releasePlan,
   compare = gitFiles,
   bumped = versionBump,
 ) {
@@ -240,7 +211,7 @@ export function runChanges(
   const full =
     !['push', 'pull_request'].includes(env.GITHUB_EVENT_NAME) ||
     env.GITHUB_REF.startsWith('refs/tags/');
-  let base = event.pull_request?.base.sha ?? event.before ?? '';
+  const base = event.pull_request?.base.sha ?? event.before ?? '';
   const head = event.pull_request?.head.sha ?? env.GITHUB_SHA;
   let files;
   if (!full && /^[a-f0-9]{40}$/.test(base) && !/^0+$/.test(base)) {
@@ -270,19 +241,8 @@ export function runChanges(
   const nightly = event.schedule === NIGHTLY_CRON;
   const flags = route({ files, full, complete: Boolean(files) }, base);
   if (nightly) for (const key of keys) flags[key] = nightlyKeys.has(key);
-  const plan = planning(
-    flags,
-    env,
-    event,
-    (args) => route(args, args.base),
-    compare,
-  );
-  if (plan.previous) {
-    base = plan.previous.sourceSha;
-    files = compare(base, head);
-  }
-  // A main release validates cumulative changes, including components whose
-  // intervening release failed. Turbo must use that same base, too.
+  // Turbo's --filter=...[base] is safe only when every changed path is in
+  // its workspace graph and Git can compare the two commits.
   const affected =
     !flags.full &&
     Array.isArray(files) &&
@@ -299,8 +259,6 @@ export function runChanges(
     base,
     head,
     affected,
-    publish: plan.publish,
-    release_ready: !plan.error,
     expected: JSON.stringify(expectedJobs({ ...flags, nightly, manual })),
   };
   appendFileSync(

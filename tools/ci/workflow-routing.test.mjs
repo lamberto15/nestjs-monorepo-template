@@ -180,13 +180,11 @@ test('real workflow conditions and dependencies agree with the gate for affected
     'apps/api/drizzle/a.sql',
     'compose.yaml',
     'caddy/Caddyfile',
-    'gotenberg/smoke.html',
     'tools/feature/add.mjs',
-    'tools/deploy/rolling.mjs',
     'knip.jsonc',
     '.trivyignore.yaml',
     'docs/deployment.md',
-    'compose.small.yaml',
+    'compose.prod.yaml',
     '.github/workflows/ci.yml',
     'unknown',
   ]) {
@@ -210,7 +208,7 @@ test('real workflow conditions and dependencies agree with the gate for affected
     );
   }
 });
-test('the stable gate needs every validation job and CI has no production rollout', () => {
+test('the stable gate needs every job and CI neither publishes nor deploys', () => {
   const all = jobs(text),
     gate = all.find((j) => j.id === 'ci-gate');
   assert.equal(gate.if, 'always()');
@@ -218,52 +216,8 @@ test('the stable gate needs every validation job and CI has no production rollou
     gate.needs,
     all.slice(0, all.indexOf(gate)).map((j) => j.id),
   );
-  // Deploying is deploy.yml's, after CI: no CI job deploys.
-  assert.ok(!all.some((j) => j.id.startsWith('deploy')));
+  // CI validates only: the gate is its last job, and none publishes or deploys.
+  assert.equal(all.at(-1), gate);
+  assert.ok(!all.some((j) => /^(deploy|publish)/.test(j.id)));
   assert.ok(!/^\s+environment:/m.test(text));
-  for (const id of [
-    'publish',
-    'publish-caddy',
-    'publish-backup',
-    'release-manifest',
-  ])
-    assert.ok(all.find((j) => j.id === id).needs.includes('ci-gate'), id);
-});
-
-test('the signing action installs the Trivy its SBOM step runs', () => {
-  const action = readFileSync(
-    new URL('../../.github/actions/sign-image/action.yml', import.meta.url),
-    'utf8',
-  );
-  const install = action.indexOf('uses: aquasecurity/setup-trivy@');
-  assert.ok(install >= 0);
-  assert.ok(install < action.indexOf('run: trivy image'));
-});
-
-test('every release image is built once and handed off with integrity evidence', () => {
-  const all = jobs(text);
-  for (const [builder, publisher, image] of [
-    ['image', 'publish', 'app'],
-    ['caddy-image', 'publish-caddy', 'caddy'],
-  ]) {
-    const build = all.find((job) => job.id === builder).lines.join('\n');
-    assert.equal(
-      (build.match(/uses: docker\/build-push-action@/g) ?? []).length,
-      1,
-      builder,
-    );
-    assert.ok(build.includes(`name: image-${image}`), builder);
-    assert.ok(build.includes(`${image}.tar.sha256`), builder);
-    assert.ok(build.includes(`${image}.id`), builder);
-    // Handed over only to this run's publish job: a pull request uploads none.
-    assert.ok(
-      build.includes(
-        "- name: Transfer the verified image\n        if: needs.changes.outputs.publish == 'true'",
-      ),
-      builder,
-    );
-    const publish = all.find((job) => job.id === publisher).lines.join('\n');
-    assert.ok(!publish.includes('uses: docker/build-push-action@'), publisher);
-    assert.ok(publish.includes(`sha256sum -c ${image}.tar.sha256`), publisher);
-  }
 });

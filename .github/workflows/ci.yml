@@ -4,10 +4,9 @@
 # dependencies from the lockfile. The checks are the root's scripts: Turborepo
 # (turbo.json) runs each workspace package's task, with the GitHub-native
 # cache proxy sharing task artifacts between jobs and runs.
-# Then the security scans, and on main the images are published to GHCR
-# (docs/deployment.md, "CI"). Releases never rebuild: release.yml promotes a
-# release tag's images after this workflow passed on its commit
-# (docs/releases.md), and deploy.yml deploys them (docs/deploy-swarm.md).
+# Then the security scans and the two images' builds (docs/deployment.md,
+# "CI"). It validates only: publishing images and deploying are the adopting
+# project's own workflows.
 #
 # Runners are the scarce resource (docs/ci-runtime.md): a job exists where
 # it needs a runner of its own (services, a browser, Docker, or minutes that
@@ -16,13 +15,12 @@
 #
 # Third-party actions are pinned by commit SHA (the comment names the
 # release); Dependabot proposes newer ones.
-name: CI / CD
+name: CI
 
 on:
   push:
     branches: [main]
-    # Documentation-only merges do not need image publishing.
-    # Changes to deployment files remain fully validated.
+    # Documentation-only merges validate nothing here (docs.yml builds the site).
     paths-ignore:
       - 'docs/**'
       - 'README.md'
@@ -31,11 +29,6 @@ on:
       - '.claude/**'
   pull_request:
   workflow_dispatch:
-    inputs:
-      bootstrap_release:
-        description: 'Build and publish a complete manifest on main (no deployment)'
-        type: boolean
-        default: false
   # Weekday nights scan for new advisories only: the images and the
   # dependencies (security). Sunday's run validates everything else a pull
   # request skips (template-without-notes and template-without-capabilities
@@ -50,8 +43,7 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # A newer push to a pull request replaces its run; on main and tags a run
-  # finishes, so a publish is never stopped halfway.
+  # A newer push to a pull request replaces its run; on main a run finishes.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
@@ -72,12 +64,9 @@ jobs:
       tools: ${{ steps.paths.outputs.tools }}
       stack: ${{ steps.paths.outputs.stack }}
       services: ${{ steps.paths.outputs.services }}
-      backup: ${{ steps.paths.outputs.backup }}
-      gotenberg: ${{ steps.paths.outputs.gotenberg }}
       caddy: ${{ steps.paths.outputs.caddy }}
       ci: ${{ steps.paths.outputs.ci }}
       image: ${{ steps.paths.outputs.image }}
-      api_image: ${{ steps.paths.outputs.api_image }}
       full: ${{ steps.paths.outputs.full }}
       nightly: ${{ steps.paths.outputs.nightly }}
       manual: ${{ steps.paths.outputs.manual }}
@@ -85,8 +74,6 @@ jobs:
       head: ${{ steps.paths.outputs.head }}
       affected: ${{ steps.paths.outputs.affected }}
       expected: ${{ steps.paths.outputs.expected }}
-      publish: ${{ steps.paths.outputs.publish }}
-      release_ready: ${{ steps.paths.outputs.release_ready }}
       postgres: ${{ steps.images.outputs.postgres }}
       redis: ${{ steps.images.outputs.redis }}
     steps:
@@ -113,14 +100,6 @@ jobs:
             echo "$service: $image"
             echo "$service=$image" >> "$GITHUB_OUTPUT"
           done
-      - name: Release comparison evidence
-        if: steps.paths.outputs.publish == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-plan
-          path: ${{ runner.temp }}/ci-release-plan/plan.json
-          if-no-files-found: error
-          retention-days: 7
 
   # Workflow-only changes require orchestration tests, not application suites.
   ci-validate:
@@ -128,19 +107,10 @@ jobs:
     if: needs.changes.outputs.ci == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
-    services:
-      registry:
-        image: registry:3.1.2
-        ports: ['5000/tcp']
     steps:
       - uses: actions/checkout@v7
       - name: Verify change routing and workflow invariants
         run: node --test 'tools/ci/*.test.mjs'
-      - name: Verify image publication against a disposable local registry
-        env:
-          REQUIRE_DOCKER: 'true'
-          CI_REGISTRY_ADDRESS: 127.0.0.1:${{ job.services.registry.ports['5000'] }}
-        run: node --test tools/ci/image-publication.test.mjs
       - name: Validate GitHub Actions syntax
         run: |
           curl --proto '=https' --proto-redir '=https' -fsSL https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz -o "$RUNNER_TEMP/actionlint.tar.gz"
@@ -151,28 +121,26 @@ jobs:
 
   # The production stack's configuration, rendered (no image is built): its
   # secrets (docs/deployment.md, "Secrets in files") with the values in .env
-  # as before, and with every one in a file, as Compose renders them (the
-  # monitoring stack too); the hardening of every service; then the shell
-  # readers in their images, and the Swarm stack. The app booting on files:
-  # secret-files.e2e-spec.ts.
+  # as before, and with every one in a file, as Compose renders them; the
+  # hardening of every service; then the shell readers in their images. The
+  # app booting on files: secret-files.e2e-spec.ts.
   stack-config:
     needs: changes
     if: needs.changes.outputs.stack == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
-      COMPOSE_FILE: compose.yaml:compose.prod.yaml:compose.monitoring.yaml
-      METRICS_TOKEN: metrics-token-for-ci-only
+      COMPOSE_FILE: compose.yaml:compose.prod.yaml
     steps:
       - uses: actions/checkout@v7
-      # The stack's shell: the images' entrypoints, the backup and restore
-      # scripts, the operations scripts (ubuntu-24.04 ships shellcheck).
+      # The stack's shell: the images' entrypoints and the scripts
+      # (ubuntu-24.04 ships shellcheck).
       - name: Shell scripts pass shellcheck
         run: git ls-files -z '*.sh' | xargs -0 shellcheck -S warning
       - name: Secrets as variables, as an existing .env has them
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci BACKUP_ENCRYPTION_KEY=age1ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
           docker compose config --format json > env.json
           # The app role for api and worker; the owner on migrate only (docs/deployment.md, "Database roles").
           test "$(jq -r .services.api.environment.DATABASE_URL env.json)" = 'postgres://app_runtime:app-ci@postgres:5432/app'
@@ -194,7 +162,7 @@ jobs:
           test "$(jq -r '.services.api.environment | has("DATABASE_MAINTENANCE_URL_FILE")' env.json)" = false
           test "$(jq -r '.services.api.secrets | map(.source) | index("database_maintenance_url")' env.json)" = null
           test "$(jq -r '.services.worker.secrets | map(.source) | index("database_maintenance_url") != null' env.json)" = true
-          # The monitoring role: migrate makes it, the exporter connects as it; nobody else sees its password.
+          # The monitoring role: migrate makes it; no service of the stack sees its password.
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD env.json)" = mon-ci
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_USER env.json)" = app_monitor
           for service in api worker; do
@@ -210,44 +178,24 @@ jobs:
             test "$(jq -r ".services.$service.secrets | map(.source) | index(\"postgres_reporting_password\")" env.json)" = null
           done
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD env.json)" = pg-ci
-          test "$(jq -r .services.backup.environment.PGPASSWORD env.json)" = pg-ci
-          # The backup's encryption recipients: the variable reaches the backup, the file variable stays empty.
-          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY env.json)" = age1ci
-          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE env.json)" = ''
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN env.json)" = ci
-          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' env.json)" = 'postgresql://app_monitor:mon-ci@postgres:5432/app?sslmode=disable'
-          test "$(jq -r '.services["postgres-exporter"].secrets | map(.source) | join(",")' env.json)" = postgres_monitor_password
-          test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD' env.json)" = redis-ci
       - name: Every service is hardened
         # docs/deployment.md, "Container hardening": every service of the
         # rendered config is checked, so a new one without these keys fails
-        # here. Rendered: compose.yaml + compose.prod.yaml, then each optional
-        # overlay on top of them (all profiles on), so the job's COMPOSE_FILE
-        # (which adds the monitoring stack) is set per render. Not rendered:
-        # compose.pgbouncer.yaml and compose.pitr.yaml (their services aren't
-        # hardened yet), the Swarm overlay (docs/deploy-swarm.md renders the
-        # same files), and compose.dev.yaml and compose.loadtest.yaml
-        # (development and the load test, which patch the stack).
+        # here. Rendered: compose.yaml + compose.prod.yaml with every profile
+        # on. Not rendered: compose.dev.yaml (development).
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci CLOUDFLARE_TUNNEL_TOKEN=ci
+          export CLOUDFLARE_API_TOKEN=ci POSTGRES_PASSWORD=pg-ci POSTGRES_APP_PASSWORD=app-ci POSTGRES_MAINTENANCE_PASSWORD=maint-ci REDIS_PASSWORD=redis-ci POSTGRES_MONITOR_PASSWORD=mon-ci POSTGRES_REPORTING_PASSWORD=rep-ci
           # The documented exceptions: a service and the keys it may lack
           # (read_only, cap_drop, no-new-privileges, tmpfs). Each is explained
           # where the service is (a comment in its Compose file) and in
           # docs/deployment.md, "Container hardening"; one that is no longer
-          # needed fails too, so the list can't outlive its reason.
-          #   prometheus: Compose refuses to create a secret that comes from a
-          #   variable (METRICS_TOKEN) in a read-only service.
-          exceptions='{"prometheus": ["read_only"]}'
-          # The overlay's file (empty: the base stack alone) and a service it
-          # adds, which the render must have: an overlay that stopped merging
-          # would otherwise pass unchecked.
+          # needed fails too, so the list can't outlive its reason. None today.
+          exceptions='{}'
           check() {
-            overlay=$1
-            added=$2
-            COMPOSE_FILE="compose.yaml:compose.prod.yaml${overlay:+:compose.$overlay.yaml}" docker compose --profile '*' config --format json > hardened.json
+            docker compose --profile '*' config --format json > hardened.json
             test "$(jq '.services | length' hardened.json)" -gt 0
-            test -z "$added" || test "$(jq --arg s "$added" '.services | has($s)' hardened.json)" = true || { echo "::error::${overlay:-the base stack}: no service $added in the render"; exit 1; }
             problems=$(jq -r --argjson exceptions "$exceptions" '
               .services | to_entries[] | .key as $service | .value as $config |
               ($exceptions[$service] // []) as $allowed |
@@ -262,15 +210,11 @@ jobs:
               else empty end
             ' hardened.json)
             if [ -n "$problems" ]; then
-              while IFS= read -r problem; do echo "::error::${overlay:-base}: $problem"; done <<< "$problems"
+              while IFS= read -r problem; do echo "::error::$problem"; done <<< "$problems"
               exit 1
             fi
           }
-          check '' ''
-          check clamav clamav
-          # grafana has a profile: found only with every profile on.
-          check monitoring grafana
-          check tunnel cloudflared
+          check
       # The containers get the variables compose.prod.yaml lists (no env_file):
       # APP_MODE (docs/settings.md, "Maintenance and read-only mode") must be one.
       - name: APP_MODE reaches the api and the worker
@@ -296,7 +240,7 @@ jobs:
         run: |
           export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
           dir=$(mktemp -d)
-          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL DATABASE_MONITOR_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY BACKUP_ENCRYPTION_KEY; do
+          for name in POSTGRES_PASSWORD DATABASE_URL DATABASE_OWNER_URL DATABASE_MONITOR_URL POSTGRES_MONITOR_PASSWORD POSTGRES_REPORTING_PASSWORD REDIS_PASSWORD CLOUDFLARE_API_TOKEN JWT_SECRET SMTP_URL ANTHROPIC_API_KEY; do
             echo ci > "$dir/$name"
             export "${name}_FILE=$dir/$name"
           done
@@ -336,20 +280,12 @@ jobs:
           test "$(jq -r .secrets.mail_api_key.file files.json)" = "$PWD/secret.empty"
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD files.json)" = ''
           test "$(jq -r .services.postgres.environment.POSTGRES_PASSWORD_FILE files.json)" = /run/secrets/postgres_password
-          test "$(jq -r .services.backup.environment.PGPASSWORD_FILE files.json)" = /run/secrets/postgres_password
-          # The backup's encryption recipients from a file (BACKUP_ENCRYPTION_KEY_FILE).
-          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY files.json)" = ''
-          test "$(jq -r .services.backup.environment.BACKUP_ENCRYPTION_KEY_FILE files.json)" = /run/secrets/backup_encryption_key
-          test "$(jq -r '.services.backup.secrets | map(.source) | index("backup_encryption_key") != null' files.json)" = true
-          test "$(jq -r .secrets.backup_encryption_key.file files.json)" = "$dir/BACKUP_ENCRYPTION_KEY"
           test "$(jq -r .services.redis.environment.REDIS_PASSWORD_FILE files.json)" = /run/secrets/redis_password
           test "$(jq -r .services.caddy.environment.CLOUDFLARE_API_TOKEN_FILE files.json)" = /run/secrets/cloudflare_api_token
-          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_NAME' files.json)" = ''
-          test "$(jq -r '.services["postgres-exporter"].environment.DATA_SOURCE_PASS_FILE' files.json)" = /run/secrets/postgres_monitor_password
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD files.json)" = ''
           test "$(jq -r .services.migrate.environment.POSTGRES_MONITOR_PASSWORD_FILE files.json)" = /run/secrets/postgres_monitor_password
           test "$(jq -r .secrets.postgres_monitor_password.file files.json)" = "$dir/POSTGRES_MONITOR_PASSWORD"
-          # The monitoring role's secret reaches migrate and the exporter only, never api or worker.
+          # The monitoring role's secret reaches migrate only, never api or worker.
           for service in api worker; do
             test "$(jq -r ".services.$service.environment | has(\"POSTGRES_MONITOR_PASSWORD_FILE\")" files.json)" = false
             test "$(jq -r ".services.$service.secrets | map(.source) | index(\"postgres_monitor_password\")" files.json)" = null
@@ -361,86 +297,8 @@ jobs:
             test "$(jq -r ".services.$service.environment | has(\"POSTGRES_REPORTING_PASSWORD_FILE\")" files.json)" = false
             test "$(jq -r ".services.$service.secrets | map(.source) | index(\"postgres_reporting_password\")" files.json)" = null
           done
-          test "$(jq -r '.services["redis-exporter"].environment.REDIS_PASSWORD_FILE' files.json)" = /run/secrets/redis_password
-          test "$(jq -r .services.alertmanager.environment.SMTP_URL_FILE files.json)" = /run/secrets/smtp_url
-      # Malware scanning (docs/deployment.md, "ClamAV (malware scanning)"):
-      # compose.clamav.yaml turns it on for api and worker.
-      - name: Malware scanning reaches every app service
-        run: |
-          export APP_DOMAIN=ci.example.com ACME_EMAIL=ci@example.com
-          setting() { jq -r ".services[\"$1\"].environment.$2" "$3"; }
-          COMPOSE_FILE=compose.yaml:compose.prod.yaml docker compose config --format json > scan-off.json
-          for service in api worker; do
-            test "$(setting $service MALWARE_SCANNER scan-off.json)" = off
-          done
-          COMPOSE_FILE=compose.yaml:compose.prod.yaml:compose.clamav.yaml docker compose config --format json > scan-clamav.json
-          for service in api worker; do
-            test "$(setting $service MALWARE_SCANNER scan-clamav.json)" = clamav
-            test "$(setting $service CLAMAV_HOST scan-clamav.json)" = clamav
-          done
-          test "$(jq -r '.services.clamav.image | startswith("clamav/clamav:")' scan-clamav.json)" = true
       - name: The shell readers of the files, in their images
         run: scripts/test-secret-readers.sh
-      # The Swarm stack (docs/deploy-swarm.md): compose.swarm.yaml rendered over
-      # the Compose files with dummy values and accepted by `docker stack config`
-      # (which needs no Swarm). The script's unit tests run in feature-smoke.
-      - name: Install Node.js (the script has no dependencies)
-        uses: pnpm/setup@fa36a5ef7dcdefc3a7cb25655c122e00cf6e636e # v3.1.2
-        with:
-          runtime: node@26
-          install: false
-      - name: The stack file renders and is valid
-        env:
-          APP_DOMAIN: app.example.test
-          ACME_EMAIL: ops@example.test
-          APP_IMAGE: ghcr.io/example/app:0000000000000000000000000000000000000000
-          CADDY_IMAGE: ghcr.io/example/app/caddy:1
-          BACKUP_IMAGE: ghcr.io/example/app/backup:1
-          POSTGRES_PASSWORD: ci
-          POSTGRES_APP_PASSWORD: ci
-          POSTGRES_MAINTENANCE_PASSWORD: ci
-          CLOUDFLARE_API_TOKEN: ci
-        run: node tools/deploy/swarm.mjs check --stack ci
-      # Our staging and production hosts (2 vCPU, 4 GB) run the stack with
-      # compose.small.yaml (production adds compose.tunnel.yaml's cloudflared):
-      # its memory limits must fit what the host leaves after the OS (steady,
-      # and with the second api of a start-first update), its reservations the
-      # host's CPUs and memory.
-      - name: compose.small.yaml fits a 2 vCPU / 4 GB host
-        env:
-          APP_DOMAIN: app.example.test
-          ACME_EMAIL: ops@example.test
-          APP_IMAGE: ghcr.io/example/app:0000000000000000000000000000000000000000
-          CADDY_IMAGE: ghcr.io/example/app/caddy:1
-          BACKUP_IMAGE: ghcr.io/example/app/backup:1
-          POSTGRES_PASSWORD: ci
-          POSTGRES_APP_PASSWORD: ci
-          POSTGRES_MAINTENANCE_PASSWORD: ci
-          CLOUDFLARE_API_TOKEN: ci
-          CLOUDFLARE_TUNNEL_TOKEN: ci
-          SWARM_OVERLAYS: compose.small.yaml,compose.tunnel.yaml
-        run: |
-          node tools/deploy/swarm.mjs check --stack ci
-          node tools/deploy/swarm.mjs render --stack ci > small.json
-          jq -e '
-            def gib: . / 1073741824;
-            [.services[] | select(.deploy.mode != "replicated-job")] as $app
-            # PostgreSQL counts by its reservation: the rest of its cap is the
-            # kernel file cache (compose.small.yaml), which is reclaimed under pressure.
-            | ([.services | to_entries[] | select(.value.deploy.mode != "replicated-job") | (.value.deploy.replicas // 1) * (if .key == "postgres" then .value.deploy.resources.reservations.memory else .value.deploy.resources.limits.memory end | tonumber)] | add | gib) as $steady
-            # A deploy runs the new task of each start-first service next to the
-            # old one: its limit and its reservations count twice. Swarm does
-            # not place a task whose reservations do not fit (the v0.1.1 api
-            # stayed pending on the 2-CPU host).
-            | [$app[] | select(.deploy.update_config.order == "start-first")] as $first
-            | ([$first[] | .deploy.resources.limits.memory | tonumber] | add // 0 | gib) as $surge
-            | ([$app[] | .deploy.resources.reservations.cpus | tonumber] | add) as $cpu
-            | ([$first[] | .deploy.resources.reservations.cpus | tonumber] | add // 0) as $surgeCpu
-            | ([$app[] | .deploy.resources.reservations.memory | tonumber] | add | gib) as $reserved
-            | ([$first[] | .deploy.resources.reservations.memory | tonumber] | add // 0 | gib) as $surgeReserved
-            | "steady \($steady) GiB, deploying \($steady + $surge) GiB; reserved \($cpu) CPU / \($reserved) GiB, deploying \($cpu + $surgeCpu) CPU / \($reserved + $surgeReserved) GiB" | debug
-            | $steady <= 2.75 and $steady + $surge <= 3.25 and $cpu + $surgeCpu <= 2 and $reserved + $surgeReserved <= 3.25
-          ' small.json
 
   # A tooling-only pull request (tools/, knip.jsonc, the env templates) needs
   # lint, Knip and the tools' own tests, but no PostgreSQL and no application
@@ -463,13 +321,13 @@ jobs:
         run: pnpm lint
       # The full app check usually runs these guards: kept for a change to
       # the scripts alone.
-      - name: Release, i18n and environment tooling invariants
+      - name: i18n and environment tooling invariants
         run: |
-          node --test tools/release/notes.test.mjs tools/i18n/check.test.mjs
+          node --test tools/i18n/check.test.mjs
           pnpm env:check --templates
-      - name: The generator's, the setup wizard's and the deploy scripts' tests
+      - name: The generator's and the setup wizard's tests
         if: needs.changes.outputs.tools == 'true'
-        run: node --test 'tools/feature/*.test.mjs' 'tools/setup/*.test.mjs' 'tools/deploy/*.test.mjs'
+        run: node --test 'tools/feature/*.test.mjs' 'tools/setup/*.test.mjs'
 
   # Lint, build, the typed client, migrations and the unit tests that take a
   # minute or two (the API's and the packages'), then the quick checks of the
@@ -570,9 +428,6 @@ jobs:
       - name: Bundle budget
         if: needs.changes.outputs.web == 'true'
         run: pnpm turbo run size --filter=@nestjs-monorepo-template/web
-      # The release notes' generator (tools/release/, docs/releases.md): git only.
-      - name: The release notes' tests
-        run: node --test tools/release/notes.test.mjs
       # The translation parity check's tests (tools/i18n/); the check itself
       # runs in `pnpm lint`.
       - name: The i18n check's tests
@@ -585,9 +440,9 @@ jobs:
       # the REQUIRED ones named. The wizard's tests run in feature-smoke.
       - name: The env templates
         run: pnpm env:check --templates
-      - name: The generator's, the setup wizard's and the deploy scripts' tests
+      - name: The generator's and the setup wizard's tests
         if: needs.changes.outputs.tools == 'true'
-        run: node --test 'tools/feature/*.test.mjs' 'tools/setup/*.test.mjs' 'tools/deploy/*.test.mjs'
+        run: node --test 'tools/feature/*.test.mjs' 'tools/setup/*.test.mjs'
       # A new project's first step (`pnpm feature:remove notes`) must leave no
       # reference to the example behind: seconds here, where the nightly
       # template-without-notes run found them a day late. Last: it deletes
@@ -807,8 +662,6 @@ jobs:
         run: node --test 'tools/feature/*.test.mjs'
       - name: The setup wizard's tests (tools/setup, `pnpm run setup`)
         run: node --test 'tools/setup/*.test.mjs'
-      - name: The deploy scripts' tests (tools/deploy, `pnpm deploy:*`)
-        run: node --test 'tools/deploy/*.test.mjs'
       - name: 'Generate three features (every field type and capability; a unit, a reference, no recycle bin, an approval and settings; API keys and an optional Idempotency-Key, no seed-role grants, no Idempotency-Key)'
         run: |
           pnpm feature:add smoke-widgets --unit --client-access own --idempotency optional --description "Generated by CI" \
@@ -999,21 +852,12 @@ jobs:
           cache-dir: ${{ runner.temp }}/trivy
 
   # The production image builds and has no fixable high or critical
-  # vulnerability (OS packages and node_modules); then, for API and stack
-  # changes, the production stack runs on it under its hardening, on the same
-  # runner (no artifact to hand over). The image goes to the publish job only
-  # when this run publishes.
+  # vulnerability (OS packages and node_modules).
   image:
     needs: changes
     if: needs.changes.outputs.image == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    env:
-      # loadtest/run.sh's names only: its `down` removes the project's volumes.
-      LOADTEST_PROJECT: loadtest-hardened
-      LOADTEST_GHA_CACHE: '1'
-      # run.sh's default; ignored by git.
-      LOADTEST_OUT: loadtest/results
     steps:
       - uses: actions/checkout@v7
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
@@ -1053,164 +897,10 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
-      # Returns once the API answers behind Caddy; otherwise prints the logs
-      # and fails.
-      - name: Start the stack
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
-        env:
-          APP_IMAGE: app:ci
-        run: loadtest/run.sh up
-      # `docker compose up --build` invokes Buildx directly, so expose the
-      # GitHub cache runtime URL and token for the `type=gha` build cache.
-      - uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 # v4.0.0
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
-      - name: Every container runs, healthy and never restarted
-        if: needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true'
-        run: |
-          # The files and the environment run.sh starts the stack with.
-          compose() {
-            API_REPLICAS=2 LOADTEST_CAPTCHA=off docker compose \
-              --project-name "$LOADTEST_PROJECT" --env-file "$LOADTEST_OUT/stack.env" \
-              -f compose.yaml -f compose.prod.yaml -f compose.loadtest.yaml -f compose.ci-cache.yaml \
-              --profile backup "$@"
-          }
-          # The backup service writes /backups as `postgres`: its first run
-          # (the scheduler takes one at once on an empty volume) proves it can.
-          # Built from backup/ (its own cache scope, compose.ci-cache.yaml);
-          # backup-image verifies the image itself when backup/ changes.
-          compose up -d --build --no-deps backup
-          for _ in $(seq 1 45); do
-            compose exec -T backup test -s /backups/.last-success && break
-            sleep 2
-          done
-          compose exec -T backup test -s /backups/.last-success || { echo "::error::the backup service made no backup"; exit 1; }
-          # Redis writes /data as root: a save must work (MISCONF otherwise).
-          compose exec -T redis sh -c 'export REDISCLI_AUTH="$REDIS_PASSWORD"; redis-cli bgsave | grep -q "Background saving"; sleep 3; redis-cli info persistence | tr -d "\r" | grep -qx rdb_last_bgsave_status:ok' \
-            || { echo "::error::redis can't save its data"; exit 1; }
-          state() {
-            for id in $(compose ps -aq); do
-              docker inspect -f '{{index .Config.Labels "com.docker.compose.service"}} {{.State.Status}} exit={{.State.ExitCode}} restarts={{.RestartCount}} health={{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$id"
-            done | sort
-          }
-          # migrate ran once and exited 0; the others run, healthy or without
-          # a healthcheck, and none was restarted.
-          settled() {
-            state | awk '
-              { seen[$1] = 1 }
-              $1 == "migrate" { if ($2 != "exited" || $3 != "exit=0") bad = 1; next }
-              $2 != "running" || $4 != "restarts=0" || ($5 != "health=healthy" && $5 != "health=none") { bad = 1 }
-              END {
-                n = split("postgres redis migrate api worker caddy backup", want, " ")
-                for (i = 1; i <= n; i++) if (!(want[i] in seen)) bad = 1
-                exit bad + 0
-              }'
-          }
-          for _ in $(seq 1 30); do
-            settled && break
-            sleep 2
-          done
-          state
-          settled || { echo "::error::a container exited, was restarted or is unhealthy"; exit 1; }
-          # A missing tmpfs or volume is named in the logs.
-          if compose logs --no-color 2>&1 | grep -i 'read-only file system'; then
-            echo "::error::a container wrote to the read-only filesystem"
-            exit 1
-          fi
-      - name: The containers' logs
-        if: failure() && (needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true')
-        run: |
-          for id in $(docker ps -aq --filter "label=com.docker.compose.project=$LOADTEST_PROJECT"); do
-            echo "::group::$(docker inspect -f '{{.Name}} {{.State.Status}} {{.State.Error}}' "$id")"
-            docker logs --tail 80 "$id" 2>&1 || true
-            echo "::endgroup::"
-          done
-      - name: Remove the stack and its volumes
-        if: always() && (needs.changes.outputs.api == 'true' || needs.changes.outputs.stack == 'true')
-        run: loadtest/run.sh down
-      - name: Export the verified image
-        if: needs.changes.outputs.publish == 'true'
-        run: |
-          docker save app:ci -o "${{ runner.temp }}/app.tar"
-          (cd "${{ runner.temp }}" && sha256sum app.tar > app.tar.sha256)
-          docker image inspect --format '{{.Id}}' app:ci > "${{ runner.temp }}/app.id"
-      - name: Transfer the verified image
-        if: needs.changes.outputs.publish == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: image-app
-          path: |
-            ${{ runner.temp }}/app.tar
-            ${{ runner.temp }}/app.tar.sha256
-            ${{ runner.temp }}/app.id
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 2
-
-  # The backup service's image (backup/) builds, works and passes the same
-  # scan. Its own cache scope, so it never evicts the app image's. Not
-  # published: every deploy builds it (`docker compose up -d --build`).
-  backup-image:
-    needs: changes
-    if: needs.changes.outputs.backup == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@v7
-      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-        with:
-          # The runner is thrown away: removing the builder took 30-90 s.
-          cleanup: false
-      - name: Build the backup image
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: backup
-          load: true
-          tags: backup:ci
-          cache-from: type=gha,scope=backup
-          cache-to: ${{ github.event_name != 'pull_request' && 'type=gha,scope=backup,mode=max' || '' }}
-      # Encryption (age) and point-in-time recovery, end to end in the image,
-      # on a throwaway PostgreSQL (backup/test-pitr.sh).
-      - name: Encryption and point-in-time recovery work
-        run: scripts/test-backup-pitr.sh backup:ci
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.0
-          cache: true
-      - name: No fixable high or critical vulnerabilities in the image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          skip-setup-trivy: true
-          image-ref: backup:ci
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          trivyignores: .trivyignore.yaml
-          cache-dir: ${{ runner.temp }}/trivy
-      - name: Export the verified image
-        if: needs.changes.outputs.publish == 'true'
-        run: |
-          docker save backup:ci -o "${{ runner.temp }}/backup.tar"
-          (cd "${{ runner.temp }}" && sha256sum backup.tar > backup.tar.sha256)
-          docker image inspect --format '{{.Id}}' backup:ci > "${{ runner.temp }}/backup.id"
-      - name: Transfer the verified image
-        if: needs.changes.outputs.publish == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: image-backup
-          path: |
-            ${{ runner.temp }}/backup.tar
-            ${{ runner.temp }}/backup.tar.sha256
-            ${{ runner.temp }}/backup.id
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 2
-
   # Caddy's image (caddy/Dockerfile, built from the repository root as
   # compose.prod.yaml does; caddy/Dockerfile.dockerignore picks what goes
   # in): the web app's production build (apps/web), the xcaddy build with
   # the Cloudflare DNS plugin, then the same scan. Its own cache scope.
-  # Published by publish-caddy, as the app image is.
   caddy-image:
     needs: changes
     if: needs.changes.outputs.caddy == 'true'
@@ -1299,101 +989,6 @@ jobs:
           trivyignores: .trivyignore.yaml
           cache-dir: ${{ runner.temp }}/trivy
 
-      - name: Export the verified image
-        if: needs.changes.outputs.publish == 'true'
-        run: |
-          docker save caddy:ci -o "${{ runner.temp }}/caddy.tar"
-          (cd "${{ runner.temp }}" && sha256sum caddy.tar > caddy.tar.sha256)
-          docker image inspect --format '{{.Id}}' caddy:ci > "${{ runner.temp }}/caddy.id"
-      - name: Transfer the verified image
-        if: needs.changes.outputs.publish == 'true'
-        uses: actions/upload-artifact@v7
-        with:
-          name: image-caddy
-          path: |
-            ${{ runner.temp }}/caddy.tar
-            ${{ runner.temp }}/caddy.tar.sha256
-            ${{ runner.temp }}/caddy.id
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 2
-
-  # Gotenberg's image, which renders the PDF documents: the official one,
-  # pinned by digest in compose.prod.yaml and compose.dev.yaml (Dependabot
-  # raises both). Nothing is built or published: the job checks the two
-  # agree, renders a PDF with it and scans it. On every change to them and
-  # every night, so a pinned image that grows a fixable high or critical
-  # vulnerability fails the nightly run (then raise it, or wait for
-  # Gotenberg's release).
-  gotenberg-image:
-    needs: changes
-    if: needs.changes.outputs.gotenberg == 'true'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v7
-      - name: One Gotenberg release everywhere, with the same flags
-        id: pinned
-        run: |
-          prod=$(yq '.services.gotenberg.image' compose.prod.yaml)
-          dev=$(yq '.services.gotenberg.image' compose.dev.yaml)
-          echo "production: $prod, development: $dev"
-          case "$prod" in
-            gotenberg/gotenberg:*-chromium@sha256:*) ;;
-            *) echo "::error file=compose.prod.yaml::services.gotenberg.image $prod is not a Gotenberg Chromium image, pinned by digest"; exit 1 ;;
-          esac
-          if [ "$dev" != "$prod" ]; then
-            echo "::error file=compose.dev.yaml::services.gotenberg.image is $dev, compose.prod.yaml runs $prod"
-            exit 1
-          fi
-          if [ "$(yq -o json '.services.gotenberg.command' compose.prod.yaml)" != "$(yq -o json '.services.gotenberg.command' compose.dev.yaml)" ]; then
-            echo "::error file=compose.dev.yaml::services.gotenberg.command differs from compose.prod.yaml's"
-            exit 1
-          fi
-          echo "image=$prod" >> "$GITHUB_OUTPUT"
-      - name: Pull the pinned image
-        env:
-          IMAGE: ${{ steps.pinned.outputs.image }}
-        run: |
-          docker pull --quiet "$IMAGE"
-          docker tag "$IMAGE" gotenberg:ci
-      # The unit and e2e tests answer with a stub PDF, never Gotenberg's: only
-      # here does the image render for real.
-      - name: It renders a PDF that opens
-        run: |
-          # Production's flags (compose.prod.yaml), the container as it runs there.
-          mapfile -t command < <(yq -r '.services.gotenberg.command[]' compose.prod.yaml)
-          docker run -d --name gotenberg-smoke -p 127.0.0.1:3100:3000 gotenberg:ci "${command[@]}"
-          timeout 60 sh -c 'until curl -fsS http://127.0.0.1:3100/health >/dev/null; do sleep 1; done'
-          # The request the API's PdfRenderer makes.
-          curl -fsS http://127.0.0.1:3100/forms/chromium/convert/html \
-            -F 'files=@gotenberg/smoke.html;filename=index.html' \
-            -F preferCssPageSize=true -F printBackground=true -F nativeTaggedPdf=true \
-            -o "$RUNNER_TEMP/smoke.pdf"
-          head -c 5 "$RUNNER_TEMP/smoke.pdf" | grep -q '^%PDF-'
-          tail -c 1024 "$RUNNER_TEMP/smoke.pdf" | grep -aq '%%EOF'
-          # Gotenberg's own PDF engine reads it as a whole: one page, tagged.
-          curl -fsS http://127.0.0.1:3100/forms/pdf/info -F "files=@$RUNNER_TEMP/smoke.pdf" |
-            jq -e '.["smoke.pdf"] | .pages == 1 and .tagged'
-      - name: Gotenberg's log, when it did not
-        if: failure()
-        run: docker logs gotenberg-smoke || true
-      - name: Install Trivy
-        uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
-        with:
-          version: v0.76.0
-          cache: true
-      - name: No fixable high or critical vulnerabilities in the image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          skip-setup-trivy: true
-          image-ref: gotenberg:ci
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-          trivyignores: .trivyignore.yaml
-          cache-dir: ${{ runner.temp }}/trivy
-
   ci-gate:
     name: CI gate
     if: always()
@@ -1412,9 +1007,7 @@ jobs:
         template-without-capabilities,
         security,
         image,
-        backup-image,
         caddy-image,
-        gotenberg-image,
       ]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -1447,273 +1040,3 @@ jobs:
       - name: The API's merged coverage (unit and e2e) and its threshold
         if: needs.changes.outputs.api == 'true'
         run: pnpm --filter @nestjs-monorepo-template/api exec vitest --merge-reports --coverage --config vitest.config.merge.ts
-
-  # The three publish jobs (publish, publish-caddy, publish-backup) repeat the
-  # same steps on purpose and are not one matrix job: a job's `if:` cannot read
-  # the matrix, so each image's own flag (api_image, caddy, backup) could not
-  # skip its leg, and tools/ci/publication-gate.mjs reads one result per image
-  # (success when its flag is set, else skipped). A matrix job has one result
-  # and its legs cannot expose separate outputs, which release-manifest reads as
-  # needs.<job>.outputs.digest. Change the three together.
-  publish:
-    name: Publish app
-    if: >-
-      !cancelled() && needs.ci-gate.result == 'success' &&
-      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.api_image == 'true'
-    needs: [changes, ci-gate]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      digest: ${{ steps.push.outputs.digest }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: image-app
-          path: ${{ runner.temp }}/image
-      - name: Load the verified image
-        run: |
-          (cd "${{ runner.temp }}/image" && sha256sum -c app.tar.sha256)
-          docker load -i "${{ runner.temp }}/image/app.tar"
-          test "$(docker image inspect --format '{{.Id}}' app:ci)" = "$(cat "${{ runner.temp }}/image/app.id")"
-      - name: Tags for the verified image
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}
-          flavor: latest=false
-          tags: |
-            type=sha,format=long,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      - name: Log in to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push without rebuilding
-        id: push
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          REPOSITORY: ghcr.io/${{ github.repository }}
-        run: |
-          set -euo pipefail
-          while IFS= read -r tag; do
-            docker tag app:ci "$tag"
-            docker push "$tag"
-          done <<< "$TAGS"
-          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
-          ref="${REPOSITORY,,}:$GITHUB_SHA"
-          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
-          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Sign the image, attest its provenance and SBOM
-        uses: ./.github/actions/sign-image
-        with:
-          image: ghcr.io/${{ github.repository }}
-          digest: ${{ steps.push.outputs.digest }}
-
-  publish-caddy:
-    name: Publish caddy
-    if: >-
-      !cancelled() && needs.ci-gate.result == 'success' &&
-      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.caddy == 'true'
-    needs: [changes, ci-gate]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      digest: ${{ steps.push.outputs.digest }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: image-caddy
-          path: ${{ runner.temp }}/image
-      - name: Load the verified image
-        run: |
-          (cd "${{ runner.temp }}/image" && sha256sum -c caddy.tar.sha256)
-          docker load -i "${{ runner.temp }}/image/caddy.tar"
-          test "$(docker image inspect --format '{{.Id}}' caddy:ci)" = "$(cat "${{ runner.temp }}/image/caddy.id")"
-      - name: Tags for the verified image
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}/caddy
-          flavor: latest=false
-          tags: |
-            type=sha,format=long,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      - name: Log in to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push without rebuilding
-        id: push
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          REPOSITORY: ghcr.io/${{ github.repository }}/caddy
-        run: |
-          set -euo pipefail
-          while IFS= read -r tag; do
-            docker tag caddy:ci "$tag"
-            docker push "$tag"
-          done <<< "$TAGS"
-          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
-          ref="${REPOSITORY,,}:$GITHUB_SHA"
-          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
-          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Sign the image, attest its provenance and SBOM
-        uses: ./.github/actions/sign-image
-        with:
-          image: ghcr.io/${{ github.repository }}/caddy
-          digest: ${{ steps.push.outputs.digest }}
-
-  # The backup image (backup/), which Docker Swarm needs from a registry
-  # (docs/deploy-swarm.md): published like the others.
-  publish-backup:
-    name: Publish backup
-    if: >-
-      !cancelled() && needs.ci-gate.result == 'success' &&
-      needs.changes.outputs.publish == 'true' && needs.changes.outputs.release_ready == 'true' && needs.changes.outputs.backup == 'true'
-    needs: [changes, ci-gate]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-      attestations: write
-    outputs:
-      version: ${{ steps.meta.outputs.version }}
-      digest: ${{ steps.push.outputs.digest }}
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/download-artifact@v8
-        with:
-          name: image-backup
-          path: ${{ runner.temp }}/image
-      - name: Load the verified image
-        run: |
-          (cd "${{ runner.temp }}/image" && sha256sum -c backup.tar.sha256)
-          docker load -i "${{ runner.temp }}/image/backup.tar"
-          test "$(docker image inspect --format '{{.Id}}' backup:ci)" = "$(cat "${{ runner.temp }}/image/backup.id")"
-      - name: Tags for the verified image
-        id: meta
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}/backup
-          flavor: latest=false
-          tags: |
-            type=sha,format=long,prefix=
-            type=ref,event=branch
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-      - name: Log in to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Push without rebuilding
-        id: push
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-          REPOSITORY: ghcr.io/${{ github.repository }}/backup
-        run: |
-          set -euo pipefail
-          while IFS= read -r tag; do
-            docker tag backup:ci "$tag"
-            docker push "$tag"
-          done <<< "$TAGS"
-          # Resolve the immutable SHA tag just pushed; never a mutable branch tag.
-          ref="${REPOSITORY,,}:$GITHUB_SHA"
-          digest=$(docker inspect --format '{{json .RepoDigests}}' "$ref" | jq -er --arg repo "${REPOSITORY,,}@" '.[] | select(startswith($repo)) | split("@")[1]')
-          [[ "$digest" =~ ^sha256:[a-f0-9]{64}$ ]]
-          echo "digest=$digest" >> "$GITHUB_OUTPUT"
-          echo "ref=${REPOSITORY,,}@$digest" >> "$GITHUB_OUTPUT"
-      - name: Sign the image, attest its provenance and SBOM
-        uses: ./.github/actions/sign-image
-        with:
-          image: ghcr.io/${{ github.repository }}/backup
-          digest: ${{ steps.push.outputs.digest }}
-
-  release-manifest:
-    name: Verify release manifest
-    if: >-
-      !cancelled() && needs.ci-gate.result == 'success' && needs.changes.outputs.publish == 'true'
-    needs:
-      [
-        changes,
-        ci-gate,
-        publish,
-        publish-caddy,
-        publish-backup,
-      ]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      contents: read
-      actions: read
-      packages: read
-      attestations: read
-    outputs:
-      api: ${{ steps.manifest.outputs.api }}
-      caddy: ${{ steps.manifest.outputs.caddy }}
-      backup: ${{ steps.manifest.outputs.backup }}
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - uses: actions/download-artifact@v8
-        with:
-          name: release-plan
-          path: release-plan
-      - name: Require affected publication to succeed
-        env:
-          NEEDS: ${{ toJSON(needs) }}
-          FLAGS: ${{ toJSON(needs.changes.outputs) }}
-          PLAN_FILE: release-plan/plan.json
-        run: node tools/ci/publication-gate.mjs
-      - uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
-      - name: Log in to GHCR for evidence verification
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Verify reuse evidence and assemble the immutable image set
-        id: manifest
-        env:
-          GH_TOKEN: ${{ github.token }}
-          PUBLISHED: >-
-            {"api":"${{ needs.publish.outputs.digest }}","caddy":"${{ needs.publish-caddy.outputs.digest }}","backup":"${{ needs.publish-backup.outputs.digest }}"}
-        run: node tools/ci/release-manifest.mjs
-      - name: Preserve successful release evidence
-        uses: actions/upload-artifact@v7
-        with:
-          name: release-manifest-v1
-          path: release-manifest.json
-          if-no-files-found: error
-          retention-days: 90

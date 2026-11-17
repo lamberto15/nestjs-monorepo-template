@@ -1,10 +1,10 @@
 # Releases
 
 One thing is released: **the template**, as `v*` tags on `main` with GitHub
-releases and notes, and the images on GHCR by the same version. Projects built
-on it merge the tag ([upgrading](upgrading.md)); our environments deploy only
-releases. Release Please keeps a release pull request open; merging it tags
-the release, and `release.yml` promotes the images CI already built. The typed
+releases and their changelog. Projects built on it merge the tag
+([upgrading](upgrading.md)). Release Please keeps a release pull request
+open; merging it tags and publishes the release. No image is published: a
+project builds and deploys its own. The typed
 client (`packages/api-client`) has no release of its own
 ([The typed client](#the-typed-client)).
 
@@ -32,14 +32,9 @@ merged since the last release (`fix:` → patch, `feat:` → minor, `!` or
 
 A pre-release (`v1.3.0-rc.1`) comes from a `Release-As: 1.3.0-rc.1` footer in
 a pull request's description (the squash commit's body): the release pull
-request then proposes that version. It is published as a GitHub pre-release;
-staging can deploy it, production refuses it.
+request then proposes that version. It is published as a GitHub pre-release.
 
 ### How a release is made
-
-Numbering restarted on 2026-11-02 with this process: the first release it
-makes is `v0.1.0` (`initial-version`), and the earlier hand-made `v0.1.0`
-was removed (its images were not under this repository's owner).
 
 Nobody tags by hand. Release Please (`.github/workflows/release-please.yml`,
 `release-please-config.json`, the last version in
@@ -53,70 +48,15 @@ pull request open, `chore(main): release x.y.z`, with the next version in
    so select **Approve workflows to run** on it if GitHub offers it, or close
    and reopen it (as a person). `main`'s ruleset then wants one approval for
    a bot-made change.
-2. **Release Please tags** the merge commit `vX.Y.Z` and leaves a **draft**
+2. **Release Please tags** the merge commit `vX.Y.Z` and publishes the
    GitHub release with the changelog entry.
-3. **CI / CD runs on that commit.** The release changes only `CHANGELOG.md`,
-   `.release-please-manifest.json` and the root `package.json`'s version,
-   which `main` already validated: no tests run and no image is rebuilt (the
-   release pull request's CI is just as short). CI keeps a release manifest
-   for the commit that reuses the previous images' digests, so staging
-   deploys it, as production's staging gate requires.
-4. **`release.yml` promotes the tag** once CI / CD passed there. It never
-   builds: it checks that commit's release manifest and images as a deploy
-   does (run evidence, ancestry, signatures, attestations), tags the images
-   `X.Y.Z` (the same digests), writes the notes, attaches
-   `release-manifest.json` and publishes the release (a pre-release for a
-   `-rc` version). It then starts the Lighthouse report on the tag.
-5. **Deploy** ([deploy-swarm](deploy-swarm.md)): staging already runs that
-   commit's images; production takes the tag by a manual Deploy run, which
-   refuses drafts and pre-releases.
+3. **CI runs on that commit** and has nothing to test: the release changes
+   only `CHANGELOG.md`, `.release-please-manifest.json` and the root
+   `package.json`'s version, which `main` already validated.
 
-- **Retry:** if a promotion failed (a check, the registry), fix the cause and
-  run Actions, Release, Run workflow with the tag. A tag pushed by hand on a
-  commit of `main` is promoted the same way.
-- **The built-in token only:** no personal token or GitHub App. What it makes
-  starts no workflow, which is why `release.yml` follows CI / CD
-  (`workflow_run`) instead of the tag, and why the release pull request's CI
-  needs the click above.
-- **A tag never moves and is never deleted:** projects may have merged it,
-  deployments may run its images. A bad release is followed by a fixed one.
-
-### Production takes releases only
-
-Production is deployed by hand (Actions, Deploy, `production`, the tag) and
-the environment's required reviewer approves the run. The workflow refuses a
-tag whose GitHub release is a draft (not promoted yet) or a pre-release, or
-whose commit staging hasn't deployed successfully (that commit or a newer
-one), and deploys the digests its `release-manifest.json` names, checked again. A
-release whose CI artifact has expired (90 days) can no longer be deployed:
-take a newer one.
-
-### The notes
-
-`tools/release/notes.mjs` writes them from git, comparing the tag with the
-release before it (the nearest `v*` tag among its ancestors, pre-releases
-skipped for a final release), then appends the changelog entry Release Please wrote (for a tag pushed by
-hand, GitHub's generated list of pull requests):
-
-| Section          | From                                                                                                                                                                                                                            |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Breaking changes | commits whose subject has `!` (`feat(iam)!: …`) or whose body has `BREAKING CHANGE:`                                                                                                                                            |
-| Upgrading        | the merge, and [upgrading](upgrading.md)                                                                                                                                                                                        |
-| Images           | the app's, Gotenberg's and Caddy's version tags and digests, as `release.yml` tagged them                                                                                                                                       |
-| Migrations       | the files added under `apps/api/drizzle/` since the previous release, each linked; the expand/contract lint's findings (squawk, as CI's `migration-lint`); a merged migration edited or deleted, which drizzle never re-applies |
-| Rolling back     | the previous release's `APP_IMAGE` and `CADDY_IMAGE`; whether the previous release runs on this schema; the Compose files to check out with them                                                             |
-| Configuration    | variables added to or removed from `env.example`                                                                                                                                                                                |
-| Typed client     | its version, when it changed, with a link to its changelog                                                                                                                                                                      |
-
-Locally (the tags fetched; the lint needs Docker, `--no-lint` skips it):
-
-```bash
-pnpm release:notes --tag v0.2.0 --repository lamberto15/nestjs-monorepo-template
-node --test tools/release/notes.test.mjs     # its tests (CI's check job runs them)
-```
-
-Running `release.yml` again for the tag rewrites the notes; edit them on
-GitHub afterwards if needed (a later run overwrites the edit).
+- **The built-in token only:** no personal token or GitHub App.
+- **A tag never moves and is never deleted:** projects may have merged it. A
+  bad release is followed by a fixed one.
 
 ### Removing a deprecated route
 
@@ -143,15 +83,12 @@ this one.
 
 ### Rolling back
 
-Rolling back is deploying the previous release again: a Deploy run with its
-tag on our environments ([deploy-swarm](deploy-swarm.md), "Rolling back"), or
-its images in `.env`, then `docker compose pull` and `up`, on a plain Compose
-host ([deployment](deployment.md), "Publishing and rolling back images"). Migrations don't roll back, so the
-previous release runs on the new schema. That holds only under the
-expand/contract policy ([pitfalls](pitfalls.md), "Migrations:
-expand/contract"): each release's notes say whether it kept to it, from the
-same lint CI runs on pull requests, and name the Compose files to roll back
-too.
+Rolling back is deploying the previous release again: its images in `.env`
+(`APP_IMAGE`, `CADDY_IMAGE`), then `docker compose pull` and `up`, on a
+Compose host. Migrations don't roll back, so the previous release runs on the
+new schema. That holds only under the expand/contract policy
+([pitfalls](pitfalls.md), "Migrations: expand/contract"), which the migration
+lint checks on pull requests; roll the Compose files back with the images.
 
 ## The typed client
 
@@ -172,8 +109,8 @@ use npm's trusted publishing from a workflow of your own.
 
 - **Squash commits take the pull request's title** (`PR_TITLE`, with the
   description as the body, `PR_BODY`: Settings, General, Pull Requests, "Allow
-  squash merging"). `main`'s subjects, which the release notes read for breaking
-  changes, are always the reviewed titles, and the single-commit check in
+  squash merging"). `main`'s subjects, which Release Please reads for the
+  version and the changelog, are always the reviewed titles, and the single-commit check in
   `commit-messages.yml` can go.
 - **Pull requests from Actions:** on, for both release pull requests (the
   template's and [the client's](#the-version-pull-request)).

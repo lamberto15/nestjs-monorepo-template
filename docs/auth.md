@@ -1386,8 +1386,7 @@ refuses a repeat, so send a fresh suffix per request), `stub:fail`,
 `stub:spent`, `stub:elsewhere`, `stub:other-action` are refused with that
 reason, `stub:down` and `stub:slow` play an outage and a hang (the real
 timeout and fail-open / fail-closed policy run around them). It exists for
-the load tests (roadmap item 17: `LOADTEST_CAPTCHA=always loadtest/run.sh`
-measures the routes with the guard in place) and the
+load tests and the
 e2e tests; **production refuses it** at startup: `NODE_ENV=production`
 (unless `APP_ENV=loadtest`, the load test's stack, which runs the production
 image: [development](development.md), "Load tests"), an `APP_ENV` that names

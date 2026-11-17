@@ -1,6 +1,5 @@
 # Production on one host: Caddy (HTTPS) in front of API_REPLICAS api
-# instances, WORKER_REPLICAS workers for the background work (Gotenberg
-# renders their PDFs), PostgreSQL and Redis from compose.yaml, migrations
+# instances, WORKER_REPLICAS workers for the background work, PostgreSQL and Redis from compose.yaml, migrations
 # once per deploy. Every service has CPU and memory limits, so none starves
 # the others (they don't add capacity: keep their sum within the host's).
 # .env (copied from env.example) sets COMPOSE_FILE, so
@@ -9,7 +8,7 @@
 # Every part of the app is safe with several instances: sessions, locks,
 # rate limits, queues, workflows, the outbox and WebSocket fan-out are shared
 # through PostgreSQL and Redis. More than one host takes an orchestrator
-# (Swarm, a managed platform) and managed PostgreSQL and Redis.
+# (a managed platform) and managed PostgreSQL and Redis.
 
 # Bounded container logs: the same settings as compose.yaml's (postgres,
 # redis), which explains the driver.
@@ -173,8 +172,8 @@ x-app: &app
     DATA_ENCRYPTION_KEYS: ${DATA_ENCRYPTION_KEYS:-}
     BLIND_INDEX_KEYS: ${BLIND_INDEX_KEYS:-}
     # Malware scanning of uploads (docs/attachments.md, "Malware scanning"):
-    # off unless .env says clamav; compose.clamav.yaml adds clamd and sets it
-    # for api and worker. Here, in x-app, so every service built from it
+    # off unless .env says clamav and CLAMAV_HOST names a clamd you run.
+    # Here, in x-app, so every service built from it
     # reads .env alike, and api needs it as much as the worker (it stores
     # an upload `pending` and queues the scan, with the attempts below).
     MALWARE_SCANNER: ${MALWARE_SCANNER:-off}
@@ -189,8 +188,8 @@ x-app: &app
     IMAGE_MAX_PIXELS: ${IMAGE_MAX_PIXELS:-50000000}
     IMAGE_TIMEOUT_MS: ${IMAGE_TIMEOUT_MS:-30000}
     IMAGE_STRIP_ORIGINALS: ${IMAGE_STRIP_ORIGINALS:-on}
-    # PDF documents (docs/documents.md): the gotenberg service below. Empty: documents off.
-    GOTENBERG_URL: ${GOTENBERG_URL-http://gotenberg:3000}
+    # PDF documents (docs/documents.md): a Gotenberg you run. Empty: documents off.
+    GOTENBERG_URL: ${GOTENBERG_URL:-}
     GOTENBERG_TIMEOUT_MS: ${GOTENBERG_TIMEOUT_MS:-30000}
     DOCUMENTS_RENDER_ATTEMPTS: ${DOCUMENTS_RENDER_ATTEMPTS:-3}
     # capability:ai begin
@@ -440,8 +439,7 @@ services:
           memory: ${API_MEMORY:-768M}
     # /health turns 503 on SIGTERM, then requests in flight finish.
     stop_grace_period: 30s
-    # The image's liveness check, probed faster: a rolling deploy
-    # (docs/deploy-rolling.md) waits for it before it stops the old containers.
+    # The image's liveness check, probed faster.
     healthcheck:
       interval: 10s
       start_period: 30s
@@ -546,18 +544,13 @@ services:
           memory: ${WORKER_MEMORY:-1G}
     # Running jobs and workflow steps finish (or are handed back) before it stops.
     stop_grace_period: 60s
-    # The image's liveness check, probed faster: a rolling deploy
-    # (docs/deploy-rolling.md) waits for it before it stops the old containers.
+    # The image's liveness check, probed faster.
     healthcheck:
       interval: 10s
       start_period: 30s
       start_interval: 2s
     volumes:
       - app_storage:/app/.data/storage
-    # `documents`: Gotenberg's network, which only the workers join.
-    networks:
-      - default
-      - documents
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -596,9 +589,6 @@ services:
       start_interval: 2s
     volumes:
       - app_storage:/app/.data/storage
-    networks:
-      - default
-      - documents
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -739,126 +729,6 @@ services:
       - caddy_data:/data
       - caddy_config:/config
 
-  # HTML to PDF for the workers (docs/documents.md): Chromium in its own
-  # container, never in the worker's (a browser out of memory or attacked
-  # doesn't take the queues and the database credentials with it). The
-  # official image, pinned by version and digest, the same as compose.dev.yaml's:
-  # Dependabot raises both together, and CI's gotenberg-image job renders a PDF
-  # with it and scans it, on every change and every night. Only the workers
-  # reach it, on `documents`, a network with no way out (internal: no
-  # gateway, no published port); Chromium may load the page it is given
-  # (its own /tmp) and nothing else, whatever the page asks for, and runs
-  # no JavaScript. Gotenberg's other outgoing calls (downloadFrom, webhooks)
-  # are off. Read-only, no capabilities: only /tmp and its home are written.
-  gotenberg:
-    image: gotenberg/gotenberg:9.2.0-chromium@sha256:1b37aa0a4407b204ee810c64a4daf8c36c9a7c12115f2680c363530c3dd27d6c
-    restart: unless-stopped
-    logging: *logging
-    # The same flags as compose.dev.yaml's (CI's gotenberg-image job compares them).
-    command:
-      - gotenberg
-      - --chromium-allow-list=^file:///tmp/
-      - --chromium-deny-private-ips
-      - --chromium-deny-public-ips
-      - --chromium-disable-javascript
-      # Renders waiting beyond this answer 429 (the job retries later): a
-      # burst never piles up in Gotenberg's memory.
-      - --chromium-max-queue-size=20
-      - --api-disable-download-from
-      - --webhook-disable
-      # Longer than the app's GOTENBERG_TIMEOUT_MS: the app gives up first, and retries.
-      - --api-timeout=60s
-      - --log-std-format=json
-    networks:
-      - documents
-    read_only: true
-    tmpfs:
-      - /tmp:size=${GOTENBERG_TMP_SIZE:-512m}
-      - /home/gotenberg:size=64m,uid=1001,gid=1001
-    cap_drop: [ALL]
-    security_opt: ['no-new-privileges:true']
-    deploy:
-      resources:
-        limits:
-          cpus: '${GOTENBERG_CPUS:-1}'
-          memory: ${GOTENBERG_MEMORY:-1G}
-    healthcheck:
-      test: ['CMD', 'curl', '-fs', 'http://127.0.0.1:3000/health']
-      interval: 10s
-      timeout: 5s
-      retries: 6
-      start_period: 20s
-
-  # Backups (docs/deployment.md, "Backups and restore"): pg_dump on
-  # BACKUP_SCHEDULE (cron, UTC) plus the uploaded files (STORAGE_DRIVER=local),
-  # kept BACKUP_RETENTION_DAYS in the backups volume, copied to
-  # BACKUP_S3_BUCKET when it is set. An hourly check catches up a missed or
-  # failed run; unhealthy when the last run failed. One now:
-  # `docker compose exec backup backup`.
-  backup:
-    build: ./backup
-    image: ${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}-backup
-    restart: unless-stopped
-    logging: *logging
-    environment:
-      # libpq's variables (the stack's database), as the owner of the tables:
-      # pg_dump reads everything it owns, and a restore creates and renames
-      # databases. The password stays in the environment, never on a command line.
-      PGHOST: postgres
-      PGPORT: '5432'
-      PGUSER: ${POSTGRES_USER:-app}
-      PGPASSWORD: ${POSTGRES_PASSWORD:-}
-      # Or from the file (lib.sh reads it), the one PostgreSQL itself reads.
-      PGPASSWORD_FILE: ${POSTGRES_PASSWORD_FILE:+/run/secrets/postgres_password}
-      PGDATABASE: ${POSTGRES_DB:-app}
-      PGAPPNAME: ${SERVICE_NAME:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}:backup
-      BACKUP_SCHEDULE: ${BACKUP_SCHEDULE:-0 3 * * *}
-      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-14}
-      BACKUP_MAX_AGE_HOURS: ${BACKUP_MAX_AGE_HOURS:-25}
-      # local: the files volume is archived with each dump; s3: the bucket keeps them.
-      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
-      # Off the host (empty bucket: local copies only). Its own bucket and
-      # keys, not the app's S3_*: the app's keys can't delete the backups.
-      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
-      BACKUP_S3_PREFIX: ${BACKUP_S3_PREFIX:-${COMPOSE_PROJECT_NAME:-nestjs-monorepo-template}}
-      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
-      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-}
-      BACKUP_S3_PROVIDER: ${BACKUP_S3_PROVIDER:-}
-      BACKUP_S3_ACCESS_KEY_ID: ${BACKUP_S3_ACCESS_KEY_ID:-}
-      BACKUP_S3_SECRET_ACCESS_KEY: ${BACKUP_S3_SECRET_ACCESS_KEY:-}
-      BACKUP_S3_SECRET_ACCESS_KEY_FILE: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:+/run/secrets/backup_s3_secret_access_key}
-      # age recipients (public keys): dumps, files and WAL are encrypted before
-      # they are kept or uploaded. Empty: plaintext. Restoring needs the identity.
-      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
-      # Or from the file (lib.sh reads it), like the S3 key above.
-      BACKUP_ENCRYPTION_KEY_FILE: ${BACKUP_ENCRYPTION_KEY_FILE:+/run/secrets/backup_encryption_key}
-    secrets:
-      - postgres_password
-      - backup_s3_secret_access_key
-      - backup_encryption_key
-    deploy:
-      resources:
-        limits:
-          cpus: '${BACKUP_CPUS:-0.5}'
-          memory: ${BACKUP_MEMORY:-512M}
-    # A running backup finishes first (supercronic waits for it on SIGTERM).
-    stop_grace_period: 2m
-    # Hardened (docs/deployment.md, "Container hardening"): it runs as
-    # `postgres` and writes /backups (volume) and /tmp (the crontab, the
-    # health marker).
-    read_only: true
-    tmpfs:
-      - /tmp:size=16m
-    cap_drop: [ALL]
-    security_opt: ['no-new-privileges:true']
-    volumes:
-      - backups:/backups
-      # Read only: the backup never changes the files.
-      - app_storage:/storage:ro
-    depends_on:
-      postgres:
-        condition: service_healthy
-
 # The files behind the secrets: X_FILE in .env (an absolute path outside the
 # repository, readable by the containers: chmod 644 in a chmod 700
 # directory), else the empty secret.empty. A changed file alone doesn't
@@ -940,21 +810,10 @@ secrets:
     file: ${OTEL_EXPORTER_OTLP_HEADERS_FILE:-./secret.empty}
   postgres_password:
     file: ${POSTGRES_PASSWORD_FILE:-./secret.empty}
-  backup_s3_secret_access_key:
-    file: ${BACKUP_S3_SECRET_ACCESS_KEY_FILE:-./secret.empty}
-  backup_encryption_key:
-    file: ${BACKUP_ENCRYPTION_KEY_FILE:-./secret.empty}
   cloudflare_api_token:
     file: ${CLOUDFLARE_API_TOKEN_FILE:-./secret.empty}
-
-# Gotenberg's: no gateway, so nothing on it reaches the internet or the
-# host's other networks; the workers join it besides the default one.
-networks:
-  documents:
-    internal: true
 
 volumes:
   app_storage:
   caddy_data:
   caddy_config:
-  backups:

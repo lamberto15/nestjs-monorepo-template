@@ -525,8 +525,8 @@ export const QUESTIONS = [
     label: 'PDF documents (Gotenberg)?',
     type: 'bool',
     keys: ['GOTENBERG_URL'],
-    // Development's services run Gotenberg, and its template sets the URL.
-    fresh: (ctx) => ctx.target === 'development',
+    // Off until a Gotenberg runs somewhere: the template ships none.
+    fresh: () => false,
     read: (env) => isSet(env.GOTENBERG_URL),
     write: (v, a, ctx) => ({
       GOTENBERG_URL: v

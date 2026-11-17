@@ -25,9 +25,7 @@ guesses, decide the layout. The audit behind it: issue
 - **Write caches where they are read:** pull requests read the BuildKit
   caches that `main` and the nightly run write, and never write them. A pull
   request's cache serves only its own later pushes, and its export cost 40 s
-  (API image), 110 s (Caddy) and 290 s (backup, through
-  `compose.ci-cache.yaml`). Gotenberg's pull-request builds key their Debian
-  upgrade by day, so a pull request's later pushes reuse it.
+  (API image) and 110 s (Caddy).
 - **Selective, not exhaustive, on a pull request:** `changes`
   (`tools/ci/changes.mjs`) routes by path. The gate (`ci-gate`) requires
   exactly the classified jobs, so a skipped job never leaves a check pending.
@@ -39,12 +37,8 @@ guesses, decide the layout. The audit behind it: issue
   tags, manual runs and changes that classify as `full` run everything else.
   `feature-smoke` runs on those comprehensive runs only.
   `template-without-notes` (one job) runs only on a manual run
-  (Actions > CI / CD > Run workflow): before a release, or after a change to
-  the generator or the core. `web.yml` runs Lighthouse for each release and
-  by hand. The stack
-  workflows (`load-test`, `pgbouncer`, `monitoring`) are manual only;
-  `restore-drill` is weekly and manual, `clamav` on `main` and manual: none
-  runs on a pull request (#1100).
+  (Actions > CI > Run workflow): before a release, or after a change to
+  the generator or the core. `web.yml` runs Lighthouse by hand.
 - **A release reruns nothing:** Release Please's pull request and its merge
   change only the changelog, `.release-please-manifest.json` and the root
   version, so they run `changes` alone; on `main` the merge keeps a release
@@ -133,8 +127,7 @@ generator and CI, the heaviest shape (compare with "API + web + stack"):
 The first run measured two mistakes, fixed before the second. An
 instrumented e2e half-suite cost +20% test time and 8% setup (358 s against
 250 s): the instrumentation now runs on a sixth, in `e2e-web`, as before.
-The backup cache's export from `compose.ci-cache.yaml` took 291 s: the
-overlay now only reads it.
+The backup image's cache export took 291 s (that image is gone since).
 
 The same tests ran 30% slower on the third run's runners (the heavier shard
 341 s against 259 s, the instrumented sixth 151 s against 101 s): a single
@@ -210,13 +203,3 @@ largest file, `approvals.e2e-spec.ts` (152 s, 53 tests), decides the heavier
 shard. API unit coverage takes about a minute, mostly imports. Web coverage
 (jsdom) takes about four minutes. Further gains are in the tests themselves,
 for example fewer app boots per file, with isolation and thresholds kept.
-
-## Release rollout
-
-CI never rolls out a release. The separately reviewed manual
-Deploy workflow consumes a successful main release manifest through the protected
-production environment. No production variables or credentials are changed. Manifest bootstrap
-is an explicit full manual build on `main`; it does not deploy. Mixed digest
-render tests prove the chart receives the manifest's rebuilt API digest and reused
-web/Gotenberg digests. See [CI and publishing](deployment.md#ci) for trust checks
-and retention/recovery behavior.

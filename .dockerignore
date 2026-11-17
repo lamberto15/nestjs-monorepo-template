@@ -12,12 +12,10 @@
 .claude
 **/*.md
 .github
-backup
 caddy
 compose*.yaml
 dev
 docs
-monitoring
 tools
 apps/*/test
 # The frontend is built into the Caddy image (caddy/Dockerfile), not this one.

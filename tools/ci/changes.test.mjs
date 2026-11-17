@@ -9,14 +9,13 @@ import {
   versionBump,
 } from './changes.mjs';
 import { gate } from './gate.mjs';
-import { publicationGate } from './publication-gate.mjs';
 
 const route = (...files) => classify({ files });
 const selected = (flags) => keys.filter((k) => flags[k]);
 
 test('API and web changes route independently on PRs and main', () => {
   const api = route('apps/api/src/features/notes/notes.service.ts');
-  assert.deepEqual(selected(api), ['code', 'app', 'api', 'image', 'api_image']);
+  assert.deepEqual(selected(api), ['code', 'app', 'api', 'image']);
   const web = route('apps/web/src/routes/index.tsx');
   assert.deepEqual(selected(web), ['code', 'app', 'web', 'caddy']);
   assert.ok(expectedJobs(api).includes('e2e'));
@@ -36,18 +35,15 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
   ]) {
     assert.ok(route(path).api && route(path).web);
     assert.equal(route(path).full, false);
-    assert.equal(route(path).gotenberg, false);
-    assert.equal(route(path).backup, false);
+    assert.equal(route(path).stack, false);
   }
   assert.ok(route('packages/api-client/src/client.ts').web);
   assert.ok(route('packages/api-client/src/client.ts').api);
   assert.ok(route('apps/api/drizzle/0001.sql').api);
   const infra = route('compose.yaml');
-  assert.ok(infra.stack && infra.services && infra.image);
-  assert.ok(!infra.api && !infra.web);
-  assert.ok(route('backup/Dockerfile').backup);
-  assert.ok(route('gotenberg/smoke.html').gotenberg);
-  assert.ok(route('compose.prod.yaml').gotenberg);
+  assert.ok(infra.stack && infra.services);
+  assert.ok(!infra.api && !infra.web && !infra.image);
+  assert.ok(route('compose.prod.yaml').stack);
   assert.ok(route('caddy/Dockerfile').caddy);
   // The generator smoke is for comprehensive runs: a pull request to the
   // generator runs its tests in tooling-lint instead.
@@ -56,7 +52,6 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
     'tooling-lint',
     'security',
   ]);
-  assert.ok(route('tools/deploy/rolling.mjs').stack);
   for (const file of ['.github/workflows/ci.yml', 'tools/ci/changes.mjs'])
     assert.deepEqual(selected(route(file)), ['ci']);
   for (const file of [
@@ -70,7 +65,7 @@ test('shared, migrations, infrastructure, tooling, CI and unknown paths', () => 
 test('shared actions validate everything and documents beside code add nothing', () => {
   // A .github/actions change is consumed by every workflow routing it:
   // validation is comprehensive, never guessed from the caller's paths.
-  assert.ok(route('.github/actions/sign-image/action.yml').full);
+  assert.ok(route('.github/actions/example/action.yml').full);
   // A documented path does not widen the route the code it sits next to keeps.
   assert.deepEqual(
     route('docs/deployment.md', 'apps/api/src/features/notes/notes.service.ts'),
@@ -166,33 +161,8 @@ test('gate rejects missing results, failures, cancellations and unexpected skips
   assert.throws(() => gate([], needs));
 });
 
-test('publication gate rejects a failed or skipped required image', () => {
-  const flags = {
-    api_image: 'true',
-    caddy: 'false',
-    backup: 'false',
-  };
-  const needs = {
-    publish: { result: 'success' },
-    'publish-caddy': { result: 'skipped' },
-    'publish-backup': { result: 'skipped' },
-  };
-  publicationGate(flags, needs);
-  assert.throws(
-    () =>
-      publicationGate(flags, needs, {
-        error: 'Trusted manifest missing; bootstrap required',
-      }),
-    /bootstrap/,
-  );
-  for (const result of ['failure', 'cancelled', 'skipped'])
-    assert.throws(() =>
-      publicationGate(flags, { ...needs, publish: { result } }),
-    );
-});
-
 // The runners an ordinary pull request occupies (issue #681): quick checks
-// ride on check and image rather than taking runners of their own. A new
+// ride on check rather than taking runners of their own. A new
 // job here is a runner every such pull request waits for.
 test('ordinary API, web and docs pull requests occupy few runners', () => {
   assert.deepEqual(
@@ -210,22 +180,18 @@ test('ordinary API, web and docs pull requests occupy few runners', () => {
   assert.deepEqual(expectedJobs(route('docs/deployment.md')), ['changes']);
   // The repository scans read .trivyignore.yaml and scan the Dockerfiles: a
   // change to either runs them, not only the image jobs.
-  for (const file of [
-    '.trivyignore.yaml',
-    'caddy/Dockerfile',
-    'backup/Dockerfile',
-  ])
+  for (const file of ['.trivyignore.yaml', 'apps/api/Dockerfile'])
     assert.ok(expectedJobs(route(file)).includes('security'), file);
 });
 
 test('root dependency routing never hides another affected image or an unknown path', () => {
   for (const files of [
-    ['pnpm-lock.yaml', 'gotenberg/smoke.html', 'backup/Dockerfile'],
-    ['backup/Dockerfile', 'gotenberg/smoke.html', 'pnpm-lock.yaml'],
+    ['pnpm-lock.yaml', 'caddy/Dockerfile', 'compose.yaml'],
+    ['compose.yaml', 'caddy/Dockerfile', 'pnpm-lock.yaml'],
   ]) {
     const flags = classify({ files });
     assert.ok(
-      flags.api && flags.web && flags.gotenberg && flags.backup && flags.stack,
+      flags.api && flags.web && flags.caddy && flags.services && flags.stack,
     );
   }
   for (const files of [
@@ -235,7 +201,7 @@ test('root dependency routing never hides another affected image or an unknown p
     assert.ok(classify({ files }).full);
 });
 
-test('release files route to a manifest only; package.json only when just its version changed', () => {
+test('release files run no tests; package.json only when just its version changed', () => {
   const release = classify({
     files: ['.release-please-manifest.json', 'CHANGELOG.md', 'package.json'],
     versionOnly: true,

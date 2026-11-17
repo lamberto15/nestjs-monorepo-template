@@ -1,6 +1,6 @@
 #!/bin/sh
-# Redis' password for the server, its healthcheck and the exporter
-# (compose.yaml, compose.monitoring.yaml): REDIS_PASSWORD, or the file
+# Redis' password for the server and its healthcheck (compose.yaml):
+# REDIS_PASSWORD, or the file
 # REDIS_PASSWORD_FILE names (a Docker secret, compose.prod.yaml; one trailing
 # CRLF or LF dropped), never both. Never on a command line, where ps and
 # `docker top` show it: the server reads it from stdin, redis-cli from

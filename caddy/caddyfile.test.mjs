@@ -401,7 +401,7 @@ function onHost(caddy, host, path) {
 }
 
 // The visitor's address the API sees (X-Forwarded-For): caddy/Caddyfile's
-// global options, which compose.tunnel.yaml sets for a Cloudflare Tunnel.
+// global options, which a deployment sets for a Cloudflare Tunnel.
 const spoofed = {
   'cf-connecting-ip': '203.0.113.7',
   'x-forwarded-for': '198.51.100.9',
@@ -420,7 +420,7 @@ describe("the visitor's address, without a tunnel", { skip }, () => {
 
 describe("the visitor's address behind a Cloudflare Tunnel", { skip }, () => {
   let caddy;
-  // The tunnel's settings (compose.tunnel.yaml): the test's client, on
+  // The tunnel's settings: the test's client, on
   // loopback, stands for cloudflared on the stack's private network.
   before(
     async () =>

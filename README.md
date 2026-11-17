@@ -39,8 +39,7 @@ room for more frontends in `apps/` ([monorepo](docs/monorepo.md)).
 | Money           | Amounts as bigint minor units with their ISO 4217 currency (strings in the API), rounding modes (half-up by default, banker's), allocation without losing a cent, formatting in every locale, the ECB's daily rates and conversion through the euro                                                                                                                                                                                                                                                                                                                                     | [money](docs/money.md)                                                                                                                                                                                                                                                                                   |
 | Web app         | A React single-page app on the typed client, served by Caddy beside the API: sign-in with every method (SSO included), the account pages, users, roles, organization structure and grants, single sign-on and SCIM, tenants (operators), API clients and usage, webhooks, approvals and their policies, notifications, settings and flags, naming series, custom fields, tags, the audit log, operations, global search, saved views, exports, imports, scheduled reports, automation rules (built and simulated) and bulk operations, and the example feature's list and record pages (tags, comments, attachments, revisions) | [monorepo](docs/monorepo.md#the-web-app)                                                                                                                                                                                                                                                                 |
 | Clients         | A typed client package for web, mobile and scripts: REST types generated from the OpenAPI document, the conventions applied (credentials, idempotency keys, problem details, pages, ETags), typed realtime events                                                                                                                                                                                                                                                                                                                                                                       | [api-client](packages/api-client/README.md)                                                                                                                                                                                                                                                              |
-| Operations      | Separate API and worker processes, health checks, JSON logs with request ids and redaction, Prometheus metrics and alert rules, backups, Docker Compose for development and production with resource limits, Caddy HTTPS, CI with scans, published images, Dependabot                                                                                                                                                                                                                                                                                                                   | [deployment](docs/deployment.md)                                                                                                                                                                                                                                                                         |
-| Deploys         | Zero-downtime deploys two ways, with graceful shutdown and Caddy holding requests while replicas restart: rolling (`pnpm deploy:rolling`), Docker Swarm with automatic rollback (`pnpm deploy:swarm`)                                                                                                                                                                                                                                                                                                                                                                                                                           | [deployment](docs/deployment.md#zero-downtime-deploys-two-ways), [rolling](docs/deploy-rolling.md), [Swarm](docs/deploy-swarm.md)                                                                                                                                                                        |
+| Operations      | Separate API and worker processes, health checks, JSON logs with request ids and redaction, Prometheus metrics, Docker Compose for development and production with resource limits, Caddy HTTPS, CI with scans, Dependabot                                                                                                                                                                                                                                                                                                                   | [deployment](docs/deployment.md)                                                                                                                                                                                                                                                                         |
 
 One example feature, **notes**, shows business logic on top of the platform:
 a publish workflow with an approval, conditions and field-level permissions,
@@ -54,7 +53,7 @@ generator (`pnpm feature:add`), never from a copy.
 ```bash
 pnpm install
 pnpm run setup                # first run: a few questions, writes apps/api/.env.development (or the root .env: --target production)
-pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES), Gotenberg (PDF)
+pnpm services:up          # PostgreSQL, Redis, Mailpit, Floci (AWS S3 and SES)
 pnpm dev                  # the API (http://localhost:3000/api) and the web app (http://localhost:5173)
 pnpm db:seed:demo         # optional, from a second terminal: demo users and organizational units, and each feature's demo data (passwords printed once)
 ```
@@ -101,16 +100,11 @@ By hand instead: `cp env.example .env && chmod 600 .env`; `env.example` says
 which values are required and how to generate each secret.
 
 Caddy (HTTPS, and the web app's files) → `api` replicas; `worker` replicas
-for the background work; PostgreSQL and Redis; migrations once per deploy. Later deploys keep serving
-while the new version starts ([deployment](docs/deployment.md#zero-downtime-deploys-two-ways)):
+for the background work; PostgreSQL and Redis; migrations once per deploy.
 
-| Method               | Command                  | Rollback                                                            |
-| ----------------- | --------------------- | ------------------------------------------------------------------- |
-| Rolling (Compose)    | `pnpm deploy:rolling`    | deploy the previous `APP_IMAGE`                                     |
-| Docker Swarm         | `pnpm deploy:swarm`      | automatic on a failed health check, or `pnpm deploy:swarm rollback` |
-
-See [deployment](docs/deployment.md) for staging, scaling, managed services,
-backups and the published images.
+See [deployment](docs/deployment.md) for staging, scaling and managed
+services. Backups, monitoring and a deploy pipeline are yours to add: the
+template ships none.
 
 ## Template updates
 
@@ -170,9 +164,7 @@ Platform modules
 
 Operations and deploys
 
-- [Deployment](docs/deployment.md): Compose, staging, scaling, secrets, metrics and alerts, backups, CI, published images
-- [Rolling deploys](docs/deploy-rolling.md): `pnpm deploy:rolling`
-- [Docker Swarm](docs/deploy-swarm.md): our staging and production, CI deploys, host setup, sizing, rollback
+- [Deployment](docs/deployment.md): Compose, staging, scaling, secrets, metrics, CI
 
 Releases and the roadmap
 

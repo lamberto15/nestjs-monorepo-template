@@ -13,7 +13,7 @@ This index organizes the **existing deep technical references** by task. The lin
 | Configure first-run options and environment | [Configuration](../configuration.md), [settings and flags](../settings.md) |
 | Generate a business feature and sync it later | [Adding a feature](../adding-a-feature.md) |
 | Work with errors, lists, versioning and the client | [API conventions](../api-conventions.md), [typed client](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/packages/api-client/README.md) |
-| Run tests, worktrees, lint and load tests | [Development workflow](../development.md) |
+| Run tests, worktrees and lint | [Development workflow](../development.md) |
 | Avoid known mistakes | [Pitfalls](../pitfalls.md) |
 | See what was cross-checked against source code | [Implementation audit](implementation-audit.md) |
 
@@ -52,10 +52,8 @@ This index organizes the **existing deep technical references** by task. The lin
 | Goal | Guide |
 | -------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Prepare a release and a deployment | [Operations checklist](release-and-operations-checklist.md), [deployment](../deployment.md) |
-| Docker Compose updates                       | [Rolling](../deploy-rolling.md)                                                                                                                       |
-| Our servers (staging, production)            | [Swarm](../deploy-swarm.md)                                                                                                                           |
-| Migrations, backups, monitoring, secrets, CI | [Deployment](../deployment.md) |
-| Cut versions and publish images | [Releases](../releases.md) |
+| Migrations, secrets, metrics, CI | [Deployment](../deployment.md) |
+| Cut versions | [Releases](../releases.md) |
 | Merge template changes into adopted projects | [Upgrading](../upgrading.md) |
 | Know what's delivered or planned | [Roadmap](../roadmap.md) |
 | Report security issues privately | [Security policy](https://github.com/lamberto15/nestjs-monorepo-template/blob/main/SECURITY.md) |

@@ -87,10 +87,8 @@ types }`, read as the upload reads them: `attachmentLimits()`), so a
     `system:attachment-scan`, and a queued scan job ends as `skipped`.
   - **Metric:** `attachments_scanned_total{result="clean|infected|error"}`
     (a counter per worker process: `rate()` and sum it).
-  - **ClamAV:** `compose.clamav.yaml` adds the `clamav` service (the
-    official image, signatures kept current by freshclam, a network of its
-    own that only the workers join) and sets `MALWARE_SCANNER=clamav` and
-    `CLAMAV_HOST=clamav`: [deployment](deployment.md), "ClamAV". The worker
+  - **ClamAV:** `MALWARE_SCANNER=clamav` with `CLAMAV_HOST` naming a clamd
+    you run: [deployment](deployment.md), "ClamAV". The worker
     speaks clamd's `INSTREAM` over TCP (`clamav-scanner.ts`), streaming the
     file from the disk, never loading it. It is custom code because the npm
     clients are unmaintained (`clamdjs` last released 2022, `clamscan` 2024

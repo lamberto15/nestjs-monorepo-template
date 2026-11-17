@@ -188,9 +188,10 @@ event follows the commit.
 
 ## Development and tests
 
-- `pnpm services:up` runs Gotenberg on `http://127.0.0.1:3100` (the official
-  image with production's flags); `env.development.example` points
-  `GOTENBERG_URL` at it. Unset, documents are off and everything else works.
+- The development services run no Gotenberg: start one yourself (for example
+  `docker run -p 127.0.0.1:3100:3000 gotenberg/gotenberg:9`) and set
+  `GOTENBERG_URL` in `.env.development`. Unset, documents are off and
+  everything else works.
 - `apps/api/test/documents.e2e-spec.ts` runs against a stand-in for
   Gotenberg on loopback (it records the page and answers a PDF, a slow PDF,
   a refusal, a failure, or nothing): no Docker pull, no Chromium. It covers

@@ -3,7 +3,7 @@
 ```bash
 pnpm install
 pnpm run setup                # first run: the questions, then apps/api/.env.development (docs/configuration.md, "First setup")
-pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci, Gotenberg (project <name>-dev)
+pnpm services:up          # PostgreSQL 18, Redis 8, Mailpit, Floci (project <name>-dev)
 pnpm dev                  # the API and its workers (http://localhost:3000/api) and the web app (http://localhost:5173), with reload
 pnpm db:seed:demo         # optional, from a second terminal: demo users, organizational units and each feature's demo data (passwords printed once)
 ```
@@ -176,7 +176,6 @@ only the images: when its pull request arrives, raise `devEngines` in it too.
 | `pnpm feature:sync [<plural>]` | after editing a feature's `<item>.record.ts` (fields, capabilities, options): updates what the platform derives from it |
 | `pnpm feature:remove <plural>` | a feature, its tests and texts, e.g. the example `notes` |
 | `pnpm capability:remove <name>` | an optional platform capability nothing else uses (`ai`, `forms`): its folder, module, tables, variables, tests, pages and docs ([adding a feature](adding-a-feature.md), "Removing a platform capability") |
-| `pnpm deploy:rolling` / `deploy:swarm`                  | zero-downtime deploys ([deployment](deployment.md), "Zero-downtime deploys: two ways")                                                                                                                                                                                                                                                                        |
 | `pnpm db:mark-dev` | mark the development services' database as a development one, once, for a volume made before the marker |
 | `pnpm services:up` / `services:down` | the development services |
 | `pnpm client:generate` | the typed client's `openapi.json` and `schema.ts` (after any route change) |
@@ -286,7 +285,7 @@ knip checks this repository's own code.
 
 - **Entry points** knip can't find on its own are listed in `knip.jsonc`
   (the worker, `migrate`, `seed-demo`, `openapi-dump` and the CLI, started
-  by `node dist/<name>`; the `tools/` scripts; the load test).
+  by `node dist/<name>`; the `tools/` scripts).
 - **An unused export:** remove the `export` (or the code). A helper meant
   for the projects built on the template stays exported with a `@public`
   JSDoc tag, which knip leaves alone (`isEncrypted`, `withCan`, ...).
@@ -294,8 +293,7 @@ knip checks this repository's own code.
   Dice UI's data table (`components/data-table/`, `lib/data-table-*.ts`:
   registry output the CLI writes, left whole so `shadcn add` updates apply),
   `react-day-picker` and `tailwindcss` (used by that registry code and the
-  stylesheet's `@import`), `k6` (the load test runs in k6's container) and
-  `redis-server` (the e2e tests start it).
+  stylesheet's `@import`) and `redis-server` (the e2e tests start it).
 - Ignoring is the last resort: prefer removing the dead code.
 
 ## Browser tests
@@ -383,203 +381,6 @@ not part of `pnpm test:e2e` (the API's).
   no browser download and no apt; unset, as locally, Playwright's Chromium),
   one retry. When an attempt failed, a retried one included, the HTML report
   and the traces (`playwright-report` artifact, 14 days) are uploaded.
-
-## Load tests
-
-A baseline of what four routes cost under load on the production stack, and
-a socket.io check beside it, kept from run to run, so a change that makes one twice as slow fails, and the
-cost of tenancy's row-level security ([roadmap](roadmap.md), 1a) can be
-measured against numbers taken before it ([roadmap](roadmap.md), 17-lite).
-
-The same stack serves two more checks: the **restore drill**
-(`scripts/restore-drill.sh`, [deployment.md](deployment.md), "Restore drill")
-and **PgBouncer** (`LOADTEST_PGBOUNCER=on` adds `compose.pgbouncer.yaml`,
-"PgBouncer"). `loadtest/run.sh compose <args>` runs any `docker compose`
-command on it.
-
-| Scenario | Request | Load (one minute each, one after the other) |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `signIn` | `POST /v1/auth/sign-in`, 20 seeded users | 2/s (below) |
-| `list` | `GET /v1/notes` with filters and a sort (status, `title.contains`, `createdAt.gte`…), the load-test client's key | 50/s |
-| `create` | `POST /v1/notes` with an `Idempotency-Key`, the same key | 20/s |
-| `export` | `POST /v1/data/exports` (notes, CSV, the load-test client's key), then `GET /v1/data/transfers/{id}` every 500 ms until `completed` with its link | 1/s |
-| realtime | socket.io, `/realtime` (Artillery, below) | 10 new connections/s |
-
-- **What runs:** `loadtest/run.sh` starts `compose.yaml` + `compose.prod.yaml`
-  (api ×2, worker, migrate, PostgreSQL, Redis: the image and limits a
-  deployment runs) with `compose.loadtest.yaml` on top (named with `-f`: an
-  exported `COMPOSE_FILE` is ignored), under its own project name and its
-  own generated env file (`loadtest/results/stack.env`: the repository's
-  `.env` is never read).
-  The project must be named `loadtest-<name>` (`loadtest-local`, CI
-  `loadtest-ci`; `LOADTEST_PROJECT`): any other name stops the script before
-  it does anything, since `down` removes the project's volumes and must never
-  reach a deployment, whatever a project made from the template is called. k6 (`loadtest/scenarios.js`, pinned image) runs in
-  the stack's network against `http://caddy`, nothing is published on the
-  host, and the stack and its volumes are removed at the end.
-- **What the overlay changes:** Caddy is the stock `caddy` image on plain
-  HTTP (the production one needs a Cloudflare token for its certificate),
-  with the same balancing (`loadtest/Caddyfile`); the backup service is left
-  out.
-- **No limit is turned off.** k6's requests come from one address and sign
-  the same users in hundreds of times, so the stack sets
-  `RATE_LIMIT_MULTIPLIER=1000` (every rate limit ×1000, the throttler still
-  runs: [configuration](configuration.md)) with `APP_ENV=loadtest`: under
-  `NODE_ENV=production` the app refuses to start with a multiplier above 1
-  and any other `APP_ENV`, so the overlay added to a deployment by mistake
-  stops it rather than raising its limits. List and create go through
-  a **dedicated API client**, `load-test`, with a daily quota of 10 million
-  (the quota is counted on every request, as for any client). `k6`'s
-  `setup()` makes it and 300 notes through the API, as the administrator
-  the stack seeds, whose password `run.sh` generates per stack; the
-  sign-in scenario signs that administrator in (an account signs in only
-  once its address is proved, by mail, which a load test can't do for
-  accounts of its own: docs/tenancy.md). `setup()` first checks the target's rate limit is raised (only a
-  load-test stack's is), so k6 pointed at a real deployment seeds nothing.
-- **The bot check (roadmap item 4) is off by default:** the baseline
-  measures the app, not a captcha, so `compose.loadtest.yaml` sets
-  `CAPTCHA_MODE=off` unless `LOADTEST_CAPTCHA=always` asks for it, and k6
-  then sends no captcha token. **Its cost** is measured with
-  `LOADTEST_CAPTCHA=always`: the guard is in place with the **stub
-  provider** (`CAPTCHA_PROVIDER=stub`, which judges by the token's text and
-  calls nothing, [auth](auth.md), "Bot protection"), and k6 sends a fresh
-  `X-Captcha-Token: stub:pass:<uuid>` on the administrator's sign-in
-  (`/v1/auth/token`, in `setup()`) and on the sign-in scenario. The stub
-  runs under `NODE_ENV=production` **only with `APP_ENV=loadtest`**, which
-  only this overlay sets; production, any other `APP_ENV` and a Turnstile
-  secret next to it still refuse it at startup
-  (`captcha.providers.spec.ts` proves it). The cost is the difference
-  between two runs: `loadtest/run.sh` once as usual, once with
-  `LOADTEST_CAPTCHA=always` in another `LOADTEST_OUT`, then
-  `node loadtest/compare.mjs --report-only --current captcha/baseline.json --previous plain/baseline.json`
-  (the baseline records `captcha`; a different bot check is compared, since
-  its cost is the point). It measures the guard (the replay set in Redis and
-  the verdict), not Cloudflare's round trip, which the stub doesn't make.
-  `RATE_LIMIT_MULTIPLIER` raises the throttler's limits only, not the
-  captcha's fail-open tier (`CAPTCHA_DEGRADED_LIMIT`), which an off captcha
-  never reaches.
-- **The export** runs a real transfer each time: the request is queued, the
-  worker reads the load-test client's 300 notes into a CSV in storage, and
-  the iteration ends when the transfer reads `completed` with its link. The
-  baseline has the request's latency (`ms`) and the time to a ready file
-  (`readyMs`: median, p95, max), which `compare.mjs` holds to the same 2×
-  bar; a transfer that fails or isn't ready in 60 s counts as an error.
-- **Realtime** (`loadtest/realtime.yml`) uses **Artillery** (pinned in
-  `run.sh`, `ARTILLERY_IMAGE`) because k6 doesn't speak socket.io. Each
-  virtual user connects to `/realtime` through Caddy (websocket only),
-  authenticated with the administrator's token (signed in once by
-  `realtime.processor.cjs`: a custom step, since the engine can't template
-  a handshake header from an HTTP answer), asks `whoami` once a second for
-  ten seconds (each acknowledged), and leaves. It measures the handshake,
-  the message round trip and the connections held (rate × 10 at once); a
-  refused handshake or a missing answer fails the run, as do a p95 over 500
-  ms or a p99 over 2 s (`ensure`). It does **not** measure the delivery of a
-  pushed event (`record.commented`, `data.export-ready`): a follow-up. Its
-  report is `realtime.json` in the output directory; it is not part of
-  `baseline.json` and not compared between runs.
-- **Several replicas:** `LOADTEST_REPLICAS=4 loadtest/run.sh` runs 1 to 6
-  api replicas behind Caddy (default 2, `compose.prod.yaml`'s). Each holds
-  10 database connections of PostgreSQL's 100, hence the limit of 6. The
-  baseline records `replicas`; runs with a different count aren't compared
-  (the numbers are another stack's), so a scaling comparison is read by eye
-  or with `--report-only`. The CI run stays at 2 (the anchor's).
-
-**The notification-storm soak** (#618, not in the baseline, not in CI's
-default runs): `loadtest/run.sh up`, then `loadtest/run.sh soak`, then
-`loadtest/run.sh down`. k6 (`loadtest/soak.js`, one virtual user) sets the
-deployment's daily mail budget to `SOAK_MAIL_LIMIT` (100, a provider's free
-quota), imports `SOAK_NOTES` (100,000) notes as one JSON file, which the
-worker writes and publishes in groups (the bulk path of the incident), then
-watches `GET /v1/ops/outbox` and `/v1/ops/queues` every 10 s until the
-outbox has drained or `SOAK_MINUTES` (30) passed. Its thresholds fail the
-run when `/health` or the ops routes stop answering, the mail queue holds
-more than `SOAK_MAX_MAIL` (500) jobs at once, anything is dead-lettered, or
-the outbox has not drained; `run.sh` samples Redis' `used_memory` and the
-api, worker and Redis containers' memory every 5 s
-(`soak-memory.log`) and fails past `SOAK_REDIS_MAX_MB` (512). The summary
-(peaks, import time, drained) is `soak.json` in `LOADTEST_OUT`. The seeded
-administrator is the only watcher (a load test can't prove the addresses of
-accounts of its own), so it measures the fan-out per note, not per watcher.
-
-**Why sign-in runs at 2/s only:** a password check (scrypt, N = 2^17) takes
-about 0.4 s of a CPU and 128 MiB outside the heap. Each process now runs at
-most `PASSWORD_HASH_CONCURRENCY` of them (the api's default is 2); the next
-ones queue, and past `PASSWORD_HASH_MAX_QUEUE` or
-`PASSWORD_HASH_QUEUE_TIMEOUT_MS` they get 503 `server_busy`
-([deployment](deployment.md), "Resource limits"). Before that bound libuv ran
-four at once and, at 5/s, the api container passed its memory limit and was
-OOM-killed (found by the first local run: 84–97% of sign-ins failed while
-replicas restarted). The baseline keeps its rate below what two replicas hash.
-
-Locally (Docker; about five minutes plus the image's build):
-
-```bash
-loadtest/run.sh                      # up, run, down; the table at the end
-cat loadtest/results/baseline.json   # the baseline
-node loadtest/compare.mjs --current loadtest/results/baseline.json --previous old.json
-loadtest/run.sh up && loadtest/run.sh run && loadtest/run.sh down   # keep the stack between runs
-node --test loadtest/compare.test.mjs loadtest/run.test.mjs   # the comparison's and run.sh's tests
-SIGN_IN_RATE=1 PHASE_SECONDS=20 loadtest/run.sh   # a lighter load (not comparable with CI's)
-LOADTEST_REPLICAS=4 LOADTEST_OUT=/tmp/lt4 loadtest/run.sh   # four api replicas
-LOADTEST_CAPTCHA=always LOADTEST_OUT=/tmp/ltbot loadtest/run.sh   # the bot check in place (stub provider)
-loadtest/run.sh up && loadtest/run.sh realtime && loadtest/run.sh down   # only the socket.io run
-LOADTEST_REALTIME=off loadtest/run.sh   # without the Artillery run
-```
-
-**The baseline** (`baseline.json`, the `load-test-baseline` artifact of
-each run, kept 90 days) has, per scenario, its rate, the requests made, the
-failed share, the dropped iterations (requests k6 couldn't start on time:
-the stack didn't keep up with the rate), and the latency in milliseconds
-(`avg`, `med`, `p90`, `p95`, `p99`, `max`), with the commit, k6's image, the
-api replicas and the bot check's mode.
-
-**In CI** (`.github/workflows/load-test.yml`): **manual only for now**, to
-save Actions minutes: Actions → Load test → Run workflow, on `main`, on a
-GitHub runner (4 CPUs). To run it on a schedule again (weekly, say), add
-`schedule: [{ cron: '37 2 * * 1' }]` under the workflow's `on:`; scheduled
-runs on `main` count as references like dispatched ones. Each run builds
-the image, runs `run.sh` and uploads the baseline, then
-`loadtest/compare.mjs` compares it with two references from `main` and
-writes a table for each to the job summary:
-
-- **the previous run**: the latest successful manual (or scheduled) run on
-  `main`, for a sudden regression;
-- **the anchor** (the `load-test-anchor` artifact): the last run accepted
-  with `record_only`, or the first baseline, for a slow creep that the
-  previous run never shows (1.9× a run fails against it two runs later).
-  It expires after 90 days; the next passing run on `main` becomes the new
-  anchor.
-
-- **It fails only on a 2× regression** against either reference: a
-  scenario whose median or p95 reached twice the reference's and grew by at
-  least 20 ms (a 3 ms route at 7 ms is a runner's noise), or whose failed
-  share or dropped iterations reached twice the reference's (above 0.5% of
-  the requests). A scenario whose rate or phase length changed isn't
-  compared. A missing reference compares nothing: the first run records only.
-- **A broken or saturated run never becomes the baseline:** more than 1%
-  failed requests, or more than 1% of a scenario's iterations dropped, fails
-  k6's thresholds, so the run fails and the next one compares with the last
-  good one.
-- **Reading a regression:** the summary names the scenario and the stat
-  (`p95 120 → 260 ms (×2.17)`). Open the two runs' commits
-  (`commit` in each baseline): the change between them is the suspect. Rerun
-  once (Run workflow) before digging: a GitHub runner is shared hardware, and
-  a single slow run happens. Twice slower on a rerun: profile that route.
-- **Accepting a change** (a route slower by design, row-level security for
-  instance): run the workflow on `main` with `record_only` checked. That run
-  compares nothing and, if it passes, becomes both the previous run and the
-  anchor the next run compares with. Dispatched on another branch it
-  counts for neither: only runs on `main` are references.
-- **Not on pull requests.** To try a change to `loadtest/`,
-  `compose.loadtest.yaml` or the workflow, dispatch it on the branch:
-  report-only and never a baseline.
-- **No self-hosted runner.** The numbers come from GitHub's runners only. A
-  self-hosted runner would only ever run behind `workflow_dispatch`, never on
-  a schedule or a pull request: a pull
-  request's code must never run on it.
-- **k6's version** (`K6_IMAGE` in `loadtest/run.sh`, tag and digest) is raised
-  by hand, as squawk's is; a new version may move the numbers,
-  so raise it with a `record_only` run.
 
 ## Typed client
 

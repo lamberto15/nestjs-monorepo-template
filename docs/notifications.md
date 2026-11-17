@@ -361,9 +361,8 @@ included), so they hold whatever queued it:
   monthly budget"), and the gauge `sms_budget_used_ratio` is at 0.8;
 - a refusal is counted (`blocked:<reason>`), logged as an error and shown by the
   gauges `sms_sent_today`, `sms_blocked_today{reason}`, `sms_spend_month_minor` and
-  `sms_budget_used_ratio` on the workers' `/metrics`. The rules `SmsBlocked` (any
-  `sms_blocked_today`, by reason) and `SmsBudgetNearCap` (80 %) ship in
-  `monitoring/prometheus/alerts.yml`, with their tests ([deployment.md](deployment.md), "Alerting");
+  `sms_budget_used_ratio` on the workers' `/metrics`. Worth alerting on
+  in your Prometheus: any `sms_blocked_today` and 80 % of the budget;
 - the **kill switch** is the flag `messaging.sms` (on by default). The operators
   switch it off for every tenant with `PUT /v1/settings/messaging.sms/platform
 { "value": false, "enforced": true }`; a tenant's administrator can switch off

@@ -74,8 +74,6 @@ const technical = [
   group('Operate and maintain', [
     ['Release checklist', '/technical/release-and-operations-checklist'],
     ['Deployment', '/deployment'],
-    ['Rolling updates', '/deploy-rolling'],
-    ['Swarm', '/deploy-swarm'],
     ['CI runtime', '/ci-runtime'],
     ['Build version', '/build-version'],
     ['Releases', '/releases'],

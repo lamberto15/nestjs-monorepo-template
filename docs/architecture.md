@@ -27,11 +27,7 @@ packages/
   api-client/          the typed client (@nestjs-monorepo-template/api-client)
   ui/                  shared components, shadcn/ui and Dice UI as source (@nestjs-monorepo-template/ui)
 caddy/  dev/           the HTTPS proxy's image (it serves the web app too); the development services' files
-gotenberg/             the page CI renders with Gotenberg's official image
-backup/                the backup image: pg_dump and the uploaded files on a schedule
-monitoring/            Prometheus rules and their tests, Alertmanager, the blackbox probe
-loadtest/              the k6 and realtime load tests (run.sh, scenarios)
-compose*.yaml          Docker Compose: shared, development, production, Swarm, sizing (small), Cloudflare Tunnel, monitoring, load test
+compose*.yaml          Docker Compose: shared, development, production
 env.example            → .env, Compose's production settings
 package.json           the root scripts (pnpm build, pnpm test…), tooling only
 pnpm-workspace.yaml    the workspace: apps/*, packages/*

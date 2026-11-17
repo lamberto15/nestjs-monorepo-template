@@ -105,8 +105,6 @@ const contracts = [
     'LICENSE',
     /PolyForm Noncommercial License 1\.0\.0/,
   ],
-  ['dev PDF service', 'compose.dev.yaml', /gotenberg:/],
-  ['load-test report only', '.github/workflows/load-test.yml', /--report-only/],
 ];
 for (const [name, path, expected] of contracts) {
   if (

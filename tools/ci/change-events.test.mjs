@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 import { NIGHTLY_CRON, runChanges } from './changes.mjs';
-import { releasePlan } from './release-manifest.mjs';
 const base = 'a'.repeat(40),
   head = 'b'.repeat(40);
 
@@ -12,11 +11,7 @@ function eventOutput(
   eventName,
   event,
   response,
-  {
-    ref = 'refs/heads/main',
-    planning = releasePlan,
-    bumped = () => false,
-  } = {},
+  { ref = 'refs/heads/main', bumped = () => false } = {},
 ) {
   const dir = mkdtempSync(join(tmpdir(), 'ci-events-'));
   try {
@@ -41,7 +36,6 @@ function eventOutput(
         if (response instanceof Error) throw response;
         return JSON.stringify(response);
       },
-      planning,
       () => ['apps/api/example.ts'],
       bumped,
     );
@@ -82,7 +76,6 @@ test('PR event reads paginated files and shares explicit base/head with Turbo', 
   assert.equal(result.affected, true);
   assert.equal(result.api, true);
   assert.equal(result.web, false);
-  assert.equal(result.publish, false);
   assert.ok(calls[0].includes('--paginate'));
   assert.ok(calls[0].includes('--slurp'));
   assert.ok(JSON.parse(result.expected).includes('e2e'));
@@ -123,7 +116,6 @@ test('ordinary main uses before/head comparisons rather than unconditional full 
       status: 'ahead',
       files: [{ filename: 'apps/web/src/main.tsx', status: 'modified' }],
     },
-    { planning: (flags) => ({ publish: flags.code }) },
   );
   assert.ok(calls[0][1].endsWith(`compare/${base}...${head}`));
   assert.equal(result.api, false);
@@ -132,7 +124,7 @@ test('ordinary main uses before/head comparisons rather than unconditional full 
   assert.ok(!JSON.parse(result.expected).includes('e2e'));
 });
 
-test('CI-only main pushes do not require a trusted release manifest', () => {
+test('CI-only main pushes validate the workflow alone', () => {
   const { result } = eventOutput(
     'push',
     { before: base },
@@ -141,7 +133,6 @@ test('CI-only main pushes do not require a trusted release manifest', () => {
       files: [{ filename: '.github/workflows/ci.yml', status: 'modified' }],
     },
   );
-  assert.equal(result.publish, false);
   assert.deepEqual(JSON.parse(result.expected), ['changes', 'ci-validate']);
 });
 
@@ -174,16 +165,14 @@ test('weekday nights scan the images and dependencies; Sunday validates the rest
     'changes',
     'security',
     'image',
-    'backup-image',
     'caddy-image',
-    'gotenberg-image',
   ]);
   const sunday = expected('17 3 * * 0');
   for (const job of ['e2e', 'check']) assert.ok(sunday.includes(job), job);
   assert.ok(!sunday.includes('template-without-notes'));
 });
 
-test('a release (changelog, manifest, root version) runs no tests and publishes a manifest on main', () => {
+test('a release (changelog, manifest, root version) runs no tests', () => {
   const files = [
     { filename: 'CHANGELOG.md', status: 'modified' },
     { filename: '.release-please-manifest.json', status: 'modified' },
@@ -203,21 +192,18 @@ test('a release (changelog, manifest, root version) runs no tests and publishes 
     { bumped: (from, to) => from === base && to === head },
   ).result;
   assert.deepEqual(JSON.parse(pr.expected), ['changes']);
-  assert.equal(pr.publish, false);
   const main = eventOutput(
     'push',
     { before: base },
     { status: 'ahead', files },
-    { planning: (flags) => ({ publish: flags.code }), bumped: () => true },
+    { bumped: () => true },
   ).result;
   assert.deepEqual(JSON.parse(main.expected), ['changes']);
-  assert.equal(main.publish, true);
   // Any other package.json change validates the applications.
   const other = eventOutput(
     'push',
     { before: base },
     { status: 'ahead', files },
-    { planning: (flags) => ({ publish: flags.code }) },
   ).result;
   assert.ok(other.api && other.web);
   assert.ok(JSON.parse(other.expected).includes('e2e'));
@@ -236,20 +222,12 @@ test('template-without-notes runs on a manual run only', () => {
   }
 });
 
-test('scheduled, manual and version-tag events validate comprehensively; only a bootstrap publishes', () => {
+test('scheduled, manual and version-tag events validate comprehensively', () => {
   for (const name of ['schedule', 'workflow_dispatch', 'push']) {
     const { result, calls } = eventOutput(name, {}, null, {
       ref: name === 'push' ? 'refs/tags/v1.2.3' : 'refs/heads/main',
     });
     assert.equal(calls.length, 0);
     assert.equal(result.full, true);
-    assert.equal(result.publish, false);
   }
-  const { result } = eventOutput(
-    'workflow_dispatch',
-    { inputs: { bootstrap_release: 'true' } },
-    null,
-  );
-  assert.equal(result.publish, true);
-  assert.ok(result.api_image && result.caddy && result.backup);
 });

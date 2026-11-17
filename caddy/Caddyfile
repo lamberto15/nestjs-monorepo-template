@@ -13,10 +13,10 @@
 	}
 	# The visitor's address, which the API sees as X-Forwarded-For (the
 	# @api handle below): by default the connection's own, any X-Forwarded-For
-	# a client sends being dropped. compose.tunnel.yaml trusts the tunnel
-	# (cloudflared, on the stack's private network) and takes the address from
-	# its CF-Connecting-IP (docs/deploy-swarm.md, "Public access through a
-	# Cloudflare Tunnel"). Read when Caddy starts; unset trusts nobody.
+	# a client sends being dropped. Behind a proxy of your own (a
+	# Cloudflare Tunnel's cloudflared, a load balancer), name its addresses and
+	# the header it sets (CF-Connecting-IP for the tunnel). Read when Caddy
+	# starts; unset trusts nobody.
 	servers {
 		trusted_proxies static {$CADDY_TRUSTED_PROXIES}
 		client_ip_headers {$CADDY_CLIENT_IP_HEADERS:X-Forwarded-For}
