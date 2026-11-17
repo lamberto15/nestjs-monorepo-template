@@ -1,0 +1,350 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "6442ced9-d4f5-4190-9efb-00239ec14fa6",
+  "prevIds": [
+    "bdc1d03d-2aa3-4271-93a7-f4a46b3b3738"
+  ],
+  "footprints": [
+    {
+      "statementType": "drop_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_owner_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_owner_id_idx",
+        "n|idx|public.notes_owner_id_idx",
+        "e|idx|public.notes_owner_id_idx",
+        "n|rel|public.notes_owner_id_idx"
+      ],
+      "reads": [
+        "e|tbl|public.notes",
+        "n|sch|public",
+        "e|col|public.notes.owner_id"
+      ],
+      "sharedWrites": []
+    },
+    {
+      "statementType": "recreate_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_deleted_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_deleted_at_idx",
+        "n|idx|public.notes_deleted_at_idx",
+        "e|idx|public.notes_deleted_at_idx",
+        "n|rel|public.notes_deleted_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.deleted_at"
+      ],
+      "sharedWrites": [],
+      "sqlHash": "9281ab676759e74a"
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_owner_id_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_owner_id_id_idx",
+        "n|idx|public.notes_owner_id_id_idx",
+        "e|idx|public.notes_owner_id_id_idx",
+        "n|rel|public.notes_owner_id_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.owner_id",
+        "n|col|public.notes.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_team_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_team_id_idx",
+        "n|idx|public.notes_tenant_team_id_idx",
+        "e|idx|public.notes_tenant_team_id_idx",
+        "n|rel|public.notes_tenant_team_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.team_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_status_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_status_id_idx",
+        "n|idx|public.notes_tenant_status_id_idx",
+        "e|idx|public.notes_tenant_status_id_idx",
+        "n|rel|public.notes_tenant_status_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.status",
+        "n|col|public.notes.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_title_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_title_id_idx",
+        "n|idx|public.notes_tenant_title_id_idx",
+        "e|idx|public.notes_tenant_title_id_idx",
+        "n|rel|public.notes_tenant_title_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.title",
+        "n|col|public.notes.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_published_ms_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_published_ms_idx",
+        "n|idx|public.notes_tenant_published_ms_idx",
+        "e|idx|public.notes_tenant_published_ms_idx",
+        "n|rel|public.notes_tenant_published_ms_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_owner_id_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "owner_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_tenant_team_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "team_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_tenant_status_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "status",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "deleted_at is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_tenant_title_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "title",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "deleted_at is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_tenant_published_ms_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"published_at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "deleted_at is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "drop",
+      "key": "indexes\u0000[\"public\",\"notes_owner_id_idx\"]"
+    },
+    {
+      "op": "alter",
+      "key": "indexes\u0000[\"public\",\"notes_deleted_at_idx\"]",
+      "set": {
+        "where": "deleted_at is not null"
+      }
+    }
+  ]
+}

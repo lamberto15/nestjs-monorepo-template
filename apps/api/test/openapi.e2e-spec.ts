@@ -34,9 +34,11 @@ const PANEL_COMPONENTS = [
   'RevisionDiff',
   'RecordDocument',
   'RecordDocumentPage',
+  // capability:shares begin
   'Share',
   'ShareList',
   'CreatedShare',
+  // capability:shares end
   'Duplicate',
   'DuplicateList',
   'MergePreview',
@@ -185,8 +187,10 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/account/export',
         '/v1/account/exports',
         '/v1/acknowledgments',
+        // capability:ai begin
         '/v1/ai/runs',
         '/v1/ai/runs/{id}',
+        // capability:ai end
         '/v1/approvals',
         '/v1/approvals/delegations',
         '/v1/approvals/delegations/{id}',
@@ -264,6 +268,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/auth/token/exchange',
         '/v1/auth/token/refresh',
         '/v1/auth/token/revoke',
+        // capability:automations begin
         '/v1/automation-rules',
         '/v1/automation-rules/simulate',
         '/v1/automation-rules/subjects',
@@ -271,6 +276,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/automation-rules/{id}/activate',
         '/v1/automation-rules/{id}/disable',
         '/v1/automation-rules/{id}/runs',
+        // capability:automations end
         '/v1/branding',
         '/v1/branding/domains',
         '/v1/branding/domains/{id}',
@@ -298,11 +304,13 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/custom-fields/subjects',
         '/v1/custom-fields/{id}',
         '/v1/data',
+        // capability:data-quality begin
         '/v1/data-quality',
         '/v1/data-quality/findings/{id}/dismiss',
         '/v1/data-quality/findings/{id}/recheck',
         '/v1/data-quality/scans',
         '/v1/data-quality/subjects/{subject}/findings',
+        // capability:data-quality end
         '/v1/data/exports',
         '/v1/data/imports',
         '/v1/data/imports/{name}/mappings',
@@ -310,14 +318,17 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/data/imports/{name}/template',
         '/v1/data/transfers',
         '/v1/data/transfers/{id}',
+        // capability:messaging begin
         '/v1/devices',
         '/v1/devices/web-push',
         '/v1/devices/{id}',
+        // capability:messaging end
         '/v1/documents/{id}',
         '/v1/favorites',
         '/v1/favorites/order',
         '/v1/favorites/{id}',
         '/v1/features',
+        // capability:forms begin
         '/v1/forms',
         '/v1/forms/option-sources',
         '/v1/forms/{formId}/submissions',
@@ -333,6 +344,7 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/forms/{id}/unarchive',
         '/v1/forms/{id}/versions',
         '/v1/forms/{id}/versions/{version}',
+        // capability:forms end
         '/v1/inbox',
         '/v1/inbox/dismiss',
         '/v1/legal-holds',
@@ -341,8 +353,10 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/lists/{subject}',
         '/v1/mail/suppressions',
         '/v1/mail/suppressions/{id}',
+        // capability:messaging begin
         '/v1/messaging/phone',
         '/v1/messaging/phone/verify',
+        // capability:messaging end
         '/v1/money/convert',
         '/v1/money/rates',
         '/v1/naming-series',
@@ -404,9 +418,13 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/organizational-units',
         '/v1/people',
         '/v1/people/{id}/avatar',
+        // capability:presence begin
         '/v1/presence/{subject}/{recordId}',
+        // capability:presence end
+        // capability:forms begin
         '/v1/public/forms/open',
         '/v1/public/forms/submit',
+        // capability:forms end
         '/v1/recents',
         '/v1/recents/{id}',
         '/v1/record-schedules',
@@ -432,9 +450,11 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/settings/{key}/mine',
         '/v1/settings/{key}/overrides',
         '/v1/settings/{key}/platform',
+        // capability:shares begin
         '/v1/shared/code',
         '/v1/shared/files/{attachmentId}',
         '/v1/shared/open',
+        // capability:shares end
         '/v1/sso/connections',
         '/v1/sso/connections/{id}',
         '/v1/sso/connections/{id}/refresh',
@@ -479,7 +499,9 @@ describe('OpenAPI document (e2e)', () => {
         '/v1/webhook-senders/{id}',
         '/v1/webhook-senders/{id}/rotate-secret',
         '/v1/webhooks/mail/{provider}',
+        // capability:messaging begin
         '/v1/webhooks/sms/{provider}',
+        // capability:messaging end
         '/v1/webhooks/tenants/{tenantId}/senders/{name}',
       ]);
     check({

@@ -20,7 +20,7 @@ import type { QuietHours } from './quiet-hours.js';
  * retention job removes it. The texts are not stored: `type` and `data`
  * render them in the reader's language when they are read.
  */
-export const notifications = pgTable(
+export const notifications = pgTable.withRLS(
   'notifications',
   {
     id: uuidPk(),
@@ -87,7 +87,7 @@ export const notifications = pgTable(
       .where(sql`read_at is not null`),
     ...tenantTable('notifications', table, { nullRows: 'everywhere' }),
   ],
-).enableRLS();
+);
 
 /**
  * A recipient's notification preferences: only what differs from the

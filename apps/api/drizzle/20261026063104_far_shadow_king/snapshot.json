@@ -1,0 +1,190 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b107818b-76ad-460a-8ba1-68752de53984",
+  "prevIds": [
+    "21db8a01-7af5-4a8e-b30b-0d6f13214b23"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_tenant_at_ms_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_tenant_at_ms_id_idx",
+        "n|idx|public.audit_log_tenant_at_ms_id_idx",
+        "e|idx|public.audit_log_tenant_at_ms_id_idx",
+        "n|rel|public.audit_log_tenant_at_ms_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.tenant_id",
+        "n|col|public.audit_log.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_created_ms_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_created_ms_idx",
+        "n|idx|public.notes_tenant_created_ms_idx",
+        "e|idx|public.notes_tenant_created_ms_idx",
+        "n|rel|public.notes_tenant_created_ms_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "notes",
+        "notes_tenant_updated_ms_idx"
+      ],
+      "writes": [
+        "s|idx|public.notes_tenant_updated_ms_idx",
+        "n|idx|public.notes_tenant_updated_ms_idx",
+        "e|idx|public.notes_tenant_updated_ms_idx",
+        "n|rel|public.notes_tenant_updated_ms_idx"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "audit_log",
+        "name": "audit_log_tenant_at_ms_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_tenant_created_ms_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"created_at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "deleted_at is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_tenant_updated_ms_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "(date_trunc('milliseconds', \"updated_at\" at time zone 'UTC') at time zone 'UTC') desc nulls first",
+            "isExpression": true,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "id",
+            "isExpression": false,
+            "asc": false,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": "deleted_at is null",
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

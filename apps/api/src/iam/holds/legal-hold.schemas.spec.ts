@@ -41,7 +41,7 @@ describe('notHeld', () => {
     );
     expect(text).toMatch(/^not exists \(select 1 from "legal_holds" where/);
     expect(text).toContain('"released_at" is null');
-    expect(text).toContain('"record_id" is null or');
+    expect(text).toContain('"record_id" is null)) or');
     expect(params).toEqual(['Note']);
   });
 });

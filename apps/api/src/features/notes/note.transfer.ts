@@ -4,15 +4,7 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import {
-  and,
-  desc,
-  eq,
-  getTableColumns,
-  inArray,
-  isNull,
-  lt,
-} from 'drizzle-orm';
+import { and, desc, eq, getColumns, inArray, isNull, lt } from 'drizzle-orm';
 import { z } from 'zod';
 import type { ListQuery } from '../../core/http/list-query.js';
 import { walkList } from '../../core/http/pagination.js';
@@ -179,7 +171,7 @@ export class NoteTransfer
       ({ after, orderBy, limit }) =>
         this.notes.query((db) =>
           db
-            .select({ ...getTableColumns(notes), ...extra })
+            .select({ ...getColumns(notes), ...extra })
             .from(notes)
             .where(and(where, after))
             .orderBy(...orderBy)

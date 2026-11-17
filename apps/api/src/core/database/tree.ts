@@ -34,7 +34,7 @@ import {
  * export both from schema.ts:
  *
  * ```ts
- * export const categories = pgTable('categories', { id: uuidPk(), tenantId: tenantColumn(), parentId: uuid('parent_id'), … }, …).enableRLS();
+ * export const categories = pgTable.withRLS('categories', { id: uuidPk(), tenantId: tenantColumn(), parentId: uuid('parent_id'), … }, …);
  * export const categoryTree = closureTable('category_tree', () => categories);
  * const tree = new Tree(categoryTree);
  * await tree.add(tx, id, parentId);              // after inserting the node
@@ -45,7 +45,7 @@ export function closureTable(
   name: string,
   node: () => { tenantId: AnyPgColumn; id: AnyPgColumn },
 ) {
-  return pgTable(
+  return pgTable.withRLS(
     name,
     {
       tenantId: tenantColumn(),
@@ -68,7 +68,7 @@ export function closureTable(
         [node().tenantId, node().id],
       ),
     ],
-  ).enableRLS();
+  );
 }
 
 export type ClosureTable = ReturnType<typeof closureTable>;

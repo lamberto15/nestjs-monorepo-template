@@ -158,11 +158,17 @@ describe('PermissionCatalog', () => {
       'Access',
       'Platform',
       'Approval',
+      // capability:automations begin
       'AutomationRule',
+      // capability:automations end
       'Ops',
       'MailSuppression',
+      // capability:data-quality begin
       'DataQuality',
+      // capability:data-quality end
+      // capability:forms begin
       'Form',
+      // capability:forms end
       'Note',
     ]);
     expect(catalog.seedRoles.map((role) => role.key)).toEqual([

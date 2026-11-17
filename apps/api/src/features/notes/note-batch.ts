@@ -11,7 +11,7 @@ import {
 } from '../../core/database/transactions.js';
 import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import { Tenancy } from '../../core/tenancy/tenancy.service.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { AuditService } from '../../iam/audit/audit.service.js';
 import { principalKey, type Principal } from '../../iam/auth/principal.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';

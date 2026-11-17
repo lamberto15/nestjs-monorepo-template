@@ -15,7 +15,9 @@ import { RecordPurgeRegistry } from '../../iam/resources/record-purge.registry.j
 import type { Principal } from '../../iam/auth/principal.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { ApprovalsService } from '../approvals/approvals.service.js';
+// capability:automations begin
 import { AutomationsService } from '../automations/automations.service.js';
+// capability:automations end
 import { applyingEffect } from './record-approvals.js';
 import { CustomFieldsService } from '../custom-fields/custom-fields.service.js';
 import { DocumentsService } from '../documents/documents.service.js';
@@ -172,7 +174,9 @@ export class RecordLifecycle {
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
     private readonly approvals: ApprovalsService,
+    // capability:automations begin
     private readonly automations: AutomationsService,
+    // capability:automations end
     purges: RecordPurgeRegistry,
   ) {
     // Its records purged (recycle bin, retention): the optional references
@@ -307,9 +311,12 @@ export class RecordLifecycle {
       });
     }
     await this.emit(tx, 'created', row);
+    // capability:automations begin
     await this.automate(tx, 'created', row);
+    // capability:automations end
   }
 
+  // capability:automations begin
   /** With `automation`: the tenant's rules this change triggers run once it commits. */
   private async automate(
     tx: Transaction,
@@ -326,6 +333,7 @@ export class RecordLifecycle {
       });
     }
   }
+  // capability:automations end
 
   /**
    * With approvable actions (`approvals`, or a feature's own, written by hand): the record can't change or go
@@ -458,7 +466,9 @@ export class RecordLifecycle {
       });
     }
     await this.emit(tx, 'updated', after);
+    // capability:automations begin
     await this.automate(tx, 'updated', after, before);
+    // capability:automations end
   }
 
   /** `row` as it is once deleted (in the recycle bin, or as it was when deleted for good). */

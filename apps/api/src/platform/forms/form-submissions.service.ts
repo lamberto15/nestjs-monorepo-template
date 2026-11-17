@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, getTableColumns } from 'drizzle-orm';
+import { and, eq, getColumns } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
   database,
@@ -40,7 +40,7 @@ import { FormsService, invalid } from './forms.service.js';
 
 /** A submission row with its version's number. */
 const columns = {
-  ...getTableColumns(formSubmissions),
+  ...getColumns(formSubmissions),
   version: formVersions.version,
 };
 

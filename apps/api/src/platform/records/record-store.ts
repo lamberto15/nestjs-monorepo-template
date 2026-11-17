@@ -1,6 +1,6 @@
 import { Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, eq, getTableColumns, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, eq, getColumns, isNotNull, isNull, sql } from 'drizzle-orm';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
 import { TenantQuotas } from '../../core/tenancy/tenant-quotas.js';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
@@ -20,7 +20,7 @@ import { refuseBroadRank } from '../../core/database/search.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import type { RecordDeclaration } from './record.js';
 import {
@@ -195,7 +195,7 @@ export class RecordStore {
     const extra = list.sortSelect(query);
     const [rows, total] = await Promise.all([
       this.db
-        .select({ ...getTableColumns(table), ...extra })
+        .select({ ...getColumns(table), ...extra })
         .from(table)
         .where(and(where, afterCursor(table.id!, query)))
         .orderBy(...pageOrder(table.id!, query))

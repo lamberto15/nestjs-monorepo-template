@@ -1,0 +1,548 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "e38069ec-37ce-4f6a-bc0c-5bf5decc6db1",
+  "prevIds": [
+    "ab76c783-1b77-4751-9ed1-f3d788ee998c"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_public_links"
+      ],
+      "writes": [
+        "s|tbl|public.form_public_links",
+        "n|tbl|public.form_public_links",
+        "e|tbl|public.form_public_links",
+        "n|rel|public.form_public_links",
+        "n|type|public.form_public_links",
+        "n|rel|public.form_public_links_pkey",
+        "n|rel|public.form_public_links_tenant_token_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "form_public_links",
+        "form_public_links_form_idx"
+      ],
+      "writes": [
+        "s|idx|public.form_public_links_form_idx",
+        "n|idx|public.form_public_links_form_idx",
+        "e|idx|public.form_public_links_form_idx",
+        "n|rel|public.form_public_links_form_idx"
+      ],
+      "reads": [
+        "n|tbl|public.form_public_links",
+        "n|sch|public",
+        "n|col|public.form_public_links.form_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_public_links"
+      ],
+      "writes": [
+        "s|fk|public.form_public_links.form_public_links_tenant_id_tenants_id_fk",
+        "n|fk|public.form_public_links.form_public_links_tenant_id_tenants_id_fk",
+        "e|fk|public.form_public_links.form_public_links_tenant_id_tenants_id_fk",
+        "n|con|public.form_public_links.form_public_links_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.form_public_links",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.form_public_links.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_public_links"
+      ],
+      "writes": [
+        "s|fk|public.form_public_links.form_public_links_form_fk",
+        "n|fk|public.form_public_links.form_public_links_form_fk",
+        "e|fk|public.form_public_links.form_public_links_form_fk",
+        "n|con|public.form_public_links.form_public_links_form_fk"
+      ],
+      "reads": [
+        "n|tbl|public.form_public_links",
+        "n|sch|public",
+        "n|tbl|public.forms",
+        "n|sch|public",
+        "n|col|public.form_public_links.tenant_id",
+        "n|col|public.form_public_links.form_id",
+        "n|col|public.forms.tenant_id",
+        "n|col|public.forms.id",
+        "e|uniqueness|public.forms.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_public_links"
+      ],
+      "writes": [
+        "s|pol|public.form_public_links.form_public_links_tenant_select",
+        "n|pol|public.form_public_links.form_public_links_tenant_select",
+        "e|pol|public.form_public_links.form_public_links_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.form_public_links",
+        "n|sch|public",
+        "e|rls|public.form_public_links"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_public_links"
+      ],
+      "writes": [
+        "s|pol|public.form_public_links.form_public_links_tenant_insert",
+        "n|pol|public.form_public_links.form_public_links_tenant_insert",
+        "e|pol|public.form_public_links.form_public_links_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.form_public_links",
+        "n|sch|public",
+        "e|rls|public.form_public_links"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_public_links"
+      ],
+      "writes": [
+        "s|pol|public.form_public_links.form_public_links_tenant_update",
+        "n|pol|public.form_public_links.form_public_links_tenant_update",
+        "e|pol|public.form_public_links.form_public_links_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.form_public_links",
+        "n|sch|public",
+        "e|rls|public.form_public_links"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "form_public_links"
+      ],
+      "writes": [
+        "s|pol|public.form_public_links.form_public_links_tenant_delete",
+        "n|pol|public.form_public_links.form_public_links_tenant_delete",
+        "e|pol|public.form_public_links.form_public_links_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.form_public_links",
+        "n|sch|public",
+        "e|rls|public.form_public_links"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "form_public_links",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "token_hash",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "created_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "revoked_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "revoked_by",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "max_submissions",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "submissions",
+        "type": "integer",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "0",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "last_submitted_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_form_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "form_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_form_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "form_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "forms",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_tenant_token_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "token_hash"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "form_public_links",
+        "name": "form_public_links_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"form_public_links\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

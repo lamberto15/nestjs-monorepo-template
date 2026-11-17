@@ -20,7 +20,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
 import { defineCustomFields } from '../custom-fields/custom-field.types.js';
 import {
   columnName,
@@ -74,8 +74,12 @@ export const CAPABILITIES = [
   'custom',
   'events',
   'numbered',
+  // capability:shares begin
   'share',
+  // capability:shares end
+  // capability:automations begin
   'automation',
+  // capability:automations end
   'merge',
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
@@ -90,11 +94,13 @@ export interface RecordNumber {
   width?: number;
 }
 
+// capability:data-quality begin
 /** A record's data-quality checks (platform/data-quality), by field name. */
 export interface RecordQuality {
   recommended?: readonly string[];
   duplicates?: readonly string[];
 }
+// capability:data-quality end
 
 export interface RecordDeclaration<
   F extends Fields = Fields,
@@ -147,6 +153,7 @@ export interface RecordDeclaration<
    * of dates or a status the feature does not let `PATCH` change is `readOnly`.
    */
   views?: ListViewsDeclaration;
+  // capability:data-quality begin
   /**
    * What the data-quality scan checks besides its references
    * (docs/data-quality.md): `recommended` fields left empty are suggestions,
@@ -154,6 +161,7 @@ export interface RecordDeclaration<
    * too are duplicate candidates. Its `ref` fields are always checked.
    */
   quality?: RecordQuality;
+  // capability:data-quality end
   /**
    * With `merge`: when two records are likely the same (docs/merging.md),
    * each rule a set of fields whose values all match (text without case or
@@ -197,6 +205,7 @@ export function defineRecord<
       `${declaration.subject} takes pdf: add attachments too (a PDF is one of the record's attachments).`,
     );
   }
+  // capability:data-quality begin
   for (const name of [
     ...(declaration.quality?.recommended ?? []),
     ...(declaration.quality?.duplicates ?? []),
@@ -207,6 +216,7 @@ export function defineRecord<
       );
     }
   }
+  // capability:data-quality end
   for (const action of Object.keys(declaration.approvals ?? {})) {
     if (!APPROVAL_ACTION.test(action) || RESERVED_ACTIONS.includes(action)) {
       throw new Error(
@@ -399,7 +409,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
     }),
   } as unknown as RecordColumns<D>;
   const name = declaration.table;
-  const built = pgTable(name as D['table'], columns, (table) => {
+  const built = pgTable.withRLS(name as D['table'], columns, (table) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const t = table as any;
     return [
@@ -431,7 +441,7 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
         ? [index(`${name}_custom_idx`).using('gin', t.custom)]
         : []),
     ];
-  }).enableRLS();
+  });
   registered(declaration, built as unknown as PgTable);
   return built;
 }

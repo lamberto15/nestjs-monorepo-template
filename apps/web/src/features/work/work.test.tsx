@@ -3,10 +3,14 @@ import userEvent from '@testing-library/user-event';
 import { http, HttpResponse } from 'msw/http';
 import { describe, expect, it } from 'vitest';
 import { renderApp } from '@/test/render-app';
+// capability:presence begin
 import { renderComponent } from '@/test/render-component';
+// capability:presence end
 import { server } from '@/test/server';
 import { useSignedIn } from '@/test/signed-in';
+// capability:presence begin
 import { PresenceIndicator } from './presence-indicator';
+// capability:presence end
 
 const approval = {
   key: 'approval:a1',
@@ -58,6 +62,7 @@ describe('my work', () => {
   });
 });
 
+// capability:presence begin
 describe('record presence', () => {
   const people = (items: object[]) =>
     http.put('/v1/presence/:subject/:recordId', () =>
@@ -103,3 +108,4 @@ describe('record presence', () => {
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   });
 });
+// capability:presence end

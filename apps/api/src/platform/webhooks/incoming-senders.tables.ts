@@ -14,7 +14,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * after creation or rotation and never written to the audit log. After a
  * rotation the previous secret still verifies until `previousSecretExpiresAt`.
  */
-export const incomingWebhookSenders = pgTable(
+export const incomingWebhookSenders = pgTable.withRLS(
   'incoming_webhook_senders',
   {
     id: uuidPk(),
@@ -35,4 +35,4 @@ export const incomingWebhookSenders = pgTable(
     ),
     ...tenantTable('incoming_webhook_senders', table),
   ],
-).enableRLS();
+);

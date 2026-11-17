@@ -65,12 +65,16 @@ export const platformEnv = z.object({
   /** Workflow instances this process executes at once. */
   WORKFLOW_CONCURRENCY: z.coerce.number().int().min(1).default(10),
   /** Jobs each queue's worker runs at once (the mail and SSO queues: core and iam). */
+  // capability:messaging begin
   QUEUE_CONCURRENCY_MESSAGING: z.coerce.number().int().min(1).default(5),
+  // capability:messaging end
   QUEUE_CONCURRENCY_ATTACHMENT_SCAN: z.coerce.number().int().min(1).default(4),
   QUEUE_CONCURRENCY_DATA_TRANSFERS: z.coerce.number().int().min(1).default(2),
   QUEUE_CONCURRENCY_BULK: z.coerce.number().int().min(1).default(2),
   QUEUE_CONCURRENCY_DOCUMENTS: z.coerce.number().int().min(1).default(2),
+  // capability:ai begin
   QUEUE_CONCURRENCY_AI: z.coerce.number().int().min(1).default(2),
+  // capability:ai end
   QUEUE_CONCURRENCY_MAIL_EVENTS: z.coerce.number().int().min(1).default(2),
   QUEUE_CONCURRENCY_RETENTION: z.coerce.number().int().min(1).default(1),
   QUEUE_CONCURRENCY_REENCRYPTION: z.coerce.number().int().min(1).default(1),
@@ -161,6 +165,7 @@ export const platformEnv = z.object({
   /** Where the ECB's eurofxref documents are (eurofxref-daily.xml, eurofxref-hist-90d.xml): a mirror, or a stub in tests. */
   EXCHANGE_RATES_ECB_URL: baseUrl('https://www.ecb.europa.eu/stats/eurofxref'),
 
+  // capability:messaging begin
   // Push and SMS (platform/messaging, docs/notifications.md, "Push and SMS").
   // Both providers are off until configured: nothing leaves the deployment.
   /** SMS provider: `off`, `twilio`, or `memory` (tests: keeps what it would send). */
@@ -250,6 +255,7 @@ export const platformEnv = z.object({
     .default(3500),
   /** A person's devices that have not been seen for this many days are removed every night. */
   DEVICES_RETENTION_DAYS: z.coerce.number().int().min(1).default(270),
+  // capability:messaging end
 
   // Email deliverability (platform/deliverability, docs/deliverability.md).
   /**
@@ -373,6 +379,7 @@ export const platformEnv = z.object({
   /** Tries per document, the first included (exponential backoff from 1 s), before it fails. */
   DOCUMENTS_RENDER_ATTEMPTS: z.coerce.number().int().min(1).max(10).default(3),
 
+  // capability:ai begin
   /**
    * The AI helper (platform/ai): an Anthropic API key. Unset: the helper is
    * off and asking for it answers 503 `ai_unavailable`; nothing is sent
@@ -395,6 +402,7 @@ export const platformEnv = z.object({
   AI_TENANT_DAILY_TOKENS: z.coerce.number().int().min(0).default(500_000),
   /** How long an answer to the same prompt (same tenant, model and prompt version) is reused; 0 is never. */
   AI_CACHE_TTL_SECONDS: z.coerce.number().int().min(0).default(3600),
+  // capability:ai end
 
   /** Where files go: `local` (STORAGE_ROOT), `s3` (any S3-compatible store), `memory` (tests). */
   STORAGE_DRIVER: z.enum(['local', 's3', 'memory']).default('local'),

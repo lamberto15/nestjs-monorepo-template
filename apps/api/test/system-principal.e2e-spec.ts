@@ -120,7 +120,9 @@ describe('the system principal', () => {
         'audit-retention',
         'account-deletion',
         'report-runner',
+        // capability:automations begin
         'automations',
+        // capability:automations end
         'approvals',
       ]),
     );

@@ -576,7 +576,7 @@ can be made (`iam/access/single-tenant.ts`):
 ## Adding a tenant table
 
 ```ts
-export const invoices = pgTable(
+export const invoices = pgTable.withRLS(
   'invoices',
   {
     id: uuidPk(),
@@ -590,7 +590,7 @@ export const invoices = pgTable(
     uniqueIndex('invoices_number_idx').on(t.tenantId, t.number),   // per tenant
     tenantReference('invoices_customer_fk', [t.tenantId, t.customerId], [customers.tenantId, customers.id]),
   ],
-).enableRLS();
+);
 ```
 
 Then `pnpm db:generate`. Change a policy only there (the declaration, then

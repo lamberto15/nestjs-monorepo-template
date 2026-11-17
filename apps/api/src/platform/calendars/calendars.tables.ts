@@ -15,7 +15,7 @@ import type { CalendarException, WeekdayHours } from './calendar-time.js';
  * hours). `version` counts the changes that move a deadline (hours, zone,
  * exceptions); a deadline carries the version it was computed with.
  */
-export const businessCalendars = pgTable(
+export const businessCalendars = pgTable.withRLS(
   'business_calendars',
   {
     id: uuidPk(),
@@ -35,6 +35,6 @@ export const businessCalendars = pgTable(
     uniqueIndex('business_calendars_name_idx').on(table.tenantId, table.name),
     ...tenantTable('business_calendars', table, { referenced: true }),
   ],
-).enableRLS();
+);
 
 export type BusinessCalendarRow = typeof businessCalendars.$inferSelect;

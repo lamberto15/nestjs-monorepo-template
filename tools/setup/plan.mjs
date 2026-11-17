@@ -7,7 +7,9 @@
 // (active or as a commented example), so the wizard never invents a variable;
 // setup.test.mjs checks the templates still name every one it can write.
 import { randomBytes } from 'node:crypto';
+// capability:messaging begin
 import { generateVapidKeys } from './vapid.mjs';
+// capability:messaging end
 
 /** The host of a URL, or '' when it isn't one. */
 export function hostOf(url) {
@@ -35,6 +37,7 @@ const httpUrl = (v) =>
   /^https?:\/\/[^\s/]+/.test(v) ? null : 'an http(s) URL';
 /** Empty, or an http(s) URL (the variable is off when empty). */
 const optionalUrl = (v) => (v === '' ? null : httpUrl(v));
+// capability:messaging begin
 /** The VAPID contact: `mailto:` an address, or an https URL. */
 const vapidSubject = (v) =>
   (v.startsWith('mailto:') && EMAIL.test(v.slice('mailto:'.length))) ||
@@ -58,6 +61,7 @@ const providersOf = (value) =>
     .split(',')
     .map((name) => name.trim())
     .filter((name) => name && name !== 'off');
+// capability:messaging end
 
 /** Mail transports, with the template variables each needs besides MAIL_TRANSPORT. */
 const MAIL_TRANSPORTS = {
@@ -614,6 +618,7 @@ export const QUESTIONS = [
     validate: optionalUrl,
     write: (v) => ({ SENTRY_DSN: v || null }),
   },
+  // capability:ai begin
   {
     id: 'anthropicApiKey',
     label: 'Anthropic API key for the AI helper (empty: off; docs/ai.md)',
@@ -625,6 +630,8 @@ export const QUESTIONS = [
     read: (env) => env.ANTHROPIC_API_KEY,
     write: (v) => ({ ANTHROPIC_API_KEY: v || null }),
   },
+  // capability:ai end
+  // capability:messaging begin
   {
     id: 'push',
     label: 'Web Push (browser notifications; the VAPID keys are generated)?',
@@ -741,6 +748,7 @@ export const QUESTIONS = [
     validate: callingPrefixes,
     write: (v) => ({ SMS_ALLOWED_PREFIXES: v || null }),
   },
+  // capability:messaging end
   {
     id: 'idempotency',
     label: 'Idempotency-Key on writes',
@@ -868,8 +876,10 @@ export const SECRETS = [
   { key: 'ADMIN_PASSWORD', kind: 'base64', bytes: 18, first: true },
 ];
 
+// capability:messaging begin
 /** Web Push's key pair (the public one goes to browsers, the private signs). */
 const VAPID_KEYS = ['WEB_PUSH_VAPID_PUBLIC_KEY', 'WEB_PUSH_VAPID_PRIVATE_KEY'];
+// capability:messaging end
 
 /**
  * Every variable the wizard can write for the context's template, probing
@@ -890,8 +900,10 @@ export function writableKeys(ctx) {
       metrics: true,
       observe: true,
       otelEndpoint: 'https://otel.example.com',
+      // capability:messaging begin
       push: true,
       sms: true,
+      // capability:messaging end
     },
     { mail: 'resend', social: 'google', captcha: 'none' },
     { social: 'github' },
@@ -911,9 +923,11 @@ export function writableKeys(ctx) {
   for (const secret of SECRETS) {
     if (ctx.keys.has(secret.key)) keys.add(secret.key);
   }
+  // capability:messaging begin
   for (const key of VAPID_KEYS) {
     if (ctx.keys.has(key)) keys.add(key);
   }
+  // capability:messaging end
   return keys;
 }
 
@@ -943,7 +957,9 @@ export function buildPlan({
   ctx,
   rotate = false,
   random = randomBytes,
+  // capability:messaging begin
   vapid = generateVapidKeys,
+  // capability:messaging end
 }) {
   const values = new Map();
   for (const q of QUESTIONS) {
@@ -990,6 +1006,7 @@ export function buildPlan({
   const warnings = [];
   const was = (key) => existing?.get(key) ?? '';
 
+  // capability:messaging begin
   // Web Push's key pair: made once. Never rotated, not even by --rotate:
   // every browser subscription is bound to the public key, so a new pair
   // ends them all (empty both lines to start over).
@@ -1016,6 +1033,7 @@ export function buildPlan({
       'SMS_ALLOWED_PREFIXES is empty: no SMS is sent until it lists the country calling-code prefixes to serve (+1,+44).',
     );
   }
+  // capability:messaging end
   const changes = (key) =>
     was(key) !== '' && values.has(key) && was(key) !== (values.get(key) ?? '');
   const adminEmail = values.get('ADMIN_EMAIL') ?? was('ADMIN_EMAIL');

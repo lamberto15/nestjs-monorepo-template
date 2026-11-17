@@ -29,11 +29,11 @@ import {
   apiClientRoles,
   apiClients,
   memberships,
-  organizationalUnits,
   roles,
   userRoles,
 } from '../../iam/iam.tables.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { PLATFORM_OPTIONS, type PlatformOptions } from '../platform.options.js';
 import { resolveSetting, type SettingSource } from './setting-resolution.js';
 import {

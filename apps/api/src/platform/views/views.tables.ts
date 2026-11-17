@@ -14,7 +14,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
 
 /** Who sees a saved view: its owner alone, the current members of a unit, or the whole tenant. */
 export const VIEW_VISIBILITIES = ['private', 'unit', 'tenant'] as const;
@@ -27,7 +27,7 @@ export type ViewVisibility = (typeof VIEW_VISIBILITIES)[number];
  * `columns` the item fields to show (`fields=`). Both are validated against
  * the list when saved and again when applied.
  */
-export const savedViews = pgTable(
+export const savedViews = pgTable.withRLS(
   'saved_views',
   {
     id: uuidPk(),
@@ -77,6 +77,6 @@ export const savedViews = pgTable(
       'restrict',
     ),
   ],
-).enableRLS();
+);
 
 export type SavedViewRow = typeof savedViews.$inferSelect;

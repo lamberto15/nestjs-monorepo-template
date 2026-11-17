@@ -1,0 +1,81 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "a4b1b30a-be7b-420e-9650-dc7ca995df81",
+  "prevIds": [
+    "1e544fb8-5a39-4b54-a139-61af20b0afd5"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "platform_setting_values",
+        "rules"
+      ],
+      "writes": [
+        "s|col|public.platform_setting_values.rules",
+        "n|col|public.platform_setting_values.rules",
+        "e|col|public.platform_setting_values.rules"
+      ],
+      "reads": [
+        "n|tbl|public.platform_setting_values",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "setting_overrides",
+        "rules"
+      ],
+      "writes": [
+        "s|col|public.setting_overrides.rules",
+        "n|col|public.setting_overrides.rules",
+        "e|col|public.setting_overrides.rules"
+      ],
+      "reads": [
+        "n|tbl|public.setting_overrides",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "platform_setting_values",
+        "name": "rules",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "setting_overrides",
+        "name": "rules",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

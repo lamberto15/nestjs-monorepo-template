@@ -5,7 +5,6 @@ import { fileURLToPath } from 'node:url';
 import { sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { migrate as migratePg } from 'drizzle-orm/node-postgres/migrator';
-import * as schema from '../../schema.js';
 import { RETIRED_NAMES, STORED_RENAMES } from '../../stored-renames.js';
 import type { Database } from './drizzle.js';
 import {
@@ -36,7 +35,7 @@ export async function migrateAll(
   log: (line: string) => void = () => {},
 ) {
   const url = urls.ownerUrl;
-  const db = drizzle({ connection: url, schema });
+  const db = drizzle({ connection: url });
   try {
     await migratePostgres(db);
   } finally {

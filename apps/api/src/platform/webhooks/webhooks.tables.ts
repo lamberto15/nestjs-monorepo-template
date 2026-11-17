@@ -62,7 +62,7 @@ export const webhookDeliveryRequests = pgTable('webhook_delivery_requests', {
  * `Access.manageClients` and authority over the client; the client's
  * deletion takes it along.
  */
-export const webhookClientScopes = pgTable(
+export const webhookClientScopes = pgTable.withRLS(
   'webhook_client_scopes',
   {
     id: uuidPk(),
@@ -83,7 +83,7 @@ export const webhookClientScopes = pgTable(
       [apiClients.tenantId, apiClients.id],
     ),
   ],
-).enableRLS();
+);
 
 /** `own`: the client's own records; `tenant`: every record of its tenant it may read. */
 export const WEBHOOK_SCOPES = ['own', 'tenant'] as const;

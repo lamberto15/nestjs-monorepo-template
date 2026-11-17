@@ -25,14 +25,17 @@ describe('access control (e2e)', () => {
       (s: { subject: string }) => s.subject,
     );
     // The groups' subjects, then the features' (and the test-only record's).
-    expect(subjects.slice(0, 6)).toEqual([
+    const groups = [
       'Access',
       'Platform',
       'Approval',
+      // capability:automations begin
       'AutomationRule',
+      // capability:automations end
       'Ops',
       'MailSuppression',
-    ]);
+    ];
+    expect(subjects.slice(0, groups.length)).toEqual(groups);
     expect(subjects).toContain('TestItem');
   });
 

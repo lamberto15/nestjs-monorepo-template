@@ -17,8 +17,9 @@
 // stub and removed while still the stub) and its two lines in the module, and
 // the actions' paths in the OpenAPI test.
 //
-// The guard compares the declaration with the table in the latest drizzle
-// snapshot (apps/api/drizzle/meta): a new required field without a
+// The guard compares the declaration with the table as the drizzle
+// snapshots leave it (apps/api/drizzle/*/snapshot.json, replayed by
+// drizzle-kit): a new required field without a
 // default, an optional field made required, a field removed, or
 // `softDelete` or `unit` turned off (their columns dropped), would fail or
 // lose data on a table with rows (docs/pitfalls.md, expand/contract).
@@ -26,6 +27,7 @@
 // the flags change in the code the platform derives (platform/records): a
 // generated file that still codes them by hand fails the sync.
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import {
   existsSync,
   readdirSync,
@@ -34,7 +36,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { texts } from './capabilities.mjs';
 import { format } from './format.mjs';
@@ -367,9 +369,11 @@ export function recordPaths(record) {
       : []),
     ...(has('tags') ? [`${base}/{id}/tags`] : []),
     ...(has('watch') ? [`${base}/{id}/watch`] : []),
+    // capability:shares begin
     ...(has('share')
       ? [`${base}/{id}/shares`, `${base}/{id}/shares/{shareId}`]
       : []),
+    // capability:shares end
     ...(has('merge')
       ? [
           `${base}/duplicates`,
@@ -401,14 +405,29 @@ async function syncPaths(api, record, check) {
   const base = `/v1/${record.plural}`;
   const mine = (p) => p === base || p.startsWith(`${base}/`);
   const wanted = recordPaths(record);
-  const all = [
-    ...new Set([...paths.filter((p) => !mine(p)), ...wanted]),
-  ].sort();
   const added = wanted.filter((p) => !paths.includes(p));
   const removed = paths.filter((p) => mine(p) && !wanted.includes(p));
   if ((added.length || removed.length) && !check) {
-    const list = all.map((p) => `      '${p}',`).join('\n');
-    const edited = `${text.slice(0, start)}${block.slice(0, open)}\n${list}\n    ${text.slice(end)}`;
+    // Line by line, not rebuilt: the list holds comment lines too (the
+    // `capability:<name>` markers of pnpm capability:remove).
+    const pathOf = (line) => /^\s*'([^']+)',$/.exec(line)?.[1];
+    const lines = block
+      .slice(open)
+      .split('\n')
+      .filter((line) => !removed.includes(pathOf(line)));
+    for (const p of added.toSorted()) {
+      let at = lines.findIndex((line) => pathOf(line) > p);
+      if (at < 0) at = lines.findLastIndex((line) => pathOf(line)) + 1;
+      // Above the markers that open the block the next path is in.
+      while (
+        at > 0 &&
+        /^\s*\/\/ /.test(lines[at - 1]) &&
+        !pathOf(lines[at - 1])
+      )
+        at--;
+      lines.splice(at, 0, `      '${p}',`);
+    }
+    const edited = `${text.slice(0, start)}${block.slice(0, open)}${lines.join('\n')}${text.slice(end)}`;
     writeFileSync(file, await format(file, edited));
   }
   return [
@@ -489,21 +508,28 @@ function syncTexts(api, record, check) {
   return { changes, translate };
 }
 
-/** The table as the latest drizzle snapshot has it: column name → its NOT NULL and default. */
-function snapshotTable(api, table) {
-  const journalFile = inside(api, 'drizzle/meta/_journal.json');
-  if (!existsSync(journalFile)) return null; // nothing migrated yet
-  const journal = JSON.parse(readFileSync(journalFile, 'utf8'));
-  const last = journal.entries[journal.entries.length - 1];
-  if (!last || !Number.isInteger(last.idx)) return null;
-  const snapshotFile = inside(
-    api,
-    'drizzle/meta',
-    `${String(last.idx).padStart(4, '0')}_snapshot.json`,
+/** The table as the migrations leave it: column name → its NOT NULL and default. */
+async function snapshotTable(api, table) {
+  const folder = inside(api, 'drizzle');
+  const files = {};
+  for (const name of existsSync(folder) ? readdirSync(folder) : []) {
+    const file = path.join(folder, name, 'snapshot.json');
+    if (existsSync(file)) files[name] = JSON.parse(readFileSync(file, 'utf8'));
+  }
+  if (!Object.keys(files).length) return null; // nothing migrated yet
+  // Each snapshot after the first holds only its changes: drizzle-kit's own
+  // replay (its SDK, from the API's dependencies) gives the newest state.
+  const kit = createRequire(path.join(REPO, 'apps/api/package.json')).resolve(
+    'drizzle-kit/api-postgres',
   );
-  const snapshot = JSON.parse(readFileSync(snapshotFile, 'utf8'));
-  const found = snapshot.tables?.[`public.${table}`];
-  return found ? found.columns : null;
+  const { reconstruct } = await import(pathToFileURL(kit).href);
+  const columns = (await reconstruct(files)).ddl.filter(
+    (e) =>
+      e.entityType === 'columns' && e.schema === 'public' && e.table === table,
+  );
+  return columns.length
+    ? Object.fromEntries(columns.map((c) => [c.name, c]))
+    : null;
 }
 
 /** The columns a field has (money: its pair). */
@@ -517,8 +543,8 @@ const columnsOf = (f) =>
  * errors to fix before `pnpm db:generate`, and whether it has anything to
  * generate.
  */
-function guard(api, record) {
-  const columns = snapshotTable(api, record.table);
+async function guard(api, record) {
+  const columns = await snapshotTable(api, record.table);
   if (!columns) return { errors: [], warnings: [], generate: true }; // a new table
   const errors = [];
   const warnings = [];
@@ -742,7 +768,7 @@ export async function syncFeature(api, plural, { check = false } = {}) {
   const texts = syncTexts(api, record, check);
   const paths = await syncPaths(api, record, check);
   const approvals = await syncApprovals(api, record, check);
-  const { errors, warnings, generate } = guard(api, record);
+  const { errors, warnings, generate } = await guard(api, record);
   warnings.push(...permissionWarnings(dir, file, record));
   return {
     plural,

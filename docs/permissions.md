@@ -436,6 +436,14 @@ siblings whatever the case (409 `unit_name_taken`). Moving a unit moves
 everything under it. A unit with members or units below it is not deleted
 (409 `unit_not_empty`).
 
+The tree and its memberships live in `iam/organization/`: their tables, the
+service that owns every write to them (SCIM's too), and the membership
+subqueries (`unitIdsOf()`, `currentMembership()`). The access engine reads
+them; `iam/organization/` never imports `iam/access/` (oxlint enforces it) and
+reaches the engine only through `UnitAccess` (the cache invalidation, the
+impact preview's reads). The routes, the conditions and the authority checks
+stay in `iam/access/`.
+
 Users belong to units through **memberships** with a role (`member` or
 `lead`) and dates (`validFrom`, `validTo`: a re-org can be dated ahead; the
 history is kept). `/v1/access/organizational-units/{id}/members` manages

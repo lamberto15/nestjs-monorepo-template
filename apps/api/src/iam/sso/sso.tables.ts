@@ -21,12 +21,8 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import {
-  memberships,
-  organizationalUnits,
-  roles,
-  userRoles,
-} from '../iam.tables.js';
+import { memberships, roles, userRoles } from '../iam.tables.js';
+import { organizationalUnits } from '../organization/organization.tables.js';
 import type { Oauth2Mapping, Oauth2Preset } from './oauth2-mapping.js';
 
 /**
@@ -36,7 +32,7 @@ import type { Oauth2Mapping, Oauth2Preset } from './oauth2-mapping.js';
  * `sso:<connection id>` + the IdP's subject in `user_identities`: two
  * tenants' Okta instances never share a key.
  */
-export const ssoConnections = pgTable(
+export const ssoConnections = pgTable.withRLS(
   'sso_connections',
   {
     id: uuidPk(),
@@ -121,7 +117,7 @@ export const ssoConnections = pgTable(
       table.name,
     ),
   ],
-).enableRLS();
+);
 
 encrypted(ssoConnections.clientSecret);
 encrypted(ssoConnections.spPrivateKey);
@@ -132,7 +128,7 @@ encrypted(ssoConnections.spPrivateKey);
  * taken back when it no longer does); without one, to a member it
  * provisions just in time, once. A role deleted takes its rows with it.
  */
-export const ssoRoleMappings = pgTable(
+export const ssoRoleMappings = pgTable.withRLS(
   'sso_role_mappings',
   {
     id: uuidPk(),
@@ -161,7 +157,7 @@ export const ssoRoleMappings = pgTable(
       [roles.tenantId, roles.id],
     ),
   ],
-).enableRLS();
+);
 
 /**
  * The role grants (`user_roles`) a connection's group mapping made: only
@@ -169,7 +165,7 @@ export const ssoRoleMappings = pgTable(
  * administrator made stays theirs; one they set again (PATCH the user's
  * roles) rewrites `user_roles` and drops its row here, so it becomes theirs.
  */
-export const ssoRoleGrants = pgTable(
+export const ssoRoleGrants = pgTable.withRLS(
   'sso_role_grants',
   {
     tenantId: tenantColumn(),
@@ -196,13 +192,13 @@ export const ssoRoleGrants = pgTable(
       [ssoConnections.tenantId, ssoConnections.id],
     ),
   ],
-).enableRLS();
+);
 
 /**
  * A tenant's SSO policy (docs/auth.md, "SSO required"): one row, absent
  * until an administrator sets it.
  */
-export const ssoPolicies = pgTable(
+export const ssoPolicies = pgTable.withRLS(
   'sso_policies',
   {
     tenantId: tenantColumn().primaryKey(),
@@ -215,14 +211,14 @@ export const ssoPolicies = pgTable(
     ...timestamps(),
   },
   (table) => [...tenantTable('sso_policies', table)],
-).enableRLS();
+);
 
 /**
  * The break-glass members of a tenant that requires SSO: they may still
  * sign in with their password or passkey (when the IdP is down, or
  * misconfigured). Each use is audited (`sso.exemption-used`).
  */
-export const ssoExemptions = pgTable(
+export const ssoExemptions = pgTable.withRLS(
   'sso_exemptions',
   {
     tenantId: tenantColumn(),
@@ -241,14 +237,14 @@ export const ssoExemptions = pgTable(
       foreignColumns: [memberships.tenantId, memberships.userId],
     }).onDelete('cascade'),
   ],
-).enableRLS();
+);
 
 /**
  * The email domains a tenant proved it controls (a DNS TXT record). An SSO
  * connection may assert, and SCIM provision, only addresses of a verified
  * domain: no account of another domain is taken over through a tenant's IdP.
  */
-export const ssoDomains = pgTable(
+export const ssoDomains = pgTable.withRLS(
   'sso_domains',
   {
     id: uuidPk(),
@@ -270,7 +266,7 @@ export const ssoDomains = pgTable(
       table.domain,
     ),
   ],
-).enableRLS();
+);
 
 /**
  * Which tenants verified an email domain: the sign-in page's lookup by
@@ -300,7 +296,7 @@ export const ssoDomainRoutes = pgTable(
  * started them: the cookie holds a secret whose SHA-256 is `bindingHash`
  * (OIDC's `state` too). One use each (`consumedAt`), short-lived.
  */
-export const ssoRequests = pgTable(
+export const ssoRequests = pgTable.withRLS(
   'sso_requests',
   {
     id: uuidPk(),
@@ -339,13 +335,13 @@ export const ssoRequests = pgTable(
       [ssoConnections.tenantId, ssoConnections.id],
     ),
   ],
-).enableRLS();
+);
 
 /**
  * SAML assertions already used, by their ID, until they expire: a response
  * presented twice (replayed) is refused.
  */
-export const ssoAssertions = pgTable(
+export const ssoAssertions = pgTable.withRLS(
   'sso_assertions',
   {
     tenantId: tenantColumn(),
@@ -365,7 +361,7 @@ export const ssoAssertions = pgTable(
       [ssoConnections.tenantId, ssoConnections.id],
     ),
   ],
-).enableRLS();
+);
 
 /**
  * What a tenant's SCIM client said about a member it provisioned (its
@@ -373,7 +369,7 @@ export const ssoAssertions = pgTable(
  * own (docs/tenancy.md), so the name and address it sends are kept here,
  * never written to the account. Goes with the membership.
  */
-export const scimUsers = pgTable(
+export const scimUsers = pgTable.withRLS(
   'scim_users',
   {
     tenantId: tenantColumn(),
@@ -399,10 +395,10 @@ export const scimUsers = pgTable(
       foreignColumns: [memberships.tenantId, memberships.userId],
     }).onDelete('cascade'),
   ],
-).enableRLS();
+);
 
 /** The organizational units a tenant's SCIM client manages as groups, with its `externalId`. */
-export const scimGroups = pgTable(
+export const scimGroups = pgTable.withRLS(
   'scim_groups',
   {
     tenantId: tenantColumn(),
@@ -424,4 +420,4 @@ export const scimGroups = pgTable(
       'restrict',
     ),
   ],
-).enableRLS();
+);

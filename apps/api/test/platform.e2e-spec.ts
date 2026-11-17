@@ -946,13 +946,19 @@ describe('platform: queues, storage and realtime (e2e)', () => {
       'attachment-scan',
       'attachment-images',
       'attachment-text',
+      // capability:ai begin
       'ai',
+      // capability:ai end
       'mail-events',
       'reencryption',
       'retention',
+      // capability:messaging begin
       'messaging',
+      // capability:messaging end
       'custom-domains',
+      // capability:data-quality begin
       'data-quality',
+      // capability:data-quality end
     ]);
   });
 });

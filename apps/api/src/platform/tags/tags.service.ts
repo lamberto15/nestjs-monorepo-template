@@ -10,7 +10,7 @@ import {
   asc,
   count,
   eq,
-  getTableColumns,
+  getColumns,
   inArray,
   notInArray,
   sql,
@@ -93,7 +93,7 @@ export class TagsService {
     const [rows, total] = await Promise.all([
       this.db
         // With the sort values the cursor needs (lower(name)); pick() drops them.
-        .select({ ...getTableColumns(tags), ...TAG_LIST.sortSelect(query) })
+        .select({ ...getColumns(tags), ...TAG_LIST.sortSelect(query) })
         .from(tags)
         .where(and(where, afterCursor(tags.id, query)))
         .orderBy(...pageOrder(tags.id, query))

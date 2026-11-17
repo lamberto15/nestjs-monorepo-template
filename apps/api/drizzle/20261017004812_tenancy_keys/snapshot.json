@@ -1,0 +1,718 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "0a30b93c-0d97-43a9-a8c0-3331bbedac56",
+  "prevIds": [
+    "55d22dce-c028-4a4c-a9ca-0ded671f6710"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "api_client_roles"
+      ],
+      "writes": [
+        "s|fk|public.api_client_roles.api_client_roles_client_fk",
+        "n|fk|public.api_client_roles.api_client_roles_client_fk",
+        "e|fk|public.api_client_roles.api_client_roles_client_fk",
+        "n|con|public.api_client_roles.api_client_roles_client_fk"
+      ],
+      "reads": [
+        "n|tbl|public.api_client_roles",
+        "n|sch|public",
+        "n|tbl|public.api_clients",
+        "n|sch|public",
+        "n|col|public.api_client_roles.tenant_id",
+        "n|col|public.api_client_roles.client_id",
+        "n|col|public.api_clients.tenant_id",
+        "n|col|public.api_clients.id",
+        "e|uniqueness|public.api_clients.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "api_client_roles"
+      ],
+      "writes": [
+        "s|fk|public.api_client_roles.api_client_roles_role_fk",
+        "n|fk|public.api_client_roles.api_client_roles_role_fk",
+        "e|fk|public.api_client_roles.api_client_roles_role_fk",
+        "n|con|public.api_client_roles.api_client_roles_role_fk"
+      ],
+      "reads": [
+        "n|tbl|public.api_client_roles",
+        "n|sch|public",
+        "n|tbl|public.roles",
+        "n|sch|public",
+        "n|col|public.api_client_roles.tenant_id",
+        "n|col|public.api_client_roles.role_id",
+        "n|col|public.roles.tenant_id",
+        "n|col|public.roles.id",
+        "e|uniqueness|public.roles.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "api_keys"
+      ],
+      "writes": [
+        "s|fk|public.api_keys.api_keys_client_fk",
+        "n|fk|public.api_keys.api_keys_client_fk",
+        "e|fk|public.api_keys.api_keys_client_fk",
+        "n|con|public.api_keys.api_keys_client_fk"
+      ],
+      "reads": [
+        "n|tbl|public.api_keys",
+        "n|sch|public",
+        "n|tbl|public.api_clients",
+        "n|sch|public",
+        "n|col|public.api_keys.tenant_id",
+        "n|col|public.api_keys.client_id",
+        "n|col|public.api_clients.tenant_id",
+        "n|col|public.api_clients.id",
+        "e|uniqueness|public.api_clients.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|fk|public.org_unit_tree.org_unit_tree_ancestor_fk",
+        "n|fk|public.org_unit_tree.org_unit_tree_ancestor_fk",
+        "e|fk|public.org_unit_tree.org_unit_tree_ancestor_fk",
+        "n|con|public.org_unit_tree.org_unit_tree_ancestor_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.org_unit_tree.tenant_id",
+        "n|col|public.org_unit_tree.ancestor_id",
+        "n|col|public.org_units.tenant_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_unit_tree"
+      ],
+      "writes": [
+        "s|fk|public.org_unit_tree.org_unit_tree_descendant_fk",
+        "n|fk|public.org_unit_tree.org_unit_tree_descendant_fk",
+        "e|fk|public.org_unit_tree.org_unit_tree_descendant_fk",
+        "n|con|public.org_unit_tree.org_unit_tree_descendant_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_unit_tree",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.org_unit_tree.tenant_id",
+        "n|col|public.org_unit_tree.descendant_id",
+        "n|col|public.org_units.tenant_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "org_units"
+      ],
+      "writes": [
+        "s|fk|public.org_units.org_units_parent_fk",
+        "n|fk|public.org_units.org_units_parent_fk",
+        "e|fk|public.org_units.org_units_parent_fk",
+        "n|con|public.org_units.org_units_parent_fk"
+      ],
+      "reads": [
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.org_units.tenant_id",
+        "n|col|public.org_units.parent_id",
+        "n|col|public.org_units.tenant_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "role_permissions"
+      ],
+      "writes": [
+        "s|fk|public.role_permissions.role_permissions_role_fk",
+        "n|fk|public.role_permissions.role_permissions_role_fk",
+        "e|fk|public.role_permissions.role_permissions_role_fk",
+        "n|con|public.role_permissions.role_permissions_role_fk"
+      ],
+      "reads": [
+        "n|tbl|public.role_permissions",
+        "n|sch|public",
+        "n|tbl|public.roles",
+        "n|sch|public",
+        "n|col|public.role_permissions.tenant_id",
+        "n|col|public.role_permissions.role_id",
+        "n|col|public.roles.tenant_id",
+        "n|col|public.roles.id",
+        "e|uniqueness|public.roles.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_org_units"
+      ],
+      "writes": [
+        "s|fk|public.user_org_units.user_org_units_org_unit_fk",
+        "n|fk|public.user_org_units.user_org_units_org_unit_fk",
+        "e|fk|public.user_org_units.user_org_units_org_unit_fk",
+        "n|con|public.user_org_units.user_org_units_org_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_org_units",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.user_org_units.tenant_id",
+        "n|col|public.user_org_units.org_unit_id",
+        "n|col|public.org_units.tenant_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "user_roles"
+      ],
+      "writes": [
+        "s|fk|public.user_roles.user_roles_role_fk",
+        "n|fk|public.user_roles.user_roles_role_fk",
+        "e|fk|public.user_roles.user_roles_role_fk",
+        "n|con|public.user_roles.user_roles_role_fk"
+      ],
+      "reads": [
+        "n|tbl|public.user_roles",
+        "n|sch|public",
+        "n|tbl|public.roles",
+        "n|sch|public",
+        "n|col|public.user_roles.tenant_id",
+        "n|col|public.user_roles.role_id",
+        "n|col|public.roles.tenant_id",
+        "n|col|public.roles.id",
+        "e|uniqueness|public.roles.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "documents"
+      ],
+      "writes": [
+        "s|fk|public.documents.documents_attachment_fk",
+        "n|fk|public.documents.documents_attachment_fk",
+        "e|fk|public.documents.documents_attachment_fk",
+        "n|con|public.documents.documents_attachment_fk"
+      ],
+      "reads": [
+        "n|tbl|public.documents",
+        "n|sch|public",
+        "n|tbl|public.attachments",
+        "n|sch|public",
+        "n|col|public.documents.tenant_id",
+        "n|col|public.documents.attachment_id",
+        "n|col|public.attachments.tenant_id",
+        "n|col|public.attachments.id",
+        "e|uniqueness|public.attachments.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "record_tags"
+      ],
+      "writes": [
+        "s|fk|public.record_tags.record_tags_tag_fk",
+        "n|fk|public.record_tags.record_tags_tag_fk",
+        "e|fk|public.record_tags.record_tags_tag_fk",
+        "n|con|public.record_tags.record_tags_tag_fk"
+      ],
+      "reads": [
+        "n|tbl|public.record_tags",
+        "n|sch|public",
+        "n|tbl|public.tags",
+        "n|sch|public",
+        "n|col|public.record_tags.tenant_id",
+        "n|col|public.record_tags.tag_id",
+        "n|col|public.tags.tenant_id",
+        "n|col|public.tags.id",
+        "e|uniqueness|public.tags.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "api_usage"
+      ],
+      "writes": [
+        "s|fk|public.api_usage.api_usage_client_fk",
+        "n|fk|public.api_usage.api_usage_client_fk",
+        "e|fk|public.api_usage.api_usage_client_fk",
+        "n|con|public.api_usage.api_usage_client_fk"
+      ],
+      "reads": [
+        "n|tbl|public.api_usage",
+        "n|sch|public",
+        "n|tbl|public.api_clients",
+        "n|sch|public",
+        "n|col|public.api_usage.tenant_id",
+        "n|col|public.api_usage.client_id",
+        "n|col|public.api_clients.tenant_id",
+        "n|col|public.api_clients.id",
+        "e|uniqueness|public.api_clients.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "approval_assignments"
+      ],
+      "writes": [
+        "s|fk|public.approval_assignments.approval_assignments_request_fk",
+        "n|fk|public.approval_assignments.approval_assignments_request_fk",
+        "e|fk|public.approval_assignments.approval_assignments_request_fk",
+        "n|con|public.approval_assignments.approval_assignments_request_fk"
+      ],
+      "reads": [
+        "n|tbl|public.approval_assignments",
+        "n|sch|public",
+        "n|tbl|public.approval_requests",
+        "n|sch|public",
+        "n|col|public.approval_assignments.tenant_id",
+        "n|col|public.approval_assignments.request_id",
+        "n|col|public.approval_requests.tenant_id",
+        "n|col|public.approval_requests.id",
+        "e|uniqueness|public.approval_requests.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "approval_events"
+      ],
+      "writes": [
+        "s|fk|public.approval_events.approval_events_request_fk",
+        "n|fk|public.approval_events.approval_events_request_fk",
+        "e|fk|public.approval_events.approval_events_request_fk",
+        "n|con|public.approval_events.approval_events_request_fk"
+      ],
+      "reads": [
+        "n|tbl|public.approval_events",
+        "n|sch|public",
+        "n|tbl|public.approval_requests",
+        "n|sch|public",
+        "n|col|public.approval_events.tenant_id",
+        "n|col|public.approval_events.request_id",
+        "n|col|public.approval_requests.tenant_id",
+        "n|col|public.approval_requests.id",
+        "e|uniqueness|public.approval_requests.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notes"
+      ],
+      "writes": [
+        "s|fk|public.notes.notes_org_unit_fk",
+        "n|fk|public.notes.notes_org_unit_fk",
+        "e|fk|public.notes.notes_org_unit_fk",
+        "n|con|public.notes.notes_org_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|tbl|public.org_units",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.org_unit_id",
+        "n|col|public.org_units.tenant_id",
+        "n|col|public.org_units.id",
+        "e|uniqueness|public.org_units.id.tenant_id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "api_client_roles",
+        "name": "api_client_roles_client_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "client_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "api_clients",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "api_client_roles",
+        "name": "api_client_roles_role_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "role_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "roles",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "api_keys",
+        "name": "api_keys_client_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "client_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "api_clients",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "org_unit_tree_ancestor_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "ancestor_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_unit_tree",
+        "name": "org_unit_tree_descendant_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "descendant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "org_units",
+        "name": "org_units_parent_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "parent_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "role_permissions",
+        "name": "role_permissions_role_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "role_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "roles",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_org_units",
+        "name": "user_org_units_org_unit_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_roles",
+        "name": "user_roles_role_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "role_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "roles",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "documents",
+        "name": "documents_attachment_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "attachment_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "attachments",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "record_tags",
+        "name": "record_tags_tag_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "tag_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tags",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "api_usage",
+        "name": "api_usage_client_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "client_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "api_clients",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "approval_assignments",
+        "name": "approval_assignments_request_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "request_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "approval_requests",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "approval_events",
+        "name": "approval_events_request_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "request_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "approval_requests",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_org_unit_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "org_unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "org_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "SET NULL",
+        "entityType": "fks"
+      }
+    }
+  ]
+}

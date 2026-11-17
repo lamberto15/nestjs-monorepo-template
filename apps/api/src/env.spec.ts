@@ -81,12 +81,16 @@ describe('worker concurrency variables', () => {
   it('default to the values that were hard-coded', () => {
     expect({
       mail: parsed.QUEUE_CONCURRENCY_MAIL,
+      // capability:messaging begin
       messaging: parsed.QUEUE_CONCURRENCY_MESSAGING,
+      // capability:messaging end
       attachmentScan: parsed.QUEUE_CONCURRENCY_ATTACHMENT_SCAN,
       dataTransfers: parsed.QUEUE_CONCURRENCY_DATA_TRANSFERS,
       bulk: parsed.QUEUE_CONCURRENCY_BULK,
       documents: parsed.QUEUE_CONCURRENCY_DOCUMENTS,
+      // capability:ai begin
       ai: parsed.QUEUE_CONCURRENCY_AI,
+      // capability:ai end
       mailEvents: parsed.QUEUE_CONCURRENCY_MAIL_EVENTS,
       sso: parsed.QUEUE_CONCURRENCY_SSO,
       retention: parsed.QUEUE_CONCURRENCY_RETENTION,
@@ -98,12 +102,16 @@ describe('worker concurrency variables', () => {
       workflows: parsed.WORKFLOW_CONCURRENCY,
     }).toEqual({
       mail: 5,
+      // capability:messaging begin
       messaging: 5,
+      // capability:messaging end
       attachmentScan: 4,
       dataTransfers: 2,
       bulk: 2,
       documents: 2,
+      // capability:ai begin
       ai: 2,
+      // capability:ai end
       mailEvents: 2,
       sso: 2,
       retention: 1,

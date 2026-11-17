@@ -1,0 +1,251 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "d6b1cde2-e07d-4202-b0a4-3b51591232ac",
+  "prevIds": [
+    "81cb49f9-38fb-4a82-948e-b151097b59e0"
+  ],
+  "footprints": [
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "authorization_endpoint"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.authorization_endpoint",
+        "n|col|public.sso_connections.authorization_endpoint",
+        "e|col|public.sso_connections.authorization_endpoint"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "token_endpoint"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.token_endpoint",
+        "n|col|public.sso_connections.token_endpoint",
+        "e|col|public.sso_connections.token_endpoint"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "userinfo_endpoint"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.userinfo_endpoint",
+        "n|col|public.sso_connections.userinfo_endpoint",
+        "e|col|public.sso_connections.userinfo_endpoint"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "token_endpoint_auth_method"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.token_endpoint_auth_method",
+        "n|col|public.sso_connections.token_endpoint_auth_method",
+        "e|col|public.sso_connections.token_endpoint_auth_method"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "scopes"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.scopes",
+        "n|col|public.sso_connections.scopes",
+        "e|col|public.sso_connections.scopes"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "mapping"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.mapping",
+        "n|col|public.sso_connections.mapping",
+        "e|col|public.sso_connections.mapping"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "add_column",
+      "statementTarget": [
+        "column",
+        "public",
+        "sso_connections",
+        "preset"
+      ],
+      "writes": [
+        "s|col|public.sso_connections.preset",
+        "n|col|public.sso_connections.preset",
+        "e|col|public.sso_connections.preset"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "authorization_endpoint",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "token_endpoint",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "userinfo_endpoint",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "token_endpoint_auth_method",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "scopes",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "mapping",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "preset",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    }
+  ]
+}

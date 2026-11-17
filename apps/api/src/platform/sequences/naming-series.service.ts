@@ -6,7 +6,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { and, asc, desc, eq, getTableColumns, ne, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, getColumns, ne, sql } from 'drizzle-orm';
 import type { CoreEnv } from '../../core/config/core.env.js';
 import type { Transaction } from '../../core/database/drizzle.js';
 import {
@@ -311,7 +311,7 @@ export class NamingSeriesService {
     const [rows, total] = await Promise.all([
       this.db
         .select({
-          ...getTableColumns(namingSeries),
+          ...getColumns(namingSeries),
           ...NAMING_SERIES_LIST.sortSelect(query),
         })
         .from(namingSeries)

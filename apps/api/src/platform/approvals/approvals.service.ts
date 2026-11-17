@@ -15,7 +15,7 @@ import {
   and,
   asc,
   eq,
-  getTableColumns,
+  getColumns,
   inArray,
   isNull,
   ne,
@@ -645,7 +645,7 @@ export class ApprovalsService implements PersonalDataSource {
     const filter = and(await this.readable(principal), list.where(query));
     const [rows, total] = await Promise.all([
       this.db
-        .select(getTableColumns(approvalRequests))
+        .select(getColumns(approvalRequests))
         .from(approvalRequests)
         .where(and(filter, afterCursor(approvalRequests.id, query)))
         .orderBy(...pageOrder(approvalRequests.id, query))
@@ -708,7 +708,7 @@ export class ApprovalsService implements PersonalDataSource {
     const ids = rows.map((row) => row.id);
     const assignments = await this.db
       .select({
-        ...getTableColumns(approvalAssignments),
+        ...getColumns(approvalAssignments),
         approverName: users.name,
       })
       .from(approvalAssignments)

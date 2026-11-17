@@ -171,6 +171,26 @@
       }
     },
     {
+      "files": ["apps/api/src/iam/organization/**/*.ts"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "regex": "^\\.\\./access/",
+                "message": "The access engine reads organizational units, never the reverse: iam/organization/ must not import iam/access/ (docs/architecture.md, 'Rules')."
+              },
+              {
+                "regex": "^(\\.\\./)+(platform|features)/",
+                "message": "Layering is core ← iam ← platform ← features: iam/ must not import platform/ or features/ (docs/architecture.md, 'Rules')."
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
       "files": ["apps/api/src/platform/**/*.ts"],
       "rules": {
         "no-restricted-imports": [

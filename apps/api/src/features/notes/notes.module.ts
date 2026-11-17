@@ -1,7 +1,9 @@
 import { Module } from '@nestjs/common';
 import { recordParts } from '../../platform/records/record-parts.js';
 import { ExampleSenderWebhookController } from './example-sender-webhook.controller.js';
+// capability:ai begin
 import { NoteAi } from './note-ai.js';
+// capability:ai end
 import { NoteBatch } from './note-batch.js';
 import { NoteDocuments } from './note-documents.js';
 import { NotePublishApproval } from './note-approvals.js';
@@ -54,7 +56,9 @@ const parts = recordParts(NOTE, {
     NotePublicationWorkflow,
     NoteBatchPublicationWorkflow,
     NotePublishApproval,
+    // capability:ai begin
     NoteAi,
+    // capability:ai end
     NoteDocuments,
     ...parts.providers,
   ],

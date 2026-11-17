@@ -10,7 +10,6 @@ import {
   readdirSync,
   readFileSync,
   rmSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:http';
@@ -24,7 +23,6 @@ import {
   code,
   escapeData,
   escapeProperty,
-  JOURNAL,
   LABEL,
   labelDecision,
   lintFiles,
@@ -107,7 +105,8 @@ describe("squawk's syntax tree", () => {
   });
 });
 
-// A repository with merged migrations (the base), then the branch's changes.
+// A repository with merged migrations (the base), then the branch's changes:
+// drizzle-kit's layout, a folder per migration (<timestamp>_<name>/).
 function repository() {
   const dir = mkdtempSync(path.join(tmpdir(), 'migration-lint-test-'));
   const run = (...args) =>
@@ -115,32 +114,21 @@ function repository() {
   run('init', '-q', '-b', 'main');
   run('config', 'user.email', 'test@example.com');
   run('config', 'user.name', 'test');
-  mkdirSync(path.join(dir, MIGRATIONS, 'meta'), { recursive: true });
-  const journal = (entries) =>
-    writeFileSync(
-      path.join(dir, JOURNAL),
-      `${JSON.stringify({ version: '7', dialect: 'postgresql', entries }, null, 2)}\n`,
-    );
-  const entry = (idx, tag, when) => ({
-    idx,
-    version: '7',
-    when,
-    tag,
-    breakpoints: true,
-  });
-  const sql = (name, text) =>
-    writeFileSync(path.join(dir, MIGRATIONS, `${name}.sql`), text);
+  const file = (name) => `${MIGRATIONS}/${name}/migration.sql`;
+  const sql = (name, text) => {
+    mkdirSync(path.join(dir, MIGRATIONS, name), { recursive: true });
+    writeFileSync(path.join(dir, file(name)), text);
+    writeFileSync(path.join(dir, MIGRATIONS, name, 'snapshot.json'), '{}\n');
+  };
   sql(
-    '0000_init',
+    '20260101000000_init',
     'CREATE TABLE "notes" ("id" uuid PRIMARY KEY, "body" text);\n',
   );
-  sql('0001_title', 'ALTER TABLE "notes" ADD COLUMN "title" text;\n');
-  const merged = [entry(0, '0000_init', 1000), entry(1, '0001_title', 2000)];
-  journal(merged);
+  sql('20260102000000_title', 'ALTER TABLE "notes" ADD COLUMN "title" text;\n');
   run('add', '-A');
   run('commit', '-q', '-m', 'base');
   const base = run('rev-parse', 'HEAD');
-  return { dir, base, run, journal, entry, sql, merged };
+  return { dir, base, run, sql, file };
 }
 
 describe('the history check', () => {
@@ -154,20 +142,22 @@ describe('the history check', () => {
     repos.forEach((d) => rmSync(d, { recursive: true, force: true })),
   );
 
-  test('a new migration appended to the journal: nothing to report', () => {
+  test('a new migration: nothing to report', () => {
     const r = repo();
-    r.sql('0002_status', 'ALTER TABLE "notes" ADD COLUMN "status" text;\n');
-    r.journal([...r.merged, r.entry(2, '0002_status', 3000)]);
+    r.sql(
+      '20260103000000_status',
+      'ALTER TABLE "notes" ADD COLUMN "status" text;\n',
+    );
     // Untracked, as right after `pnpm db:generate`...
     assert.deepEqual(changes({ base: r.base, cwd: r.dir }), {
-      added: [`${MIGRATIONS}/0002_status.sql`],
+      added: [r.file('20260103000000_status')],
       history: [],
     });
     // ...and committed.
     r.run('add', '-A');
     r.run('commit', '-q', '-m', 'status');
     assert.deepEqual(changes({ base: r.base, cwd: r.dir }), {
-      added: [`${MIGRATIONS}/0002_status.sql`],
+      added: [r.file('20260103000000_status')],
       history: [],
     });
   });
@@ -175,13 +165,13 @@ describe('the history check', () => {
   test('an edited merged migration', () => {
     const r = repo();
     r.sql(
-      '0001_title',
+      '20260102000000_title',
       'ALTER TABLE "notes" ADD COLUMN "title" text NOT NULL;\n',
     );
     const { history } = changes({ base: r.base, cwd: r.dir });
     assert.deepEqual(
       history.map((h) => h.file),
-      [`${MIGRATIONS}/0001_title.sql`],
+      [r.file('20260102000000_title')],
     );
     assert.match(history[0].message, /is edited/);
   });
@@ -190,88 +180,82 @@ describe('the history check', () => {
     const r = repo();
     r.run(
       'mv',
-      `${MIGRATIONS}/0001_title.sql`,
-      `${MIGRATIONS}/0001_heading.sql`,
+      `${MIGRATIONS}/20260102000000_title`,
+      `${MIGRATIONS}/20260102000000_heading`,
     );
     const { added, history } = changes({ base: r.base, cwd: r.dir });
-    assert.deepEqual(added, [`${MIGRATIONS}/0001_heading.sql`]);
+    assert.deepEqual(added, [r.file('20260102000000_heading')]);
     assert.deepEqual(
       history.map((h) => h.file),
-      [`${MIGRATIONS}/0001_title.sql`],
+      [r.file('20260102000000_title')],
     );
     assert.match(history[0].message, /is deleted/);
   });
 
-  test('a changed or removed journal entry', () => {
-    const r = repo();
-    r.journal([{ ...r.merged[0], when: 1500 }]);
-    const { history } = changes({ base: r.base, cwd: r.dir });
-    assert.deepEqual(
-      history.map((h) => h.message.match(/is (changed|removed)/)[1]),
-      ['changed', 'removed'],
-    );
-  });
-
-  test('a new journal entry not later than the last merged one (drizzle would skip it)', () => {
-    const r = repo();
-    r.sql('0002_status', 'ALTER TABLE "notes" ADD COLUMN "status" text;\n');
-    r.sql('0003_rank', 'ALTER TABLE "notes" ADD COLUMN "rank" integer;\n');
-    r.journal([
-      ...r.merged,
-      r.entry(2, '0002_status', 1999),
-      r.entry(3, '0003_rank', 4000),
-    ]);
-    const { history } = changes({ base: r.base, cwd: r.dir });
-    assert.equal(history.length, 1);
-    assert.match(history[0].message, /0002_status is not later/);
-  });
-
-  test("a branch behind its base: only its own changes, its new entries after the base's", () => {
+  test('a branch behind its base: only its own changes', () => {
     const r = repo();
     r.run('checkout', '-q', '-b', 'work');
     r.run('checkout', '-q', 'main');
-    r.sql('0002_status', 'ALTER TABLE "notes" ADD COLUMN "status" text;\n');
-    r.journal([...r.merged, r.entry(2, '0002_status', 3000)]);
+    r.sql(
+      '20260103000000_status',
+      'ALTER TABLE "notes" ADD COLUMN "status" text;\n',
+    );
     r.run('add', '-A');
     r.run('commit', '-q', '-m', 'status on main');
     const main = r.run('rev-parse', 'HEAD');
     r.run('checkout', '-q', 'work');
-    r.sql('0002_rank', 'ALTER TABLE "notes" ADD COLUMN "rank" integer;\n');
-    r.journal([...r.merged, r.entry(2, '0002_rank', 4000)]);
-    // main's 0002_status isn't reported as deleted, nor its entry as removed.
+    r.sql(
+      '20260104000000_rank',
+      'ALTER TABLE "notes" ADD COLUMN "rank" integer;\n',
+    );
+    // main's status migration isn't reported as deleted.
     assert.deepEqual(changes({ base: main, cwd: r.dir }), {
-      added: [`${MIGRATIONS}/0002_rank.sql`],
+      added: [r.file('20260104000000_rank')],
       history: [],
     });
-    // Generated before main's: drizzle would skip it once both are merged.
-    r.journal([...r.merged, r.entry(2, '0002_rank', 2500)]);
-    const { history } = changes({ base: main, cwd: r.dir });
-    assert.equal(history.length, 1);
-    assert.match(history[0].message, /0002_rank is not later than the base/);
   });
 
-  test('a deleted or broken journal', () => {
+  test("drizzle-kit up's moves are neither deleted nor new migrations", () => {
     const r = repo();
-    writeFileSync(path.join(r.dir, JOURNAL), '{ not json');
-    assert.match(
-      changes({ base: r.base, cwd: r.dir }).history[0].message,
-      /not a drizzle journal/,
+    // The 0.x layout on the base, then drizzle-kit up's move on the branch.
+    const old = (name) => path.join(r.dir, MIGRATIONS, name);
+    writeFileSync(old('0000_init.sql'), 'CREATE TABLE "a" ("id" int);\n');
+    writeFileSync(old('0001_b.sql'), 'CREATE TABLE "b" ("id" int);\n');
+    r.run('add', '-A');
+    r.run('commit', '-q', '-m', 'old layout');
+    const base = r.run('rev-parse', 'HEAD');
+    r.run(
+      'rm',
+      '-q',
+      `${MIGRATIONS}/0000_init.sql`,
+      `${MIGRATIONS}/0001_b.sql`,
     );
-    unlinkSync(path.join(r.dir, JOURNAL));
-    assert.match(
-      changes({ base: r.base, cwd: r.dir }).history[0].message,
-      /journal is deleted/,
-    );
+    r.sql('20251201000000_init', 'CREATE TABLE "a" ("id" int);\n');
+    r.sql('20251202000000_b', 'CREATE TABLE "b" ("id" bigint);\n');
+    r.run('add', '-A');
+    // init moved as it was: nothing. b's text changed on the way: a deleted
+    // merged migration, and a new one.
+    assert.deepEqual(changes({ base, cwd: r.dir }), {
+      added: [r.file('20251202000000_b')],
+      history: [
+        {
+          file: `${MIGRATIONS}/0001_b.sql`,
+          message:
+            'A merged migration is deleted (or renamed). Databases that applied it keep it; new ones never get it.',
+        },
+      ],
+    });
   });
 
   test('snapshots and files outside the migrations are not its business', () => {
     const r = repo();
     writeFileSync(
-      path.join(r.dir, MIGRATIONS, 'meta', '0001_snapshot.json'),
-      '{}\n',
+      path.join(r.dir, MIGRATIONS, '20260102000000_title', 'snapshot.json'),
+      '{"changed": true}\n',
     );
     mkdirSync(path.join(r.dir, 'docs'));
     writeFileSync(path.join(r.dir, 'docs', 'x.sql'), 'SELECT 1;\n');
+    writeFileSync(path.join(r.dir, MIGRATIONS, 'stray.sql'), 'SELECT 1;\n');
     assert.deepEqual(changes({ base: r.base, cwd: r.dir }), {
       added: [],
       history: [],
@@ -386,6 +370,25 @@ describe('the report', () => {
       note,
     });
     assert.ok(r.summary.includes(`**${note}**`));
+  });
+
+  test('names a migration by its folder: every file is migration.sql', () => {
+    const file = `${MIGRATIONS}/20260103000000_drop_body/migration.sql`;
+    const r = report({
+      added: [file],
+      findings: [{ ...finding, file }],
+      history: [],
+      fail: false,
+      ack: false,
+    });
+    assert.match(
+      r.summary,
+      /New: <code>20260103000000&#95;drop&#95;body&#47;migration&#46;sql<\/code>/,
+    );
+    assert.match(
+      r.summary,
+      /\n20260103000000_drop_body\/migration\.sql:3: ALTER TABLE/,
+    );
   });
 
   test('nothing new', () => {
@@ -527,8 +530,10 @@ describe('the command', () => {
   test('against a base: the summary and annotations files, and blocking', () => {
     const r = repository();
     try {
-      r.sql('0002_drop_body', 'ALTER TABLE "notes" DROP COLUMN "body";\n');
-      r.journal([...r.merged, r.entry(2, '0002_drop_body', 3000)]);
+      r.sql(
+        '20260103000000_drop_body',
+        'ALTER TABLE "notes" DROP COLUMN "body";\n',
+      );
       const summary = path.join(r.dir, 'summary.md');
       const annotations = path.join(r.dir, 'annotations.txt');
       const run = (fail) =>
@@ -554,11 +559,11 @@ describe('the command', () => {
       assert.equal(reporting.stdout, '');
       assert.match(
         readFileSync(summary, 'utf8'),
-        /0002&#95;drop&#95;body&#46;sql&#58;1<\/code> \| \[`ban-drop-column`\]/,
+        /20260103000000&#95;drop&#95;body&#47;migration&#46;sql&#58;1<\/code> \| \[`ban-drop-column`\]/,
       );
       assert.match(
         readFileSync(annotations, 'utf8'),
-        /^::warning file=apps\/api\/drizzle\/0002_drop_body\.sql,line=1,/,
+        /^::warning file=apps\/api\/drizzle\/20260103000000_drop_body\/migration\.sql,line=1,/,
       );
       assert.equal(run('on').status, 1);
       assert.match(readFileSync(annotations, 'utf8'), /^::error /);
@@ -708,8 +713,10 @@ describe('the label', () => {
     const r = repository();
     const gh = await fakeGitHub([labeled(5)], [run(3)]);
     try {
-      r.sql('0002_drop_body', 'ALTER TABLE "notes" DROP COLUMN "body";\n');
-      r.journal([...r.merged, r.entry(2, '0002_drop_body', 3000)]);
+      r.sql(
+        '20260103000000_drop_body',
+        'ALTER TABLE "notes" DROP COLUMN "body";\n',
+      );
       const summary = path.join(r.dir, 'summary.md');
       const lint = (env) =>
         promisify(execFile)(

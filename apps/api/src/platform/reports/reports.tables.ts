@@ -9,7 +9,7 @@ import type { ReportSchedule } from './report-time.js';
  * for its owner on a schedule in a time zone, its file mailed to the
  * recipients. The runner starts the due ones (`next_run_at`) every hour.
  */
-export const reportSchedules = pgTable(
+export const reportSchedules = pgTable.withRLS(
   'report_schedules',
   {
     id: uuidPk(),
@@ -47,6 +47,6 @@ export const reportSchedules = pgTable(
       .where(sql`active`),
     ...tenantTable('report_schedules', table),
   ],
-).enableRLS();
+);
 
 export type ReportScheduleRow = typeof reportSchedules.$inferSelect;

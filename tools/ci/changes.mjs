@@ -169,6 +169,7 @@ export function expectedJobs(f) {
     // tags and changes that classify as full), not ordinary pull requests.
     'feature-smoke': f.full,
     'template-without-notes': f.manual,
+    'template-without-capabilities': f.manual,
     // The repository scans (secrets, Dockerfile misconfigurations) also run
     // whenever an image is rebuilt and rescanned: a Dockerfile or a change to
     // .trivyignore.yaml, which both scans read, never skips them.
@@ -288,7 +289,8 @@ export function runChanges(
     files.length > 0 &&
     files.every((file) => /^(apps\/api\/|apps\/web\/|packages\/)/.test(file)) &&
     Boolean(compare(base, head));
-  // template-without-notes runs only when someone starts CI by hand.
+  // template-without-notes and template-without-capabilities run only when
+  // someone starts CI by hand.
   const manual = env.GITHUB_EVENT_NAME === 'workflow_dispatch';
   const outputs = {
     ...flags,

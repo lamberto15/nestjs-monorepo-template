@@ -164,16 +164,13 @@ describe('pnpm env:check', () => {
     const file = await written();
     const text = readFileSync(file, 'utf8')
       .split('\n')
-      .filter((line) => !/^(WEBHOOKS|PUSH_PROVIDER|SMS_PROVIDER)=/.test(line))
+      .filter((line) => !/^(WEBHOOKS|REPORTS|USAGE)=/.test(line))
       .join('\n');
     writeFileSync(file, `${text}\nMY_OWN=1\n`);
     const loose = check(['--file', file]);
     assert.equal(loose.code, 0);
     assert.match(loose.out, /3 variables of env\.example not in the file/);
-    assert.match(
-      loose.out,
-      /WEBHOOKS, .*PUSH_PROVIDER|PUSH_PROVIDER.*WEBHOOKS/s,
-    );
+    assert.match(loose.out, /WEBHOOKS, .*REPORTS|REPORTS.*WEBHOOKS/s);
     assert.match(loose.out, /1 variable the template does not name/);
     assert.match(loose.out, /MY_OWN/);
     assert.equal(check(['--file', file, '--strict']).code, 1);

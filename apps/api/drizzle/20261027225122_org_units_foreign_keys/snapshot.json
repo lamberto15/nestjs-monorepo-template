@@ -1,0 +1,342 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "cce1aa29-9fba-49ba-a048-8fcaf06ebcc8",
+  "prevIds": [
+    "0bc979ff-116a-4acf-b09d-23e017f6bc08"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "organizational_unit_closure"
+      ],
+      "writes": [
+        "s|fk|public.organizational_unit_closure.organizational_unit_closure_ancestor_fk",
+        "n|fk|public.organizational_unit_closure.organizational_unit_closure_ancestor_fk",
+        "e|fk|public.organizational_unit_closure.organizational_unit_closure_ancestor_fk",
+        "n|con|public.organizational_unit_closure.organizational_unit_closure_ancestor_fk"
+      ],
+      "reads": [
+        "n|tbl|public.organizational_unit_closure",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.organizational_unit_closure.tenant_id",
+        "n|col|public.organizational_unit_closure.ancestor_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "organizational_unit_closure"
+      ],
+      "writes": [
+        "s|fk|public.organizational_unit_closure.organizational_unit_closure_descendant_fk",
+        "n|fk|public.organizational_unit_closure.organizational_unit_closure_descendant_fk",
+        "e|fk|public.organizational_unit_closure.organizational_unit_closure_descendant_fk",
+        "n|con|public.organizational_unit_closure.organizational_unit_closure_descendant_fk"
+      ],
+      "reads": [
+        "n|tbl|public.organizational_unit_closure",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.organizational_unit_closure.tenant_id",
+        "n|col|public.organizational_unit_closure.descendant_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "organizational_unit_memberships"
+      ],
+      "writes": [
+        "s|fk|public.organizational_unit_memberships.organizational_unit_memberships_unit_fk",
+        "n|fk|public.organizational_unit_memberships.organizational_unit_memberships_unit_fk",
+        "e|fk|public.organizational_unit_memberships.organizational_unit_memberships_unit_fk",
+        "n|con|public.organizational_unit_memberships.organizational_unit_memberships_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.organizational_unit_memberships",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.organizational_unit_memberships.tenant_id",
+        "n|col|public.organizational_unit_memberships.unit_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "organizational_units"
+      ],
+      "writes": [
+        "s|fk|public.organizational_units.organizational_units_parent_fk",
+        "n|fk|public.organizational_units.organizational_units_parent_fk",
+        "e|fk|public.organizational_units.organizational_units_parent_fk",
+        "n|con|public.organizational_units.organizational_units_parent_fk"
+      ],
+      "reads": [
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.parent_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|fk|public.scim_groups.scim_groups_unit_fk",
+        "n|fk|public.scim_groups.scim_groups_unit_fk",
+        "e|fk|public.scim_groups.scim_groups_unit_fk",
+        "n|con|public.scim_groups.scim_groups_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.scim_groups.tenant_id",
+        "n|col|public.scim_groups.unit_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "saved_views"
+      ],
+      "writes": [
+        "s|fk|public.saved_views.saved_views_unit_fk",
+        "n|fk|public.saved_views.saved_views_unit_fk",
+        "e|fk|public.saved_views.saved_views_unit_fk",
+        "n|con|public.saved_views.saved_views_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.saved_views",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.saved_views.tenant_id",
+        "n|col|public.saved_views.unit_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "notes"
+      ],
+      "writes": [
+        "s|fk|public.notes.notes_unit_fk",
+        "n|fk|public.notes.notes_unit_fk",
+        "e|fk|public.notes.notes_unit_fk",
+        "n|con|public.notes.notes_unit_fk"
+      ],
+      "reads": [
+        "n|tbl|public.notes",
+        "n|sch|public",
+        "n|tbl|public.organizational_units",
+        "n|sch|public",
+        "n|col|public.notes.tenant_id",
+        "n|col|public.notes.unit_id",
+        "n|col|public.organizational_units.tenant_id",
+        "n|col|public.organizational_units.id",
+        "e|uniqueness|public.organizational_units.id.tenant_id"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organizational_unit_closure",
+        "name": "organizational_unit_closure_ancestor_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "ancestor_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organizational_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organizational_unit_closure",
+        "name": "organizational_unit_closure_descendant_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "descendant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organizational_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organizational_unit_memberships",
+        "name": "organizational_unit_memberships_unit_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organizational_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "organizational_units",
+        "name": "organizational_units_parent_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "parent_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organizational_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_unit_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organizational_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "saved_views",
+        "name": "saved_views_unit_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organizational_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "notes",
+        "name": "notes_unit_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "unit_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "organizational_units",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "RESTRICT",
+        "entityType": "fks"
+      }
+    }
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "b0b56c2f-ebc9-41ee-9034-2c69a31acf74",
+  "prevIds": [
+    "b107818b-76ad-460a-8ba1-68752de53984"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "user_roles",
+        "user_roles_role_live_idx"
+      ],
+      "writes": [
+        "s|idx|public.user_roles_role_live_idx",
+        "n|idx|public.user_roles_role_live_idx",
+        "e|idx|public.user_roles_role_live_idx",
+        "n|rel|public.user_roles_role_live_idx"
+      ],
+      "reads": [
+        "n|tbl|public.user_roles",
+        "n|sch|public",
+        "n|col|public.user_roles.role_id",
+        "n|col|public.user_roles.tenant_id",
+        "n|col|public.user_roles.expires_at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "user_roles",
+        "name": "user_roles_role_live_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "role_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "expires_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

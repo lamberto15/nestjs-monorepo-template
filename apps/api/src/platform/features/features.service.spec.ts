@@ -9,7 +9,9 @@ const SWITCHES = ['REALTIME', 'WEBHOOKS', 'REPORTS', 'USAGE'] as const;
 function service(
   env: Record<string, unknown> = {},
   documents = false,
+  // capability:ai begin
   ai = false,
+  // capability:ai end
 ) {
   const values: Record<string, unknown> = {
     IMPERSONATION: false,
@@ -19,7 +21,9 @@ function service(
     AUTH_SIGN_UP: false,
     AUTH_MAGIC_LINK: true,
     EXCHANGE_RATES_FETCH: true,
+    // capability:ai begin
     ANTHROPIC_API_KEY: ai ? 'sk-ant-test' : undefined,
+    // capability:ai end
     STORAGE_DRIVER: 'local',
     TENANCY: 'multi',
     LOCALES: ['en', 'de'],
@@ -66,7 +70,9 @@ describe('FeaturesService', () => {
       magicLink: true,
       documents: false,
       presignedUploads: false,
+      // capability:ai begin
       ai: false,
+      // capability:ai end
       exchangeRates: true,
       mode: 'normal',
       tenancy: 'multi',
@@ -117,10 +123,12 @@ describe('FeaturesService', () => {
     expect(service({}, false).current().documents).toBe(false);
   });
 
+  // capability:ai begin
   it('says ai is on while an AI key is (ANTHROPIC_API_KEY is set)', () => {
     expect(service({}, false, true).current().ai).toBe(true);
     expect(service({}, false, false).current().ai).toBe(false);
   });
+  // capability:ai end
 
   it('says presignedUploads are on with the S3 driver only (the routes refuse the others)', () => {
     expect(service({ STORAGE_DRIVER: 's3' }).current().presignedUploads).toBe(

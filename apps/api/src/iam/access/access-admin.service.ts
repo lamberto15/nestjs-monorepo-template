@@ -46,13 +46,15 @@ import {
   apiClientRoles,
   invitations,
   memberships,
-  organizationalUnitMemberships,
   rolePermissions,
   roles,
-  type UnitRole,
   userRoles,
   users,
 } from '../iam.tables.js';
+import {
+  organizationalUnitMemberships,
+  type UnitRole,
+} from '../organization/organization.tables.js';
 import { ApiClientLifecycleRegistry } from './api-client-lifecycle.registry.js';
 import { ApiClientsService } from './api-clients.service.js';
 import { scimUsers } from '../sso/sso.tables.js';
@@ -61,14 +63,11 @@ import {
   invitationStatus,
   InvitationsService,
 } from './invitations.service.js';
-import { OrganizationalUnitsService } from './organizational-units.service.js';
+import { OrganizationalUnitsService } from '../organization/organizational-units.service.js';
 import { AccessService } from './access.service.js';
 import { PermissionCatalog } from './permission-catalog.js';
-import {
-  currentMembership,
-  isAll,
-  type PermissionInput,
-} from './permissions.js';
+import { isAll, type PermissionInput } from './permissions.js';
+import { currentMembership } from '../organization/memberships.js';
 
 export interface RoleInput {
   name: string;

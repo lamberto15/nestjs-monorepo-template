@@ -19,7 +19,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
 import { handWrittenTable } from '../../platform/records/record.js';
 import { NOTE } from './note.record.js';
 
@@ -32,7 +32,7 @@ export type NoteStatus = 'draft' | 'published';
  * `recordTable()` derives, so the declaration (note.record.ts) takes it
  * as it is (handWrittenTable, below) and derives everything else.
  * `ownerId` is the principal that created it, `user:<id>` or `client:<id>`. */
-export const notes = pgTable(
+export const notes = pgTable.withRLS(
   'notes',
   {
     id: uuidPk(),
@@ -132,6 +132,6 @@ export const notes = pgTable(
       'restrict',
     ),
   ],
-).enableRLS();
+);
 
 handWrittenTable(NOTE, notes);

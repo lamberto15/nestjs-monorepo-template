@@ -14,10 +14,12 @@ import {
   duplicateListSchema,
   mergePreviewSchema,
 } from '../merge/merge.schemas.js';
+// capability:shares begin
 import {
   createdShareSchema,
   shareListSchema,
 } from '../shares/share.schemas.js';
+// capability:shares end
 import { tagPageSchema, tagRefListSchema } from '../tags/tag.schemas.js';
 
 /**
@@ -40,8 +42,10 @@ export const PANEL_COMPONENT_SCHEMAS: readonly z.ZodType[] = [
   tagPageSchema,
   tagRefListSchema,
   recordDocumentPageSchema,
+  // capability:shares begin
   shareListSchema,
   createdShareSchema,
+  // capability:shares end
   duplicateListSchema,
   mergePreviewSchema,
 ];

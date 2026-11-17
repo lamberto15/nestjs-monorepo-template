@@ -17,7 +17,7 @@ export type FavoriteKind = (typeof FAVORITE_KINDS)[number];
  * they pin for quick navigation (the web app's menu). Their own alone, like
  * the records they watch (`record_subscriptions`).
  */
-export const favorites = pgTable(
+export const favorites = pgTable.withRLS(
   'favorites',
   {
     id: uuidPk(),
@@ -48,4 +48,4 @@ export const favorites = pgTable(
     index('favorites_owner_position_idx').on(table.owner, table.position),
     ...tenantTable('favorites', table),
   ],
-).enableRLS();
+);

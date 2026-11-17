@@ -1,4 +1,4 @@
-import type { UnitType } from '../iam/iam.tables.js';
+import type { UnitType } from '../iam/organization/organization.tables.js';
 
 /**
  * What the demo seed creates (DemoSeeder): a tenant of its own, a small

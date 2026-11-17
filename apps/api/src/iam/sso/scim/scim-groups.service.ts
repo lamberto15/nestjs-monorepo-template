@@ -17,15 +17,15 @@ import {
   inTransaction,
 } from '../../../core/database/transactions.js';
 import { AccessService } from '../../access/access.service.js';
-import { OrganizationalUnitsService } from '../../access/organizational-units.service.js';
-import { currentMembership } from '../../access/permissions.js';
+import { OrganizationalUnitsService } from '../../organization/organizational-units.service.js';
+import { currentMembership } from '../../organization/memberships.js';
 import { AuditService } from '../../audit/audit.service.js';
 import type { ClientPrincipal } from '../../auth/principal.js';
+import { users } from '../../iam.tables.js';
 import {
   organizationalUnitMemberships,
   organizationalUnits,
-  users,
-} from '../../iam.tables.js';
+} from '../../organization/organization.tables.js';
 import { scimGroups } from '../sso.tables.js';
 import { SCIM_SCHEMA, ScimException } from './scim-error.filter.js';
 import { scimFilter, scimPage } from './scim-filter.js';
@@ -132,11 +132,7 @@ export class ScimGroupsService {
         if (input.externalId) {
           await this.assertExternalIdFree(tx, input.externalId);
         }
-        const [unit] = await tx
-          .insert(organizationalUnits)
-          .values({ type: 'team', name: input.displayName, parentId: null })
-          .returning();
-        await this.units.tree.add(tx, unit.id, null);
+        const unit = await this.units.createForScim(tx, input.displayName);
         await tx.insert(scimGroups).values({
           unitId: unit.id,
           externalId: input.externalId ?? null,
@@ -177,10 +173,7 @@ export class ScimGroupsService {
         if (input.externalId && input.externalId !== before.externalId) {
           await this.assertExternalIdFree(tx, input.externalId);
         }
-        await tx
-          .update(organizationalUnits)
-          .set({ name: input.displayName })
-          .where(eq(organizationalUnits.id, id));
+        await this.units.renameForScim(tx, id, input.displayName);
         await tx
           .update(scimGroups)
           .set({ externalId: input.externalId ?? null, updatedAt: new Date() })
@@ -250,22 +243,16 @@ export class ScimGroupsService {
           'Units were put under this group: an administrator moves them first.',
         );
       }
-      await tx
-        .delete(organizationalUnitMemberships)
-        .where(eq(organizationalUnitMemberships.unitId, id));
       await tx.delete(scimGroups).where(eq(scimGroups.unitId, id));
-      await tx
-        .delete(organizationalUnits)
-        .where(eq(organizationalUnits.id, id))
-        .catch((error: unknown) => {
-          // Records or saved views of the unit: no cascade.
-          throw isStillReferenced(error)
-            ? new ScimException(
-                409,
-                'Records or saved views belong to this group: an administrator moves them first.',
-              )
-            : error;
-        });
+      await this.units.removeForScim(tx, id).catch((error: unknown) => {
+        // Records or saved views of the unit: no cascade.
+        throw isStillReferenced(error)
+          ? new ScimException(
+              409,
+              'Records or saved views belong to this group: an administrator moves them first.',
+            )
+          : error;
+      });
       await this.audit.record(
         actor,
         {

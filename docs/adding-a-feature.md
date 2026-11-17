@@ -402,7 +402,7 @@ the controller (`notes.*`); singular for what describes one record
    create, [sequences.md](sequences.md)), with the column helpers of
    `core/database/columns.ts`:
    ```ts
-   export const invoices = pgTable(
+   export const invoices = pgTable.withRLS(
      'invoices',
      {
        id: uuidPk(), // UUIDv7, time-ordered: also the default sort and cursor
@@ -421,10 +421,10 @@ the controller (`notes.*`); singular for what describes one record
        ...tenantTable('invoices', t), // row-level security policies (unique (tenant_id, id) with { referenced: true })
        index('invoices_owner_id_idx').on(t.ownerId),
      ],
-   ).enableRLS();
+   );
    ```
    - **Every feature table is a tenant table** ([tenancy](tenancy.md)):
-     `tenantId: tenantColumn()`, `...tenantTable('<x>', t)` and `.enableRLS()`;
+     `tenantId: tenantColumn()`, `...tenantTable('<x>', t)` and `pgTable.withRLS()`;
      the role bootstrap refuses a table with a `tenant_id` and no wall.
      Inserts leave `tenantId` out (it comes from the request's tenant);
      queries need nothing: row-level security keeps them in the tenant.
@@ -569,7 +569,7 @@ sql`lower(${t.name})` `` (an order that ignores case; index that
      `GET /v1/lists/{subject}`).
    - With custom fields: `@Query() raw` + `@ApiListQuery(LIST, …)`, then
      `customFields.extendList(LIST, subject)`, `list.parse(raw)`, and
-     `select({ ...getTableColumns(t), ...list.sortSelect(query) })`
+     `select({ ...getColumns(t), ...list.sortSelect(query) })`
      (`NotesController.list`). Without: `@Query({ schema: LIST.schema })`.
      Either way each parameter is typed from the list's schema
      (api-conventions.md, "Collections"): `ApiListQuery` adds nothing by hand.
@@ -738,6 +738,48 @@ and runs everything without them. The web app's shared tests do the same: they m
 components alone (`renderComponent()`) on a test-only subject (`TestItem`),
 and the tests of a feature's pages sit in its folder. A feature's own tests live in `test/<name>.e2e-spec.ts` or
 `test/features/<name>/`, with their helpers next to them.
+
+### Removing a platform capability
+
+A small API needs few of the platform's capabilities. The ones that nothing
+else builds on can be taken out the same way as a feature:
+
+```bash
+pnpm capability:remove ai   # --dry-run shows what goes
+pnpm db:generate            # the DROP migration of its tables
+pnpm --filter @nestjs-monorepo-template/api remove @ai-sdk/anthropic @nestjs/ai ai   # printed by the command
+pnpm client:generate
+```
+
+Supported: `ai` (the AI helper, [ai](ai.md)), `forms` (runtime forms,
+[forms](forms.md)), `presence` (who else is on a record,
+[work surfaces](work-surfaces.md#record-presence)), `data-quality` (checks,
+scans and findings, [data quality](data-quality.md)), `messaging` (push
+and SMS, [notifications](notifications.md#push-and-sms)), `shares` (read-only
+links to a record, the `share` capability) and `automations` (tenant
+rules, [automations](automations.md)). The list, and what the command must know of each beyond
+the conventions, is `tools/feature/removable.mjs`. It deletes
+`apps/api/src/platform/<name>/` and `test/<name>.e2e-spec.ts`, takes its
+module, queue, settings and notifications out of `platform.module.ts` and
+`queues/queues.ts` and its tables out of `schema.ts`, and removes every
+`capability:<name> begin` … `end` block in shared files (its variables in
+the env schema, `env.example` and `compose.prod.yaml`, its lines in other
+modules, its permission, its adapters in `notes` and the test fixtures, its
+tests, the setup wizard's question, CI's checks). On the web it takes the
+feature paths (`features/<name>/`, `routes/_app/<name>/`,
+`locales/<lng>/<name>.json`) and regenerates the route tree; in the docs, its
+page, its sidebar entry, the table rows and list items that link to it (a
+link elsewhere becomes text: the command lists those lines to review), and
+the sections of shared pages the manifest names. It
+never writes a migration, and refuses, listing the files, while anything
+else still imports what it deletes; a second run says there is nothing
+left. Markers are comments: a project that removes nothing builds and serves
+the same OpenAPI document.
+
+Then run the steps it prints, `pnpm build`, `pnpm lint` (knip finds what is
+left orphaned) and the tests. CI's `template-without-capabilities` job
+(manual runs) removes each supported capability in turn and builds, lints
+and type-checks what is left.
 
 ### A feature's demo data
 

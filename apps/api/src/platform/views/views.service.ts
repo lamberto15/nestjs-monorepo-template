@@ -9,7 +9,7 @@ import {
   and,
   count,
   eq,
-  getTableColumns,
+  getColumns,
   inArray,
   or,
   type SQL,
@@ -38,8 +38,8 @@ import {
   type RequestPrincipal,
   type UserPrincipal,
 } from '../../iam/auth/principal.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { defineResource } from '../../iam/resources/resource.js';
 import {
   type PersonalDataSource,
@@ -161,7 +161,7 @@ export class ViewsService implements PersonalDataSource {
       this.db
         // With the sort values the cursor needs (lower(name)); pick() drops them.
         .select({
-          ...getTableColumns(savedViews),
+          ...getColumns(savedViews),
           ...VIEW_LIST.sortSelect(query),
         })
         .from(savedViews)

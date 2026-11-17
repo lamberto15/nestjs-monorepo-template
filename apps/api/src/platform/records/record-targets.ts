@@ -7,7 +7,7 @@ import {
 import { I18nService } from '@nestjs/i18n';
 import { AuthorizationService } from '@nestjs/authorization';
 import type { AnyPgColumn, PgTable } from 'drizzle-orm/pg-core';
-import { and, desc, eq, getTableColumns, inArray, lt } from 'drizzle-orm';
+import { and, desc, eq, getColumns, inArray, lt } from 'drizzle-orm';
 import {
   headline,
   matches,
@@ -31,7 +31,9 @@ import { AttachmentsRegistry } from '../attachments/attachments.registry.js';
 import { BulkRegistry } from '../bulk/bulk.registry.js';
 import type { BulkSelection } from '../bulk/bulk.types.js';
 import { CommentsRegistry } from '../comments/comments.registry.js';
+// capability:data-quality begin
 import { DataQualityRegistry } from '../data-quality/data-quality.registry.js';
+// capability:data-quality end
 import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
 import { columnsOf } from '../data-transfer/import-columns.js';
 import type {
@@ -50,12 +52,16 @@ import {
   RevisionsRegistry,
 } from '../revisions/revisions.registry.js';
 import { SearchRegistry, type SearchHit } from '../search/search.registry.js';
+// capability:shares begin
 import { type ShareTarget, SharesRegistry } from '../shares/shares.registry.js';
+// capability:shares end
+// capability:automations begin
 import {
   type AutomationRecord,
   type AutomationTarget,
   AutomationsRegistry,
 } from '../automations/automations.registry.js';
+// capability:automations end
 import { SubscriptionsRegistry } from '../subscriptions/subscriptions.registry.js';
 import { TagsRegistry } from '../tags/tags.registry.js';
 import { TagsService } from '../tags/tags.service.js';
@@ -114,6 +120,7 @@ async function find(c: RecordContract, id: string, visibleTo?: Principal) {
   }
 }
 
+// capability:data-quality begin
 /**
  * The data-quality checks of a record with `quality` (platform/data-quality):
  * its recommended and duplicate fields as declared, and every `ref` field
@@ -157,6 +164,7 @@ export class RecordDataQuality {
     });
   }
 }
+// capability:data-quality end
 
 /** Its records, for the permission explanation (GET /v1/access/users/{id}/explanation). */
 @Injectable()
@@ -272,6 +280,7 @@ export class RecordAttachments {
   }
 }
 
+// capability:shares begin
 /**
  * Who may read a record and share it (its subject's `share` action) makes
  * read-only links to it (platform/shares); a link shows the declared
@@ -326,7 +335,9 @@ export class RecordShares implements ShareTarget {
     );
   }
 }
+// capability:shares end
 
+// capability:automations begin
 /** The field kinds a rule's `setField` may set: plain values, never a reference, money or JSON. */
 const SETTABLE_KINDS = new Set([
   'string',
@@ -386,6 +397,7 @@ export class RecordAutomation implements AutomationTarget {
     await this.c.service.update(principal, row, dto);
   }
 }
+// capability:automations end
 
 /** Who may read a record may watch it (platform/subscriptions). */
 @Injectable()
@@ -565,9 +577,7 @@ export class RecordSearch {
       db
         // The whole row: the permission conditions (`mine`) read it.
         .select({
-          ...getTableColumns(
-            table as unknown as Parameters<typeof getTableColumns>[0],
-          ),
+          ...getColumns(table as unknown as Parameters<typeof getColumns>[0]),
           score,
           // A snippet of each searchable field, its own key next to the row's.
           ...Object.fromEntries(
@@ -1039,7 +1049,7 @@ export class RecordTransfer {
       async ({ after, orderBy, limit }) =>
         (await this.c.service.query((db) =>
           db
-            .select({ ...getTableColumns(pgTable), ...extra })
+            .select({ ...getColumns(pgTable), ...extra })
             .from(pgTable)
             .where(and(where, after))
             .orderBy(...orderBy)

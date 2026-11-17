@@ -60,10 +60,14 @@ const CAPABILITY_DOCS = {
   events:
     'Webhook events of its changes (`<item>.created`…). False with WEBHOOKS=off.',
   numbered: 'A human-readable number (`number`, `INV-2026-00042`).',
+  // capability:shares begin
   share:
     'Read-only links to a record (`…/{id}/shares`), opened without a sign-in (POST /v1/shared/open).',
+  // capability:shares end
+  // capability:automations begin
   automation:
     'Automation rules may act on its records when they are created or changed (GET /v1/automation-rules).',
+  // capability:automations end
   merge:
     'Duplicates found by its declared rules (`…/duplicates`) and merged into one record (`…/{id}/merge`).',
   approvals: 'An action on the records may need approval (GET /v1/approvals).',

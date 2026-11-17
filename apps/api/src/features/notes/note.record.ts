@@ -21,8 +21,10 @@ export const NOTE = defineRecord({
   grants: 'none',
   // Its number, gapless per tenant: NOTE-2026-00042 (perYear: false drops the year).
   number: { prefix: 'NOTE', perYear: true, width: 5 },
+  // capability:data-quality begin
   // Its data-quality checks (platform/data-quality): an empty text is a suggestion, a title another note has too a duplicate candidate.
   quality: { recommended: ['body'], duplicates: ['title'] },
+  // capability:data-quality end
   fields: {
     title: field.string().searchable(),
     body: field.text().searchable(),
@@ -48,8 +50,12 @@ export const NOTE = defineRecord({
     'transfer',
     'custom',
     'numbered',
+    // capability:shares begin
     'share',
+    // capability:shares end
+    // capability:automations begin
     'automation',
+    // capability:automations end
     'merge',
   ],
 });

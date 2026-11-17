@@ -227,6 +227,9 @@ test('template-without-notes runs on a manual run only', () => {
   const expected = (name) =>
     JSON.parse(eventOutput(name, {}, null).result.expected);
   assert.ok(expected('workflow_dispatch').includes('template-without-notes'));
+  assert.ok(
+    expected('workflow_dispatch').includes('template-without-capabilities'),
+  );
   for (const name of ['schedule', 'push']) {
     assert.ok(!expected(name).includes('template-without-notes'), name);
     assert.ok(expected(name).includes('e2e'), name);

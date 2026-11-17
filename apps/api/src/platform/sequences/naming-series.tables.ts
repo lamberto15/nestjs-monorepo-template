@@ -23,7 +23,7 @@ export interface NamingCondition {
  * series: several per subject, one its default. The counters live in
  * `sequences`, keyed by what a pattern prints around its counter.
  */
-export const namingSeries = pgTable(
+export const namingSeries = pgTable.withRLS(
   'naming_series',
   {
     id: uuidPk(),
@@ -62,4 +62,4 @@ export const namingSeries = pgTable(
       .where(sql`${table.isDefault}`),
     ...tenantTable('naming_series', table),
   ],
-).enableRLS();
+);

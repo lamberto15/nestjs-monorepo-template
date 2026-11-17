@@ -1,10 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import { Page, PageHeader } from '@/components/page-header';
+// capability:messaging begin
 import {
   DevicesSection,
   PhoneSection,
 } from '@/features/notifications/phone-devices';
+// capability:messaging end
 import { PreferencesForm } from '@/features/notifications/preferences';
 import { useMe } from '@/lib/features';
 
@@ -31,8 +33,10 @@ function NotificationPreferencesPage() {
         me && (
           <>
             <PreferencesForm />
+            {/* capability:messaging begin */}
             <PhoneSection />
             <DevicesSection />
+            {/* capability:messaging end */}
           </>
         )
       )}

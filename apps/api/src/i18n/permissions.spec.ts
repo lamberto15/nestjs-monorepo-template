@@ -144,7 +144,9 @@ describe('the permissions catalog (i18n)', () => {
           'Approval',
           'Ops',
           'MailSuppression',
+          // capability:data-quality begin
           'DataQuality',
+          // capability:data-quality end
           'Note',
         ].includes(subject),
     );
