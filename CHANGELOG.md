@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.4.2...v0.5.0) (2026-11-17)
+
+
+### Features
+
+* **api:** read-only record fields, and notes as a generated record ([#1133](https://github.com/lamberto15/nestjs-monorepo-template/issues/1133)) ([a7e2bcb](https://github.com/lamberto15/nestjs-monorepo-template/commit/a7e2bcb063b9b4a4764b3c284d394966e557441a))
+* audit roadmap (capability modules, layering lint, auth 0.1.6, @nestjs/ai, telemetry policy) ([#1124](https://github.com/lamberto15/nestjs-monorepo-template/issues/1124)) ([adeee75](https://github.com/lamberto15/nestjs-monorepo-template/commit/adeee757216a8862e0b7747b325388ebd5771dc8))
+* **db:** Drizzle ORM 1.0.0-rc.5 ([#1125](https://github.com/lamberto15/nestjs-monorepo-template/issues/1125)) ([fcba51c](https://github.com/lamberto15/nestjs-monorepo-template/commit/fcba51c4bd594026da0e7cf3ca27273fa61feaec))
+* **tools:** pnpm capability:remove for optional platform capabilities ([#1127](https://github.com/lamberto15/nestjs-monorepo-template/issues/1127)) ([274c982](https://github.com/lamberto15/nestjs-monorepo-template/commit/274c982055d1fdc525c7ea009b82ec378de67f9a))
+
+
+### Bug Fixes
+
+* **backup:** upgrade krb5-libs and libxslt in the backup image ([#1128](https://github.com/lamberto15/nestjs-monorepo-template/issues/1128)) ([4a05eaf](https://github.com/lamberto15/nestjs-monorepo-template/commit/4a05eaf06d6a51f2026f2e30348f462ee8869cde))
+
 ## [0.4.2](https://github.com/lamberto15/nestjs-monorepo-template/compare/v0.4.1...v0.4.2) (2026-11-10)
 
 
