@@ -63306,6 +63306,7 @@
                       "type": "string"
                     },
                     "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
                       "type": "string"
                     },
                     "status": {
@@ -63395,7 +63396,6 @@
                     "unitId",
                     "number",
                     "title",
-                    "body",
                     "status",
                     "publishedAt",
                     "tags",
@@ -63942,6 +63942,7 @@
                             "type": "string"
                           },
                           "body": {
+                            "description": "Left out when your permissions don't include the note's text.",
                             "type": "string"
                           },
                           "status": {
@@ -64031,7 +64032,6 @@
                           "unitId",
                           "number",
                           "title",
-                          "body",
                           "status",
                           "publishedAt",
                           "tags",
@@ -64257,6 +64257,7 @@
                       "type": "string"
                     },
                     "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
                       "type": "string"
                     },
                     "status": {
@@ -64346,7 +64347,6 @@
                     "unitId",
                     "number",
                     "title",
-                    "body",
                     "status",
                     "publishedAt",
                     "tags",
@@ -64468,6 +64468,7 @@
                       "type": "string"
                     },
                     "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
                       "type": "string"
                     },
                     "status": {
@@ -64557,7 +64558,6 @@
                     "unitId",
                     "number",
                     "title",
-                    "body",
                     "status",
                     "publishedAt",
                     "tags",
@@ -64784,6 +64784,7 @@
                       "type": "string"
                     },
                     "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
                       "type": "string"
                     },
                     "status": {
@@ -64873,7 +64874,6 @@
                     "unitId",
                     "number",
                     "title",
-                    "body",
                     "status",
                     "publishedAt",
                     "tags",
@@ -66977,6 +66977,7 @@
                       "type": "string"
                     },
                     "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
                       "type": "string"
                     },
                     "status": {
@@ -67066,7 +67067,6 @@
                     "unitId",
                     "number",
                     "title",
-                    "body",
                     "status",
                     "publishedAt",
                     "tags",
@@ -68273,6 +68273,7 @@
                       "type": "string"
                     },
                     "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
                       "type": "string"
                     },
                     "status": {
@@ -68362,7 +68363,6 @@
                     "unitId",
                     "number",
                     "title",
-                    "body",
                     "status",
                     "publishedAt",
                     "tags",

@@ -37226,7 +37226,8 @@ export interface operations {
                             /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
                             number: string | null;
                             title: string;
-                            body: string;
+                            /** @description Left out when your permissions don't include the note's text. */
+                            body?: string;
                             /** @enum {string} */
                             status: "draft" | "published";
                             /** Format: date-time */
@@ -37348,7 +37349,8 @@ export interface operations {
                         /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
                         number: string | null;
                         title: string;
-                        body: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
                         /** @enum {string} */
                         status: "draft" | "published";
                         /** Format: date-time */
@@ -37505,7 +37507,8 @@ export interface operations {
                         /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
                         number: string | null;
                         title: string;
-                        body: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
                         /** @enum {string} */
                         status: "draft" | "published";
                         /** Format: date-time */
@@ -37662,7 +37665,8 @@ export interface operations {
                         /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
                         number: string | null;
                         title: string;
-                        body: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
                         /** @enum {string} */
                         status: "draft" | "published";
                         /** Format: date-time */
@@ -37807,7 +37811,8 @@ export interface operations {
                         /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
                         number: string | null;
                         title: string;
-                        body: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
                         /** @enum {string} */
                         status: "draft" | "published";
                         /** Format: date-time */
@@ -39095,7 +39100,8 @@ export interface operations {
                         /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
                         number: string | null;
                         title: string;
-                        body: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
                         /** @enum {string} */
                         status: "draft" | "published";
                         /** Format: date-time */
@@ -39885,7 +39891,8 @@ export interface operations {
                         /** @description Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering. */
                         number: string | null;
                         title: string;
-                        body: string;
+                        /** @description Left out when your permissions don't include the note's text. */
+                        body?: string;
                         /** @enum {string} */
                         status: "draft" | "published";
                         /** Format: date-time */
