@@ -1,11 +1,11 @@
 import { searchFields } from '../../core/database/search.js';
 import { listQuery } from '../../core/http/list-query.js';
 import { tagFilter } from '../../platform/tags/tag.list.js';
-import type { ListViewsDeclaration } from '../../platform/lists/list-metadata.schemas.js';
-import { noteSchema } from './note.schemas.js';
+import { NOTE_SCHEMAS } from './note.schemas.js';
 import { notes } from './notes.tables.js';
 
-/** What GET /notes can be filtered, sorted (`sortable`) and narrowed (`select`) by. */
+/**
+ * What GET /notes can be filtered, sorted (`sortable`) and narrowed (`select`) by. */
 export const NOTE_LIST = listQuery(
   {
     // ?q=words (web search syntax) and ?sort=-rank: the best match first; the vector holds the title and the text.
@@ -64,20 +64,9 @@ export const NOTE_LIST = listQuery(
   },
   {
     // `can` and `watching` (?include=) are no fields to pick.
-    select: Object.keys(noteSchema.shape).filter(
+    select: Object.keys(NOTE_SCHEMAS.response.shape).filter(
       (key) => key !== 'can' && key !== 'watching',
     ),
     softDelete: true,
   },
 );
-
-/**
- * The views besides the table (GET /v1/lists/Note `views`): a board by
- * status and a calendar and timeline by the dates. Read-only: a note's
- * status and dates are not changed by `PATCH` (publishing does).
- */
-export const NOTE_VIEWS: ListViewsDeclaration = {
-  board: { field: 'status', readOnly: true },
-  calendar: { fields: ['createdAt', 'publishedAt'], readOnly: true },
-  timeline: { start: 'createdAt', end: 'publishedAt' },
-};

@@ -116,7 +116,7 @@ value of an enum field, such as a status), a **calendar** (month, week and
 agenda of date fields) and a **timeline** (bars from a start field to an end
 field). They are declared, not computed: `views` in the record declaration
 (`<item>.record.ts`), or `listSource(subject, list, capabilities, views)` in a
-hand-written feature (notes does, `NOTE_VIEWS`); the names are fields of the
+hand-written feature; the names are fields of the
 feature's `<item>.list.ts`, checked at startup (board: an enum; the others:
 `date` or `datetime`).
 

@@ -10,7 +10,14 @@ import {
 import { NotePublisher } from './note-publisher.service.js';
 import { NOTE_PUBLISH_APPROVAL_FLAG } from './note-settings.js';
 import { NotesService } from './notes.service.js';
-import { noteSnapshot } from './note.resource.js';
+import type { Note } from './note.schemas.js';
+
+/** What an approval vouches for: the note's own words (its status changes by publishing). */
+const noteContent = (note: Note) => ({
+  title: note.title,
+  body: note.body,
+  custom: note.custom,
+});
 
 /** What a publication request carries: the title the approvers see. */
 const payload = z.object({ title: z.string().max(200) });
@@ -78,7 +85,7 @@ export class NotePublishApproval implements ApprovalHandler<Payload> {
     try {
       const note = await this.notes.findOne(id);
       return createHash('sha256')
-        .update(JSON.stringify(noteSnapshot(note)))
+        .update(JSON.stringify(noteContent(note)))
         .digest('base64url');
     } catch (error) {
       if (error instanceof NotFoundException) {

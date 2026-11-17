@@ -14,6 +14,7 @@ import {
   principalKey,
   type UserPrincipal,
 } from '../../iam/auth/principal.js';
+import { TagsService } from '../../platform/tags/tags.service.js';
 import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
 import {
   type PersonalDataSource,
@@ -26,10 +27,10 @@ import type {
   DataImporter,
   TransferColumn,
 } from '../../platform/data-transfer/data-transfer.types.js';
-import { createNoteSchema, type Note } from './note.schemas.js';
+import { NOTE_SCHEMAS, type Note } from './note.schemas.js';
 import { NOTE_LIST } from './note.list.js';
+import type { NoteInput } from './note-batch.js';
 import { NotesService } from './notes.service.js';
-import type { UpdateNoteDto } from './note.schemas.js';
 import { notes } from './notes.tables.js';
 
 /**
@@ -37,10 +38,10 @@ import { notes } from './notes.tables.js';
  * values in their `custom.<key>` columns; the text may be left out (a
  * caller without its permission gets a template without it).
  */
-const noteRow = createNoteSchema
+const noteRow = NOTE_SCHEMAS.create
   .omit({ custom: true, namingSeriesId: true })
-  .extend({ body: createNoteSchema.shape.body.default('') });
-type NoteRow = z.infer<typeof noteRow> & {
+  .extend({ body: NOTE_SCHEMAS.create.shape.body.default('') });
+type NoteRow = Pick<NoteInput, 'title' | 'body'> & {
   custom?: Record<string, unknown>;
 };
 
@@ -84,12 +85,13 @@ export class NoteTransfer
     { key: 'publishedAt', type: 'datetime' },
   ];
   readonly filters = NOTE_LIST.schema;
-  readonly schema: z.ZodType<NoteRow> = noteRow;
+  readonly schema = noteRow as unknown as z.ZodType<NoteRow>;
 
   constructor(
     private readonly notes: NotesService,
     private readonly access: AccessService,
     private readonly customFields: CustomFieldsService,
+    private readonly tags: TagsService,
     registry: DataTransferRegistry,
     personalData: PersonalDataRegistry,
   ) {
@@ -142,8 +144,11 @@ export class NoteTransfer
   }
 
   /** The row above, plus the `custom.<key>` columns, typed and checked. */
-  schemaFor() {
-    return this.customFields.importSchema('Note', noteRow);
+  async schemaFor() {
+    return (await this.customFields.importSchema(
+      'Note',
+      noteRow,
+    )) as unknown as z.ZodType<NoteRow>;
   }
 
   /** The `custom.<key>` columns of fields that don't exist (or no longer). */
@@ -173,7 +178,12 @@ export class NoteTransfer
             .limit(limit),
         ),
     )) {
-      yield await this.notes.withTags(rows);
+      // One query for the batch's tags.
+      const tags = await this.tags.tagsOf(
+        'Note',
+        rows.map((row) => row.id),
+      );
+      yield rows.map((row) => ({ ...row, tags: tags.get(row.id) ?? [] }));
     }
   }
 
@@ -240,7 +250,7 @@ export class NoteTransfer
         const { [key]: _match, ...dto } = row as Record<string, unknown>;
         // Import's POST schema supplies the default empty body; for PATCH semantics an empty cell is absent.
         if (dto.body === '') delete dto.body;
-        return { noteId: note.id, dto: dto as UpdateNoteDto };
+        return { noteId: note.id, dto: dto as Partial<NoteInput> };
       }),
     );
     for (let index = 0; index < matches.length; index++) {

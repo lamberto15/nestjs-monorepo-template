@@ -20,9 +20,18 @@ import {
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
 import { organizationalUnits } from '../../iam/organization/organization.tables.js';
-import type { NoteStatus } from './note.schemas.js';
+import { handWrittenTable } from '../../platform/records/record.js';
+import { NOTE } from './note.record.js';
 
-/** Notes: the example resource. `ownerId` is the principal that created it, `user:<id>` or `client:<id>`. */
+/** What a note's status is: the declaration's `status` values (note.record.ts). */
+export type NoteStatus = 'draft' | 'published';
+
+/**
+ * Notes: the example resource, with a table written by hand: its indexes
+ * (partial, covering, trigram) and its search vector are tuned past what
+ * `recordTable()` derives, so the declaration (note.record.ts) takes it
+ * as it is (handWrittenTable, below) and derives everything else.
+ * `ownerId` is the principal that created it, `user:<id>` or `client:<id>`. */
 export const notes = pgTable.withRLS(
   'notes',
   {
@@ -124,3 +133,5 @@ export const notes = pgTable.withRLS(
     ),
   ],
 );
+
+handWrittenTable(NOTE, notes);

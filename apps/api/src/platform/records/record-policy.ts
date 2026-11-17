@@ -20,6 +20,8 @@ import { RECORD_DECLARATION } from './record-contract.js';
 
 /** What a feature adds to its records' standard permissions (recordPermissions). */
 export interface RecordPermissionOptions {
+  /** The subject's label, when it isn't the path's words capitalized (`Notes (example)`). */
+  label?: string;
   /** Field-level permissions: the fields a permission may grant one by one. */
   fields?: Record<string, FieldDefinition>;
   /** Conditions of the feature's own, besides `mine` (and the unit conditions). */
@@ -78,7 +80,7 @@ export function recordPermissions(
   return definePermissions({
     subjects: {
       [subject]: {
-        label: `${nouns[0]!.toUpperCase()}${nouns.slice(1)}`,
+        label: options.label ?? `${nouns[0]!.toUpperCase()}${nouns.slice(1)}`,
         // Its noun and path: `Purchase order`, `Purchase orders`.
         names: {
           singular: `${declaration.noun[0]!.toUpperCase()}${declaration.noun.slice(1)}`,

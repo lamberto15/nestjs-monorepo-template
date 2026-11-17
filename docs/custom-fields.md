@@ -119,7 +119,7 @@ derives everything below from the record (`recordTable`, `recordSchemas`,
 the `custom` permission field in `recordPermissions()` (and the audit's
 `custom.<key>` entries from `recordResource()`), `custom` in
 revisions' snapshots, and `custom.<key>` columns in the record's export and
-import). The steps below are the same thing written by hand, as notes does:
+import). The steps below are the same thing written by hand:
 
 1. A JSONB column with a GIN index on the table, then `pnpm db:generate`:
 

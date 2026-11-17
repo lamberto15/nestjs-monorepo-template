@@ -1,7 +1,6 @@
 import { WorkflowSignal } from '@nestjs/workflows';
 import { z } from 'zod';
 import type { TenantEnvelope } from '../../core/tenancy/tenant-job.js';
-import { commentedData } from '../../platform/comments/comment-notifications.js';
 import { defineDomainEvents } from '../../platform/events/domain-event.js';
 
 /**
@@ -29,14 +28,6 @@ export const NOTE_EVENTS = defineDomainEvents([
     notification: {
       channels: { email: 'daily', webhook: true },
       data: z.object({ noteId: z.uuid(), title: z.string(), by: z.string() }),
-    },
-  },
-  {
-    // Someone else commented on a watched note (platform/comments): bundled daily by default.
-    type: 'note.commented',
-    notification: {
-      channels: { email: 'daily', webhook: true },
-      data: commentedData,
     },
   },
   {

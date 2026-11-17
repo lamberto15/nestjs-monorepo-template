@@ -4,7 +4,8 @@ import { NOTE_PUBLISH_APPROVAL } from './note-approvals.js';
 import { NOTE_EVENTS } from './note-events.js';
 import { NOTE_SETTINGS } from './note-settings.js';
 import { NOTE_PERMISSIONS } from './note.policy.js';
-import { NOTE, NOTE_CUSTOM_FIELDS } from './note.resource.js';
+import { NOTE } from './note.record.js';
+import { NOTE_RESOURCE } from './note.resource.js';
 import { NotesModule } from './notes.module.js';
 import { NotesDemo } from './notes.demo.js';
 
@@ -16,11 +17,11 @@ export const NOTES_FEATURE = defineFeature({
     description: 'The example feature: replace it with yours',
   },
   permissions: NOTE_PERMISSIONS,
-  resources: [NOTE],
+  resources: [NOTE_RESOURCE],
+  record: NOTE,
   // Webhook types and notifications, declared once: note-events.ts.
   events: NOTE_EVENTS,
   incomingWebhooks: [EXAMPLE_SENDER],
-  customFields: [NOTE_CUSTOM_FIELDS],
   settings: NOTE_SETTINGS,
   // Actions that need approval: docs/approvals.md.
   approvals: [NOTE_PUBLISH_APPROVAL],

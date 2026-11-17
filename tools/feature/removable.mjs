@@ -129,7 +129,6 @@ export const REMOVABLE = {
   },
   'data-quality': {
     about: 'data-quality checks, scans and findings (docs/data-quality.md)',
-    files: ['apps/api/src/features/notes/note-quality.ts'],
     texts: [{ app: 'api', file: 'permissions.json', key: ['data-quality'] }],
     edits: [
       [
@@ -262,7 +261,6 @@ export const REMOVABLE = {
     about:
       'read-only links to a record, opened without a sign-in (POST /v1/shared/open)',
     files: [
-      'apps/api/src/features/notes/note-shares.ts',
       'apps/api/src/mail/templates/share-code.html',
       'apps/api/src/mail/templates/share-code.ar.html',
       'apps/api/src/mail/templates/share-code.de.html',
@@ -289,7 +287,6 @@ export const REMOVABLE = {
   automations: {
     about:
       'tenant automation rules: triggers, conditions and actions on records (/v1/automation-rules)',
-    files: ['apps/api/src/features/notes/note-automation.ts'],
     texts: [
       {
         app: 'api',

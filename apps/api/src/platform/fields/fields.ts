@@ -47,7 +47,15 @@ type Simplify<T> = { [K in keyof T]: T[K] } & {};
 
 /** One field's columns: money its pair; the others one column, NOT NULL unless optional. */
 type ColumnsOf<N extends string, F> =
-  F extends Field<'money', never, z.ZodType, z.ZodType, infer Opt, boolean>
+  F extends Field<
+    'money',
+    never,
+    z.ZodType,
+    z.ZodType,
+    infer Opt,
+    boolean,
+    boolean
+  >
     ? MoneyColumns<N, Opt extends true ? MoneyOptional : MoneyRequired>
     : F extends Field<
           infer _K,
@@ -55,7 +63,8 @@ type ColumnsOf<N extends string, F> =
           z.ZodType,
           z.ZodType,
           infer Opt,
-          infer Def
+          infer Def,
+          boolean
         >
       ? C extends ColumnBuilderBase
         ? {
@@ -150,7 +159,15 @@ export function fieldExtras(
 
 /** One field's input in a create body: optional ones take null or nothing, defaulted ones nothing. */
 type InputOf<F> =
-  F extends Field<infer _K, infer _C, infer I, z.ZodType, infer Opt, infer Def>
+  F extends Field<
+    infer _K,
+    infer _C,
+    infer I,
+    z.ZodType,
+    infer Opt,
+    infer Def,
+    boolean
+  >
     ? Opt extends true
       ? z.ZodOptional<z.ZodNullable<I>>
       : Def extends true
@@ -159,12 +176,25 @@ type InputOf<F> =
     : never;
 /** One field's output in a response: null when optional. */
 type OutputOf<F> =
-  F extends Field<infer _K, infer _C, z.ZodType, infer O, infer Opt, boolean>
+  F extends Field<
+    infer _K,
+    infer _C,
+    z.ZodType,
+    infer O,
+    infer Opt,
+    boolean,
+    boolean
+  >
     ? Opt extends true
       ? z.ZodNullable<O>
       : O
     : never;
-export type CreateShape<F extends Fields> = { [N in keyof F]: InputOf<F[N]> };
+/** The create body's fields: the read-only ones are not in it. */
+export type CreateShape<F extends Fields> = {
+  [
+    N in keyof F as F[N]['options']['readOnly'] extends true ? never : N
+  ]: InputOf<F[N]>;
+};
 export type OutputShape<F extends Fields> = { [N in keyof F]: OutputOf<F[N]> };
 
 const inputOf = (f: AnyField) =>
@@ -177,7 +207,8 @@ const outputOf = (f: AnyField) =>
   f.options.optional ? f.output.nullable() : f.output;
 
 /**
- * The API's schemas of the fields: `create` (POST's body), `update`
+ * The API's schemas of the fields: `create` (POST's body, without the
+ * read-only fields), `update`
  * (PATCH's: only what is sent), and `response` (the fields' part of a
  * record's response shape; the record adds its id, owner and dates).
  */
@@ -185,7 +216,9 @@ export function fieldSchemas<F extends Fields>(fields: F) {
   const entries = Object.entries(fields);
   const create = z.object(
     Object.fromEntries(
-      entries.map(([name, f]) => [name, inputOf(f)]),
+      entries
+        .filter(([, f]) => !f.options.readOnly)
+        .map(([name, f]) => [name, inputOf(f)]),
     ) as CreateShape<F>,
   );
   return {
@@ -334,10 +367,15 @@ export function fieldSamples(fields: Fields) {
   const entries = Object.entries(fields);
   const body = () =>
     Object.fromEntries(
-      entries.map(([name, f]) => [name, SAMPLES[f.kind](f, name).sample]),
+      entries
+        .filter(([, f]) => !f.options.readOnly)
+        .map(([name, f]) => [name, SAMPLES[f.kind](f, name).sample]),
     );
   const [first, f] =
-    entries.find(([, candidate]) => candidate.kind !== 'ref') ?? entries[0]!;
+    entries.find(
+      ([, candidate]) =>
+        candidate.kind !== 'ref' && !candidate.options.readOnly,
+    ) ?? entries[0]!;
   const sample = SAMPLES[f.kind](f, first);
   return {
     body,
@@ -346,6 +384,12 @@ export function fieldSamples(fields: Fields) {
     changedField: first,
   };
 }
+
+/** The fields a body may set: the declaration's, without the read-only ones. */
+export const writableFields = (fields: Fields) =>
+  Object.fromEntries(
+    Object.entries(fields).filter(([, f]) => !f.options.readOnly),
+  );
 
 /** The fields part of the text a full-text search reads (`.searchable()`). */
 export const searchableFields = (fields: Fields) =>

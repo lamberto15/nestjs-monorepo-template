@@ -273,6 +273,11 @@ export class ApprovalsService implements PersonalDataSource {
     }
   }
 
+  /** Whether any action of `subject` needs approval: its records' writes then wait for open requests (RecordLifecycle). */
+  declares(subject: string) {
+    return this.registry.declares(subject);
+  }
+
   /**
    * The record's lock for approvals, in the transaction: `request()` and
    * resubmissions take it before they read the record's state (its

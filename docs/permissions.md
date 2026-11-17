@@ -57,8 +57,8 @@ feature, so only administrators have it until someone grants it; the default
 viewers read all. A client's permissions are code (a change reaches every
 tenant on deploy); the seed roles are written when a tenant is made, so a
 changed `grants` reaches only new tenants (docs/adding-a-feature.md,
-"Changing a feature"). The hand-written notes example grants its clients as
-before.
+"Changing a feature"). The notes example keeps its own grants (`grants: 'none'`, `clientAccess: false`;
+`note.policy.ts`, `note-roles.ts`).
 
 ## Checking
 

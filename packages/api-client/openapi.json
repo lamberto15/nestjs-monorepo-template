@@ -63220,7 +63220,7 @@
     },
     "/v1/notes": {
       "post": {
-        "description": "Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.",
+        "description": "Send a new Idempotency-Key per record and the same one on every retry. Audited.",
         "operationId": "NotesController_create_v1",
         "parameters": [
           {
@@ -63244,13 +63244,11 @@
                   "title": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 200,
-                    "example": "Hello"
+                    "maxLength": 200
                   },
                   "body": {
                     "type": "string",
-                    "maxLength": 10000,
-                    "example": "My first note."
+                    "maxLength": 10000
                   },
                   "custom": {
                     "type": "object",
@@ -63284,23 +63282,25 @@
                   "type": "object",
                   "properties": {
                     "id": {
-                      "type": "string"
-                    },
-                    "number": {
-                      "nullable": true,
-                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
-                      "type": "string"
-                    },
-                    "ownerId": {
-                      "type": "string",
-                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
-                    },
-                    "unitId": {
-                      "nullable": true,
-                      "description": "The author's organizational unit, when they were in exactly one.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who created it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The creator's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering.",
+                      "type": "string"
                     },
                     "title": {
                       "type": "string"
@@ -63315,6 +63315,19 @@
                         "draft",
                         "published"
                       ]
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "custom": {
                       "description": "Custom field values by key; left out when your permissions don't include them.",
@@ -63342,19 +63355,6 @@
                       "nullable": true,
                       "description": "Who deleted it: `user:<id>` or `client:<id>`.",
                       "type": "string"
-                    },
-                    "publishedAt": {
-                      "nullable": true,
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "tags": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/TagRef"
-                      },
-                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "can": {
                       "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
@@ -63392,17 +63392,17 @@
                   },
                   "required": [
                     "id",
-                    "number",
                     "ownerId",
                     "unitId",
+                    "number",
                     "title",
                     "status",
+                    "publishedAt",
+                    "tags",
                     "createdAt",
                     "updatedAt",
                     "deletedAt",
-                    "deletedBy",
-                    "publishedAt",
-                    "tags"
+                    "deletedBy"
                   ],
                   "additionalProperties": false
                 }
@@ -63433,13 +63433,13 @@
             "api-key": []
           }
         ],
-        "summary": "Write a note",
+        "summary": "Create a note",
         "tags": [
           "notes"
         ]
       },
       "get": {
-        "description": "Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).",
+        "description": "Filter flat or with `filter`, sort with `sort`, pick fields with `fields`; each parameter lists what it takes. A field your permissions hide is a 403 (field_forbidden).",
         "operationId": "NotesController_list_v1",
         "parameters": [
           {
@@ -63889,7 +63889,7 @@
             "name": "fields",
             "required": false,
             "in": "query",
-            "description": "Only these fields in each item, comma-separated; id always comes. Example: number,ownerId. Fields: id, number, ownerId, unitId, title, body, status, custom, createdAt, updatedAt, deletedAt, deletedBy, publishedAt, tags.",
+            "description": "Only these fields in each item, comma-separated; id always comes. Example: ownerId,unitId. Fields: id, ownerId, unitId, number, title, body, status, publishedAt, tags, custom, createdAt, updatedAt, deletedAt, deletedBy.",
             "schema": {
               "type": "string"
             }
@@ -63918,23 +63918,25 @@
                         "type": "object",
                         "properties": {
                           "id": {
-                            "type": "string"
-                          },
-                          "number": {
-                            "nullable": true,
-                            "description": "The number people quote: NOTE-<year>-<n>, given on create.",
-                            "type": "string"
-                          },
-                          "ownerId": {
-                            "type": "string",
-                            "description": "Who wrote it: `user:<id>` or `client:<id>`."
-                          },
-                          "unitId": {
-                            "nullable": true,
-                            "description": "The author's organizational unit, when they were in exactly one.",
                             "type": "string",
                             "format": "uuid",
                             "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "ownerId": {
+                            "type": "string",
+                            "description": "Who created it: `user:<id>` or `client:<id>`."
+                          },
+                          "unitId": {
+                            "nullable": true,
+                            "description": "The creator's organizational unit, when they were in exactly one.",
+                            "type": "string",
+                            "format": "uuid",
+                            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                          },
+                          "number": {
+                            "nullable": true,
+                            "description": "Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering.",
+                            "type": "string"
                           },
                           "title": {
                             "type": "string"
@@ -63949,6 +63951,19 @@
                               "draft",
                               "published"
                             ]
+                          },
+                          "publishedAt": {
+                            "nullable": true,
+                            "type": "string",
+                            "format": "date-time",
+                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "$ref": "#/components/schemas/TagRef"
+                            },
+                            "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                           },
                           "custom": {
                             "description": "Custom field values by key; left out when your permissions don't include them.",
@@ -63976,19 +63991,6 @@
                             "nullable": true,
                             "description": "Who deleted it: `user:<id>` or `client:<id>`.",
                             "type": "string"
-                          },
-                          "publishedAt": {
-                            "nullable": true,
-                            "type": "string",
-                            "format": "date-time",
-                            "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                          },
-                          "tags": {
-                            "type": "array",
-                            "items": {
-                              "$ref": "#/components/schemas/TagRef"
-                            },
-                            "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                           },
                           "can": {
                             "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
@@ -64026,17 +64028,17 @@
                         },
                         "required": [
                           "id",
-                          "number",
                           "ownerId",
                           "unitId",
+                          "number",
                           "title",
                           "status",
+                          "publishedAt",
+                          "tags",
                           "createdAt",
                           "updatedAt",
                           "deletedAt",
-                          "deletedBy",
-                          "publishedAt",
-                          "tags"
+                          "deletedBy"
                         ],
                         "additionalProperties": false
                       }
@@ -64190,7 +64192,7 @@
     },
     "/v1/notes/{id}": {
       "get": {
-        "description": "With an ETag: send it back as If-None-Match to get 304 while unchanged, or as If-Match on a write to be refused if it changed.",
+        "description": "With an ETag: If-None-Match gets 304 while unchanged; If-Match on a write refuses it if it changed.",
         "operationId": "NotesController_get_v1",
         "parameters": [
           {
@@ -64231,23 +64233,25 @@
                   "type": "object",
                   "properties": {
                     "id": {
-                      "type": "string"
-                    },
-                    "number": {
-                      "nullable": true,
-                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
-                      "type": "string"
-                    },
-                    "ownerId": {
-                      "type": "string",
-                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
-                    },
-                    "unitId": {
-                      "nullable": true,
-                      "description": "The author's organizational unit, when they were in exactly one.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who created it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The creator's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering.",
+                      "type": "string"
                     },
                     "title": {
                       "type": "string"
@@ -64262,6 +64266,19 @@
                         "draft",
                         "published"
                       ]
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "custom": {
                       "description": "Custom field values by key; left out when your permissions don't include them.",
@@ -64289,19 +64306,6 @@
                       "nullable": true,
                       "description": "Who deleted it: `user:<id>` or `client:<id>`.",
                       "type": "string"
-                    },
-                    "publishedAt": {
-                      "nullable": true,
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "tags": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/TagRef"
-                      },
-                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "can": {
                       "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
@@ -64339,17 +64343,17 @@
                   },
                   "required": [
                     "id",
-                    "number",
                     "ownerId",
                     "unitId",
+                    "number",
                     "title",
                     "status",
+                    "publishedAt",
+                    "tags",
                     "createdAt",
                     "updatedAt",
                     "deletedAt",
-                    "deletedBy",
-                    "publishedAt",
-                    "tags"
+                    "deletedBy"
                   ],
                   "additionalProperties": false
                 }
@@ -64380,7 +64384,7 @@
         ]
       },
       "patch": {
-        "description": "Your own drafts. Changing the text takes a permission that includes it. With If-Match, refused (412) if the note changed since you read it. Audited with what changed.",
+        "description": "With If-Match, refused (412) if it changed since you read it. Audited with what changed.",
         "operationId": "NotesController_update_v1",
         "parameters": [
           {
@@ -64412,13 +64416,11 @@
                   "title": {
                     "type": "string",
                     "minLength": 1,
-                    "maxLength": 200,
-                    "example": "Hello"
+                    "maxLength": 200
                   },
                   "body": {
                     "type": "string",
-                    "maxLength": 10000,
-                    "example": "My first note."
+                    "maxLength": 10000
                   },
                   "custom": {
                     "type": "object",
@@ -64442,23 +64444,25 @@
                   "type": "object",
                   "properties": {
                     "id": {
-                      "type": "string"
-                    },
-                    "number": {
-                      "nullable": true,
-                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
-                      "type": "string"
-                    },
-                    "ownerId": {
-                      "type": "string",
-                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
-                    },
-                    "unitId": {
-                      "nullable": true,
-                      "description": "The author's organizational unit, when they were in exactly one.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who created it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The creator's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering.",
+                      "type": "string"
                     },
                     "title": {
                       "type": "string"
@@ -64473,6 +64477,19 @@
                         "draft",
                         "published"
                       ]
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "custom": {
                       "description": "Custom field values by key; left out when your permissions don't include them.",
@@ -64500,19 +64517,6 @@
                       "nullable": true,
                       "description": "Who deleted it: `user:<id>` or `client:<id>`.",
                       "type": "string"
-                    },
-                    "publishedAt": {
-                      "nullable": true,
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "tags": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/TagRef"
-                      },
-                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "can": {
                       "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
@@ -64550,17 +64554,17 @@
                   },
                   "required": [
                     "id",
-                    "number",
                     "ownerId",
                     "unitId",
+                    "number",
                     "title",
                     "status",
+                    "publishedAt",
+                    "tags",
                     "createdAt",
                     "updatedAt",
                     "deletedAt",
-                    "deletedBy",
-                    "publishedAt",
-                    "tags"
+                    "deletedBy"
                   ],
                   "additionalProperties": false
                 }
@@ -64577,7 +64581,7 @@
             "description": ""
           },
           "412": {
-            "description": "The note changed since you read it (precondition_failed)."
+            "description": "It changed since you read it (precondition_failed)."
           }
         },
         "security": [
@@ -64594,7 +64598,7 @@
         ]
       },
       "delete": {
-        "description": "It disappears from every list; POST /v1/notes/{id}/restore brings it back until it is purged.",
+        "description": "POST /v1/notes/{id}/restore brings it back until it is purged.",
         "operationId": "NotesController_delete_v1",
         "parameters": [
           {
@@ -64630,7 +64634,7 @@
             "description": ""
           },
           "412": {
-            "description": "The note changed since you read it (precondition_failed)."
+            "description": "It changed since you read it (precondition_failed)."
           }
         },
         "security": [
@@ -64642,178 +64646,6 @@
           }
         ],
         "summary": "Delete a note (to the recycle bin)",
-        "tags": [
-          "notes"
-        ]
-      }
-    },
-    "/v1/notes/{id}/restore": {
-      "post": {
-        "description": "Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).",
-        "operationId": "NotesController_restore_v1",
-        "parameters": [
-          {
-            "name": "id",
-            "required": true,
-            "in": "path",
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "id": {
-                      "type": "string"
-                    },
-                    "number": {
-                      "nullable": true,
-                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
-                      "type": "string"
-                    },
-                    "ownerId": {
-                      "type": "string",
-                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
-                    },
-                    "unitId": {
-                      "nullable": true,
-                      "description": "The author's organizational unit, when they were in exactly one.",
-                      "type": "string",
-                      "format": "uuid",
-                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
-                    },
-                    "title": {
-                      "type": "string"
-                    },
-                    "body": {
-                      "description": "Left out when your permissions don't include the note's text.",
-                      "type": "string"
-                    },
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "draft",
-                        "published"
-                      ]
-                    },
-                    "custom": {
-                      "description": "Custom field values by key; left out when your permissions don't include them.",
-                      "type": "object",
-                      "additionalProperties": {}
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "deletedAt": {
-                      "nullable": true,
-                      "description": "Set while the note is in the recycle bin (`?deleted=true`).",
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "deletedBy": {
-                      "nullable": true,
-                      "description": "Who deleted it: `user:<id>` or `client:<id>`.",
-                      "type": "string"
-                    },
-                    "publishedAt": {
-                      "nullable": true,
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "tags": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/TagRef"
-                      },
-                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
-                    },
-                    "can": {
-                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
-                      "type": "object",
-                      "properties": {
-                        "update": {
-                          "type": "boolean",
-                          "description": "PATCH would be allowed."
-                        },
-                        "delete": {
-                          "type": "boolean",
-                          "description": "DELETE would be allowed."
-                        },
-                        "restore": {
-                          "type": "boolean",
-                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
-                        },
-                        "issue": {
-                          "type": "boolean",
-                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
-                        }
-                      },
-                      "required": [
-                        "update",
-                        "delete",
-                        "restore",
-                        "issue"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "watching": {
-                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
-                      "type": "boolean"
-                    }
-                  },
-                  "required": [
-                    "id",
-                    "number",
-                    "ownerId",
-                    "unitId",
-                    "title",
-                    "status",
-                    "createdAt",
-                    "updatedAt",
-                    "deletedAt",
-                    "deletedBy",
-                    "publishedAt",
-                    "tags"
-                  ],
-                  "additionalProperties": false
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "No valid API key or session."
-          },
-          "403": {
-            "description": "Not allowed by your permissions."
-          },
-          "404": {
-            "description": "Not in the recycle bin (or purged)."
-          }
-        },
-        "security": [
-          {
-            "user-session": []
-          },
-          {
-            "api-key": []
-          }
-        ],
-        "summary": "Restore a note from the recycle bin",
         "tags": [
           "notes"
         ]
@@ -64902,6 +64734,180 @@
         "summary": "Ask for a note to be published now",
         "tags": [
           "incoming webhooks"
+        ]
+      }
+    },
+    "/v1/notes/{id}/restore": {
+      "post": {
+        "description": "Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).",
+        "operationId": "NotesController_restore_v1",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who created it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The creator's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering.",
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "body": {
+                      "description": "Left out when your permissions don't include the note's text.",
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "draft",
+                        "published"
+                      ]
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
+                    },
+                    "custom": {
+                      "description": "Custom field values by key; left out when your permissions don't include them.",
+                      "type": "object",
+                      "additionalProperties": {}
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "deletedAt": {
+                      "nullable": true,
+                      "description": "Set while the note is in the recycle bin (`?deleted=true`).",
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "deletedBy": {
+                      "nullable": true,
+                      "description": "Who deleted it: `user:<id>` or `client:<id>`.",
+                      "type": "string"
+                    },
+                    "can": {
+                      "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
+                      "type": "object",
+                      "properties": {
+                        "update": {
+                          "type": "boolean",
+                          "description": "PATCH would be allowed."
+                        },
+                        "delete": {
+                          "type": "boolean",
+                          "description": "DELETE would be allowed."
+                        },
+                        "restore": {
+                          "type": "boolean",
+                          "description": "It is in the recycle bin and POST …/{id}/restore would be allowed."
+                        },
+                        "issue": {
+                          "type": "boolean",
+                          "description": "POST …/{id}/pdf would be accepted: you may read it, its document source lets you issue it, and documents are on (false without GOTENBERG_URL, where the route answers 503)."
+                        }
+                      },
+                      "required": [
+                        "update",
+                        "delete",
+                        "restore",
+                        "issue"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "watching": {
+                      "description": "Whether you watch it (POST …/{id}/watch): you are told when it changes. Only with `?include=watching`; not part of what If-Match compares.",
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "id",
+                    "ownerId",
+                    "unitId",
+                    "number",
+                    "title",
+                    "status",
+                    "publishedAt",
+                    "tags",
+                    "createdAt",
+                    "updatedAt",
+                    "deletedAt",
+                    "deletedBy"
+                  ],
+                  "additionalProperties": false
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "No valid API key or session."
+          },
+          "403": {
+            "description": "Not allowed by your permissions."
+          },
+          "404": {
+            "description": "Not in the recycle bin (or purged)."
+          }
+        },
+        "security": [
+          {
+            "user-session": []
+          },
+          {
+            "api-key": []
+          }
+        ],
+        "summary": "Restore a note from the recycle bin",
+        "tags": [
+          "notes"
         ]
       }
     },
@@ -66557,7 +66563,7 @@
     },
     "/v1/notes/{id}/revisions": {
       "get": {
-        "description": "Revision 1 is the note as written; each change adds one, with what changed (`changes`, from → to). Cursor pages; `?changedBy=user:<id>`, `?number.gte=`. The text and custom values only when your permissions include them.",
+        "description": "Revision 1 is the note as written; each change adds one, with what changed (`changes`, from → to). Cursor pages; `?changedBy=user:<id>`, `?number.gte=`.",
         "operationId": "NoteRevisionsController_list_v1",
         "parameters": [
           {
@@ -66908,7 +66914,7 @@
     },
     "/v1/notes/{id}/revisions/{number}/restore": {
       "post": {
-        "description": "Its title, text and custom values become the revision's, as a PATCH would set them (the same permissions, field-level ones too): audited `note.updated`, and a new revision with `restoredFrom`. With If-Match (the note's ETag), refused (412) if the note changed since you read it. Answers the note.",
+        "description": "Its values become the revision's, as a PATCH would set them (the same permissions, field-level ones too): audited `note.updated`, and a new revision with `restoredFrom`. With If-Match (the note's ETag), refused (412) if the note changed since you read it. Answers the note.",
         "operationId": "NoteRevisionsController_restore_v1",
         "parameters": [
           {
@@ -66947,23 +66953,25 @@
                   "type": "object",
                   "properties": {
                     "id": {
-                      "type": "string"
-                    },
-                    "number": {
-                      "nullable": true,
-                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
-                      "type": "string"
-                    },
-                    "ownerId": {
-                      "type": "string",
-                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
-                    },
-                    "unitId": {
-                      "nullable": true,
-                      "description": "The author's organizational unit, when they were in exactly one.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who created it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The creator's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering.",
+                      "type": "string"
                     },
                     "title": {
                       "type": "string"
@@ -66978,6 +66986,19 @@
                         "draft",
                         "published"
                       ]
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "custom": {
                       "description": "Custom field values by key; left out when your permissions don't include them.",
@@ -67005,19 +67026,6 @@
                       "nullable": true,
                       "description": "Who deleted it: `user:<id>` or `client:<id>`.",
                       "type": "string"
-                    },
-                    "publishedAt": {
-                      "nullable": true,
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "tags": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/TagRef"
-                      },
-                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "can": {
                       "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
@@ -67055,17 +67063,17 @@
                   },
                   "required": [
                     "id",
-                    "number",
                     "ownerId",
                     "unitId",
+                    "number",
                     "title",
                     "status",
+                    "publishedAt",
+                    "tags",
                     "createdAt",
                     "updatedAt",
                     "deletedAt",
-                    "deletedBy",
-                    "publishedAt",
-                    "tags"
+                    "deletedBy"
                   ],
                   "additionalProperties": false
                 }
@@ -67101,7 +67109,7 @@
     },
     "/v1/notes/{id}/pdf": {
       "post": {
-        "description": "Whoever may read the note. Answers at once with the document id; a worker renders the PDF in the request's language (`?lang=`, `X-Lang`, your saved language; right to left in Arabic) and your time zone, and adds it to the note's attachments (`locked`: it never changes and cannot be removed; asking again issues a new one). The text is in it only if you may read it.\n\nFollow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).",
+        "description": "Whoever may read the note. Answers at once with the document id; a worker renders the PDF in the request's language (`?lang=`, `X-Lang`, your saved language; right to left in Arabic) and your time zone, and adds it to the note's attachments (`locked`: it never changes and cannot be removed; asking again issues a new one).\n\nFollow it at GET /v1/documents/{id}; your realtime connection hears `document.ready { id, subject, recordId, attachmentId }` (download it at GET /v1/attachments/{attachmentId}/download) or `document.failed { id, subject, recordId, error }`. Audited (document.requested, document.issued).",
         "operationId": "NoteDocumentsController_pdf_v1",
         "parameters": [
           {
@@ -67444,7 +67452,7 @@
     },
     "/v1/notes/bulk": {
       "post": {
-        "description": "Each note as its own route does it (permissions, field-level checks, audit, webhooks); a note that fails does not stop the others.\n\n- `ids` (1 to 500): up to BULK_SYNC_LIMIT (100) answer 200 with a result per note; more answer 202.\n- `filter` (the list's filters, `{ \"title.startsWith\": \"Old\" }`): always 202.\n\nA 202 is a background job: follow it at GET /v1/bulk/{id}; the realtime connection hears `bulk.finished`. Ids you may not act on (or that do not exist) come back `skipped`. `input` is the update's PATCH body.",
+        "description": "Each one as its own route does it (permissions, audit); one that fails does not stop the others. Up to BULK_SYNC_LIMIT ids answer 200 with a result each; more, or a `filter`, answer 202: follow it at GET /v1/bulk/{id}.",
         "operationId": "NotesController_runBulk_v1",
         "parameters": [
           {
@@ -67469,8 +67477,8 @@
                     "type": "string",
                     "enum": [
                       "delete",
-                      "restore",
-                      "update"
+                      "update",
+                      "restore"
                     ]
                   },
                   "ids": {
@@ -67496,13 +67504,11 @@
                       "title": {
                         "type": "string",
                         "minLength": 1,
-                        "maxLength": 200,
-                        "example": "Hello"
+                        "maxLength": 200
                       },
                       "body": {
                         "type": "string",
-                        "maxLength": 10000,
-                        "example": "My first note."
+                        "maxLength": 10000
                       },
                       "custom": {
                         "type": "object",
@@ -67667,7 +67673,7 @@
             "api-key": []
           }
         ],
-        "summary": "Delete, restore or change many notes at once",
+        "summary": "Act on many notes at once",
         "tags": [
           "notes"
         ]
@@ -67675,7 +67681,7 @@
     },
     "/v1/notes/{id}/watch": {
       "post": {
-        "description": "Its owner watches it from the start. Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).",
+        "description": "Stop with DELETE /v1/notes/{id}/watch (or /v1/subscriptions/Note/{id}).",
         "operationId": "NotesController_watch_v1",
         "parameters": [
           {
@@ -67725,7 +67731,7 @@
             "api-key": []
           }
         ],
-        "summary": "Watch a note: be told when it changes or is published",
+        "summary": "Watch a note: be told when it changes",
         "tags": [
           "notes"
         ]
@@ -68243,23 +68249,25 @@
                   "type": "object",
                   "properties": {
                     "id": {
-                      "type": "string"
-                    },
-                    "number": {
-                      "nullable": true,
-                      "description": "The number people quote: NOTE-<year>-<n>, given on create.",
-                      "type": "string"
-                    },
-                    "ownerId": {
-                      "type": "string",
-                      "description": "Who wrote it: `user:<id>` or `client:<id>`."
-                    },
-                    "unitId": {
-                      "nullable": true,
-                      "description": "The author's organizational unit, when they were in exactly one.",
                       "type": "string",
                       "format": "uuid",
                       "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "ownerId": {
+                      "type": "string",
+                      "description": "Who created it: `user:<id>` or `client:<id>`."
+                    },
+                    "unitId": {
+                      "nullable": true,
+                      "description": "The creator's organizational unit, when they were in exactly one.",
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                    },
+                    "number": {
+                      "nullable": true,
+                      "description": "Its human-readable number (NOTE-YYYY-00001), gapless per tenant, assigned when it is created. Read-only; null for notes from before numbering.",
+                      "type": "string"
                     },
                     "title": {
                       "type": "string"
@@ -68274,6 +68282,19 @@
                         "draft",
                         "published"
                       ]
+                    },
+                    "publishedAt": {
+                      "nullable": true,
+                      "type": "string",
+                      "format": "date-time",
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TagRef"
+                      },
+                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "custom": {
                       "description": "Custom field values by key; left out when your permissions don't include them.",
@@ -68301,19 +68322,6 @@
                       "nullable": true,
                       "description": "Who deleted it: `user:<id>` or `client:<id>`.",
                       "type": "string"
-                    },
-                    "publishedAt": {
-                      "nullable": true,
-                      "type": "string",
-                      "format": "date-time",
-                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d(?:\\.\\d+)?(?:Z))$"
-                    },
-                    "tags": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/TagRef"
-                      },
-                      "description": "Its tags, by name (PUT /v1/notes/{id}/tags sets them)."
                     },
                     "can": {
                       "description": "What you may do with it now, as its routes would decide by your permissions and their conditions. Only with `?include=can`; not part of the ETag.",
@@ -68351,17 +68359,17 @@
                   },
                   "required": [
                     "id",
-                    "number",
                     "ownerId",
                     "unitId",
+                    "number",
                     "title",
                     "status",
+                    "publishedAt",
+                    "tags",
                     "createdAt",
                     "updatedAt",
                     "deletedAt",
-                    "deletedBy",
-                    "publishedAt",
-                    "tags"
+                    "deletedBy"
                   ],
                   "additionalProperties": false
                 }

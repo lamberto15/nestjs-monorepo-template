@@ -10,14 +10,13 @@ import {
   HttpStatus,
   Ip,
   Param,
-  Patch,
   ParseUUIDPipe,
+  Patch,
   Post,
   Query,
 } from '@nestjs/common';
 import { CurrentUser } from '@nestjs/authentication';
 import { AuthorizationService, Can } from '@nestjs/authorization';
-import { Idempotent } from '@nestjs/idempotency';
 import {
   ApiBadRequestResponse,
   ApiBearerAuth,
@@ -28,59 +27,55 @@ import {
   ApiHeader,
   ApiNoContentResponse,
   ApiNotFoundResponse,
-  ApiPreconditionFailedResponse,
   ApiOkResponse,
   ApiOperation,
+  ApiPreconditionFailedResponse,
   ApiQuery,
   ApiTags,
   ApiUnauthorizedResponse,
   ApiUnprocessableEntityResponse,
 } from '@nestjs/swagger';
-import { AccessService } from '../../iam/access/access.service.js';
-import { NotePolicy } from './note.policy.js';
-import type { RequestPrincipal } from '../../iam/auth/principal.js';
-import { idempotencyKeyHeader } from '../../platform/idempotency/idempotency.openapi.js';
 import {
   assertUnchanged,
   Etag,
   ifMatchHeader,
   ifNoneMatchHeader,
 } from '../../core/http/etag.js';
-import { principalScope } from '../../platform/idempotency/idempotency.scopes.js';
-import {
-  createNoteSchema,
-  noteSchema,
-  noteView,
-  type CreateNoteDto,
-  type Note,
-  updateNoteSchema,
-  weeklyNoteCountsQuerySchema,
-  weeklyNoteCountsSchema,
-  type UpdateNoteDto,
-  type WeeklyNoteCountsQuery,
-} from './note.schemas.js';
+import { ApiListQuery } from '../../core/http/list-docs.js';
+import { pageSchema } from '../../core/http/pagination.js';
+import { AccessService } from '../../iam/access/access.service.js';
+import type { RequestPrincipal } from '../../iam/auth/principal.js';
+import { recordListDocs, sentFields } from '../../platform/records/record.js';
 import {
   IncludePipe,
   includeQuery,
-  recordCan,
-  recordCanActions,
   type RecordInclude,
-  withIncluded,
 } from '../../platform/records/record-can.js';
-import { SubscriptionsService } from '../../platform/subscriptions/subscriptions.service.js';
-import { NotesService } from './notes.service.js';
-import { pageSchema } from '../../core/http/pagination.js';
-import { ApiListQuery } from '../../core/http/list-docs.js';
-import { CustomFieldsService } from '../../platform/custom-fields/custom-fields.service.js';
-import { DocumentsService } from '../../platform/documents/documents.service.js';
+import { RecordPresenter } from '../../platform/records/record-contract.js';
+import { RecordIdempotent } from '../../platform/records/record-idempotency.js';
+import { deleteDocs } from '../../platform/records/record-restore.routes.js';
 import { NOTE_LIST } from './note.list.js';
+import { NotePolicy } from './note.policy.js';
+import { NOTE } from './note.record.js';
+import {
+  type CreateNoteDto,
+  type Note,
+  NOTE_SCHEMAS,
+  type UpdateNoteDto,
+} from './note.schemas.js';
+import {
+  weeklyNoteCountsQuerySchema,
+  weeklyNoteCountsSchema,
+  type WeeklyNoteCountsQuery,
+} from './note-weekly-counts.js';
+import { NotesService } from './notes.service.js';
+
+const SCHEMAS = NOTE_SCHEMAS;
 
 /**
- * The example feature's API, for API clients (a key) and users (a session).
- * It shows the three ways a permission is checked: on the route (create),
- * on the loaded record (update, delete), and in the query (list, and the
- * lookup of one note: a note the caller may not read is a 404 like a
- * missing one, on every route, so none tells that it exists).
+ * Notes: the HTTP routes, nothing else (notes.service.ts does the work).
+ * The recycle bin's restore route and the capabilities' routes (tags, comments…) come
+ * from note.record.ts (notes.module.ts).
  */
 @ApiTags('notes')
 @ApiBearerAuth('api-key')
@@ -93,24 +88,21 @@ export class NotesController {
     private readonly notes: NotesService,
     private readonly access: AccessService,
     private readonly authorization: AuthorizationService,
-    private readonly customFields: CustomFieldsService,
-    private readonly documents: DocumentsService,
-    private readonly subscriptions: SubscriptionsService,
+    private readonly presenter: RecordPresenter,
   ) {}
 
   @Post()
-  // The ETag GET /notes/{id} would send: If-Match on the next write needs no read first.
+  // The ETag GET /{id} would send: If-Match on the next write needs no read first.
   @Etag()
-  // A retry with the same key gets the first note back instead of a second note.
-  @Idempotent({ scope: principalScope })
+  // A retry with the same key gets the first answer instead of a second record (note.record.ts `idempotency`: required, optional or off; unset follows IDEMPOTENCY).
+  @RecordIdempotent(NOTE)
   @Can(NotePolicy, 'create')
   @ApiOperation({
-    summary: 'Write a note',
+    summary: 'Create a note',
     description:
-      'Saves a draft, starts its publication workflow and sends note.created, in one transaction. Send a new Idempotency-Key per note and the same one on every retry. With the ETag GET /v1/notes/{id} would send: use it as If-Match on the next write.',
+      'Send a new Idempotency-Key per record and the same one on every retry. Audited.',
   })
-  @ApiHeader(idempotencyKeyHeader(true))
-  @ApiCreatedResponse({ standardSchema: noteSchema })
+  @ApiCreatedResponse({ standardSchema: SCHEMAS.response })
   @ApiBadRequestResponse({
     description:
       'The body fails the schema, or the Idempotency-Key is missing.',
@@ -123,98 +115,35 @@ export class NotesController {
   })
   async create(
     @CurrentUser() user: RequestPrincipal,
-    @Body({ schema: createNoteSchema }) dto: CreateNoteDto,
+    @Body({ schema: SCHEMAS.create }) dto: CreateNoteDto,
   ) {
-    // An empty text (or no custom value) sets nothing: only a real value needs the field's permission.
-    await this.assertFields(user, 'create', {
-      ...dto,
-      body: dto.body || undefined,
-      custom:
-        dto.custom && Object.keys(dto.custom).length ? dto.custom : undefined,
-    });
-    return this.shown(user, await this.notes.create(user, dto));
+    await this.assertFields(user, 'create', dto);
+    return this.presenter.one(user, await this.notes.create(user, dto));
   }
 
-  /** Field-level: a 403 naming the fields this caller may not set. */
-  private async assertFields(
-    user: RequestPrincipal,
-    action: string,
-    dto: Record<string, unknown>,
-    note?: Note,
-  ) {
-    const forbidden = await this.access.forbiddenFields(
-      user,
-      action,
-      'Note',
-      dto,
-      note,
-    );
-    if (forbidden.length) {
-      throw new ForbiddenException({
-        code: 'field_forbidden',
-        message: `You may not set: ${forbidden.join(', ')}.`,
-        fields: forbidden,
-      });
-    }
-  }
-
-  /** Only the notes the caller may read: filtered in the query, not after. */
+  /** Only those the caller may read: filtered in the query, not after. */
   @Get()
   @Etag()
   @Can.Anyone()
   @ApiOperation({
     summary: 'The notes you may read, newest first',
     description:
-      'Filter flat (`?status=draft&title.contains=report`) or with `filter` (and/or groups), sort with `sort=-createdAt,title`, pick fields with `fields=title,status`; each parameter lists what it takes. Only the notes you may read, whatever the filter. Filtering, searching, sorting or picking by a field your permissions hide (the text, the custom fields) is a 403 (field_forbidden).',
+      'Filter flat or with `filter`, sort with `sort`, pick fields with `fields`; each parameter lists what it takes. A field your permissions hide is a 403 (field_forbidden).',
   })
-  @ApiOkResponse({ standardSchema: pageSchema(noteSchema) })
-  @ApiListQuery(
-    NOTE_LIST,
-    'Custom fields (GET /v1/custom-fields?subject=Note) filter, sort and select like the fields above: `custom.region=eu`, `custom.amount.gte=10`, in `filter` and `sort` as `custom.<key>`, `fields=custom.region`.',
-  )
+  @ApiOkResponse({ standardSchema: pageSchema(SCHEMAS.response) })
+  @ApiListQuery(NOTE_LIST, recordListDocs(NOTE))
   @ApiQuery(includeQuery())
   async list(
     @CurrentUser() user: RequestPrincipal,
     @Query() raw: Record<string, unknown>,
     @Query('include', IncludePipe) include: RecordInclude,
   ) {
-    // The list with the custom fields defined now: validated per request.
-    const list = await this.customFields.extendList(NOTE_LIST, 'Note');
-    // `include` is no filter: read above.
-    const { include: _include, ...filters } = raw;
-    const query = list.parse(filters);
-    // Field-level: no filter, search, sort or `fields` on what the caller may not read.
-    // Matched among the rows the list reaches: the recycle bin's are those the caller may restore.
-    await this.access.assertQueryFields(user, 'Note', query, {
-      reach: query.deleted ? 'restore' : 'read',
-    });
+    // Validated against the custom fields defined now (custom), and no filter, search, sort or `fields` on what the caller may not read.
+    const { list, query } = await this.presenter.query(user, NOTE_LIST, raw);
+    // The service composes the read filter (the recycle bin is for those who may restore) and the query's filters.
     const page = await this.notes.findPage(user, list, query);
-    // Field-level: the text only for those whose permissions include it.
-    // Then `fields`: after redaction, so what it hid stays hidden.
-    const picked = list.pick(
-      {
-        ...page,
-        items: await this.access.redactAll(
-          user,
-          'read',
-          'Note',
-          await this.customFields.visible(
-            'Note',
-            await this.notes.withTags(page.items.map(noteView)),
-          ),
-        ),
-      },
-      query,
-    );
-    if (!include.can && !include.watching) {
-      return picked;
-    }
-    // Each note's `can` and `watching`, from the stored rows (whatever `fields` picked).
-    const included = await this.included(user, page.items, include);
-    return {
-      ...picked,
-      items: picked.items.map((item) => withIncluded(item, included)),
-    };
+    // Shown as the caller may see them, then `fields`, then with ?include=can each one's `can`.
+    return this.presenter.page(user, page, { list, query, include });
   }
 
   @Get('dashboard/weekly-counts')
@@ -242,113 +171,76 @@ export class NotesController {
 
   @Get(':id')
   @Etag()
-  @Can.Anyone() // Checked below, on the note itself.
+  @Can.Anyone() // Checked below, on the record itself.
   @ApiOperation({
     summary: 'One note',
     description:
-      'With an ETag: send it back as If-None-Match to get 304 while unchanged, or as If-Match on a write to be refused if it changed.',
+      'With an ETag: If-None-Match gets 304 while unchanged; If-Match on a write refuses it if it changed.',
   })
   @ApiHeader(ifNoneMatchHeader())
   @ApiQuery(includeQuery())
-  @ApiOkResponse({ standardSchema: noteSchema })
+  @ApiOkResponse({ standardSchema: SCHEMAS.response })
   @ApiNotFoundResponse()
   async get(
     @CurrentUser() user: RequestPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
     @Query('include', IncludePipe) include: RecordInclude,
   ) {
-    // A note the caller may not read: the same 404 as a missing one.
-    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
-    await this.authorization.authorize(NotePolicy, 'read', user, note);
-    const shown = await this.shown(user, note);
-    return include.can || include.watching
-      ? withIncluded(shown, await this.included(user, [note], include))
-      : shown;
+    // One the caller may not read: the same 404 as a missing one.
+    const row = await this.notes.findOne(id, undefined, { visibleTo: user });
+    await this.authorization.authorize(NotePolicy, 'read', user, row);
+    return this.presenter.one(user, row, include);
   }
 
   @Patch(':id')
   @Etag()
-  @Can.Anyone() // Checked below, on the note and on each field.
+  @Can.Anyone() // Checked below, on the record and on each field.
   @ApiOperation({
     summary: 'Change a note: only what is sent changes',
     description:
-      'Your own drafts. Changing the text takes a permission that includes it. With If-Match, refused (412) if the note changed since you read it. Audited with what changed.',
+      'With If-Match, refused (412) if it changed since you read it. Audited with what changed.',
   })
   @ApiHeader(ifMatchHeader())
-  @ApiOkResponse({ standardSchema: noteSchema })
+  @ApiOkResponse({ standardSchema: SCHEMAS.response })
   @ApiNotFoundResponse()
   @ApiPreconditionFailedResponse({
-    description: 'The note changed since you read it (precondition_failed).',
+    description: 'It changed since you read it (precondition_failed).',
   })
   async update(
     @CurrentUser() user: RequestPrincipal,
     @Param('id', ParseUUIDPipe) id: string,
-    @Body({ schema: updateNoteSchema }) dto: UpdateNoteDto,
+    @Body({ schema: SCHEMAS.update }) dto: UpdateNoteDto,
     @Headers('if-match') ifMatch: string | undefined,
     @Ip() ip: string,
   ) {
     // Unreadable: a 404; readable but not theirs to change: a 403 (below).
-    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
-    const updated = await this.notes.update(user, note, dto, ip, {
-      assertCurrent: async (current) => {
-        await this.authorization.authorize(NotePolicy, 'update', user, current);
-        assertUnchanged(ifMatch, await this.shown(user, current));
-        const forbidden = await this.access.forbiddenFields(
-          user,
-          'update',
-          'Note',
-          dto,
-          current,
-        );
-        if (forbidden.length) {
-          throw new ForbiddenException({
-            code: 'field_forbidden',
-            message: `You may not change: ${forbidden.join(', ')}.`,
-            fields: forbidden,
-          });
-        }
-      },
-    });
-    return this.shown(user, updated);
-  }
-
-  @Post(':id/restore')
-  @Etag()
-  @Can.Anyone() // Checked below, on the note itself.
-  @ApiOperation({
-    summary: 'Restore a note from the recycle bin',
-    description:
-      'Until the purge (SOFT_DELETE_RETENTION_DAYS after deleting it).',
-  })
-  @ApiOkResponse({ standardSchema: noteSchema })
-  @ApiNotFoundResponse({ description: 'Not in the recycle bin (or purged).' })
-  async restore(
-    @CurrentUser() user: RequestPrincipal,
-    @Param('id', ParseUUIDPipe) id: string,
-    @Ip() ip: string,
-  ) {
-    // In the recycle bin and theirs to restore (what ?deleted=true lists), else a 404.
-    const note = await this.notes.findOne(id, undefined, {
-      deleted: true,
-      visibleTo: user,
-    });
-    await this.authorization.authorize(NotePolicy, 'restore', user, note);
-    return this.shown(user, await this.notes.restore(user, note, ip));
+    const row = await this.notes.findOne(id, undefined, { visibleTo: user });
+    return this.presenter.one(
+      user,
+      await this.notes.update(user, row, dto, ip, {
+        assertCurrent: async (current) => {
+          await this.authorization.authorize(
+            NotePolicy,
+            'update',
+            user,
+            current,
+          );
+          assertUnchanged(ifMatch, await this.presenter.one(user, current));
+          await this.assertFields(user, 'update', dto, current);
+        },
+      }),
+    );
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  @Can.Anyone() // Checked below, on the note itself.
-  @ApiOperation({
-    summary: 'Delete a note (to the recycle bin)',
-    description:
-      'It disappears from every list; POST /v1/notes/{id}/restore brings it back until it is purged.',
-  })
+  @Can.Anyone() // Checked below, on the record itself.
+  @ApiOperation(deleteDocs(NOTE))
   @ApiHeader(ifMatchHeader())
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
   @ApiPreconditionFailedResponse({
-    description: 'The note changed since you read it (precondition_failed).',
+    description: 'It changed since you read it (precondition_failed).',
   })
   async delete(
     @CurrentUser() user: RequestPrincipal,
@@ -357,56 +249,33 @@ export class NotesController {
     @Ip() ip: string,
   ) {
     // Unreadable: a 404; readable but not theirs to delete: a 403 (below).
-    const note = await this.notes.findOne(id, undefined, { visibleTo: user });
-    await this.notes.delete(user, note, ip, async (current) => {
+    const row = await this.notes.findOne(id, undefined, { visibleTo: user });
+    await this.notes.delete(user, row, ip, async (current) => {
       await this.authorization.authorize(NotePolicy, 'delete', user, current);
-      assertUnchanged(ifMatch, await this.shown(user, current));
+      assertUnchanged(ifMatch, await this.presenter.one(user, current));
     });
   }
 
-  /** A note as this caller reads it: its tags and active custom fields, less the fields they may not see (what the ETag covers). */
-  private async shown(user: RequestPrincipal, note: Note) {
-    const [shown] = await this.customFields.visible(
-      'Note',
-      await this.notes.withTags([noteView(note)]),
-    );
-    return this.access.redact(user, 'read', 'Note', shown!);
-  }
-
-  /**
-   * What ?include= asked for: each note's `can` (in memory) and `watching`
-   * (one query on the page's ids: the caller's own subscriptions).
-   */
-  private async included(
+  /** Field-level: a 403 naming the fields this caller may not set. */
+  private async assertFields(
     user: RequestPrincipal,
-    notes: Note[],
-    include: RecordInclude,
+    action: string,
+    dto: object,
+    row?: Note,
   ) {
-    const [can, watching] = await Promise.all([
-      include.can ? this.can(user, notes) : undefined,
-      include.watching
-        ? this.subscriptions.watching(
-            user,
-            'Note',
-            notes.map((note) => note.id),
-          )
-        : undefined,
-    ]);
-    return { can, watching };
-  }
-
-  /**
-   * Each note's `can` (?include=can), by id: NotePolicy's checks, as the
-   * routes make them; `issue`, the checks of POST /v1/notes/{id}/pdf.
-   */
-  private can(user: RequestPrincipal, notes: Note[]) {
-    return recordCan(
-      this.authorization,
-      NotePolicy,
+    const forbidden = await this.access.forbiddenFields(
       user,
-      notes,
-      recordCanActions(true),
-      { issue: this.documents.issueFlag(user, 'note') },
+      action,
+      'Note',
+      sentFields(dto),
+      row,
     );
+    if (forbidden.length) {
+      throw new ForbiddenException({
+        code: 'field_forbidden',
+        message: `You may not set: ${forbidden.join(', ')}.`,
+        fields: forbidden,
+      });
+    }
   }
 }

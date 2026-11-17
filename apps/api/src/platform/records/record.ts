@@ -442,14 +442,48 @@ export function recordTable<const D extends RecordDeclaration>(declaration: D) {
         : []),
     ];
   });
-  TABLES.set(declaration, built as unknown as PgTable);
-  tableHolds(built, declaration.subject);
-  // Its `ref` fields' relations (record-relations.ts): what refers to what.
+  registered(declaration, built as unknown as PgTable);
+  return built;
+}
+
+/** Makes `table` the declaration's: what the platform reads its columns from, and the relations of its `ref` fields (record-relations.ts). */
+function registered(declaration: RecordDeclaration, table: PgTable) {
+  TABLES.set(declaration, table);
+  tableHolds(table, declaration.subject);
   relate(
     declaration,
-    built as unknown as PgTable & Record<string, AnyPgColumn>,
+    table as unknown as PgTable & Record<string, AnyPgColumn>,
   );
-  return built;
+}
+
+/**
+ * A table written by hand for a record, in place of `recordTable()`: for one
+ * whose indexes or columns are tuned past what the declaration derives (a
+ * partial or covering index, a search vector over other text). The platform
+ * reads the declared columns from it, so it must have what `recordTable()`
+ * would make (id, tenantId, ownerId, the unit, the fields, timestamps, the
+ * recycle bin, search, number and custom columns the capabilities take); a
+ * declared field without its column is refused here. `pnpm db:generate`
+ * follows the table as written.
+ */
+export function handWrittenTable<T extends PgTable>(
+  declaration: RecordDeclaration,
+  table: T,
+) {
+  const missing = Object.entries(declaration.fields)
+    .flatMap(([name, f]) =>
+      (f as { kind: string }).kind === 'money'
+        ? [`${name}Minor`, `${name}Currency`]
+        : [name],
+    )
+    .filter((column) => !(column in table));
+  if (missing.length > 0) {
+    throw new Error(
+      `${declaration.subject}: its hand-written table lacks the column${missing.length > 1 ? 's' : ''} of ${missing.join(', ')}.`,
+    );
+  }
+  registered(declaration, table);
+  return table;
 }
 
 /** The tables `recordTable()` made, by declaration: what the platform reads a record's columns from. */

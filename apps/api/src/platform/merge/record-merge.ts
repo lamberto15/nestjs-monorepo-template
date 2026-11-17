@@ -35,6 +35,7 @@ import { attachments } from '../attachments/attachments.tables.js';
 import { comments } from '../comments/comments.tables.js';
 import { recordSubscriptions } from '../subscriptions/subscriptions.tables.js';
 import { recordTags } from '../tags/tags.tables.js';
+import { writableFields } from '../fields/fields.js';
 import { duplicateRules, recordView } from '../records/record.js';
 import {
   RECORD_CONTRACT,
@@ -561,7 +562,8 @@ export class RecordMerge extends Merges {
       subject: declaration.subject,
       path: declaration.path,
       noun: declaration.noun,
-      fields: declaration.fields as MergeSource['fields'],
+      // A merge chooses what a body could set: never a read-only field.
+      fields: writableFields(declaration.fields) as MergeSource['fields'],
       rules: duplicateRules(declaration),
       table: c.table as unknown as Table,
       service: c.service,

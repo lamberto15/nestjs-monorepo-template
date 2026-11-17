@@ -4,7 +4,7 @@ A tenant's own business rules, without code: when a record is created or
 changed and matches some conditions, do a few things to it.
 `apps/api/src/platform/automations/`; a feature opts in with the
 `automation` capability (its `<item>.record.ts`, [adding a feature](adding-a-feature.md));
-the notes example takes it (`features/notes/note-automation.ts`). The web
+the notes example takes it (`features/notes/note.record.ts`). The web
 app's page is `/automations`.
 
 ```http

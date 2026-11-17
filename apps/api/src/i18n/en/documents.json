@@ -9,6 +9,13 @@
     "statuses": {
       "draft": "Draft",
       "published": "Published"
+    },
+    "fields": {
+      "number": "Number",
+      "title": "Title",
+      "body": "Body",
+      "status": "Status",
+      "publishedAt": "Published at"
     }
   }
 }

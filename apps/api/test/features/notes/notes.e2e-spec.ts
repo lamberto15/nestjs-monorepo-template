@@ -8,7 +8,7 @@ import { revisions } from '../../../src/platform/revisions/revisions.tables.js';
 import { notifications } from '../../../src/platform/notifications/notifications.tables.js';
 import { recordSubscriptions } from '../../../src/platform/subscriptions/subscriptions.tables.js';
 import { publicationId } from '../../../src/features/notes/note-publication.workflow.js';
-import { noteSchema } from '../../../src/features/notes/note.schemas.js';
+import { NOTE_SCHEMAS } from '../../../src/features/notes/note.schemas.js';
 import {
   bootApp,
   exportRows,
@@ -542,9 +542,9 @@ describe('the example feature: notes (e2e)', () => {
   describe('record pages', () => {
     /** The answer is the documented schema, no more (no tenantId): strict. */
     const conforms = (body: unknown) =>
-      expect(noteSchema.strict().safeParse(body).error?.issues ?? []).toEqual(
-        [],
-      );
+      expect(
+        NOTE_SCHEMAS.response.strict().safeParse(body).error?.issues ?? [],
+      ).toEqual([]);
 
     it("answers a create with GET's strong ETag, good as If-Match at once", async () => {
       const editor = (await node.user(['editor'])).agent;
@@ -698,7 +698,9 @@ describe('the example feature: notes (e2e)', () => {
         .post(`/v1/notes/${survivor.id}/merge`)
         .send({ duplicateId: duplicate.id, fields: { body: 'duplicate' } })
         .expect(200);
-      expect(noteSchema.strict().safeParse(merged.body).success).toBe(true);
+      expect(
+        NOTE_SCHEMAS.response.strict().safeParse(merged.body).success,
+      ).toBe(true);
       expect(merged.body).toMatchObject({ title: 'Weekly sync', body: 'New' });
       await editor.get(`/v1/notes/${duplicate.id}`).expect(404);
       const moved = await editor

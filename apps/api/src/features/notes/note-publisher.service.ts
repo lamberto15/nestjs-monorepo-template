@@ -19,7 +19,7 @@ import type { Principal } from '../../iam/auth/principal.js';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import type { Transaction } from '../../core/database/drizzle.js';
 import { notes } from './notes.tables.js';
-import { NOTE } from './note.resource.js';
+import { NOTE_RESOURCE } from './note.resource.js';
 import type { NoteEvent, NoteEventType } from './note-events.js';
 import type { Note } from './note.schemas.js';
 
@@ -98,7 +98,7 @@ export class NotePublisher {
         .returning();
       await this.audit.recordChange(
         by,
-        NOTE,
+        NOTE_RESOURCE,
         { action: 'updated', id, before, after: row! },
         tx,
       );
@@ -159,7 +159,7 @@ export class NotePublisher {
       const previous = new Map(before.map((note) => [note.id, note]));
       await this.audit.recordChanges(
         by,
-        NOTE,
+        NOTE_RESOURCE,
         after.map((row) => ({
           action: 'updated' as const,
           id: row.id,

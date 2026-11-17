@@ -1,7 +1,10 @@
 import { sql, type SQL } from 'drizzle-orm';
 import { PgDialect } from 'drizzle-orm/pg-core';
 import type { Principal } from '../../iam/auth/principal.js';
+import type { RecordDeclaration } from '../../platform/records/record.js';
+import { RecordStore } from '../../platform/records/record-store.js';
 import { NotesService } from './notes.service.js';
+import { notes as noteRows } from './notes.tables.js';
 
 const user = { kind: 'user', id: 'u1' } as Principal;
 
@@ -20,28 +23,31 @@ function setup(rows: unknown[]) {
   };
   const access = { sqlFilter: vi.fn(async () => sql`read_filter`) };
   const registers = { register: vi.fn(), count: vi.fn() };
+  const records = new RecordStore(
+    { subject: 'Note', noun: 'note', softDelete: true } as RecordDeclaration,
+    noteRows as never,
+    { tx: db } as never,
+    {} as never, // units
+    {} as never, // lifecycle
+    {} as never, // holds
+    registers as never, // quotas
+    access as never,
+  );
   const notes = new NotesService(
     { tx: db } as never,
+    {} as never, // audit
+    {} as never, // lifecycle
+    records,
     {} as never, // workflows
     {} as never, // webhooks
     {} as never, // publisher
     {} as never, // custom fields
     access as never,
-    {} as never, // audit
-    {} as never, // units
     {} as never, // notifications
     {} as never, // subscriptions
-    registers as never, // naming series
-    {} as never, // tags
-    {} as never, // revisions
-    {} as never, // approvals
     {} as never, // tenancy
-    {} as never, // holds
     {} as never, // system
-    registers as never, // quotas
-    // capability:automations begin
-    {} as never, // automations
-    // capability:automations end
+    {} as never, // batch writes
     registers as never, // incoming events
     registers as never, // retention
   );

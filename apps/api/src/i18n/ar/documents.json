@@ -9,6 +9,13 @@
     "statuses": {
       "draft": "مسودة",
       "published": "منشورة"
+    },
+    "fields": {
+      "number": "الرقم",
+      "title": "العنوان",
+      "body": "النص",
+      "status": "الحالة",
+      "publishedAt": "تاريخ النشر"
     }
   }
 }

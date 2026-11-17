@@ -336,7 +336,7 @@ export class RecordLifecycle {
   // capability:automations end
 
   /**
-   * With approvable actions (`approvals`): the record can't change or go
+   * With approvable actions (`approvals`, or a feature's own, written by hand): the record can't change or go
    * while any request on it is being decided (409 `approval_pending`), and
    * a request sent back for changes goes with the record. Inside the
    * write's transaction: the record's approval lock is held until it
@@ -346,7 +346,7 @@ export class RecordLifecycle {
    */
   private async waiting(tx: Transaction, by: Principal | null, id: string) {
     await this.assertNotPending(id);
-    if (Object.keys(this.declaration.approvals ?? {}).length === 0) return;
+    if (!this.approvals.declares(this.declaration.subject)) return;
     if (by) {
       await this.approvals.withdraw(tx, by, this.declaration.subject, id);
     }
@@ -354,7 +354,7 @@ export class RecordLifecycle {
 
   /** Takes the approval lock before the record row lock for a conditional write. */
   async assertNotPending(id: string) {
-    if (Object.keys(this.declaration.approvals ?? {}).length > 0) {
+    if (this.approvals.declares(this.declaration.subject)) {
       if (!applyingEffect()) {
         await this.approvals.assertNotPending(this.declaration.subject, id);
       }

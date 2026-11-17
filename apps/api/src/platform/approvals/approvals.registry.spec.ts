@@ -55,6 +55,12 @@ const context = (payload: Record<string, unknown>): ApprovalContext => ({
 });
 
 describe('ApprovalsRegistry', () => {
+  it('says whether a subject has an approvable action, however it was declared', () => {
+    expect(registry().declares('Expense')).toBe(true);
+    expect(registry().declares('Invoice')).toBe(false);
+    expect(registry([]).declares('Expense')).toBe(false);
+  });
+
   it('parses a policy against the registered types, with their defaults', () => {
     const policy = registry().parsePolicy({
       stages: [{ name: 'Manager', approvers: [{ type: 'pick', ids: ['u1'] }] }],

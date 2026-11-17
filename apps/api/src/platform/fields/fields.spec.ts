@@ -14,6 +14,7 @@ import {
   fieldSchemas,
   fieldValues,
   fieldView,
+  writableFields,
 } from './fields.js';
 import { fieldList } from './fields.list.js';
 import { defineRecord, recordTable } from '../records/record.js';
@@ -172,6 +173,34 @@ describe('fields', () => {
     type Create = ReturnType<typeof create.parse>;
     expectTypeOf<Create['notes']>().toEqualTypeOf<string | null | undefined>();
     expectTypeOf<Create['total']['amount']>().toEqualTypeOf<string>();
+  });
+
+  it('leaves a read-only field out of the create, update and sample bodies, and keeps it in the response', () => {
+    const fields = {
+      title: field.string(),
+      status: field.enum(['draft', 'published']).readOnly(),
+      publishedAt: field.datetime().optional().readOnly(),
+    };
+    const { create, update, response } = fieldSchemas(fields);
+    expect(Object.keys(create.shape)).toEqual(['title']);
+    expect(Object.keys(update.shape)).toEqual(['title']);
+    expect(Object.keys(response)).toEqual(['title', 'status', 'publishedAt']);
+    expect(Object.keys(fieldSamples(fields).body())).toEqual(['title']);
+    // Unknown keys are dropped as before (the body schemas are not strict).
+    expect(create.parse({ title: 'a', status: 'published' })).toEqual({
+      title: 'a',
+    });
+    type Create = ReturnType<typeof create.parse>;
+    expectTypeOf<keyof Create>().toEqualTypeOf<'title'>();
+    expect(Object.keys(writableFields(fields))).toEqual(['title']);
+    // Still a NOT NULL column.
+    const table = pgTable('test_read_only', {
+      id: uuidPk(),
+      ...fieldColumns(fields),
+    });
+    expect(
+      getTableConfig(table).columns.find((c) => c.name === 'status')!.notNull,
+    ).toBe(true);
   });
 
   it('bounds every text field under the request body limit, as maxLength in the schema', () => {
