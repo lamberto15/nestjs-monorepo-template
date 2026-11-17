@@ -76,7 +76,7 @@ services:
     logging: *logging
 
   alertmanager:
-    image: prom/alertmanager:v0.34.2
+    image: prom/alertmanager:v0.35.0
     restart: unless-stopped
     # Writes the configuration from the variables below, then starts Alertmanager.
     entrypoint: ['sh', '/etc/alertmanager/scripts/render-config.sh']
