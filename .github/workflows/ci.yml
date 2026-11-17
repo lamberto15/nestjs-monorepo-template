@@ -942,10 +942,10 @@ jobs:
         run: |
           node --input-type=module -e "const { REMOVABLE } = await import('./tools/feature/removable.mjs'); for (const [pkg, deps] of Object.entries(REMOVABLE[process.env.CAPABILITY].dependencies ?? {})) console.log(pkg, deps.join(' '));" |
             while read -r pkg line; do read -ra deps <<< "$line"; pnpm --filter "$pkg" remove "${deps[@]}"; done
-      - run: pnpm build
+      # Before the build: the web app is typed by the client, regenerated here
+      # without the capability's routes.
       - run: pnpm turbo run client:generate
-      - name: Build on the regenerated client
-        run: pnpm build
+      - run: pnpm build
       - run: pnpm turbo run typecheck
       - run: pnpm lint
 
