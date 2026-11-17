@@ -22,7 +22,7 @@ export type DocumentStatus = (typeof DOCUMENT_STATUSES)[number];
  * transaction that completes the job. Issued documents never change:
  * asking again issues a new one.
  */
-export const documents = pgTable(
+export const documents = pgTable.withRLS(
   'documents',
   {
     id: uuidPk(),
@@ -76,6 +76,6 @@ export const documents = pgTable(
       [attachments.tenantId, attachments.id],
     ),
   ],
-).enableRLS();
+);
 
 export type DocumentRow = typeof documents.$inferSelect;

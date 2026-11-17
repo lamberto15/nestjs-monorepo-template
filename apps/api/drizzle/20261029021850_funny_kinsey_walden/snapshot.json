@@ -1,0 +1,605 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "ab76c783-1b77-4751-9ed1-f3d788ee998c",
+  "prevIds": [
+    "621080b9-9a06-4401-9b61-fa82f0452be8"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domain_routes"
+      ],
+      "writes": [
+        "s|tbl|public.tenant_domain_routes",
+        "n|tbl|public.tenant_domain_routes",
+        "e|tbl|public.tenant_domain_routes",
+        "n|rel|public.tenant_domain_routes",
+        "n|type|public.tenant_domain_routes",
+        "n|rel|public.tenant_domain_routes_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domains"
+      ],
+      "writes": [
+        "s|tbl|public.tenant_domains",
+        "n|tbl|public.tenant_domains",
+        "e|tbl|public.tenant_domains",
+        "n|rel|public.tenant_domains",
+        "n|type|public.tenant_domains",
+        "n|rel|public.tenant_domains_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "tenant_domain_routes",
+        "tenant_domain_routes_tenant_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.tenant_domain_routes_tenant_id_idx",
+        "n|idx|public.tenant_domain_routes_tenant_id_idx",
+        "e|idx|public.tenant_domain_routes_tenant_id_idx",
+        "n|rel|public.tenant_domain_routes_tenant_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domain_routes",
+        "n|sch|public",
+        "n|col|public.tenant_domain_routes.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "tenant_domains",
+        "tenant_domains_tenant_hostname_idx"
+      ],
+      "writes": [
+        "s|idx|public.tenant_domains_tenant_hostname_idx",
+        "n|idx|public.tenant_domains_tenant_hostname_idx",
+        "e|idx|public.tenant_domains_tenant_hostname_idx",
+        "n|rel|public.tenant_domains_tenant_hostname_idx"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domains",
+        "n|sch|public",
+        "n|col|public.tenant_domains.tenant_id",
+        "n|col|public.tenant_domains.hostname"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domain_routes"
+      ],
+      "writes": [
+        "s|fk|public.tenant_domain_routes.tenant_domain_routes_tenant_id_tenants_id_fk",
+        "n|fk|public.tenant_domain_routes.tenant_domain_routes_tenant_id_tenants_id_fk",
+        "e|fk|public.tenant_domain_routes.tenant_domain_routes_tenant_id_tenants_id_fk",
+        "n|con|public.tenant_domain_routes.tenant_domain_routes_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domain_routes",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenant_domain_routes.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domains"
+      ],
+      "writes": [
+        "s|fk|public.tenant_domains.tenant_domains_tenant_id_tenants_id_fk",
+        "n|fk|public.tenant_domains.tenant_domains_tenant_id_tenants_id_fk",
+        "e|fk|public.tenant_domains.tenant_domains_tenant_id_tenants_id_fk",
+        "n|con|public.tenant_domains.tenant_domains_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domains",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.tenant_domains.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domains"
+      ],
+      "writes": [
+        "s|pol|public.tenant_domains.tenant_domains_tenant_select",
+        "n|pol|public.tenant_domains.tenant_domains_tenant_select",
+        "e|pol|public.tenant_domains.tenant_domains_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domains",
+        "n|sch|public",
+        "e|rls|public.tenant_domains"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domains"
+      ],
+      "writes": [
+        "s|pol|public.tenant_domains.tenant_domains_tenant_insert",
+        "n|pol|public.tenant_domains.tenant_domains_tenant_insert",
+        "e|pol|public.tenant_domains.tenant_domains_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domains",
+        "n|sch|public",
+        "e|rls|public.tenant_domains"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domains"
+      ],
+      "writes": [
+        "s|pol|public.tenant_domains.tenant_domains_tenant_update",
+        "n|pol|public.tenant_domains.tenant_domains_tenant_update",
+        "e|pol|public.tenant_domains.tenant_domains_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domains",
+        "n|sch|public",
+        "e|rls|public.tenant_domains"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "tenant_domains"
+      ],
+      "writes": [
+        "s|pol|public.tenant_domains.tenant_domains_tenant_delete",
+        "n|pol|public.tenant_domains.tenant_domains_tenant_delete",
+        "e|pol|public.tenant_domains.tenant_domains_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.tenant_domains",
+        "n|sch|public",
+        "e|rls|public.tenant_domains"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "tenant_domain_routes",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "tenant_domains",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domain_routes",
+        "name": "hostname",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domain_routes",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domain_routes",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "hostname",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "verification_token",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "verified_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "last_checked_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "last_error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domain_routes",
+        "name": "tenant_domain_routes_tenant_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_domains_tenant_hostname_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "hostname",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domain_routes",
+        "name": "tenant_domain_routes_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_domains_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domain_routes",
+        "name": "tenant_domain_routes_pkey",
+        "columns": [
+          "hostname"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_domains_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_domains_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"tenant_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_domains_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"tenant_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_domains_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"tenant_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"tenant_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "tenant_domains",
+        "name": "tenant_domains_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"tenant_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

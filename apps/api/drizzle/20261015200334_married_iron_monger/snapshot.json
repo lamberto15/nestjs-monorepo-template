@@ -1,0 +1,73 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "bf0a7c9f-67bb-4486-9aee-a440f2cc6fc6",
+  "prevIds": [
+    "6848986f-ec6b-45b8-9fac-e872c1906056"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "audit_log",
+        "audit_log_actor_action_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.audit_log_actor_action_at_idx",
+        "n|idx|public.audit_log_actor_action_at_idx",
+        "e|idx|public.audit_log_actor_action_at_idx",
+        "n|rel|public.audit_log_actor_action_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.audit_log",
+        "n|sch|public",
+        "n|col|public.audit_log.actor",
+        "n|col|public.audit_log.action",
+        "n|col|public.audit_log.at"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "audit_log",
+        "name": "audit_log_actor_action_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "actor",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "action",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    }
+  ]
+}

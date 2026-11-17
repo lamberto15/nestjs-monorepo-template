@@ -663,7 +663,7 @@ export function listQuery(
     /**
      * The sort values the cursor needs that aren't columns of the row (a field
      * whose column is an SQL expression): select them with the row under the
-     * field's name, `select({ ...getTableColumns(t), ...list.sortSelect(q) })`.
+     * field's name, `select({ ...getColumns(t), ...list.sortSelect(q) })`.
      * `pick` removes them from the items.
      */
     sortSelect(query: ListQuery): Record<string, SQL.Aliased> {

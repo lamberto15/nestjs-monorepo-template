@@ -1,4 +1,4 @@
-import { getTableColumns, getTableName } from 'drizzle-orm';
+import { getColumnTable, getColumns, getTableName } from 'drizzle-orm';
 import { type PgColumn, type PgTable, text } from 'drizzle-orm/pg-core';
 import { logRedaction } from '../logging/redaction.js';
 import type { Normalizer } from './data-cipher.js';
@@ -11,13 +11,13 @@ import type { Normalizer } from './data-cipher.js';
  * metric walk it, and the log redaction learns each column's name from it.
  *
  * ```ts
- * export const customers = pgTable('customers', {
+ * export const customers = pgTable.withRLS('customers', {
  *   id: uuidPk(),
  *   tenantId: tenantColumn(),
  *   taxNumber: encryptedText('tax_number'),
  *   taxNumberIndex: blindIndexText('tax_number_index'),
  *   ...timestamps(),
- * }, (t) => [...tenantTable('customers', t), index('customers_tax_number_idx').on(t.tenantId, t.taxNumberIndex)]).enableRLS();
+ * }, (t) => [...tenantTable('customers', t), index('customers_tax_number_idx').on(t.tenantId, t.taxNumberIndex)]);
  *
  * encrypted(customers.taxNumber, { blindIndex: customers.taxNumberIndex, normalize: normalizers.exact });
  * ```
@@ -66,7 +66,7 @@ export interface EncryptedColumn {
 const registry = new Map<PgColumn, EncryptedColumn>();
 
 const propertyOf = (table: PgTable, column: PgColumn) => {
-  const entry = Object.entries(getTableColumns(table)).find(
+  const entry = Object.entries(getColumns(table)).find(
     ([, candidate]) => candidate === column,
   );
   if (!entry) {
@@ -86,7 +86,7 @@ export function encrypted(
   column: PgColumn,
   options: EncryptedColumnOptions = {},
 ): EncryptedColumn {
-  const table = column.table as PgTable;
+  const table = getColumnTable<PgTable>(column);
   const tableName = getTableName(table);
   const where = `${tableName}.${column.name}`;
   if (registry.has(column)) {
@@ -100,10 +100,13 @@ export function encrypted(
       `${where}: a blind index needs a normalizer (normalizers in core/encryption/data-cipher.ts).`,
     );
   }
-  if (options.blindIndex && options.blindIndex.table !== column.table) {
+  if (
+    options.blindIndex &&
+    getColumnTable(options.blindIndex) !== getColumnTable(column)
+  ) {
     throw new Error(`${where}: its blind index must be in the same table.`);
   }
-  const columns = getTableColumns(table);
+  const columns = getColumns(table);
   const id = columns.id as PgColumn | undefined;
   if (!id) {
     throw new Error(
@@ -141,7 +144,7 @@ export function encryptedColumn(column: PgColumn): EncryptedColumn {
   const entry = registry.get(column);
   if (!entry) {
     throw new Error(
-      `${getTableName(column.table as PgTable)}.${column.name} is not declared encrypted (encrypted()).`,
+      `${getTableName(getColumnTable(column))}.${column.name} is not declared encrypted (encrypted()).`,
     );
   }
   return entry;

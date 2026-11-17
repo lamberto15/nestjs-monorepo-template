@@ -17,7 +17,7 @@ import {
   count,
   desc,
   eq,
-  getTableColumns,
+  getColumns,
   gt,
   inArray,
   isNull,
@@ -441,7 +441,7 @@ export class OrganizationalUnitsService {
     await this.find(this.db, unitId);
     return this.db
       .select({
-        ...getTableColumns(organizationalUnitMemberships),
+        ...getColumns(organizationalUnitMemberships),
         name: users.name,
         email: users.email,
       })

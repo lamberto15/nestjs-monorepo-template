@@ -20,7 +20,7 @@ import { tenantColumn, tenantTable } from '../../core/tenancy/tenant-scope.js';
  * tenant. It is active until released; the rows stay as the record of who
  * held what and why (and are audited, as the changes are).
  */
-export const legalHolds = pgTable(
+export const legalHolds = pgTable.withRLS(
   'legal_holds',
   {
     id: uuidPk(),
@@ -45,7 +45,7 @@ export const legalHolds = pgTable(
     index('legal_holds_created_at_idx').on(table.tenantId, table.createdAt),
     ...tenantTable('legal_holds', table),
   ],
-).enableRLS();
+);
 
 export type LegalHoldRow = typeof legalHolds.$inferSelect;
 

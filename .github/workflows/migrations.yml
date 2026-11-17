@@ -6,11 +6,11 @@
 # DELETE and UPDATE without WHERE) goes to the job summary, with file and
 # line, and fail the pull request (MIGRATION_LINT_FAIL: on); a reviewed
 # contract step takes the destructive-migration label. A change to a
-# migration that was already merged (edited, deleted, its journal entry
-# changed or out of order) and a squawk-ignore comment fail either way,
-# unless the label accepts them. The label is read when the job runs (a
-# re-run sees it as it is now) and counts only when it was added after the
-# head commit was pushed: every push needs it again.
+# migration that was already merged (edited or deleted; the order and
+# conflicts of migrations are `pnpm db:check`'s, in CI) and a squawk-ignore
+# comment fail either way, unless the label accepts them. The label is read
+# when the job runs (a re-run sees it as it is now) and counts only when it
+# was added after the head commit was pushed: every push needs it again.
 #
 # Its own workflow, so that adding or removing the label runs this check
 # again, not the whole CI.

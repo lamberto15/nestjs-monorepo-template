@@ -34,7 +34,7 @@ export type AttachmentScanStatus = 'pending' | 'clean';
  * file on the private disk (`key`), and what it is. The bytes are on the
  * disk, never in the database; `contentType` was detected from them.
  */
-export const attachments = pgTable(
+export const attachments = pgTable.withRLS(
   'attachments',
   {
     id: uuidPk(),
@@ -109,7 +109,7 @@ export const attachments = pgTable(
       .where(sql`${table.renditionStatus} = 'pending'`),
     ...tenantTable('attachments', table, { referenced: true }),
   ],
-).enableRLS();
+);
 
 export type Attachment = typeof attachments.$inferSelect;
 
@@ -128,7 +128,7 @@ export type Attachment = typeof attachments.$inferSelect;
  * deletes the object and the row of one that was never completed
  * (docs/attachments.md, "Direct uploads").
  */
-export const attachmentUploads = pgTable(
+export const attachmentUploads = pgTable.withRLS(
   'attachment_uploads',
   {
     id: uuidPk(),
@@ -174,7 +174,7 @@ export const attachmentUploads = pgTable(
     index('attachment_uploads_uploaded_by_idx').on(table.uploadedBy),
     ...tenantTable('attachment_uploads', table),
   ],
-).enableRLS();
+);
 
 export type AttachmentUpload = typeof attachmentUploads.$inferSelect;
 
@@ -185,7 +185,7 @@ export type AttachmentUpload = typeof attachmentUploads.$inferSelect;
  * attachment goes (removal, the nightly sweep), which deletes them with it.
  * They count in the tenant's `storageBytes`. docs/attachments.md, "Versions".
  */
-export const attachmentVersions = pgTable(
+export const attachmentVersions = pgTable.withRLS(
   'attachment_versions',
   {
     id: uuidPk(),
@@ -220,6 +220,6 @@ export const attachmentVersions = pgTable(
       [attachments.tenantId, attachments.id],
     ),
   ],
-).enableRLS();
+);
 
 export type AttachmentVersion = typeof attachmentVersions.$inferSelect;

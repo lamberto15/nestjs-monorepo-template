@@ -14,7 +14,7 @@ import {
  * one (`parentId`, one level of replies); a top-level comment is a thread
  * that can be resolved.
  */
-export const comments = pgTable(
+export const comments = pgTable.withRLS(
   'comments',
   {
     id: uuidPk(),
@@ -49,4 +49,4 @@ export const comments = pgTable(
       [table.tenantId, table.id],
     ),
   ],
-).enableRLS();
+);

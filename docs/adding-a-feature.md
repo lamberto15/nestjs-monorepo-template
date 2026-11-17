@@ -390,7 +390,7 @@ the controller (`notes.*`); singular for what describes one record
    create, [sequences.md](sequences.md)), with the column helpers of
    `core/database/columns.ts`:
    ```ts
-   export const invoices = pgTable(
+   export const invoices = pgTable.withRLS(
      'invoices',
      {
        id: uuidPk(), // UUIDv7, time-ordered: also the default sort and cursor
@@ -409,10 +409,10 @@ the controller (`notes.*`); singular for what describes one record
        ...tenantTable('invoices', t), // row-level security policies (unique (tenant_id, id) with { referenced: true })
        index('invoices_owner_id_idx').on(t.ownerId),
      ],
-   ).enableRLS();
+   );
    ```
    - **Every feature table is a tenant table** ([tenancy](tenancy.md)):
-     `tenantId: tenantColumn()`, `...tenantTable('<x>', t)` and `.enableRLS()`;
+     `tenantId: tenantColumn()`, `...tenantTable('<x>', t)` and `pgTable.withRLS()`;
      the role bootstrap refuses a table with a `tenant_id` and no wall.
      Inserts leave `tenantId` out (it comes from the request's tenant);
      queries need nothing: row-level security keeps them in the tenant.
@@ -557,7 +557,7 @@ sql`lower(${t.name})` `` (an order that ignores case; index that
      `GET /v1/lists/{subject}`).
    - With custom fields: `@Query() raw` + `@ApiListQuery(LIST, …)`, then
      `customFields.extendList(LIST, subject)`, `list.parse(raw)`, and
-     `select({ ...getTableColumns(t), ...list.sortSelect(query) })`
+     `select({ ...getColumns(t), ...list.sortSelect(query) })`
      (`NotesController.list`). Without: `@Query({ schema: LIST.schema })`.
      Either way each parameter is typed from the list's schema
      (api-conventions.md, "Collections"): `ApiListQuery` adds nothing by hand.

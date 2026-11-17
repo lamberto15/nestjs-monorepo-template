@@ -1,0 +1,2821 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "93098992-a340-47f8-a113-6c62a5d0d7e8",
+  "prevIds": [
+    "8d208c6a-0ee5-45ca-916f-a31df87c8e2f"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|tbl|public.scim_groups",
+        "n|tbl|public.scim_groups",
+        "e|tbl|public.scim_groups",
+        "n|rel|public.scim_groups",
+        "n|type|public.scim_groups",
+        "n|rel|public.scim_groups_tenant_id_team_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_users"
+      ],
+      "writes": [
+        "s|tbl|public.scim_users",
+        "n|tbl|public.scim_users",
+        "e|tbl|public.scim_users",
+        "n|rel|public.scim_users",
+        "n|type|public.scim_users",
+        "n|rel|public.scim_users_tenant_id_user_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_assertions"
+      ],
+      "writes": [
+        "s|tbl|public.sso_assertions",
+        "n|tbl|public.sso_assertions",
+        "e|tbl|public.sso_assertions",
+        "n|rel|public.sso_assertions",
+        "n|type|public.sso_assertions",
+        "n|rel|public.sso_assertions_tenant_id_connection_id_assertion_id_pk"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_connections"
+      ],
+      "writes": [
+        "s|tbl|public.sso_connections",
+        "n|tbl|public.sso_connections",
+        "e|tbl|public.sso_connections",
+        "n|rel|public.sso_connections",
+        "n|type|public.sso_connections",
+        "n|rel|public.sso_connections_pkey",
+        "n|rel|public.sso_connections_tenant_id_id_key"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|tbl|public.sso_domains",
+        "n|tbl|public.sso_domains",
+        "e|tbl|public.sso_domains",
+        "n|rel|public.sso_domains",
+        "n|type|public.sso_domains",
+        "n|rel|public.sso_domains_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_requests"
+      ],
+      "writes": [
+        "s|tbl|public.sso_requests",
+        "n|tbl|public.sso_requests",
+        "e|tbl|public.sso_requests",
+        "n|rel|public.sso_requests",
+        "n|type|public.sso_requests",
+        "n|rel|public.sso_requests_pkey"
+      ],
+      "reads": [
+        "n|sch|public"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "scim_groups",
+        "scim_groups_tenant_external_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.scim_groups_tenant_external_id_idx",
+        "n|idx|public.scim_groups_tenant_external_id_idx",
+        "e|idx|public.scim_groups_tenant_external_id_idx",
+        "n|rel|public.scim_groups_tenant_external_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "n|col|public.scim_groups.tenant_id",
+        "n|col|public.scim_groups.external_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "scim_users",
+        "scim_users_tenant_external_id_idx"
+      ],
+      "writes": [
+        "s|idx|public.scim_users_tenant_external_id_idx",
+        "n|idx|public.scim_users_tenant_external_id_idx",
+        "e|idx|public.scim_users_tenant_external_id_idx",
+        "n|rel|public.scim_users_tenant_external_id_idx"
+      ],
+      "reads": [
+        "n|tbl|public.scim_users",
+        "n|sch|public",
+        "n|col|public.scim_users.tenant_id",
+        "n|col|public.scim_users.external_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_assertions",
+        "sso_assertions_expires_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_assertions_expires_at_idx",
+        "n|idx|public.sso_assertions_expires_at_idx",
+        "e|idx|public.sso_assertions_expires_at_idx",
+        "n|rel|public.sso_assertions_expires_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_assertions",
+        "n|sch|public",
+        "n|col|public.sso_assertions.expires_at"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_connections",
+        "sso_connections_tenant_name_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_connections_tenant_name_idx",
+        "n|idx|public.sso_connections_tenant_name_idx",
+        "e|idx|public.sso_connections_tenant_name_idx",
+        "n|rel|public.sso_connections_tenant_name_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "n|col|public.sso_connections.tenant_id",
+        "n|col|public.sso_connections.name"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_domains",
+        "sso_domains_tenant_domain_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_domains_tenant_domain_idx",
+        "n|idx|public.sso_domains_tenant_domain_idx",
+        "e|idx|public.sso_domains_tenant_domain_idx",
+        "n|rel|public.sso_domains_tenant_domain_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domains",
+        "n|sch|public",
+        "n|col|public.sso_domains.tenant_id",
+        "n|col|public.sso_domains.domain"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_requests",
+        "sso_requests_tenant_binding_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_requests_tenant_binding_idx",
+        "n|idx|public.sso_requests_tenant_binding_idx",
+        "e|idx|public.sso_requests_tenant_binding_idx",
+        "n|rel|public.sso_requests_tenant_binding_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "n|col|public.sso_requests.tenant_id",
+        "n|col|public.sso_requests.binding_hash"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_requests",
+        "sso_requests_connection_saml_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_requests_connection_saml_idx",
+        "n|idx|public.sso_requests_connection_saml_idx",
+        "e|idx|public.sso_requests_connection_saml_idx",
+        "n|rel|public.sso_requests_connection_saml_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "n|col|public.sso_requests.connection_id",
+        "n|col|public.sso_requests.saml_request_id"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "public",
+        "sso_requests",
+        "sso_requests_expires_at_idx"
+      ],
+      "writes": [
+        "s|idx|public.sso_requests_expires_at_idx",
+        "n|idx|public.sso_requests_expires_at_idx",
+        "e|idx|public.sso_requests_expires_at_idx",
+        "n|rel|public.sso_requests_expires_at_idx"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "n|col|public.sso_requests.expires_at"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|fk|public.scim_groups.scim_groups_tenant_id_tenants_id_fk",
+        "n|fk|public.scim_groups.scim_groups_tenant_id_tenants_id_fk",
+        "e|fk|public.scim_groups.scim_groups_tenant_id_tenants_id_fk",
+        "n|con|public.scim_groups.scim_groups_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.scim_groups.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|fk|public.scim_groups.scim_groups_team_fk",
+        "n|fk|public.scim_groups.scim_groups_team_fk",
+        "e|fk|public.scim_groups.scim_groups_team_fk",
+        "n|con|public.scim_groups.scim_groups_team_fk"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "n|tbl|public.teams",
+        "n|sch|public",
+        "n|col|public.scim_groups.tenant_id",
+        "n|col|public.scim_groups.team_id",
+        "n|col|public.teams.tenant_id",
+        "n|col|public.teams.id",
+        "e|uniqueness|public.teams.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_users"
+      ],
+      "writes": [
+        "s|fk|public.scim_users.scim_users_tenant_id_tenants_id_fk",
+        "n|fk|public.scim_users.scim_users_tenant_id_tenants_id_fk",
+        "e|fk|public.scim_users.scim_users_tenant_id_tenants_id_fk",
+        "n|con|public.scim_users.scim_users_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.scim_users",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.scim_users.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_users"
+      ],
+      "writes": [
+        "s|fk|public.scim_users.scim_users_membership_fk",
+        "n|fk|public.scim_users.scim_users_membership_fk",
+        "e|fk|public.scim_users.scim_users_membership_fk",
+        "n|con|public.scim_users.scim_users_membership_fk"
+      ],
+      "reads": [
+        "n|tbl|public.scim_users",
+        "n|sch|public",
+        "n|tbl|public.memberships",
+        "n|sch|public",
+        "n|col|public.scim_users.tenant_id",
+        "n|col|public.scim_users.user_id",
+        "n|col|public.memberships.tenant_id",
+        "n|col|public.memberships.user_id",
+        "e|uniqueness|public.memberships.tenant_id.user_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_assertions"
+      ],
+      "writes": [
+        "s|fk|public.sso_assertions.sso_assertions_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_assertions.sso_assertions_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_assertions.sso_assertions_tenant_id_tenants_id_fk",
+        "n|con|public.sso_assertions.sso_assertions_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_assertions",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_assertions.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_assertions"
+      ],
+      "writes": [
+        "s|fk|public.sso_assertions.sso_assertions_connection_fk",
+        "n|fk|public.sso_assertions.sso_assertions_connection_fk",
+        "e|fk|public.sso_assertions.sso_assertions_connection_fk",
+        "n|con|public.sso_assertions.sso_assertions_connection_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_assertions",
+        "n|sch|public",
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "n|col|public.sso_assertions.tenant_id",
+        "n|col|public.sso_assertions.connection_id",
+        "n|col|public.sso_connections.tenant_id",
+        "n|col|public.sso_connections.id",
+        "e|uniqueness|public.sso_connections.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_connections"
+      ],
+      "writes": [
+        "s|fk|public.sso_connections.sso_connections_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_connections.sso_connections_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_connections.sso_connections_tenant_id_tenants_id_fk",
+        "n|con|public.sso_connections.sso_connections_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_connections.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|fk|public.sso_domains.sso_domains_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_domains.sso_domains_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_domains.sso_domains_tenant_id_tenants_id_fk",
+        "n|con|public.sso_domains.sso_domains_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domains",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_domains.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_requests"
+      ],
+      "writes": [
+        "s|fk|public.sso_requests.sso_requests_tenant_id_tenants_id_fk",
+        "n|fk|public.sso_requests.sso_requests_tenant_id_tenants_id_fk",
+        "e|fk|public.sso_requests.sso_requests_tenant_id_tenants_id_fk",
+        "n|con|public.sso_requests.sso_requests_tenant_id_tenants_id_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "n|tbl|public.tenants",
+        "n|sch|public",
+        "n|col|public.sso_requests.tenant_id",
+        "n|col|public.tenants.id",
+        "e|uniqueness|public.tenants.id"
+      ]
+    },
+    {
+      "statementType": "create_fk",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_requests"
+      ],
+      "writes": [
+        "s|fk|public.sso_requests.sso_requests_connection_fk",
+        "n|fk|public.sso_requests.sso_requests_connection_fk",
+        "e|fk|public.sso_requests.sso_requests_connection_fk",
+        "n|con|public.sso_requests.sso_requests_connection_fk"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "n|col|public.sso_requests.tenant_id",
+        "n|col|public.sso_requests.connection_id",
+        "n|col|public.sso_connections.tenant_id",
+        "n|col|public.sso_connections.id",
+        "e|uniqueness|public.sso_connections.id.tenant_id"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|pol|public.scim_groups.scim_groups_tenant_select",
+        "n|pol|public.scim_groups.scim_groups_tenant_select",
+        "e|pol|public.scim_groups.scim_groups_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "e|rls|public.scim_groups"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|pol|public.scim_groups.scim_groups_tenant_insert",
+        "n|pol|public.scim_groups.scim_groups_tenant_insert",
+        "e|pol|public.scim_groups.scim_groups_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "e|rls|public.scim_groups"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|pol|public.scim_groups.scim_groups_tenant_update",
+        "n|pol|public.scim_groups.scim_groups_tenant_update",
+        "e|pol|public.scim_groups.scim_groups_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "e|rls|public.scim_groups"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_groups"
+      ],
+      "writes": [
+        "s|pol|public.scim_groups.scim_groups_tenant_delete",
+        "n|pol|public.scim_groups.scim_groups_tenant_delete",
+        "e|pol|public.scim_groups.scim_groups_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.scim_groups",
+        "n|sch|public",
+        "e|rls|public.scim_groups"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_users"
+      ],
+      "writes": [
+        "s|pol|public.scim_users.scim_users_tenant_select",
+        "n|pol|public.scim_users.scim_users_tenant_select",
+        "e|pol|public.scim_users.scim_users_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.scim_users",
+        "n|sch|public",
+        "e|rls|public.scim_users"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_users"
+      ],
+      "writes": [
+        "s|pol|public.scim_users.scim_users_tenant_insert",
+        "n|pol|public.scim_users.scim_users_tenant_insert",
+        "e|pol|public.scim_users.scim_users_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.scim_users",
+        "n|sch|public",
+        "e|rls|public.scim_users"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_users"
+      ],
+      "writes": [
+        "s|pol|public.scim_users.scim_users_tenant_update",
+        "n|pol|public.scim_users.scim_users_tenant_update",
+        "e|pol|public.scim_users.scim_users_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.scim_users",
+        "n|sch|public",
+        "e|rls|public.scim_users"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "scim_users"
+      ],
+      "writes": [
+        "s|pol|public.scim_users.scim_users_tenant_delete",
+        "n|pol|public.scim_users.scim_users_tenant_delete",
+        "e|pol|public.scim_users.scim_users_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.scim_users",
+        "n|sch|public",
+        "e|rls|public.scim_users"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_assertions"
+      ],
+      "writes": [
+        "s|pol|public.sso_assertions.sso_assertions_tenant_select",
+        "n|pol|public.sso_assertions.sso_assertions_tenant_select",
+        "e|pol|public.sso_assertions.sso_assertions_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_assertions",
+        "n|sch|public",
+        "e|rls|public.sso_assertions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_assertions"
+      ],
+      "writes": [
+        "s|pol|public.sso_assertions.sso_assertions_tenant_insert",
+        "n|pol|public.sso_assertions.sso_assertions_tenant_insert",
+        "e|pol|public.sso_assertions.sso_assertions_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_assertions",
+        "n|sch|public",
+        "e|rls|public.sso_assertions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_assertions"
+      ],
+      "writes": [
+        "s|pol|public.sso_assertions.sso_assertions_tenant_update",
+        "n|pol|public.sso_assertions.sso_assertions_tenant_update",
+        "e|pol|public.sso_assertions.sso_assertions_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_assertions",
+        "n|sch|public",
+        "e|rls|public.sso_assertions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_assertions"
+      ],
+      "writes": [
+        "s|pol|public.sso_assertions.sso_assertions_tenant_delete",
+        "n|pol|public.sso_assertions.sso_assertions_tenant_delete",
+        "e|pol|public.sso_assertions.sso_assertions_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_assertions",
+        "n|sch|public",
+        "e|rls|public.sso_assertions"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_connections"
+      ],
+      "writes": [
+        "s|pol|public.sso_connections.sso_connections_tenant_select",
+        "n|pol|public.sso_connections.sso_connections_tenant_select",
+        "e|pol|public.sso_connections.sso_connections_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "e|rls|public.sso_connections"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_connections"
+      ],
+      "writes": [
+        "s|pol|public.sso_connections.sso_connections_tenant_insert",
+        "n|pol|public.sso_connections.sso_connections_tenant_insert",
+        "e|pol|public.sso_connections.sso_connections_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "e|rls|public.sso_connections"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_connections"
+      ],
+      "writes": [
+        "s|pol|public.sso_connections.sso_connections_tenant_update",
+        "n|pol|public.sso_connections.sso_connections_tenant_update",
+        "e|pol|public.sso_connections.sso_connections_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "e|rls|public.sso_connections"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_connections"
+      ],
+      "writes": [
+        "s|pol|public.sso_connections.sso_connections_tenant_delete",
+        "n|pol|public.sso_connections.sso_connections_tenant_delete",
+        "e|pol|public.sso_connections.sso_connections_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_connections",
+        "n|sch|public",
+        "e|rls|public.sso_connections"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|pol|public.sso_domains.sso_domains_tenant_select",
+        "n|pol|public.sso_domains.sso_domains_tenant_select",
+        "e|pol|public.sso_domains.sso_domains_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domains",
+        "n|sch|public",
+        "e|rls|public.sso_domains"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|pol|public.sso_domains.sso_domains_tenant_insert",
+        "n|pol|public.sso_domains.sso_domains_tenant_insert",
+        "e|pol|public.sso_domains.sso_domains_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domains",
+        "n|sch|public",
+        "e|rls|public.sso_domains"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|pol|public.sso_domains.sso_domains_tenant_update",
+        "n|pol|public.sso_domains.sso_domains_tenant_update",
+        "e|pol|public.sso_domains.sso_domains_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domains",
+        "n|sch|public",
+        "e|rls|public.sso_domains"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_domains"
+      ],
+      "writes": [
+        "s|pol|public.sso_domains.sso_domains_tenant_delete",
+        "n|pol|public.sso_domains.sso_domains_tenant_delete",
+        "e|pol|public.sso_domains.sso_domains_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_domains",
+        "n|sch|public",
+        "e|rls|public.sso_domains"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_requests"
+      ],
+      "writes": [
+        "s|pol|public.sso_requests.sso_requests_tenant_select",
+        "n|pol|public.sso_requests.sso_requests_tenant_select",
+        "e|pol|public.sso_requests.sso_requests_tenant_select"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "e|rls|public.sso_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_requests"
+      ],
+      "writes": [
+        "s|pol|public.sso_requests.sso_requests_tenant_insert",
+        "n|pol|public.sso_requests.sso_requests_tenant_insert",
+        "e|pol|public.sso_requests.sso_requests_tenant_insert"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "e|rls|public.sso_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_requests"
+      ],
+      "writes": [
+        "s|pol|public.sso_requests.sso_requests_tenant_update",
+        "n|pol|public.sso_requests.sso_requests_tenant_update",
+        "e|pol|public.sso_requests.sso_requests_tenant_update"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "e|rls|public.sso_requests"
+      ]
+    },
+    {
+      "statementType": "create_policy",
+      "statementTarget": [
+        "table",
+        "public",
+        "sso_requests"
+      ],
+      "writes": [
+        "s|pol|public.sso_requests.sso_requests_tenant_delete",
+        "n|pol|public.sso_requests.sso_requests_tenant_delete",
+        "e|pol|public.sso_requests.sso_requests_tenant_delete"
+      ],
+      "reads": [
+        "n|tbl|public.sso_requests",
+        "n|sch|public",
+        "e|rls|public.sso_requests"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "scim_groups",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "scim_users",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_assertions",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_connections",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_domains",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "name": "sso_requests",
+        "isRlsEnabled": true,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "team_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "external_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "external_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "attributes",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'{}'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "connection_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "assertion_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "name",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "protocol",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "enabled",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "jit_provisioning",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "issuer",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "client_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "client_secret",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "oidc_metadata",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "metadata_fetched_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "metadata_error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "idp_entity_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "idp_sso_url",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "idp_certificates",
+        "type": "jsonb",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "'[]'",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "allow_idp_initiated",
+        "type": "boolean",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "false",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "domain",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "verification_token",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "verified_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "last_checked_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "last_error",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "tenant_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "connection_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "binding_hash",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "code_verifier",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "nonce",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "saml_request_id",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "redirect_to",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "user_id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "authenticated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "expires_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "consumed_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_tenant_external_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "external_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_tenant_external_id_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "external_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_expires_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "expires_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_tenant_name_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "name",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "sso_domains_tenant_domain_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "domain",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_tenant_binding_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "tenant_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "binding_hash",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_connection_saml_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "connection_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "saml_request_id",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_expires_at_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "expires_at",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": false,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_team_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "team_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "teams",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_membership_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "user_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "memberships",
+        "columnsTo": [
+          "tenant_id",
+          "user_id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_connection_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "connection_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "sso_connections",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "sso_domains_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_tenant_id_tenants_id_fk",
+        "nameExplicit": false,
+        "columns": [
+          "tenant_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "tenants",
+        "columnsTo": [
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_connection_fk",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "connection_id"
+        ],
+        "schemaTo": "public",
+        "tableTo": "sso_connections",
+        "columnsTo": [
+          "tenant_id",
+          "id"
+        ],
+        "onUpdate": "NO ACTION",
+        "onDelete": "CASCADE",
+        "entityType": "fks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_tenant_id_team_id_pk",
+        "columns": [
+          "tenant_id",
+          "team_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_tenant_id_user_id_pk",
+        "columns": [
+          "tenant_id",
+          "user_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_tenant_id_connection_id_assertion_id_pk",
+        "columns": [
+          "tenant_id",
+          "connection_id",
+          "assertion_id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "sso_domains_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_tenant_id_id_key",
+        "nameExplicit": true,
+        "columns": [
+          "tenant_id",
+          "id"
+        ],
+        "nullsNotDistinct": false,
+        "entityType": "uniques"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"scim_groups\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"scim_groups\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"scim_groups\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"scim_groups\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"scim_groups\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"scim_groups\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_groups",
+        "name": "scim_groups_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"scim_groups\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"scim_users\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"scim_users\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"scim_users\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"scim_users\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"scim_users\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"scim_users\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "scim_users",
+        "name": "scim_users_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"scim_users\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_assertions\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_assertions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_assertions\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_assertions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_assertions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_assertions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_assertions",
+        "name": "sso_assertions_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_assertions\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_connections\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_connections\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_connections\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_connections\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_connections\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_connections\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_connections",
+        "name": "sso_connections_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_connections\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "sso_domains_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_domains\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_domains\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "sso_domains_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "sso_domains_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_domains",
+        "name": "sso_domains_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_domains\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_tenant_select",
+        "as": "PERMISSIVE",
+        "for": "SELECT",
+        "roles": [
+          "public"
+        ],
+        "using": "((\"sso_requests\".\"tenant_id\" = any((select string_to_array(coalesce(current_setting('app.read_tenants', true), ''), ',')::uuid[])::uuid[]) and (\"sso_requests\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid) or \"sso_requests\".\"tenant_id\" = any(array(select \"tenant_closure\".\"descendant_id\" from \"tenant_closure\" where \"tenant_closure\".\"ancestor_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))))))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_tenant_insert",
+        "as": "PERMISSIVE",
+        "for": "INSERT",
+        "roles": [
+          "public"
+        ],
+        "using": null,
+        "withCheck": "(\"sso_requests\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_tenant_update",
+        "as": "PERMISSIVE",
+        "for": "UPDATE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_requests\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": "(\"sso_requests\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "entityType": "policies"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "public",
+        "table": "sso_requests",
+        "name": "sso_requests_tenant_delete",
+        "as": "PERMISSIVE",
+        "for": "DELETE",
+        "roles": [
+          "public"
+        ],
+        "using": "(\"sso_requests\".\"tenant_id\" = (select nullif(current_setting('app.tenant_id', true), '')::uuid))",
+        "withCheck": null,
+        "entityType": "policies"
+      }
+    }
+  ]
+}

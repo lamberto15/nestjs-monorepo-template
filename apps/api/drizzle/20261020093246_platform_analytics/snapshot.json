@@ -1,0 +1,245 @@
+{
+  "type": "diff",
+  "version": "9",
+  "dialect": "postgres",
+  "id": "253e380a-3bdc-4c15-a7d3-450296d710ff",
+  "prevIds": [
+    "94fce6c8-ea99-4728-8640-ed538792295c"
+  ],
+  "footprints": [
+    {
+      "statementType": "create_schema",
+      "statementTarget": [
+        "schema",
+        "analytics"
+      ],
+      "writes": [
+        "s|sch|analytics",
+        "n|sch|analytics",
+        "e|sch|analytics"
+      ]
+    },
+    {
+      "statementType": "create_table",
+      "statementTarget": [
+        "table",
+        "analytics",
+        "platform_metrics"
+      ],
+      "writes": [
+        "s|tbl|analytics.platform_metrics",
+        "n|tbl|analytics.platform_metrics",
+        "e|tbl|analytics.platform_metrics",
+        "n|rel|analytics.platform_metrics",
+        "n|type|analytics.platform_metrics",
+        "n|rel|analytics.platform_metrics_pkey"
+      ],
+      "reads": [
+        "n|sch|analytics"
+      ]
+    },
+    {
+      "statementType": "create_index",
+      "statementTarget": [
+        "index",
+        "analytics",
+        "platform_metrics",
+        "platform_metrics_day_metric_dimension_idx"
+      ],
+      "writes": [
+        "s|idx|analytics.platform_metrics_day_metric_dimension_idx",
+        "n|idx|analytics.platform_metrics_day_metric_dimension_idx",
+        "e|idx|analytics.platform_metrics_day_metric_dimension_idx",
+        "n|rel|analytics.platform_metrics_day_metric_dimension_idx"
+      ],
+      "reads": [
+        "n|tbl|analytics.platform_metrics",
+        "n|sch|analytics",
+        "n|col|analytics.platform_metrics.day",
+        "n|col|analytics.platform_metrics.metric",
+        "n|col|analytics.platform_metrics.dimension"
+      ]
+    }
+  ],
+  "deltas": [
+    {
+      "op": "create",
+      "row": {
+        "name": "analytics",
+        "entityType": "schemas"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "name": "platform_metrics",
+        "isRlsEnabled": false,
+        "entityType": "tables"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "id",
+        "type": "uuid",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "uuidv7()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "day",
+        "type": "date",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "metric",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "dimension",
+        "type": "text",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "''",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "value",
+        "type": "bigint",
+        "typeSchema": null,
+        "notNull": false,
+        "dimensions": 0,
+        "default": null,
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "created_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "updated_at",
+        "type": "timestamp with time zone",
+        "typeSchema": null,
+        "notNull": true,
+        "dimensions": 0,
+        "default": "now()",
+        "generated": null,
+        "identity": null,
+        "entityType": "columns"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "platform_metrics_day_metric_dimension_idx",
+        "nameExplicit": true,
+        "columns": [
+          {
+            "value": "day",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "metric",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          },
+          {
+            "value": "dimension",
+            "isExpression": false,
+            "asc": true,
+            "nullsFirst": false,
+            "opclass": null
+          }
+        ],
+        "isUnique": true,
+        "where": null,
+        "with": "",
+        "method": "btree",
+        "concurrently": false,
+        "entityType": "indexes"
+      }
+    },
+    {
+      "op": "create",
+      "row": {
+        "schema": "analytics",
+        "table": "platform_metrics",
+        "name": "platform_metrics_pkey",
+        "columns": [
+          "id"
+        ],
+        "nameExplicit": false,
+        "entityType": "pks"
+      }
+    }
+  ]
+}

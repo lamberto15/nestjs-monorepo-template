@@ -17,8 +17,9 @@
 // stub and removed while still the stub) and its two lines in the module, and
 // the actions' paths in the OpenAPI test.
 //
-// The guard compares the declaration with the table in the latest drizzle
-// snapshot (apps/api/drizzle/meta): a new required field without a
+// The guard compares the declaration with the table as the drizzle
+// snapshots leave it (apps/api/drizzle/*/snapshot.json, replayed by
+// drizzle-kit): a new required field without a
 // default, an optional field made required, a field removed, or
 // `softDelete` or `unit` turned off (their columns dropped), would fail or
 // lose data on a table with rows (docs/pitfalls.md, expand/contract).
@@ -26,6 +27,7 @@
 // the flags change in the code the platform derives (platform/records): a
 // generated file that still codes them by hand fails the sync.
 import { execFileSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import {
   existsSync,
   readdirSync,
@@ -34,7 +36,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parseArgs } from 'node:util';
 import { texts } from './capabilities.mjs';
 import { format } from './format.mjs';
@@ -506,21 +508,28 @@ function syncTexts(api, record, check) {
   return { changes, translate };
 }
 
-/** The table as the latest drizzle snapshot has it: column name → its NOT NULL and default. */
-function snapshotTable(api, table) {
-  const journalFile = inside(api, 'drizzle/meta/_journal.json');
-  if (!existsSync(journalFile)) return null; // nothing migrated yet
-  const journal = JSON.parse(readFileSync(journalFile, 'utf8'));
-  const last = journal.entries[journal.entries.length - 1];
-  if (!last || !Number.isInteger(last.idx)) return null;
-  const snapshotFile = inside(
-    api,
-    'drizzle/meta',
-    `${String(last.idx).padStart(4, '0')}_snapshot.json`,
+/** The table as the migrations leave it: column name → its NOT NULL and default. */
+async function snapshotTable(api, table) {
+  const folder = inside(api, 'drizzle');
+  const files = {};
+  for (const name of existsSync(folder) ? readdirSync(folder) : []) {
+    const file = path.join(folder, name, 'snapshot.json');
+    if (existsSync(file)) files[name] = JSON.parse(readFileSync(file, 'utf8'));
+  }
+  if (!Object.keys(files).length) return null; // nothing migrated yet
+  // Each snapshot after the first holds only its changes: drizzle-kit's own
+  // replay (its SDK, from the API's dependencies) gives the newest state.
+  const kit = createRequire(path.join(REPO, 'apps/api/package.json')).resolve(
+    'drizzle-kit/api-postgres',
   );
-  const snapshot = JSON.parse(readFileSync(snapshotFile, 'utf8'));
-  const found = snapshot.tables?.[`public.${table}`];
-  return found ? found.columns : null;
+  const { reconstruct } = await import(pathToFileURL(kit).href);
+  const columns = (await reconstruct(files)).ddl.filter(
+    (e) =>
+      e.entityType === 'columns' && e.schema === 'public' && e.table === table,
+  );
+  return columns.length
+    ? Object.fromEntries(columns.map((c) => [c.name, c]))
+    : null;
 }
 
 /** The columns a field has (money: its pair). */
@@ -534,8 +543,8 @@ const columnsOf = (f) =>
  * errors to fix before `pnpm db:generate`, and whether it has anything to
  * generate.
  */
-function guard(api, record) {
-  const columns = snapshotTable(api, record.table);
+async function guard(api, record) {
+  const columns = await snapshotTable(api, record.table);
   if (!columns) return { errors: [], warnings: [], generate: true }; // a new table
   const errors = [];
   const warnings = [];
@@ -759,7 +768,7 @@ export async function syncFeature(api, plural, { check = false } = {}) {
   const texts = syncTexts(api, record, check);
   const paths = await syncPaths(api, record, check);
   const approvals = await syncApprovals(api, record, check);
-  const { errors, warnings, generate } = guard(api, record);
+  const { errors, warnings, generate } = await guard(api, record);
   warnings.push(...permissionWarnings(dir, file, record));
   return {
     plural,

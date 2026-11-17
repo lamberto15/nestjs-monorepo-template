@@ -25,7 +25,7 @@ export type RecordScheduleStatus = 'active' | 'paused' | 'ended';
  * rule in a time zone. The runner creates the due ones (`next_run_at`);
  * each occurrence is created at most once (`record_schedule_runs`).
  */
-export const recordSchedules = pgTable(
+export const recordSchedules = pgTable.withRLS(
   'record_schedules',
   {
     id: uuidPk(),
@@ -79,7 +79,7 @@ export const recordSchedules = pgTable(
       'restrict',
     ),
   ],
-).enableRLS();
+);
 
 export type RecordScheduleRow = typeof recordSchedules.$inferSelect;
 
@@ -87,7 +87,7 @@ export type RecordScheduleRow = typeof recordSchedules.$inferSelect;
  * One row per occurrence handled: the unique `(schedule, occurrence)` is
  * what keeps a retry or a second worker from creating a record twice.
  */
-export const recordScheduleRuns = pgTable(
+export const recordScheduleRuns = pgTable.withRLS(
   'record_schedule_runs',
   {
     id: uuidPk(),
@@ -112,4 +112,4 @@ export const recordScheduleRuns = pgTable(
       'cascade',
     ),
   ],
-).enableRLS();
+);

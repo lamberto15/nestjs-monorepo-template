@@ -48,7 +48,7 @@ export type AssignmentStatus = (typeof ASSIGNMENT_STATUSES)[number];
  * running request. `round` counts resubmissions after changes were
  * requested; `currentStage` is the stage of that round being decided.
  */
-export const approvalRequests = pgTable(
+export const approvalRequests = pgTable.withRLS(
   'approval_requests',
   {
     id: uuidPk(),
@@ -115,14 +115,14 @@ export const approvalRequests = pgTable(
     ),
     ...tenantTable('approval_requests', t, { referenced: true }),
   ],
-).enableRLS();
+);
 
 /**
  * Who decides a stage: resolved once, when the stage starts, so later role
  * changes don't change who decides it. One row per request, round, stage
  * and approver, so nobody decides a stage twice.
  */
-export const approvalAssignments = pgTable(
+export const approvalAssignments = pgTable.withRLS(
   'approval_assignments',
   {
     id: uuidPk(),
@@ -163,13 +163,13 @@ export const approvalAssignments = pgTable(
       [approvalRequests.tenantId, approvalRequests.id],
     ),
   ],
-).enableRLS();
+);
 
 /**
  * Out of office: `fromUserId`'s pending approvals may be decided by
  * `toUserId` between `startsAt` and `endsAt`, for every subject or one.
  */
-export const approvalDelegations = pgTable(
+export const approvalDelegations = pgTable.withRLS(
   'approval_delegations',
   {
     id: uuidPk(),
@@ -187,14 +187,14 @@ export const approvalDelegations = pgTable(
     index('approval_delegations_to_idx').on(t.toUserId, t.endsAt),
     ...tenantTable('approval_delegations', t),
   ],
-).enableRLS();
+);
 
 /**
  * The administrators' versions of an action's policy, numbered per action:
  * the newest one applies to new requests; `definition` null means back to
  * the code's default. Rows are never changed, so every version stays.
  */
-export const approvalPolicies = pgTable(
+export const approvalPolicies = pgTable.withRLS(
   'approval_policies',
   {
     id: uuidPk(),
@@ -215,10 +215,10 @@ export const approvalPolicies = pgTable(
     ),
     ...tenantTable('approval_policies', t),
   ],
-).enableRLS();
+);
 
 /** What happened to a request, in order: its timeline (GET /approvals/{id}). */
-export const approvalEvents = pgTable(
+export const approvalEvents = pgTable.withRLS(
   'approval_events',
   {
     id: uuidPk(),
@@ -243,7 +243,7 @@ export const approvalEvents = pgTable(
       [approvalRequests.tenantId, approvalRequests.id],
     ),
   ],
-).enableRLS();
+);
 
 export type ApprovalRequestRow = typeof approvalRequests.$inferSelect;
 export type ApprovalAssignmentRow = typeof approvalAssignments.$inferSelect;
