@@ -106,10 +106,12 @@ export function recordPermissions(
               conditions: read,
             },
           }),
+          // capability:shares begin
           // Granted by no seed role: an administrator chooses who may show records outside the tenant.
           ...(declaration.capabilities.includes('share') && {
             share: { label: `Share ${nouns} by link`, conditions: read },
           }),
+          // capability:shares end
           ...options.actions,
         },
       },

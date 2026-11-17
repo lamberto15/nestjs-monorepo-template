@@ -228,7 +228,7 @@ export async function startOpenTelemetry(env: NodeJS.ProcessEnv = process.env) {
         redactedQueryParamsServer: redactedParams,
         redactedQueryParams: redactedParams,
       }),
-      // fetch and undici (the webhooks, the OIDC and AI clients).
+      // fetch and undici (the webhooks' and the OIDC clients, every outgoing call).
       new UndiciInstrumentation(),
       // The database driver Drizzle runs on.
       new PgInstrumentation(),

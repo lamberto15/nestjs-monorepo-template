@@ -59,7 +59,9 @@ export const allFeatures: Features = {
   magicLink: true,
   documents: true,
   presignedUploads: false,
+  // capability:ai begin
   ai: true,
+  // capability:ai end
   exchangeRates: true,
   mode: 'normal',
   tenancy: 'multi',
@@ -95,6 +97,7 @@ export const handlers = [
       viewedAt: new Date().toISOString(),
     }),
   ),
+  // capability:presence begin
   http.get('/v1/presence/:subject/:recordId', () =>
     HttpResponse.json({ items: [] }),
   ),
@@ -105,6 +108,7 @@ export const handlers = [
     '/v1/presence/:subject/:recordId',
     () => new HttpResponse(null, { status: 204 }),
   ),
+  // capability:presence end
   // The sidebar's approvals badge asks for its count on every signed-in page.
   http.get('/v1/approvals', () =>
     HttpResponse.json({ items: [], nextCursor: null, total: 0 }),

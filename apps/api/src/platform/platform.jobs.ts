@@ -106,6 +106,7 @@ export const RECORD_SCHEDULE_JOB = defineSystemJob({
   permissions: [],
 });
 
+// capability:automations begin
 /**
  * AutomationRunHandler: runs a rule on a record's change, from the outbox
  * (the actions run as the rule's owner, with the owner's permissions);
@@ -118,6 +119,7 @@ export const AUTOMATIONS_JOB = defineSystemJob({
     "Runs the tenant's automation rules on the records' changes (their actions as the rule's owner), and disables a rule whose owner left, that runs too often or keeps failing.",
   permissions: [],
 });
+// capability:automations end
 
 /**
  * ApprovalWorkflow's steps: starting stages, reminders, escalations,
@@ -206,6 +208,7 @@ export const RETENTION_JOB = defineSystemJob({
   permissions: [],
 });
 
+// capability:messaging begin
 /** MessagingProcessor: the SMS and push the notification channels queued. */
 export const MESSAGING_JOB = defineSystemJob({
   key: 'messaging',
@@ -232,6 +235,7 @@ export const MESSAGING_RETENTION_JOB = defineSystemJob({
     'Removes devices not seen for DEVICES_RETENTION_DAYS and the toll-fraud counters of past days, every night.',
   permissions: [],
 });
+// capability:messaging end
 
 /** AttachmentScanService: the malware scan of an upload, on a worker. */
 export const ATTACHMENT_SCAN_JOB = defineSystemJob({
@@ -292,7 +296,9 @@ export const PLATFORM_SYSTEM_JOBS = [
   NOTIFICATION_DELIVERY_JOB,
   REPORT_RUNNER_JOB,
   RECORD_SCHEDULE_JOB,
+  // capability:automations begin
   AUTOMATIONS_JOB,
+  // capability:automations end
   APPROVALS_JOB,
   EXCHANGE_RATES_JOB,
   MAIL_INTAKE_JOB,
@@ -303,8 +309,10 @@ export const PLATFORM_SYSTEM_JOBS = [
   PLATFORM_ANALYTICS_JOB,
   REENCRYPTION_JOB,
   RETENTION_JOB,
+  // capability:messaging begin
   MESSAGING_JOB,
   MESSAGING_INBOUND_JOB,
   MESSAGING_RETENTION_JOB,
+  // capability:messaging end
   CUSTOM_DOMAINS_JOB,
 ];

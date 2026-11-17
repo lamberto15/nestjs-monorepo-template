@@ -39,7 +39,9 @@ function setup(rows: unknown[]) {
     {} as never, // holds
     {} as never, // system
     registers as never, // quotas
+    // capability:automations begin
     {} as never, // automations
+    // capability:automations end
     registers as never, // incoming events
     registers as never, // retention
   );

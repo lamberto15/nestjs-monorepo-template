@@ -998,8 +998,10 @@ describe('templates and wizard do not drift', () => {
         social: 'microsoft',
         observe: true,
         otelEndpoint: 'https://otel.example.com',
+        // capability:messaging begin
         push: true,
         sms: true,
+        // capability:messaging end
       },
       { tenancy: 'multi', signUp: true, mail: 'resend', social: 'google' },
     ];
@@ -1032,10 +1034,12 @@ describe('a re-run merges what the template gained', () => {
   const GONE = [
     'WEBHOOKS',
     'REPORTS',
+    // capability:messaging begin
     'SMS_PROVIDER',
     'TWILIO_FROM',
     'PUSH_PROVIDER',
     'WEB_PUSH_SUBJECT',
+    // capability:messaging end
     'OBSERVE_APP_KEY',
     'USAGE_RETENTION_DAYS',
     'DATA_ENCRYPTION_KEYS_FILE',
@@ -1060,7 +1064,9 @@ describe('a re-run merges what the template gained', () => {
     }
     assert.match(
       text,
-      /New in env\.example since this file was written \(10\)/,
+      new RegExp(
+        `New in env\\.example since this file was written \\(${GONE.length}\\)`,
+      ),
     );
     // The reporting role's password is a secret like the others: made, hidden.
     assert.match(env.get('POSTGRES_REPORTING_PASSWORD'), /^[0-9a-f]{48}$/);
@@ -1170,15 +1176,19 @@ describe('a re-run merges what the template gained', () => {
   });
 });
 
-describe('questions for observability, the AI key, push and SMS', () => {
+describe('questions for observability, provider keys, push and SMS', () => {
+  // capability:messaging begin
   const KEYS = { publicKey: 'pub-key', privateKey: 'priv-key' };
   const vapid = () => KEYS;
+  // capability:messaging end
 
   test('all off by default: nothing is set, no key pair is made', async () => {
     const root = fixture();
     const out = temp();
     const { code, text, errors } = await setup(root, out, PRODUCTION, {
+      // capability:messaging begin
       vapid,
+      // capability:messaging end
     });
     assert.equal(code, 0, text);
     const env = parseEnv(read(out, 'production'));
@@ -1187,15 +1197,21 @@ describe('questions for observability, the AI key, push and SMS', () => {
       'OBSERVE_APP_SECRET',
       'OTEL_EXPORTER_OTLP_ENDPOINT',
       'SENTRY_DSN',
+      // capability:ai begin
       'ANTHROPIC_API_KEY',
+      // capability:ai end
+      // capability:messaging begin
       'WEB_PUSH_VAPID_PUBLIC_KEY',
       'TWILIO_ACCOUNT_SID',
+      // capability:messaging end
     ]) {
       assert.equal(env.get(key), '', key);
     }
+    // capability:messaging begin
     assert.equal(env.get('PUSH_PROVIDER'), 'off');
     assert.equal(env.get('SMS_PROVIDER'), 'off');
     assert.doesNotMatch(errors, /VAPID|SMS_ALLOWED/);
+    // capability:messaging end
   });
 
   test('flags set them; secrets are masked, nothing is printed', async () => {
@@ -1219,8 +1235,11 @@ describe('questions for observability, the AI key, push and SMS', () => {
         'x-honeycomb-team=hc-secret',
         '--sentry-dsn',
         'https://pub@o1.ingest.sentry.io/2',
+        // capability:ai begin
         '--anthropic-api-key',
         'sk-ant-test',
+        // capability:ai end
+        // capability:messaging begin
         '--push',
         '--sms',
         '--twilio-account-sid',
@@ -1231,8 +1250,11 @@ describe('questions for observability, the AI key, push and SMS', () => {
         '+15551234567',
         '--sms-allowed-prefixes',
         '+1, +44',
+        // capability:messaging end
       ],
+      // capability:messaging begin
       { vapid },
+      // capability:messaging end
     );
     assert.equal(code, 0, text);
     const env = parseEnv(read(out, 'production'));
@@ -1247,7 +1269,10 @@ describe('questions for observability, the AI key, push and SMS', () => {
       'x-honeycomb-team=hc-secret',
     );
     assert.equal(env.get('SENTRY_DSN'), 'https://pub@o1.ingest.sentry.io/2');
+    // capability:ai begin
     assert.equal(env.get('ANTHROPIC_API_KEY'), 'sk-ant-test');
+    // capability:ai end
+    // capability:messaging begin
     assert.equal(env.get('PUSH_PROVIDER'), 'web-push');
     assert.equal(env.get('WEB_PUSH_SUBJECT'), 'mailto:ops@acme.io');
     assert.equal(env.get('SMS_PROVIDER'), 'twilio');
@@ -1255,6 +1280,7 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.equal(env.get('TWILIO_AUTH_TOKEN'), 'tw-token-value');
     assert.equal(env.get('TWILIO_FROM'), '+15551234567');
     assert.equal(env.get('SMS_ALLOWED_PREFIXES'), '+1, +44');
+    // capability:messaging end
     for (const secret of [
       'os-secret-value',
       'hc-secret',
@@ -1267,6 +1293,7 @@ describe('questions for observability, the AI key, push and SMS', () => {
     }
   });
 
+  // capability:messaging begin
   test('push: the VAPID pair is made once and kept, even by --rotate', async () => {
     const root = fixture();
     const out = temp();
@@ -1428,6 +1455,7 @@ describe('questions for observability, the AI key, push and SMS', () => {
       /--sms-allowed-prefixes: prefixes like \+1,\+44/,
     );
   });
+  // capability:messaging end
 
   test('observe off empties the keys of an earlier run; the questions keep the file as their default', async () => {
     const root = fixture();
@@ -1451,6 +1479,7 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.equal(env.get('OBSERVE_APP_SECRET'), '');
   });
 
+  // capability:messaging begin
   test('a credential kept in a file is not asked for again, and no second source is written', async () => {
     const root = fixture();
     const out = temp();
@@ -1474,6 +1503,7 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.equal(env.get('TWILIO_AUTH_TOKEN'), '');
     assert.equal(env.get('TWILIO_AUTH_TOKEN_FILE'), '/run/secrets/twilio');
   });
+  // capability:messaging end
 
   test('SMTP_URL kept in SMTP_URL_FILE: a re-run does not ask for the URL, and writes no second source', async () => {
     const root = fixture();
@@ -1556,7 +1586,9 @@ describe('questions for observability, the AI key, push and SMS', () => {
       MAIL_API_KEY: 'mail-key-value',
       AWS_SECRET_ACCESS_KEY: 'aws-secret-value',
       TURNSTILE_SECRET_KEY: 'turnstile-secret-value',
+      // capability:ai begin
       ANTHROPIC_API_KEY: 'sk-ant-value',
+      // capability:ai end
       OTEL_EXPORTER_OTLP_HEADERS: 'x-team=key-value',
       SENTRY_DSN: 'https://key@o1.ingest.sentry.io/1',
     };
@@ -1582,8 +1614,10 @@ describe('questions for observability, the AI key, push and SMS', () => {
       'site-key',
       '--turnstile-secret-key',
       kept.TURNSTILE_SECRET_KEY,
+      // capability:ai begin
       '--anthropic-api-key',
       kept.ANTHROPIC_API_KEY,
+      // capability:ai end
       '--otel-endpoint',
       'https://otel.example.com',
       '--otel-headers',
@@ -1659,8 +1693,12 @@ describe('questions for observability, the AI key, push and SMS', () => {
         'OTEL_EXPORTER_OTLP_HEADERS',
       ],
       ['sentryDsn', {}, 'SENTRY_DSN'],
+      // capability:ai begin
       ['anthropicApiKey', {}, 'ANTHROPIC_API_KEY'],
+      // capability:ai end
+      // capability:messaging begin
       ['twilioAuthToken', { sms: true }, 'TWILIO_AUTH_TOKEN'],
+      // capability:messaging end
     ];
     // A secret question added later must be listed here.
     assert.deepEqual(
@@ -1711,9 +1749,12 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.equal(errors, '');
     const env = parseEnv(read(out, 'development'));
     assert.equal(env.get('OBSERVE_APP_KEY'), '');
+    // capability:messaging begin
     assert.equal(env.has('PUSH_PROVIDER'), false);
+    // capability:messaging end
   });
 
+  // capability:messaging begin
   test('the real web-push package makes the pair (when installed)', async (t) => {
     const { generateVapidKeys } = await import('./vapid.mjs');
     const pair = generateVapidKeys();
@@ -1721,10 +1762,13 @@ describe('questions for observability, the AI key, push and SMS', () => {
     assert.match(pair.publicKey, /^[A-Za-z0-9_-]{87}$/);
     assert.match(pair.privateKey, /^[A-Za-z0-9_-]{43}$/);
   });
+  // capability:messaging end
 
+  // capability:ai begin
   test('env.example: the AI key is an active empty line, with its _FILE named', () => {
     const text = readFileSync(path.join(REPO, 'env.example'), 'utf8');
     assert.equal(parseEnv(text).get('ANTHROPIC_API_KEY'), '');
     assert.match(text, /^ANTHROPIC_API_KEY_FILE=$/m);
   });
+  // capability:ai end
 });

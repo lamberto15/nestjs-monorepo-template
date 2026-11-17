@@ -77,7 +77,7 @@ const WEB_TEXTS = [
 ];
 
 /** All files under `dir` with one of the extensions, as absolute paths. */
-function walk(dir, ...extensions) {
+export function walk(dir, ...extensions) {
   const found = [];
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const file = path.join(dir, entry.name);
@@ -98,7 +98,7 @@ const pascal = (kebab) =>
 const camel = (kebab) => pascal(kebab).replace(/^./, (c) => c.toLowerCase());
 
 /** `json` without the key path; false when it had none. */
-function deleteKey(json, keys) {
+export function deleteKey(json, keys) {
   const parent = keys
     .slice(0, -1)
     .reduce(
@@ -114,7 +114,7 @@ function deleteKey(json, keys) {
 }
 
 /** The web app's files of the feature (relative to `web`), those that exist. */
-function webPaths(web, plural) {
+export function webPaths(web, plural) {
   const locales = inside(web, 'locales');
   return [
     inside(web, 'features', plural),
@@ -141,12 +141,20 @@ function itemKey(dir, plural) {
 }
 
 /** A barrel without the imports from `./<name>/` and the lines using them. */
-function stripBarrel(text, plural) {
+const stripBarrel = (text, plural) => stripImports(text, `./${plural}/`);
+
+/** A regular expression's source matching `text` literally. */
+export const literal = (text) => text.replace(/[.*+?^${}()|[\]\\/]/g, '\\$&');
+
+/**
+ * A file without its imports and re-exports from specifiers starting with
+ * `prefix` (`./notes/`), and without the list lines using what they
+ * imported; throws when an imported name is still used after that.
+ */
+export function stripImports(text, prefix) {
+  const from = literal(prefix);
   const identifiers = [];
-  const imports = new RegExp(
-    `^import [^;]*?from '\\./${plural}/[^']*';\\n`,
-    'gm',
-  );
+  const imports = new RegExp(`^import [^;]*?from '${from}[^']*';\\n`, 'gm');
   let out = text.replace(imports, (statement) => {
     const clause = statement.match(/^import \{([^}]*)\}/);
     for (const part of clause?.[1].split(',') ?? []) {
@@ -162,7 +170,7 @@ function stripBarrel(text, plural) {
     return '';
   });
   out = out.replace(
-    new RegExp(`^export [^;]*?from '\\./${plural}/[^']*';\\n`, 'gm'),
+    new RegExp(`^export [^;]*?from '${from}[^']*';\\n`, 'gm'),
     '',
   );
   for (const id of identifiers) {
@@ -173,7 +181,7 @@ function stripBarrel(text, plural) {
     );
     if (new RegExp(`\\b${id}\\b`).test(out)) {
       throw new Error(
-        `${id} is still used after removing the import of ./${plural}/: remove that use by hand.`,
+        `${id} is still used after removing the import of ${prefix}: remove that use by hand.`,
       );
     }
   }
@@ -184,12 +192,26 @@ function stripBarrel(text, plural) {
  * A file without every `feature:<name> begin … end` block, marked by `#`
  * comments (env files) or `//` comments (test/setup-env.ts).
  */
-function stripEnvBlocks(text, plural) {
+const stripEnvBlocks = (text, plural) => stripBlocks(text, `feature:${plural}`);
+
+/**
+ * A file without every `<tag> begin … end` block (`feature:notes`,
+ * `capability:ai`), its marker lines included: `#` comments (env and YAML
+ * files), `//` comments, or `{/* … *\/}` in JSX. Throws on a begin without
+ * its end.
+ */
+export function stripBlocks(text, tag) {
+  const marker = (word) =>
+    `^[ \\t]*(?:#|//|\\{/\\*) ${literal(tag)} ${word}(?![\\w-]).*\\n`;
   const block = new RegExp(
-    `^[ \\t]*(?:#|//) feature:${plural} begin\\n[\\s\\S]*?^[ \\t]*(?:#|//) feature:${plural} end\\n`,
+    `${marker('begin')}[\\s\\S]*?${marker('end')}`,
     'gm',
   );
   const count = text.match(block)?.length ?? 0;
+  const begins = text.match(new RegExp(marker('begin'), 'gm'))?.length ?? 0;
+  if (begins !== count) {
+    throw new Error(`A "${tag} begin" has no "${tag} end" after it.`);
+  }
   const out = text.replace(block, '').replace(/\n\n\n+/g, '\n\n');
   return { out, count };
 }

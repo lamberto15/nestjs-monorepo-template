@@ -2,7 +2,9 @@ import { Module } from '@nestjs/common';
 import { FeaturesService } from './features.service.js';
 import { ModeModule } from '../mode/mode.module.js';
 import { DocumentsModule } from '../documents/documents.module.js';
+// capability:ai begin
 import { PlatformAiModule } from '../ai/ai.module.js';
+// capability:ai end
 import { FeaturesController } from './features.controller.js';
 
 /**
@@ -11,7 +13,13 @@ import { FeaturesController } from './features.controller.js';
  * PlatformModule (platform.module.ts).
  */
 @Module({
-  imports: [ModeModule, DocumentsModule, PlatformAiModule],
+  imports: [
+    ModeModule,
+    DocumentsModule,
+    // capability:ai begin
+    PlatformAiModule,
+    // capability:ai end
+  ],
   controllers: [FeaturesController],
   providers: [
     // Which switches are on, for clients (GET /v1/features).

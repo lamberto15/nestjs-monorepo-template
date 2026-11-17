@@ -32,16 +32,24 @@ import { NoteRevisions } from './note-revisions.js';
 import { revisionRoutes } from '../../platform/revisions/revision.routes.js';
 import { bulkRoutes } from '../../platform/bulk/bulk.routes.js';
 import { watchRoutes } from '../../platform/subscriptions/subscription.routes.js';
+// capability:shares begin
 import { shareRoutes } from '../../platform/shares/share.routes.js';
 import { NoteShares } from './note-shares.js';
+// capability:shares end
+// capability:automations begin
 import { NoteAutomation } from './note-automation.js';
+// capability:automations end
+// capability:data-quality begin
 import { NoteQuality } from './note-quality.js';
+// capability:data-quality end
 import { mergeRoutes } from '../../platform/merge/merge.routes.js';
 import { MERGES } from '../../platform/merge/record-merge.js';
 import { NoteMerge } from './note-merge.js';
 import { noteBulkSchema, noteSchema } from './note.schemas.js';
 import { NotePublishApproval } from './note-approvals.js';
+// capability:ai begin
 import { NoteAi } from './note-ai.js';
+// capability:ai end
 import { NoteDocuments } from './note-documents.js';
 import { documentRoutes } from '../../platform/documents/document.routes.js';
 import { listSource } from '../../platform/lists/lists.registry.js';
@@ -77,7 +85,9 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
       docs: NOTE_BULK_DOCS,
     }),
     watchRoutes(NOTE_ROUTES, { docs: NOTE_WATCH_DOCS }),
+    // capability:shares begin
     shareRoutes(NOTE_ROUTES),
+    // capability:shares end
     mergeRoutes(NOTE_ROUTES, { response: noteSchema }),
   ],
   providers: [
@@ -94,15 +104,23 @@ import { NOTE_LIST, NOTE_VIEWS } from './note.list.js';
     NoteComments,
     NoteAccess,
     NoteSubscriptions,
+    // capability:shares begin
     NoteShares,
+    // capability:shares end
+    // capability:automations begin
     NoteAutomation,
+    // capability:automations end
+    // capability:data-quality begin
     NoteQuality,
+    // capability:data-quality end
     NoteMerge,
     { provide: MERGES, useExisting: NoteMerge },
     NoteTags,
     NoteRevisions,
     NotePublishApproval,
+    // capability:ai begin
     NoteAi,
+    // capability:ai end
     NoteDocuments,
     // GET /v1/lists/Note: the list described, and what notes take (a generated record's comes from recordParts).
     listSource('Note', NOTE_LIST, NOTE_CAPABILITIES, NOTE_VIEWS),

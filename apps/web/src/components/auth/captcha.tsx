@@ -11,8 +11,10 @@ export type CaptchaAction =
   | 'sign-up'
   | 'magic-link'
   | 'forgot-password'
-  | 'resend-verification'
-  | 'public-form';
+  // capability:forms begin
+  | 'public-form'
+  // capability:forms end
+  | 'resend-verification';
 
 type Challenge = { provider: string; siteKey: string | null };
 

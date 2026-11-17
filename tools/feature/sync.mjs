@@ -369,9 +369,11 @@ export function recordPaths(record) {
       : []),
     ...(has('tags') ? [`${base}/{id}/tags`] : []),
     ...(has('watch') ? [`${base}/{id}/watch`] : []),
+    // capability:shares begin
     ...(has('share')
       ? [`${base}/{id}/shares`, `${base}/{id}/shares/{shareId}`]
       : []),
+    // capability:shares end
     ...(has('merge')
       ? [
           `${base}/duplicates`,
@@ -403,14 +405,29 @@ async function syncPaths(api, record, check) {
   const base = `/v1/${record.plural}`;
   const mine = (p) => p === base || p.startsWith(`${base}/`);
   const wanted = recordPaths(record);
-  const all = [
-    ...new Set([...paths.filter((p) => !mine(p)), ...wanted]),
-  ].sort();
   const added = wanted.filter((p) => !paths.includes(p));
   const removed = paths.filter((p) => mine(p) && !wanted.includes(p));
   if ((added.length || removed.length) && !check) {
-    const list = all.map((p) => `      '${p}',`).join('\n');
-    const edited = `${text.slice(0, start)}${block.slice(0, open)}\n${list}\n    ${text.slice(end)}`;
+    // Line by line, not rebuilt: the list holds comment lines too (the
+    // `capability:<name>` markers of pnpm capability:remove).
+    const pathOf = (line) => /^\s*'([^']+)',$/.exec(line)?.[1];
+    const lines = block
+      .slice(open)
+      .split('\n')
+      .filter((line) => !removed.includes(pathOf(line)));
+    for (const p of added.toSorted()) {
+      let at = lines.findIndex((line) => pathOf(line) > p);
+      if (at < 0) at = lines.findLastIndex((line) => pathOf(line)) + 1;
+      // Above the markers that open the block the next path is in.
+      while (
+        at > 0 &&
+        /^\s*\/\/ /.test(lines[at - 1]) &&
+        !pathOf(lines[at - 1])
+      )
+        at--;
+      lines.splice(at, 0, `      '${p}',`);
+    }
+    const edited = `${text.slice(0, start)}${block.slice(0, open)}${lines.join('\n')}${text.slice(end)}`;
     writeFileSync(file, await format(file, edited));
   }
   return [

@@ -129,6 +129,7 @@ describe('a record declaration', () => {
         settings: { payApproval: recordSetting.flag() },
       }),
     ).toThrow(/can't be a setting's name/);
+    // capability:data-quality begin
     // Data-quality checks name the record's own fields.
     expect(() =>
       defineRecord({ ...base, quality: { duplicates: ['email'] } }),
@@ -136,6 +137,7 @@ describe('a record declaration', () => {
     expect(() =>
       defineRecord({ ...base, quality: { recommended: ['title'] } }),
     ).not.toThrow();
+    // capability:data-quality end
   });
 
   it('refuses `keep` on a required reference: its key would refuse purging the record it kept', () => {

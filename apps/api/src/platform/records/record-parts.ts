@@ -7,7 +7,9 @@ import { documentRoutes } from '../documents/document.routes.js';
 import { revisionRoutes } from '../revisions/revision.routes.js';
 import { mergeRoutes } from '../merge/merge.routes.js';
 import { MERGES, RecordMerge } from '../merge/record-merge.js';
+// capability:shares begin
 import { shareRoutes } from '../shares/share.routes.js';
+// capability:shares end
 import { watchRoutes } from '../subscriptions/subscription.routes.js';
 import { listSource } from '../lists/lists.registry.js';
 import { templateSource } from '../templates/templates.registry.js';
@@ -35,14 +37,20 @@ import {
   recordKey,
   RecordAccessFinder,
   RecordAttachments,
+  // capability:automations begin
   RecordAutomation,
+  // capability:automations end
   RecordBulk,
   RecordComments,
+  // capability:data-quality begin
   RecordDataQuality,
+  // capability:data-quality end
   RecordDocuments,
   RecordRevisions,
   RecordSearch,
+  // capability:shares begin
   RecordShares,
+  // capability:shares end
   RecordSubscriptions,
   RecordTags,
   RecordTransfer,
@@ -62,8 +70,12 @@ const TARGETS: Partial<Record<Capability, Type>> = {
   watch: RecordSubscriptions,
   search: RecordSearch,
   transfer: RecordTransfer,
+  // capability:shares begin
   share: RecordShares,
+  // capability:shares end
+  // capability:automations begin
   automation: RecordAutomation,
+  // capability:automations end
   merge: RecordMerge,
 };
 
@@ -132,7 +144,9 @@ export function recordParts(
         ]
       : []),
     ...(has('watch') ? [watchRoutes(declaration)] : []),
+    // capability:shares begin
     ...(has('share') ? [shareRoutes(declaration)] : []),
+    // capability:shares end
     ...(has('merge')
       ? [mergeRoutes(declaration, { response: options.schemas.response })]
       : []),
@@ -184,8 +198,10 @@ export function recordParts(
       create: options.schemas.create,
       custom: has('custom'),
     }),
+    // capability:data-quality begin
     // The data-quality checks it declares (platform/data-quality).
     ...(declaration.quality ? [RecordDataQuality] : []),
+    // capability:data-quality end
     ...declaration.capabilities.flatMap((capability) => {
       const target = options.override?.[capability] ?? TARGETS[capability];
       return target ? [target] : [];

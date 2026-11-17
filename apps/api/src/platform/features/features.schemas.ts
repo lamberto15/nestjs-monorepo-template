@@ -39,11 +39,13 @@ export const featuresSchema = z.object({
     .describe(
       'Uploads straight to the object store (`STORAGE_DRIVER=s3`): `POST /v1/<records>/{id}/attachments/presign`, then `…/complete`. Off: they answer 503 `presigned_uploads_unavailable`; upload with the multipart `POST …/attachments`.',
     ),
+  // capability:ai begin
   ai: z
     .boolean()
     .describe(
       'The AI helper has a provider (`ANTHROPIC_API_KEY`). Off: `POST /v1/ai/runs` answers 503 `ai_unavailable`. On, a tenant still opts in with the public setting `ai.enabled` (403 `ai_disabled`).',
     ),
+  // capability:ai end
   exchangeRates: z
     .boolean()
     .describe(

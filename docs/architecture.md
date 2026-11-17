@@ -103,6 +103,10 @@ importing it:
 - A new platform provider or controller goes into its folder's module (a new
   folder gets one, imported last in `forRoot()`), and a provider into its
   `exports` when another module injects it.
+- A capability nothing else imports can be taken out with
+  `pnpm capability:remove <name>` ([adding a feature](adding-a-feature.md),
+  "Removing a platform capability"): its lines in shared files sit between
+  `capability:<name> begin` and `end` comments.
 
 ### The HTTP server
 

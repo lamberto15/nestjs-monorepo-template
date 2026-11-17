@@ -3,12 +3,16 @@ import {
   infiniteQueryOptions,
   queryOptions,
   useMutation,
+  // capability:presence begin
   useQuery,
+  // capability:presence end
   useQueryClient,
 } from '@tanstack/react-query';
 import { useEffect } from 'react';
 import { api } from '@/lib/api';
+// capability:presence begin
 import { useRealtimeEvent } from '@/lib/realtime';
+// capability:presence end
 
 /** What waits on the person (docs/work-surfaces.md): `GET /v1/inbox`. */
 export type WorkItem = GetResponse<'/v1/inbox'>['items'][number];
@@ -75,6 +79,7 @@ export function useRecordRecent(record: {
   }, [queryClient, subject, recordId, label]);
 }
 
+// capability:presence begin
 /** Beats this often while the page is open; the API forgets a person after 45 seconds. */
 export const PRESENCE_BEAT_MS = 15_000;
 
@@ -134,3 +139,4 @@ export function usePresence(
   const others = useQuery({ ...query, staleTime: PRESENCE_BEAT_MS });
   return others.data?.items.filter((person) => !person.self) ?? [];
 }
+// capability:presence end
