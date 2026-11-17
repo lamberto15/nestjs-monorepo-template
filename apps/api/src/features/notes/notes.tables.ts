@@ -19,7 +19,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
 import type { NoteStatus } from './note.schemas.js';
 
 /** Notes: the example resource. `ownerId` is the principal that created it, `user:<id>` or `client:<id>`. */

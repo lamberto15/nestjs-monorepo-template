@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DEFAULT_LIMIT, MAX_LIMIT } from '../../core/http/pagination.js';
-import { UNIT_TYPES } from '../../iam/iam.tables.js';
+import { UNIT_TYPES } from '../../iam/organization/organization.tables.js';
 
 /** Rows GET /v1/people answers at most, and the keys `key=` resolves at most. */
 export const MAX_PEOPLE = 20;

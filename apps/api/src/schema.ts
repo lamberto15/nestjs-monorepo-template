@@ -6,6 +6,7 @@
 export * from './core/database/core.tables.js';
 export * from './core/tenancy/tenancy.tables.js';
 export * from './iam/iam.tables.js';
+export * from './iam/organization/organization.tables.js';
 export * from './iam/sso/sso.tables.js';
 export * from './iam/holds/legal-holds.tables.js';
 export * from './platform/idempotency/idempotency.tables.js';

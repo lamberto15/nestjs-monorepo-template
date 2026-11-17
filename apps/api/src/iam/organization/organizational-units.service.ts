@@ -33,22 +33,21 @@ import {
 import { Tree, TreeCycleError } from '../../core/database/tree.js';
 import { AuditService } from '../audit/audit.service.js';
 import type { SystemPrincipal, UserPrincipal } from '../auth/principal.js';
+import { memberships, users } from '../iam.tables.js';
+import { scimGroups } from '../sso/sso.tables.js';
 import {
-  memberships,
+  currentMembership,
+  unitIdsOf,
+  type UnitsOfOptions,
+} from './memberships.js';
+import {
   organizationalUnitClosure,
   organizationalUnitMemberships,
   organizationalUnits,
   type UnitRole,
   type UnitType,
-  users,
-} from '../iam.tables.js';
-import { scimGroups } from '../sso/sso.tables.js';
-import { AccessService } from './access.service.js';
-import {
-  currentMembership,
-  unitIdsOf,
-  type UnitsOfOptions,
-} from './permissions.js';
+} from './organization.tables.js';
+import { UnitAccess } from './unit-access.js';
 
 /** The 409 of a change to a unit the tenant's IdP manages over SCIM. */
 const managedByScim = (what: string) =>
@@ -94,12 +93,12 @@ const rethrowNameTaken = (name: string) => (error: unknown) => {
  */
 @Injectable()
 export class OrganizationalUnitsService {
-  readonly tree = new Tree(organizationalUnitClosure);
+  private readonly tree = new Tree(organizationalUnitClosure);
 
   constructor(
     private readonly txHost: TransactionHost<DrizzleTransactions>,
     private readonly audit: AuditService,
-    private readonly access: AccessService,
+    private readonly access: UnitAccess,
   ) {}
 
   /** The current transaction, or the database outside one (core/database/transactions.ts). */
@@ -705,6 +704,40 @@ export class OrganizationalUnitsService {
         .values(added.map((userId) => ({ unitId, userId, validFrom: now })));
     }
     return { added, removed: removed.map((row) => row.userId) };
+  }
+
+  /**
+   * A unit the tenant's IdP creates over SCIM (iam/sso/scim): a top-level
+   * team, in SCIM's transaction. SCIM audits and invalidates; the
+   * `unit_managed_by_scim` rule guards administrators, not the IdP.
+   */
+  async createForScim(tx: Transaction, name: string) {
+    const [unit] = await tx
+      .insert(organizationalUnits)
+      .values({ type: 'team', name, parentId: null })
+      .returning();
+    await this.tree.add(tx, unit.id, null);
+    return unit;
+  }
+
+  /** The IdP renames its unit (SCIM's transaction, audit and invalidation). */
+  async renameForScim(tx: Transaction, id: string, name: string) {
+    await tx
+      .update(organizationalUnits)
+      .set({ name })
+      .where(eq(organizationalUnits.id, id));
+  }
+
+  /**
+   * The IdP deletes its unit, with its memberships (not the members), in
+   * SCIM's transaction. Records or saved views of the unit fail it: no
+   * cascade (`isStillReferenced()`, which SCIM answers).
+   */
+  async removeForScim(tx: Transaction, id: string) {
+    await tx
+      .delete(organizationalUnitMemberships)
+      .where(eq(organizationalUnitMemberships.unitId, id));
+    await tx.delete(organizationalUnits).where(eq(organizationalUnits.id, id));
   }
 
   /** Refuses ids that aren't this tenant's units (400). */

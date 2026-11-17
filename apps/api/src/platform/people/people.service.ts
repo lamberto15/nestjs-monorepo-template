@@ -8,14 +8,12 @@ import {
 import { escapeLike } from '../../core/http/list-query.js';
 import { afterCursor, toPage } from '../../core/http/pagination.js';
 import { requireTenantId } from '../../core/tenancy/tenant-scope.js';
+import { apiClients, memberships, users } from '../../iam/iam.tables.js';
 import {
-  apiClients,
-  memberships,
   organizationalUnits,
   organizationalUnitClosure,
   type UnitType,
-  users,
-} from '../../iam/iam.tables.js';
+} from '../../iam/organization/organization.tables.js';
 import { avatarUrl } from '../../iam/account/avatar-url.js';
 import type { Principal } from '../../iam/auth/principal.js';
 import { UsersRepository } from '../../iam/auth/users.repository.js';

@@ -8,7 +8,7 @@ import { APP_FEATURES } from '../app.tokens.js';
 import type { FeatureDefinition } from '../features/feature.js';
 import { AccessAdminService } from '../iam/access/access-admin.service.js';
 import { AccessService } from '../iam/access/access.service.js';
-import { OrganizationalUnitsService } from '../iam/access/organizational-units.service.js';
+import { OrganizationalUnitsService } from '../iam/organization/organizational-units.service.js';
 import { SingleTenant } from '../iam/access/single-tenant.js';
 import { SystemContext } from '../iam/access/system-context.js';
 import { AuditService } from '../iam/audit/audit.service.js';

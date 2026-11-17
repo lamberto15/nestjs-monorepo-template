@@ -21,12 +21,8 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import {
-  memberships,
-  organizationalUnits,
-  roles,
-  userRoles,
-} from '../iam.tables.js';
+import { memberships, roles, userRoles } from '../iam.tables.js';
+import { organizationalUnits } from '../organization/organization.tables.js';
 import type { Oauth2Mapping, Oauth2Preset } from './oauth2-mapping.js';
 
 /**

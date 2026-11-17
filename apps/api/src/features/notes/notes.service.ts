@@ -40,7 +40,7 @@ import { IncomingEventHandlers } from '../../platform/webhooks/incoming-event-ha
 import { RevisionsService } from '../../platform/revisions/revisions.service.js';
 import { ApprovalsService } from '../../platform/approvals/approvals.service.js';
 import { AccessService } from '../../iam/access/access.service.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { SystemContext } from '../../iam/access/system-context.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
 import { RetentionRegistry } from '../../platform/retention/retention.registry.js';

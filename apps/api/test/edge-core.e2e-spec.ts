@@ -36,7 +36,7 @@ import {
 import {
   organizationalUnitClosure,
   organizationalUnits,
-} from '../src/iam/iam.tables.js';
+} from '../src/iam/organization/organization.tables.js';
 
 describe('Tree: a closure table (PostgreSQL)', () => {
   let database: Awaited<ReturnType<typeof testDatabase>>;
