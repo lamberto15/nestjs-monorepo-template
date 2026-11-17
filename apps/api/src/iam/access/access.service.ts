@@ -43,13 +43,11 @@ import {
   principalKey,
   type Principal,
 } from '../auth/principal.js';
+import { apiClientRoles, rolePermissions, userRoles } from '../iam.tables.js';
 import {
-  apiClientRoles,
   organizationalUnitMemberships,
   organizationalUnits,
-  rolePermissions,
-  userRoles,
-} from '../iam.tables.js';
+} from '../organization/organization.tables.js';
 import { currentTenantId } from '../../core/tenancy/tenant-scope.js';
 import { PermissionCatalog } from './permission-catalog.js';
 import {
@@ -57,9 +55,8 @@ import {
   isAll,
   NO_UNITS,
   type PermissionInput,
-  unitIdsOf,
-  type UnitsOfOptions,
 } from './permissions.js';
+import { unitIdsOf, type UnitsOfOptions } from '../organization/memberships.js';
 
 type AppAbility = MongoAbility;
 

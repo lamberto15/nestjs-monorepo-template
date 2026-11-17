@@ -7,13 +7,13 @@ import {
 } from '../../core/database/transactions.js';
 import { escapeLike } from '../../core/http/list-query.js';
 import { AccessService } from '../../iam/access/access.service.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
-import { currentMembership } from '../../iam/access/permissions.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
+import { currentMembership } from '../../iam/organization/memberships.js';
+import { users } from '../../iam/iam.tables.js';
 import {
   organizationalUnitMemberships,
   organizationalUnits,
-  users,
-} from '../../iam/iam.tables.js';
+} from '../../iam/organization/organization.tables.js';
 import type { RequestPrincipal } from '../../iam/auth/principal.js';
 import {
   type ChoiceItem,

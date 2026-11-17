@@ -14,14 +14,10 @@ import {
   SIGN_IN_ACTIONS,
 } from '../audit/sign-in-actions.js';
 import { escapeLike, listQuery } from '../../core/http/list-query.js';
-import {
-  apiClients,
-  auditLog,
-  memberships,
-  organizationalUnitMemberships,
-  users,
-} from '../iam.tables.js';
-import { currentMembership, subquery } from './permissions.js';
+import { apiClients, auditLog, memberships, users } from '../iam.tables.js';
+import { organizationalUnitMemberships } from '../organization/organization.tables.js';
+import { subquery } from './permissions.js';
+import { currentMembership } from '../organization/memberships.js';
 
 /** Current members of these units (directly, not of the units below them). */
 const inUnits = (unitIds: string[]) =>

@@ -14,7 +14,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
 
 /** Who sees a record template: its owner alone, the current members of a unit, or the whole tenant. */
 export const TEMPLATE_VISIBILITIES = ['private', 'unit', 'tenant'] as const;

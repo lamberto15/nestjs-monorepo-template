@@ -35,7 +35,7 @@ import { normalizeEmail, UsersRepository } from '../auth/users.repository.js';
 import type { IamEnv } from '../iam.env.js';
 import { invitations, memberships, roles, userRoles } from '../iam.tables.js';
 import { AccessService } from './access.service.js';
-import { OrganizationalUnitsService } from './organizational-units.service.js';
+import { OrganizationalUnitsService } from '../organization/organizational-units.service.js';
 
 /** What an invitation grants once accepted. */
 export interface InvitationInput {

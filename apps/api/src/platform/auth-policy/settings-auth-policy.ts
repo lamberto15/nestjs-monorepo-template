@@ -10,7 +10,7 @@ import {
 } from '../../iam/auth/auth-policy.js';
 import type { IamEnv } from '../../iam/iam.env.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { SettingsService } from '../settings/settings.service.js';
 import {
   AUTH_ALLOW_BREAK_GLASS,

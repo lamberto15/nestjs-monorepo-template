@@ -24,8 +24,6 @@ import {
 import {
   auditLog,
   memberships,
-  organizationalUnitMemberships,
-  organizationalUnits,
   passkeys,
   refreshTokens,
   roles,
@@ -34,6 +32,10 @@ import {
   userRoles,
   users,
 } from '../../iam/iam.tables.js';
+import {
+  organizationalUnitMemberships,
+  organizationalUnits,
+} from '../../iam/organization/organization.tables.js';
 import { DataTransferRegistry } from '../data-transfer/data-transfer.registry.js';
 import type {
   DataExporter,

@@ -28,12 +28,12 @@ import { z } from 'zod';
 import { listSchema } from '../../core/http/pagination.js';
 import type { UserPrincipal } from '../auth/principal.js';
 import { UserOnly } from '../auth/user-only.decorator.js';
-import { UNIT_ROLES, UNIT_TYPES } from '../iam.tables.js';
+import { UNIT_ROLES, UNIT_TYPES } from '../organization/organization.tables.js';
 import { AccessAdminService } from './access-admin.service.js';
 import {
   IMPACT_USERS_LIMIT,
   OrganizationalUnitsService,
-} from './organizational-units.service.js';
+} from '../organization/organizational-units.service.js';
 import { AccessPolicy } from './policies.js';
 
 const unitSchema = z.object({

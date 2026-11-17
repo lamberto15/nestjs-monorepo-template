@@ -37,8 +37,8 @@ import {
   type RequestPrincipal,
   type UserPrincipal,
 } from '../../iam/auth/principal.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { defineResource } from '../../iam/resources/resource.js';
 import {
   type PersonalDataSource,

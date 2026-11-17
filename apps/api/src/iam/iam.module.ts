@@ -22,7 +22,8 @@ import { AccessController } from './access/access.controller.js';
 import { AccessSeeder } from './access/access.seeder.js';
 import { AccessService } from './access/access.service.js';
 import { OrganizationalUnitsController } from './access/organizational-units.controller.js';
-import { OrganizationalUnitsService } from './access/organizational-units.service.js';
+import { OrganizationalUnitsService } from './organization/organizational-units.service.js';
+import { UnitAccess } from './organization/unit-access.js';
 import { LegalHoldsController } from './holds/legal-holds.controller.js';
 import { LegalHoldsService } from './holds/legal-holds.service.js';
 import { ApiClientsService } from './access/api-clients.service.js';
@@ -445,6 +446,8 @@ export class IamModule {
         AccessService,
         AccessAdminService,
         OrganizationalUnitsService,
+        // The unit tree's view of the access engine, without importing it.
+        { provide: UnitAccess, useExisting: AccessService },
         LegalHoldsService,
         ApiClientsService,
         PrincipalsService,

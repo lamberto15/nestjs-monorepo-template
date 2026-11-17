@@ -8,16 +8,18 @@ import {
 } from '../../core/database/transactions.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { UserPrincipal } from '../../iam/auth/principal.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
-import { currentMembership } from '../../iam/access/permissions.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
+import { currentMembership } from '../../iam/organization/memberships.js';
 import {
-  organizationalUnitClosure,
-  organizationalUnitMemberships,
   rolePermissions,
   roles,
   userRoles,
   users,
 } from '../../iam/iam.tables.js';
+import {
+  organizationalUnitClosure,
+  organizationalUnitMemberships,
+} from '../../iam/organization/organization.tables.js';
 import type { ApprovalContext, ApproverRule } from './approval.types.js';
 import { ApprovalsRegistry } from './approvals.registry.js';
 

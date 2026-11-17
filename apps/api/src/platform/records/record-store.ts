@@ -20,7 +20,7 @@ import { refuseBroadRank } from '../../core/database/search.js';
 import { AccessService } from '../../iam/access/access.service.js';
 import type { List, ListQuery } from '../../core/http/list-query.js';
 import { LegalHoldsService } from '../../iam/holds/legal-holds.service.js';
-import { OrganizationalUnitsService } from '../../iam/access/organizational-units.service.js';
+import { OrganizationalUnitsService } from '../../iam/organization/organizational-units.service.js';
 import { type Principal, principalKey } from '../../iam/auth/principal.js';
 import type { RecordDeclaration } from './record.js';
 import {

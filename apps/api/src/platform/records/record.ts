@@ -20,7 +20,7 @@ import {
   tenantReference,
   tenantTable,
 } from '../../core/tenancy/tenant-scope.js';
-import { organizationalUnits } from '../../iam/iam.tables.js';
+import { organizationalUnits } from '../../iam/organization/organization.tables.js';
 import { defineCustomFields } from '../custom-fields/custom-field.types.js';
 import {
   columnName,
