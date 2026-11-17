@@ -1,4 +1,4 @@
-import { and, eq, inArray, or, sql, type SQL } from 'drizzle-orm';
+import { eq, inArray, sql, type SQL } from 'drizzle-orm';
 import { type AnyPgColumn, QueryBuilder } from 'drizzle-orm/pg-core';
 import type { z } from 'zod';
 import { principalKey, type Principal } from '../auth/principal.js';
