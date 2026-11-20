@@ -17,7 +17,7 @@
 # (CVEs) arrive here only when they are rebuilt. go install checks the
 # modules against Go's checksum database. Built on the build machine's
 # platform for the target's (no emulation).
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS supercronic
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.24 AS supercronic
 ARG TARGETOS
 ARG TARGETARCH
 # https://github.com/aptible/supercronic/releases
@@ -42,7 +42,7 @@ RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
 # built from a copy, the binary's build info says "(devel)", and Trivy then
 # reads rclone's version from the recorded -ldflags (fs.Version), which
 # -trimpath would drop, so a CVE in rclone itself is still found.
-FROM --platform=$BUILDPLATFORM golang:1.27.3-alpine3.24 AS rclone
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.24 AS rclone
 ARG TARGETOS
 ARG TARGETARCH
 # https://github.com/rclone/rclone/releases
