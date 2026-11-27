@@ -55,7 +55,7 @@ RUN dir=$(go mod download -json "github.com/rclone/rclone@$RCLONE_TAG" | grep '"
  && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GOTOOLCHAIN=local \
     go build -mod=readonly -ldflags="-s -w -X github.com/rclone/rclone/fs.Version=$RCLONE_TAG" -o /rclone .
 
-FROM postgres:18.6-alpine
+FROM postgres:19.0-alpine
 ENV TZ=UTC BACKUP_DIR=/backups BACKUP_STORAGE_DIR=/storage
 COPY --from=rclone /rclone /usr/local/bin/rclone
 COPY --from=supercronic /supercronic /usr/local/bin/supercronic
